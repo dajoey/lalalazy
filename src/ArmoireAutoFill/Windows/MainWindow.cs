@@ -1,9 +1,11 @@
 using System.Numerics;
 using ArmoireAutoFill.Data;
+using ArmoireAutoFill.Data.Shopping;
 using ArmoireAutoFill.Logic;
 using ArmoireAutoFill.Models;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using ECommons.DalamudServices;
 
 namespace ArmoireAutoFill.Windows;
 
@@ -50,7 +52,104 @@ public class MainWindow : Window
         ImGui.Separator();
         DrawActions();
         ImGui.Separator();
+        DrawKnightshopperShopping();
+        ImGui.Separator();
         DrawDungeonTable();
+    }
+
+    private void DrawKnightshopperShopping()
+    {
+        if (ImGui.CollapsingHeader("Knightshopper shopping list"))
+        {
+            if (KnightshopperCatalogBuilder.IsLoaded)
+                DrawKnightshopperShoppingBody();
+            else
+            {
+                KnightshopperCatalogBuilder.Build();
+                if (!KnightshopperCatalogBuilder.IsLoaded)
+                    ImGui.TextColored(ColorMissing,
+                        "Shop catalog unavailable (required excel sheets missing). Check /xllog for errors.");
+            }
+        }
+    }
+
+    private void DrawKnightshopperShoppingBody()
+    {
+        if (!ArmoireShoppingInput.TryBuild(_scanner, _cabinet, out var input))
+        {
+            ImGui.TextColored(ColorMuted, "Rescan the inventory first (opening this window does it automatically).");
+            return;
+        }
+
+        var result = ShoppingListBuilder.Build(input);
+        var buyable = result.Currencies.Sum(c => c.Items.Count);
+        var excluded = result.Excluded.Count;
+        var inBags = excluded == 0 ? 0 : result.Excluded.Count(e => e.Reason.Contains("inventory"));
+        var missing = result.MissingNotBuyable + buyable;
+
+        ImGui.Text($"Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
+        if (excluded > 0)
+            ImGui.TextColored(ColorMuted,
+                $"{inBags} missing piece(s) are already in your inventory/armoury chest — AutoStore handles those, no purchase needed.");
+        if (result.MissingNotBuyable > 0)
+            ImGui.TextColored(ColorMuted,
+                $"{result.MissingNotBuyable} missing piece(s) are not sold by any vendor Knightshopper can reach (dropped, crafted, or handler-linked shop).");
+
+        var ksLoaded = IsKnightshopperLoaded();
+        if (!ksLoaded)
+            ImGui.TextColored(ColorMuted,
+                "Knightshopper is not installed or not loaded — you can still copy the codes below and paste them after loading it.");
+
+        foreach (var group in result.Currencies)
+        {
+            var questLocked = group.Items.Count(c => c.Entry.QuestRowId != 0);
+            var priceLabel = group.TotalPrice > 0 ? $", {group.TotalPrice:N0} total" : string.Empty;
+            ImGui.Text($"{group.CurrencyName}: {group.Items.Count} item(s){priceLabel}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"Copy import code##ks{group.CurrencyId}"))
+            {
+                try
+                {
+                    var listName = $"Armoire fill ({group.CurrencyName})";
+                    var items = group.Items
+                        .Select(c => new Ks1Item(c.Entry.ItemId, c.Entry.VendorId, c.Entry.ShopId, 1, c.Entry.SubCurrency))
+                        .ToList();
+                    var share = KnightshopperShare.Encode(group.CurrencyId, listName, items);
+                    ImGui.SetClipboardText(share);
+                    _ksStatus = $"Copied {items.Count} item(s) for {group.CurrencyName} — open Knightshopper, select the "
+                                + $"{group.CurrencyName} tab, and press its paste button. This adds a new list and keeps your existing ones.";
+                }
+                catch (Exception ex)
+                {
+                    _ksStatus = $"Encoding failed: {ex.Message}";
+                }
+            }
+
+            if (group.Truncated)
+                ImGui.TextColored(ColorMissing,
+                    $"  Only the first {KnightshopperShare.MaxItems} items fit in one Knightshopper list — the rest are skipped this time.");
+            if (questLocked > 0)
+                ImGui.TextColored(ColorMuted,
+                    $"  {questLocked} of these are quest-locked: the vendor only sells them after you complete their quest.");
+        }
+
+        if (!string.IsNullOrEmpty(_ksStatus))
+            ImGui.TextWrapped(_ksStatus);
+    }
+
+    private string? _ksStatus;
+
+    private static bool IsKnightshopperLoaded()
+    {
+        try
+        {
+            var sub = Svc.PluginInterface.GetIpcSubscriber<int>("Knightshopper.ApiVersion");
+            return sub.HasFunction;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void DrawSummary()

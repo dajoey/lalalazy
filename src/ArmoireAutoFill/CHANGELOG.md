@@ -1,5 +1,14 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.0.0 (2026-10-07) [testing]
+### Added
+- **Knightshopper shopping list.** New collapsible section in the main window: every armoire-eligible item that is missing, that is sold by a vendor Knightshopper can reach, and that is not already in the inventory, grouped by currency (gil, hunt seals, PvP wolf marks). One click per currency copies a Knightshopper import code to the clipboard; pasting it into Knightshopper's matching currency tab (paste button) creates a new shopping list and leaves existing lists untouched. No purchase is ever started by this feature — the clipboard is the only thing it touches.
+- Missing pieces that are already in the inventory or armoury chest are reported instead of listed for purchase (auto-store handles those), and pieces no reachable vendor sells are counted so the total adds up.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Knightshopper itself does not need to be loaded to copy the codes; when it is not detected the window says so. Import-time validation still applies inside Knightshopper, so every generated entry uses only shops Knightshopper's own catalog can reach.
+- Quest-locked shop entries are included and counted, since the vendor only offers them after the quest is done.
+
 ## v0.4.4.1 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers "Auto-store when the Armoire opens", scanning the inventory on login, showing owned items and hiding finished dungeons to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
