@@ -34,6 +34,15 @@ internal partial class Configs
     /// </summary>
     public ConcurrentDictionary<string, PvpDefensiveSetting> PvpDefensiveSettings { get; set; } = new();
 
+    // The two top-level keys are written only once they differ from the default, so a configuration file that never
+    // touched these settings is byte-for-byte the file an older build writes (Newtonsoft calls ShouldSerialize<Name>).
+
+    /// <summary>The master switch is written only while it is off.</summary>
+    public bool ShouldSerializePvpDefensivesMaster() => !PvpDefensivesMaster;
+
+    /// <summary>The stored defensive settings are written only once one exists.</summary>
+    public bool ShouldSerializePvpDefensiveSettings() => !PvpDefensiveSettings.IsEmpty;
+
     private static string DefensiveKey(DefensiveRow row) => row.ActionId.ToString(CultureInfo.InvariantCulture);
 
     private PvpDefensiveSetting? StoredDefensive(DefensiveRow row) =>
