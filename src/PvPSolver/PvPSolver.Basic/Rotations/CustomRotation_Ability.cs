@@ -356,11 +356,15 @@ public partial class CustomRotation
 		}
 		IBaseAction.ShouldEndSpecial = false;
 
-		if (HasHostilesInRange && DataCenter.CurrentDutyRotation?.AttackAbility(nextGCD, out act) == true)
+		// Attack abilities: melee jobs in PvP consider them with an enemy within 5 yalms (their weaponskill reach)
+		// instead of JobRange; JobRange itself is shared and unchanged.
+		bool hasHostilesForAttack = DataCenter.NumberOfHostilesInRangeOf(RotationSolver.Decisions.AttackRangeGate.Radius(
+			DataCenter.IsPvP, DataCenter.Role == JobRole.Melee, DataCenter.JobRange)) > 0;
+		if (hasHostilesForAttack && DataCenter.CurrentDutyRotation?.AttackAbility(nextGCD, out act) == true)
 		{
 			return true;
 		}
-		if (HasHostilesInRange && AttackAbility(nextGCD, out act))
+		if (hasHostilesForAttack && AttackAbility(nextGCD, out act))
 		{
 			return true;
 		}

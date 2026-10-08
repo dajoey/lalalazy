@@ -29,6 +29,7 @@ internal static class Program
         SmiteGuard.Run();
         UtilityAllowlist.Run();
         DefenseStall.Run();
+        MeleeRange.Run();
 
         return Harness.Finish();
     }
