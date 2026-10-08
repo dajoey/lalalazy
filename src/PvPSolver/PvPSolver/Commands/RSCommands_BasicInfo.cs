@@ -62,6 +62,14 @@ namespace RotationSolver.Commands
 				return;
 			}
 
+			// `/pvpsolver advanced [tab]` opens the full Rotation Solver settings window directly (fork addition).
+			if (command.StartsWith("advanced", StringComparison.OrdinalIgnoreCase)
+				&& (command.Length == "advanced".Length || char.IsWhiteSpace(command["advanced".Length])))
+			{
+				PvPSolverPlugin.OpenAdvancedWindow(command["advanced".Length..].Trim());
+				return;
+			}
+
 			if (string.Equals(command, "cancel", StringComparison.OrdinalIgnoreCase))
 			{
 				command = "off";

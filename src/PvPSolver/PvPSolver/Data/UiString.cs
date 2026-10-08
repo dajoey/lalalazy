@@ -28,7 +28,7 @@ namespace RotationSolver.Data
 		[Description("Territory Condition")]
 		ConfigWindow_Territoryset,
 
-		[Description("No rotations loaded! Please check the rotations tab!")]
+		[Description("No rotation is loaded here. Job options are in the PvP Solver settings window (/pvpsolver).")]
 		ConfigWindow_NoRotation,
 
 		[Description("Current duty logic.")]

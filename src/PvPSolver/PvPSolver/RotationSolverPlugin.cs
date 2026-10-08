@@ -16,6 +16,7 @@ using RotationSolver.Data;
 using RotationSolver.Helpers;
 using RotationSolver.IPC;
 using RotationSolver.UI;
+using RotationSolver.UI.Pvp;
 using RotationSolver.UI.HighlightTeachingMode;
 using RotationSolver.UI.HighlightTeachingMode.ElementSpecial;
 using RotationSolver.Updaters;
@@ -28,6 +29,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	private readonly WindowSystem windowSystem;
 
 	private static RotationConfigWindow? _rotationConfigWindow;
+	private static PvpSettingsWindow? _pvpSettingsWindow;
 	private static ControlWindow? _controlWindow;
 	private static NextActionWindow? _nextActionWindow;
 	private static InterceptedActionWindow? _interceptedActionWindow;
@@ -93,6 +95,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		IPCProvider = new();
 
 		_rotationConfigWindow = new();
+		_pvpSettingsWindow = new();
 		_controlWindow = new();
 		_nextActionWindow = new();
 		_interceptedActionWindow = new();
@@ -118,6 +121,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 
 		windowSystem = new WindowSystem(Name);
 		windowSystem.AddWindow(_rotationConfigWindow);
+		windowSystem.AddWindow(_pvpSettingsWindow);
 		windowSystem.AddWindow(_controlWindow);
 		windowSystem.AddWindow(_nextActionWindow);
 		windowSystem.AddWindow(_interceptedActionWindow);
@@ -241,9 +245,29 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		OpenConfigWindow();
 	}
 
+	/// <summary>Opens (or closes) the PvP settings window: the default way to open the settings.</summary>
 	internal static void OpenConfigWindow()
 	{
-		_rotationConfigWindow?.Toggle();
+		_pvpSettingsWindow?.Toggle();
+	}
+
+	/// <summary>
+	/// Opens the full Rotation Solver settings window, optionally on a tab (a member name of its tab enum, or a
+	/// word <see cref="RotationSolver.Decisions.AdvancedTab"/> knows). Never goes through the PvP settings window.
+	/// </summary>
+	internal static void OpenAdvancedWindow(string? tabName = null)
+	{
+		if (_rotationConfigWindow == null)
+		{
+			return;
+		}
+
+		_rotationConfigWindow.IsOpen = true;
+		string? resolved = RotationSolver.Decisions.AdvancedTab.Resolve(tabName);
+		if (resolved != null && Enum.TryParse(resolved, true, out RotationConfigWindowTab tab))
+		{
+			_rotationConfigWindow.SetActiveTab(tab);
+		}
 	}
 
 	/// <summary>`/pvpsolver changelog` - reopen the "What's new" popup on demand.</summary>

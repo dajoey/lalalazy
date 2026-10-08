@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace RotationSolver.Decisions;
 
@@ -146,5 +147,40 @@ public static class OptionText
         }
 
         return parentText != null && string.Equals(parentText.Trim(), requiredValue.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///     The first sentences of a text, as many as fit in <paramref name="maxChars"/> (the first sentence is always
+    ///     kept), stopping before a sentence that starts with <paramref name="stopAtPrefix"/> (when it is not empty).
+    ///     A sentence ends at a full stop followed by white space.
+    /// </summary>
+    public static string Excerpt(string? text, int maxChars, string stopAtPrefix = "")
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        string[] sentences = Regex.Split(text.Trim(), @"(?<=\.)\s+");
+        List<string> kept = [];
+        int length = 0;
+        foreach (string sentence in sentences)
+        {
+            if (stopAtPrefix.Length > 0 && sentence.StartsWith(stopAtPrefix, StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            int next = length + (kept.Count == 0 ? 0 : 1) + sentence.Length;
+            if (kept.Count > 0 && next > maxChars)
+            {
+                break;
+            }
+
+            kept.Add(sentence);
+            length = next;
+        }
+
+        return string.Join(' ', kept);
     }
 }
