@@ -34,6 +34,7 @@ internal static class Program
         BrdPaean.Run();
         WhmAquaveil.Run();
         TargetingSelect.Run();
+        DefensiveTriggerTruth.Run();
 
         return Harness.Finish();
     }
