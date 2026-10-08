@@ -5730,6 +5730,137 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     MarkerPlacementProbe.RelText(new System.Numerics.Vector2(3955.2f, 402.75f), rootPos160j));
 }
 
+// 161. Auto-Market panel: list model, dock math, knob coercion (0.2.8.12).
+{
+  const uint Ore1 = 5111;   // marketable
+  const uint Ore2 = 4;      // marketable
+  const uint Junk = 9;      // NOT marketable
+
+  static AutoMarketPanelModel.StackInput S(int c, int s, uint id, bool hq, int qty) => new(c, s, id, hq, qty);
+  static AutoMarketPanelModel.EntryInput E(uint id, bool hq = false, bool enabled = true, bool excl = false, int stack = 0, int keep = 0)
+    => new(id, hq, enabled, excl, stack, keep);
+
+  static string Name(uint id) => id switch
+  {
+    Ore1 => "Zeta Crystal", Ore2 => "Alpha Ore", Junk => "Junk Trash", _ => "?",
+  };
+  static uint Cat(uint id) => id == Junk ? 0u : 13u;
+  static bool Marketable(uint id) => id != Junk;
+
+  var stacks = new List<AutoMarketPanelModel.StackInput>
+  {
+    S(0, 1, Ore1, false, 40), S(0, 2, Ore1, false, 59), S(1, 0, Ore1, true, 12), S(2, 3, Ore2, false, 7), S(3, 0, Junk, false, 5),
+  };
+  var entries = new List<AutoMarketPanelModel.EntryInput> { E(Ore2, excl: true, stack: 99, keep: 10), E(Ore1, enabled: false) };
+
+  var all = AutoMarketPanelModel.Build(stacks, entries, Name, Cat, Marketable);
+
+  Check("161 list: every marketable stack is present, grouped by item and quality",
+    all.Count == 4 && all.Count(r => r.ItemId == Ore1) == 2, $"rows={all.Count}");
+  Check("161 list: same-item stacks merge with summed quantity and a stack count",
+    all.Single(r => r.ItemId == Ore1 && !r.Hq) is { Quantity: 99, Stacks: 2 });
+  Check("161 list: HQ is its own row", all.Single(r => r.ItemId == Ore1 && r.Hq).Quantity == 12);
+  Check("161 list: on-list vs not-on-list is per item+HQ",
+    all.Single(r => r.ItemId == Ore2).Kind == AutoMarketPanelModel.RowKind.OnList
+    && all.Single(r => r.ItemId == Ore1 && r.Hq).Kind == AutoMarketPanelModel.RowKind.NotListed);
+  Check("161 list: a disabled entry is still ON the list, carrying the off flag",
+    all.Single(r => r.ItemId == Ore1 && !r.Hq) is { Kind: AutoMarketPanelModel.RowKind.OnList, EntryEnabled: false });
+  Check("161 list: the quick-exclude flag surfaces with the entry's knobs",
+    all.Single(r => r.ItemId == Ore2) is { Excluded: true, StackSize: 99, KeepInBags: 10, EntryEnabled: true });
+
+  var counts161 = AutoMarketPanelModel.Count(all);
+  Check("161 list: counts over every group - on-list, not-listed, excluded, hidden unmarketable",
+    counts161 is { OnList: 2, NotListed: 1, Excluded: 1, NotMarketable: 1 }, $"{counts161}");
+
+  var visibleAll = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.All, "", 0, false));
+  Check("161 list: unmarketable rows are hidden by default", visibleAll.All(r => r.Kind != AutoMarketPanelModel.RowKind.NotMarketable), $"{visibleAll.Count} visible");
+  var visibleShown = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.All, "", 0, true));
+  Check("161 list: unmarketable rows show when asked", visibleShown.Count == 4);
+  var visibleOn = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.OnList, "", 0, false));
+  Check("161 list: the on-list filter", visibleOn.Count == 2);
+  var visibleNot = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.NotOnList, "", 0, false));
+  Check("161 list: the not-on-list filter", visibleNot.Count == 1 && visibleNot[0].ItemId == Ore1 && visibleNot[0].Hq);
+  var visibleExcl = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.Excluded, "", 0, false));
+  Check("161 list: the excluded filter", visibleExcl.Count == 1 && visibleExcl[0].ItemId == Ore2);
+  var visibleSearch = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.All, "zeta", 0, true));
+  Check("161 list: the search box is case-insensitive", visibleSearch.Count == 2);
+  var visibleCat = AutoMarketPanelModel.Visible(all, new AutoMarketPanelModel.Filters(AutoMarketPanelModel.StatusFilter.All, "", 13, true));
+  Check("161 list: the category filter", visibleCat.Count == 3);
+
+  Check("161 list: on-list rows sort in list order, then the rest by name",
+    visibleShown.Select(r => (r.ItemId, r.Hq)).SequenceEqual([(Ore2, false), (Ore1, false), (Ore1, true), (Junk, false)]),
+    string.Join(",", visibleShown.Select(r => $"{r.ItemId}:{(r.Hq ? "hq" : "nq")}")));
+
+  // add/remove semantics: the window calls Configuration.GetOrAddAutoMarketItem (the context menu's
+  // method) and AutoMarketItems.Remove - these pin what those calls do.
+  Check("161 add: adding a new item is a new entry", AutoMarketPanelModel.IsNewEntry(entries, Ore1, true));
+  Check("161 add: adding twice never duplicates (the right-click 'already on Auto-Market' case)",
+    !AutoMarketPanelModel.IsNewEntry(entries, Ore2, false));
+  Check("161 remove: only an existing entry can be removed",
+    AutoMarketPanelModel.HasEntry(entries, Ore2, false) && !AutoMarketPanelModel.HasEntry(entries, Junk, false));
+
+  var bulk = AutoMarketPanelModel.PlanBulk(visibleShown);
+  Check("161 bulk: add-all counts exactly the visible not-listed rows",
+    bulk.Adds.Count == 1 && bulk.Adds[0] == (Ore1, true), $"adds={bulk.Adds.Count}");
+  Check("161 bulk: remove-all counts exactly the visible on-list rows",
+    bulk.Removes.Count == 2 && bulk.Removes.Contains((Ore2, false)) && bulk.Removes.Contains((Ore1, false)), $"removes={bulk.Removes.Count}");
+
+  // knobs: one edit lands in exactly one knob value, with the main window's clamps.
+  var kv = new PanelKnobs.Values { Source = 0, ReserveSlots = 2, GateFreshness = 6, GateThreshold = 100, PlaceholderPrice = 5, DefaultAmount = 7 };
+  var before = kv.Clone();
+  Check("161 knob: the source combo writes only the source value", PanelKnobs.Apply(PanelKnobs.Knob.Source, kv, 2) && kv.Source == 2);
+  Check("161 knob: no-op when the value is unchanged", !PanelKnobs.Apply(PanelKnobs.Knob.Source, kv, 2));
+  Check("161 knob: reserve slots clamps to the retainer's 20 market slots", PanelKnobs.Apply(PanelKnobs.Knob.ReserveSlots, kv, 25) && kv.ReserveSlots == 19);
+  Check("161 knob: reserve slots never negative", PanelKnobs.Apply(PanelKnobs.Knob.ReserveSlots, kv, -3) && kv.ReserveSlots == 0);
+  Check("161 knob: gate freshness clamps to 1..168 hours", PanelKnobs.Apply(PanelKnobs.Knob.GateFreshness, kv, 0) && kv.GateFreshness == 1 && PanelKnobs.Apply(PanelKnobs.Knob.GateFreshness, kv, 500) && kv.GateFreshness == 168);
+  Check("161 knob: thresholds never go negative", PanelKnobs.Apply(PanelKnobs.Knob.GateThreshold, kv, -50) && kv.GateThreshold == 0 && PanelKnobs.Apply(PanelKnobs.Knob.DefaultAmount, kv, -1) && kv.DefaultAmount == 0);
+  Check("161 knob: sort mode stays within the four list orders", PanelKnobs.Apply(PanelKnobs.Knob.SortMode, kv, 9) && kv.SortMode == 3);
+  Check("161 knob: the master switch is a boolean knob like the rest", PanelKnobs.Apply(PanelKnobs.Knob.MasterEnabled, kv, true) && kv.MasterEnabled);
+  Check("161 knob: one edit never touches another knob's value",
+    kv.PriceMode == before.PriceMode && kv.PlaceholderPrice == 5 && kv.RetainerFirst == before.RetainerFirst
+    && kv.PartialStacks == before.PartialStacks && kv.PinchAllAfter == before.PinchAllAfter && kv.PinchFallback == before.PinchFallback
+    && kv.DuringAr == before.DuringAr && kv.InSweep == before.InSweep && kv.GateEnabled == before.GateEnabled
+    && kv.RoutingMove == before.RoutingMove && kv.AutoAssignUnrouted == before.AutoAssignUnrouted && kv.Markers == before.Markers
+    && kv.ChatMessages == before.ChatMessages && kv.DefaultAmount == 0);
+
+  // dock math: right, left, floating fallback, and the unreadable-inventory case.
+  var viewport = new PanelDock.Rect(new(0, 0), new(1920, 1080));
+  var panel = new System.Numerics.Vector2(380, 900);
+
+  var right = PanelDock.Place(true, new PanelDock.Rect(new(100, 100), new(700, 800)), viewport, panel, new(64, 64));
+  Check("161 dock: docks to the right of the inventory, top-aligned", right.Mode == PanelDock.DockMode.Right && right.Position == new System.Numerics.Vector2(808, 100), $"{right.Position}");
+
+  var left = PanelDock.Place(true, new PanelDock.Rect(new(1600, 100), new(300, 800)), viewport, panel, new(64, 64));
+  Check("161 dock: no room on the right, falls back to the left",
+    left.Mode == PanelDock.DockMode.Left && left.Position == new System.Numerics.Vector2(1212, 100), $"{left.Position}");
+
+  var floatBack = PanelDock.Place(true, new PanelDock.Rect(new(0, 0), new(1000, 800)), new PanelDock.Rect(new(0, 0), new(1000, 1080)), panel, new(3000, 500));
+  Check("161 dock: no room either side falls back to the remembered position, clamped on screen",
+    floatBack.Mode == PanelDock.DockMode.Floating && floatBack.Clamped && floatBack.Position == new System.Numerics.Vector2(620, 180), $"{floatBack.Position}");
+
+  var unreadable = PanelDock.Place(true, null, viewport, panel, new(200, 150));
+  Check("161 dock: an unreadable inventory never hides the panel - it floats where it was",
+    unreadable.Mode == PanelDock.DockMode.Floating && !unreadable.Clamped && unreadable.Position == new System.Numerics.Vector2(200, 150));
+  var degenerate = PanelDock.Place(true, new PanelDock.Rect(new(500, 500), new(0, 800)), viewport, panel, new(200, 150));
+  Check("161 dock: a degenerate inventory rectangle counts as unreadable",
+    degenerate.Mode == PanelDock.DockMode.Floating && degenerate.Position == new System.Numerics.Vector2(200, 150));
+
+  var ultrawide = PanelDock.Place(true, new PanelDock.Rect(new(1800, 300), new(900, 700)), new PanelDock.Rect(new(0, 0), new(5120, 1440)), panel, new(64, 64));
+  Check("161 dock: a 5120x1440 display docks right beside a centered inventory",
+    ultrawide.Mode == PanelDock.DockMode.Right && ultrawide.Position == new System.Numerics.Vector2(2708, 300), $"{ultrawide.Position}");
+
+  var tallInv = PanelDock.Place(true, new PanelDock.Rect(new(100, 900), new(700, 400)), viewport, panel, new(64, 64));
+  Check("161 dock: the docked panel never leaves the bottom of the screen",
+    tallInv.Mode == PanelDock.DockMode.Right && tallInv.Position.Y == 180, $"{tallInv.Position}");
+
+  var offScreen = PanelDock.Place(false, null, viewport, panel, new(-500, 2000));
+  Check("161 dock: a floating position dragged off-screen is pulled back",
+    offScreen.Mode == PanelDock.DockMode.Floating && offScreen.Clamped && offScreen.Position == new System.Numerics.Vector2(0, 180));
+
+  Check("161 dock: with the dock toggle off the panel always floats where it was",
+    PanelDock.Place(false, new PanelDock.Rect(new(100, 100), new(700, 800)), viewport, panel, new(64, 64)).Position == new System.Numerics.Vector2(64, 64));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

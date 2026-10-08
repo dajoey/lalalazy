@@ -38,6 +38,10 @@
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerRenderProbe.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerRenderGuard.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerPlacementProbe.cs" />
+  <!-- 0.2.8.12: the Auto-Market panel's Dalamud-free core - list model, dock math, knob coercion. -->
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\AutoMarketPanelModel.cs" />
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PanelDock.cs" />
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PanelKnobs.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerStability.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerTransitions.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />

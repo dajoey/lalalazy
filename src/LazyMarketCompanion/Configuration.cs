@@ -294,6 +294,21 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>Universalis data older than this many hours never holds an item back - the item lists. Clamped 1..168.</summary>
   public int AutoMarketGateFreshnessHours { get; set; } = 6;
 
+  // ----- Auto-Market panel (0.2.8.12) -----
+  // New fields with initializers: an existing config deserializes them as these defaults, no Version bump.
+
+  /// <summary>The Auto-Market panel docks beside the inventory window (right, then left, then a remembered floating position). Off = the panel floats and never opens or closes with the inventory.</summary>
+  public bool AutoMarketPanelDock { get; set; } = true;
+
+  /// <summary>An auto-opened Auto-Market panel stays up when the inventory closes. Off = it closes with the inventory.</summary>
+  public bool AutoMarketPanelPinned { get; set; } = false;
+
+  /// <summary>Where the Auto-Market panel floated last, so the floating fallback opens where the player left it.</summary>
+  public float AutoMarketPanelX { get; set; } = 64f;
+
+  /// <summary>Where the Auto-Market panel floated last, so the floating fallback opens where the player left it.</summary>
+  public float AutoMarketPanelY { get; set; } = 64f;
+
   /// <summary>
   /// Which items get the retainer's free market slots when there are not enough for everything.
   /// FastestSellingFirst (the default) ranks by Universalis per-item sale velocity of the rule's own

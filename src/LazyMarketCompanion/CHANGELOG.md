@@ -1,3 +1,13 @@
+## v0.2.8.12 (2026-10-07) [testing]
+### Added
+- **A new Auto-Market panel window lists every marketable stack in your bags and whether it is on the Auto-Market list** - the same two states the bag dots mark (plus what a dot cannot show: entries whose tick is unticked, and the quick-exclude flag), as a table with quantities. Each row has quick Add/Remove, and entries expose the same stack-size, keep-in-bags and skip-routing edits as the main window's table. The panel covers your four bag containers, which is what Auto-Market's bags stock source draws from.
+- **"Add all visible" / "Remove all visible" add or remove exactly the rows the filters currently show**, with the count on the button and a confirmation dialog before anything changes.
+- **The panel carries the global Auto-Market knobs** in a collapsible section: master switch, markers, AutoRetainer, stock source, pricing, reserve slots, pinch behaviour, listing order, the value gate and auto-assign - the same controls as the Auto-Market tab, writing the same settings. What the main window does not expose is not exposed here either. The master switch keeps its confirmation on turning on and stays locked while a run is in progress.
+- **Status filters, a name search, a category filter, and an optional count of unmarketable stacks** (hidden by default, like the dots' "no dot at all"). On-list rows keep the list's own order; everything else sorts by name. The panel never fetches prices, so the price-based listing orders are not applied here.
+- **The panel docks beside the inventory window**: to its right when the screen has room, else to its left, else it floats at a position it remembers (clamped on screen, so it can never drift out of reach). It opens with the inventory, closes with it unless pinned, and `/lmc panel` toggles it any time. An inventory window that cannot be read is just the floating case - the panel always appears, and the plugin log's open line carries the dock mode, position, size, the inventory rectangle and scale it read, and the row counts.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.11 (2026-10-07) [testing]
 ### Fixed
 - **Auto-Market marker dots are now drawn through a single full-screen drawing layer instead of one window per dot.** Every dot is painted directly onto one transparent overlay that covers the game's window - the same drawing path other screens in this plugin family use for game-anchored overlays - at exactly the same position as before. One window per dot could report itself healthy while nothing appeared on screen; that layer is gone entirely.

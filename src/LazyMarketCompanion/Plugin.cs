@@ -51,6 +51,7 @@ public sealed class Plugin : IDalamudPlugin
   private readonly MarketAutomation _automation;
   private readonly AutoMarketMarkers _markers;
   private readonly Inventory.InventoryService _inventory;
+  private readonly AutoMarketPanelWindow? _panel;
   private readonly ChangelogGate _changelog;
   private readonly LalaHubProvider? _hub;
   private readonly DalamudTelemetry? _telemetry;
@@ -167,7 +168,7 @@ public sealed class Plugin : IDalamudPlugin
 
     CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
     {
-      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), telemetry (log price decisions), report <what happened> (write a problem report to the plugin log), debug"
+      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, panel (Auto-Market panel beside your bags), changelog (what's new), telemetry (log price decisions), report <what happened> (write a problem report to the plugin log), debug"
     });
     // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
     // and yank Dagobert's command on our Dispose.
@@ -204,6 +205,12 @@ public sealed class Plugin : IDalamudPlugin
     WindowSystem.AddWindow(new Inventory.OwnerTooltip(_inventory));
     ConfigWindow.DrawInventoryTab = new Inventory.InventoryTab(_inventory).Draw;
 
+    // 0.2.8.12: the Auto-Market panel - the list view of what the bag dots mark, docked beside the
+    // inventory. Watch() runs before the window system every frame: it opens/closes with the
+    // inventory and computes the dock position while the window itself is still closed.
+    _panel = new AutoMarketPanelWindow(_inventory, () => _automation.IsBusy);
+    WindowSystem.AddWindow(_panel);
+
     Log.Information($"[LMC] loaded {PluginInterface.Manifest.AssemblyVersion}; autoMarketItems={Configuration.AutoMarketItems.Count} arInstalled={AutoRetainerIPC.Installed} imported={Configuration.ImportedFromDagobert}");
 
     // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
@@ -217,6 +224,7 @@ public sealed class Plugin : IDalamudPlugin
     _hub?.Dispose();   // first: a provider must never outlive its plugin
     DisposeRetainerItemCommandHook();
     _changelog.Dispose();
+    _panel?.Dispose();  // saves where the panel floated before the windows are torn down
     WindowSystem.RemoveAllWindows();
     _inventory.Dispose();
     _markers.Dispose();
@@ -397,6 +405,9 @@ public sealed class Plugin : IDalamudPlugin
       case "cancel":
         _automation.CancelEverything("cancelled by command");
         return;
+      case "panel":
+        _panel?.ToggleViaCommand();
+        return;
       case "changelog":
       case "whatsnew":
         _changelog.ShowNow();
@@ -533,6 +544,7 @@ public sealed class Plugin : IDalamudPlugin
 
   private void DrawUI()
   {
+    _panel?.Watch();
     WindowSystem.Draw();
   }
 
