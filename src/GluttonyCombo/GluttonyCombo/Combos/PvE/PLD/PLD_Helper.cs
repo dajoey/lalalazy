@@ -735,9 +735,7 @@ internal partial class PLD
         
         if (atonementEnabled && inAtonementPhase && flags.HasFlag(Combo.ST) && HasBattleTarget() &&
             (LocalPlayer.HasStatus(Buffs.FightOrFlight) || //Will burn them in Buff window
-             ComboAction is RiotBlade || //Will hold them until you are about to get more
-             LocalPlayer.HasStatus(Buffs.AtonementReady) || //Will use atonement Asap to Get the supplication ready
-             isAtonementExpiring)) //Burn it if it is expiring soon
+             isAtonementExpiring)) //Burn it if it is expiring soon; outside FoF the chain is held so Sepulchre is ready when FoF opens
         {
             actionID = OriginalHook(Atonement);
             return true;

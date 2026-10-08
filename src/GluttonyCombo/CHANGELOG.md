@@ -1,3 +1,9 @@
+## v1.0.4.293 (2026-10-08) [testing]
+### Changed
+- **The Paladin one-button rotation now holds the Atonement chain (Atonement, Supplication, Sepulchre) outside Fight or Flight instead of spending it mid-combo, so Sepulchre is ready to use when the window opens.** Stacks about to expire (under six seconds) are still used so nothing is wasted, and every decision inside the Fight or Flight window is unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.292 (2026-10-07) [testing]
 ### Changed
 - **The Auto-Rotation now runs the Black Mage area rotation when exactly two enemies are in range of the best area target, instead of staying on the single-target rotation until the configured enemy count (three by default).** Black Mage's area rotation already picks Blizzard IV over Freeze at exactly two targets; that pick was unreachable through the Auto-Rotation because the enemy-count gate sent every job back to the single-target rotation below the configured count. Every other job and every other enemy count behave exactly as before, and a disabled area rotation still disables the behavior.

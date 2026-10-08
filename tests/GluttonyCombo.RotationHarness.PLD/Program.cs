@@ -80,6 +80,53 @@ internal static class Program
             proc == Combos.PvE.PLD.Sepulchre,
             $"got {ActionName(proc)}",
             ref pass, ref fail);
+
+        // ---- PLD-2: outside Fight or Flight the chain is held, not spent ----
+        // Held mid-chain (ComboAction RiotBlade), an unexpiring Atonement proc, no FoF: the one-button
+        // must continue the combo (Royal Authority), not spend the chain.
+        SetHoldState(Combos.PvE.PLD.Buffs.AtonementReady);
+        var hold = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-2: no FoF, mid-chain (RiotBlade), AtonementReady held (not expiring) -> Invoke(FastBlade) returns the combo continuation (Royal Authority), not the chain",
+            hold == Combos.PvE.PLD.RoyalAuthority,
+            $"got {ActionName(hold)}",
+            ref pass, ref fail);
+
+        // Same hold for the middle link: a held Supplication proc must not be spent mid-chain either.
+        SetHoldState(Combos.PvE.PLD.Buffs.SupplicationReady);
+        var holdSupp = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-2: no FoF, mid-chain (RiotBlade), SupplicationReady held (not expiring) -> Invoke(FastBlade) returns the combo continuation (Royal Authority), not the chain",
+            holdSupp == Combos.PvE.PLD.RoyalAuthority,
+            $"got {ActionName(holdSupp)}",
+            ref pass, ref fail);
+
+        // Negative (a): inside FoF the chain still burns at once (the kept FoF clause).
+        SetHoldState(Combos.PvE.PLD.Buffs.AtonementReady, inFoF: true);
+        var burnInFof = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-2 negative: FoF + mid-chain (RiotBlade) + AtonementReady held -> Invoke(FastBlade) still burns the chain (Atonement) at once",
+            burnInFof == Combos.PvE.PLD.Atonement,
+            $"got {ActionName(burnInFof)}",
+            ref pass, ref fail);
+
+        // Negative (b): a stack about to expire (< 6 s) is still burned outside FoF (the kept expiring guard).
+        SetHoldState(Combos.PvE.PLD.Buffs.AtonementReady, expiring: true, midChain: false);
+        var burnExpiring = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-2 negative: no FoF, not mid-chain, AtonementReady expiring (5 s) -> Invoke(FastBlade) still burns it (Atonement)",
+            burnExpiring == Combos.PvE.PLD.Atonement,
+            $"got {ActionName(burnExpiring)}",
+            ref pass, ref fail);
+
+        // Negative (c): the Divine Might mid-combo clause is untouched and keeps its place above the hold.
+        SetHoldState(Combos.PvE.PLD.Buffs.AtonementReady, withDivineMight: true);
+        var dmMidCombo = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-2 negative: no FoF, Divine Might + mid-chain (RiotBlade) + AtonementReady held -> Invoke(FastBlade) still returns Holy Spirit (clause order unchanged)",
+            dmMidCombo == Combos.PvE.PLD.HolySpirit,
+            $"got {ActionName(dmMidCombo)}",
+            ref pass, ref fail);
     }
 
     /// <summary>The FoF burn-window states for the Sepulchre decision (PLD_Helper.cs:700-744).</summary>
@@ -96,6 +143,30 @@ internal static class Program
         FakeGame.HookOverrides[Combos.PvE.PLD.Atonement] = Combos.PvE.PLD.Sepulchre;     // the game's proc upgrade
     }
 
+    /// <summary>The PLD-2 hold states: outside FoF by default, one Atonement-family proc held
+    /// (fresh 20 s, or 5 s = inside the 6 s expiring guard), optionally inside FoF and/or with
+    /// Divine Might, mid-chain (ComboAction RiotBlade) or not. The game's level-100 action upgrade
+    /// (Rage of Halone -> Royal Authority) and the Supplication proc upgrade are mirrored the same
+    /// way SetFoFBurnState mirrors Atonement -> Sepulchre.</summary>
+    private static void SetHoldState(uint procId, bool inFoF = false, bool expiring = false, bool midChain = true, bool withDivineMight = false)
+    {
+        FakeGame.Reset(); // level-100 PLD, in combat, weave-blocked, in melee on a living target, full MP
+
+        FakeGame.ComboTimer = 30f;                                          // a live ST combo
+        FakeGame.ComboActionId = midChain ? Combos.PvE.PLD.RiotBlade : Combos.PvE.PLD.FastBlade;
+        FakeGame.HookOverrides[Combos.PvE.PLD.RageOfHalone] = Combos.PvE.PLD.RoyalAuthority;
+
+        FakeGame.Statuses.Add(new FakeStatus(procId, expiring ? 5f : 20f)); // the held proc
+
+        if (withDivineMight)
+            FakeGame.Statuses.Add(new FakeStatus(Combos.PvE.PLD.Buffs.DivineMight, 30f)); // above the 6 s expiring clause
+
+        if (inFoF)
+            FakeGame.Statuses.Add(new FakeStatus(Combos.PvE.PLD.Buffs.FightOrFlight, 15f)); // FoF window live
+
+        if (procId == Combos.PvE.PLD.Buffs.SupplicationReady)
+            FakeGame.HookOverrides[Combos.PvE.PLD.Atonement] = Combos.PvE.PLD.Supplication; // the game's proc upgrade
+    }
     private static void Report(string name, bool condition, string detail, ref int pass, ref int fail)
     {
         Console.WriteLine($"[{(condition ? "PASS" : "FAIL")}] {name} — {detail}");
@@ -116,6 +187,9 @@ internal static class Program
         (Combos.PvE.PLD.HolySpirit, nameof(Combos.PvE.PLD.HolySpirit)),
         (Combos.PvE.PLD.Atonement, nameof(Combos.PvE.PLD.Atonement)),
         (Combos.PvE.PLD.Sepulchre, nameof(Combos.PvE.PLD.Sepulchre)),
+        (Combos.PvE.PLD.RiotBlade, nameof(Combos.PvE.PLD.RiotBlade)),
+        (Combos.PvE.PLD.RoyalAuthority, nameof(Combos.PvE.PLD.RoyalAuthority)),
+        (Combos.PvE.PLD.Supplication, nameof(Combos.PvE.PLD.Supplication)),
     ];
 
     private static string ActionName(uint id) =>
