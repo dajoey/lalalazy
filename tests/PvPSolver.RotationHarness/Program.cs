@@ -28,6 +28,7 @@ internal static class Program
         PldThreshold.Run();
         SmiteGuard.Run();
         UtilityAllowlist.Run();
+        DefenseStall.Run();
 
         return Harness.Finish();
     }

@@ -299,8 +299,9 @@ public partial class CustomRotation
 			{
 				return true;
 			}
-			if (DefenseSingleAbility(nextGCD, out act)
-				|| (!DataCenter.IsHostileCastingToTank && !StatusHelper.PlayerHasStatus(true, StatusID.Vengeance) && !StatusHelper.PlayerHasStatus(true, StatusID.Damnation)))
+			bool defenseSingleFound = DefenseSingleAbility(nextGCD, out act);
+			if (RotationSolver.Decisions.DefenseSingleGate.EndsStage(defenseSingleFound, DataCenter.IsPvP, DataCenter.IsHostileCastingToTank,
+				StatusHelper.PlayerHasStatus(true, StatusID.Vengeance), StatusHelper.PlayerHasStatus(true, StatusID.Damnation)))
 			{
 				return true;
 			}
