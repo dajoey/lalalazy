@@ -5697,6 +5697,39 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     !MarkerRenderProbe.ShouldMeasure(rpCap160i), "session cap holds");
 }
 
+
+// 160j. THE ADDON-RELATIVE PLACEMENT PROBE (0.2.8.11; eight builds measured the dots against the
+//     plugin's own position source and every line was perfect while the dots were wrong or
+//     absent: the one question never asked is whether the game's own inventory window agrees
+//     with where the dot was put. The probe grades each drawn dot's center against the grid
+//     addon's real root-node rectangle - the game's position, scale and size for the same
+//     frame - so a dot landing outside the window it belongs to is named in the log, whatever
+//     the walk says.)
+{
+  // The real 0.2.8.8 session shape: display (5120x1440), Grid0E cells near x=3927, and the
+  // inventory window's root node read beside them.
+  var rootPos160j = new System.Numerics.Vector2(3880.5f, 356.25f);
+  var rootSize160j = new System.Numerics.Vector2(580f, 360f);
+  Check("160j placement: a dot inside the addon's own rectangle grades on-addon",
+    MarkerPlacementProbe.OnAddon(new System.Numerics.Vector2(3955.2f, 402.75f), rootPos160j, rootSize160j),
+    "center inside");
+  Check("160j placement: a dot beyond the window's right edge grades off-addon (the coordinate-space question)",
+    !MarkerPlacementProbe.OnAddon(new System.Numerics.Vector2(4700f, 402.75f), rootPos160j, rootSize160j),
+    "center 300px right of the window");
+  Check("160j placement: a dot beyond the window vertically grades off-addon too",
+    !MarkerPlacementProbe.OnAddon(new System.Numerics.Vector2(3955.2f, 900f), rootPos160j, rootSize160j),
+    "center far below the window");
+  Check("160j placement: a dot on the rectangle's edge lands inside (half a pixel of float slack)",
+    MarkerPlacementProbe.OnAddon(rootPos160j + rootSize160j, rootPos160j, rootSize160j),
+    $"edge ({rootPos160j.X + rootSize160j.X},{rootPos160j.Y + rootSize160j.Y})");
+  Check("160j placement: a missing root rectangle contains nothing (no evidence is not agreement)",
+    !MarkerPlacementProbe.OnAddon(new System.Numerics.Vector2(10f, 10f), System.Numerics.Vector2.Zero, System.Numerics.Vector2.Zero),
+    "zero-size rect");
+  Check("160j placement: the rel text names the offset from the window's own corner",
+    MarkerPlacementProbe.RelText(new System.Numerics.Vector2(3955.2f, 402.75f), rootPos160j) == "rel=(74.7,46.5)",
+    MarkerPlacementProbe.RelText(new System.Numerics.Vector2(3955.2f, 402.75f), rootPos160j));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

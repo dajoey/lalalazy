@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -176,10 +177,13 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private readonly Dictionary<string, MarkerProbe.State> _probeStates = [];
 
   // 0.2.8.8: render-side probe bookkeeping, keyed like _probeStates, plus the per-pass scratch of
-  // the first drawn dots' measured render numbers (filled between each dot window's Begin and End,
-  // graded and logged after the loop by MarkerRenderProbe).
+  // the first drawn dots' measured render numbers, graded and logged after the loop by
+  // MarkerRenderProbe. 0.2.8.11: the per-dot window fields are gone with the per-dot windows -
+  // WindowPos/WindowSize/ClipMin/ClipMax now carry the host overlay's rect (the container every
+  // circle is drawn into), Vtx is the vertices the circle added to its draw list, and OnAddon/Rel
+  // are the placement probe's verdict against the game's own window rectangle.
   private readonly Dictionary<string, MarkerRenderProbe.State> _renderStates = [];
-  private readonly List<(int Slot, Vector2 WindowPos, Vector2 WindowSize, Vector2 ClipMin, Vector2 ClipMax, int Vtx, Vector2 Center, float Radius, MarkerRenderGuard.Verdict Guard)> _renderCells = [];
+  private readonly List<(int Slot, Vector2 WindowPos, Vector2 WindowSize, Vector2 ClipMin, Vector2 ClipMax, int Vtx, Vector2 Center, float Radius, bool OnAddon, Vector2 Rel)> _renderCells = [];
 
   // 0.2.8.6: per (grid addon, container) display-order stability state (MarkerStability). The
   // 0.2.8.5 probe caught the slot->container mapping itself churning per frame (item ids migrating
@@ -205,18 +209,14 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // perfect, plugin bookkeeping green (MarkerRenderGuard). One change-driven bounded epoch line
   // per session; the repair push lives exactly between PreDraw and PostDraw.
   private readonly MarkerRenderGuard.StyleEpochState _styleEpoch = new();
-  private MarkerRenderGuard.RepairPlan? _lastStylePlan;
   private bool _pushedRepairAlpha;
+  // 0.2.8.11: the overlay's zero-padding push (PreDraw) - popped in PostDraw after the repair pop.
+  private bool _pushedWindowPadding;
 
   // 0.2.8.10: one transition state for the host window's own post-Begin verdict - a hidden host
   // hides every dot window through ImGui's parent inheritance (imgui.cpp:7046). The key "host"
   // is outside every grid family, so MarkFamilyClosed never touches it.
   private readonly MarkerTransitions.State _hostTransitions = new();
-
-  // 0.2.8.10: marker window names submitted this frame - a repeated name means one window's other
-  // submission had its position consumed and ignored (ImGui applies position handling only on the
-  // frame's first Begin of a window; BeginCount shows it in the per-dot readback too).
-  private readonly HashSet<string> _markerWindowsThisFrame = [];
 
   // 0.2.8.6: one drawn-anchor set per FRAME, cleared in Draw() and shared by every grid of both
   // passes. The 0.2.8.4 stacked-anchor gate was per grid (its list was local to RenderDots), so
@@ -236,18 +236,29 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // pair the line with what was visible and fix the gate with evidence instead of a guess.
   private string _loggedRetainerLiveSet = "";
 
+  // 0.2.8.11 THE SINGLE-OVERLAY HOST: this window IS the marker overlay - one window, the whole
+  // main viewport, flags copied from the PvPSolver overlay (the pattern this repo's production
+  // hotbar highlights draw through). The per-dot windows are gone: eight builds measured them
+  // healthy (right size, right clip, vertices added, alpha 1) while the player saw nothing, so
+  // the per-dot window layer is the one component whose reports cannot be trusted; the overlay's
+  // draw list draws the dots with no window per dot at all. AlwaysAutoResize and the 0x0 size
+  // clamp go with them - the overlay is explicitly sized to the viewport every frame (PreDraw).
+  private const ImGuiWindowFlags HostFlags = ImGuiWindowFlags.NoDecoration
+    | ImGuiWindowFlags.NoBackground
+    | ImGuiWindowFlags.NoInputs
+    | ImGuiWindowFlags.NoBringToFrontOnFocus
+    | ImGuiWindowFlags.NoDocking
+    | ImGuiWindowFlags.NoFocusOnAppearing
+    | ImGuiWindowFlags.NoNav;
+
   public AutoMarketMarkers()
-    : base("Lazy Market Companion##markers", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoInputs, true)
+    : base("Lazy Market Companion##markers", HostFlags, true)
   {
     Position = new Vector2(0, 0);
     IsOpen = true;
     ShowCloseButton = false;
     RespectCloseHotkey = false;
     DisableWindowSounds = true;
-    SizeConstraints = new WindowSizeConstraints()
-    {
-      MaximumSize = new Vector2(0, 0),
-    };
   }
 
   // 0.2.8.10 THE PRE-DRAW REPAIR HOOK: Dalamud's window wrapper runs PreDraw BEFORE it Begins
@@ -266,7 +277,6 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       var depth = context.StyleVarStack.Size;
       var topVar = depth > 0 ? context.StyleVarStack[depth - 1].VarIdx.ToString() : "none";
       var plan = MarkerRenderGuard.Plan(ImGui.GetStyle().Alpha, depth);
-      _lastStylePlan = plan;
       if (MarkerRenderGuard.ShouldLogStyleEpoch(_styleEpoch, plan))
       {
         Svc.Log.Information($"[LMC] markers style: {MarkerRenderGuard.StyleEpochLine(plan, plan.ForceAlpha)} (top={topVar})");
@@ -277,7 +287,16 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 1f);
         _pushedRepairAlpha = true;
       }
-      _markerWindowsThisFrame.Clear();
+      // 0.2.8.11: the overlay's frame setup - exactly the PvPSolver pattern. Zero padding (the
+      // draw list's coordinates are the absolute anchors, nothing offsets them), the window
+      // pinned to the main viewport's origin and sized to it, so the host's Begin consumes the
+      // values whatever Dalamud's own conditionals set. Pushed AFTER the repair-alpha push so
+      // PostDraw pops in reverse order.
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+      _pushedWindowPadding = true;
+      ImGuiHelpers.SetNextWindowPosRelativeMainViewport(Vector2.Zero);
+      ImGui.SetNextWindowSize(ImGuiHelpers.MainViewport.Size);
+      base.PreDraw();
     }
     catch
     {
@@ -294,12 +313,20 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         ImGui.PopStyleVar();
         _pushedRepairAlpha = false;
       }
+      // 0.2.8.11: the overlay's padding push (see PreDraw) - popped after the repair pop so the
+      // order mirrors the pushes.
+      if (_pushedWindowPadding)
+      {
+        ImGui.PopStyleVar();
+        _pushedWindowPadding = false;
+      }
     }
     catch
     {
-      // The pop must never take the frame down either; drop the flag so a next frame cannot
+      // The pops must never take the frame down either; drop the flags so a next frame cannot
       // pop someone else's entry on our behalf.
       _pushedRepairAlpha = false;
+      _pushedWindowPadding = false;
     }
   }
 
@@ -325,18 +352,26 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     _testDotPos = ImGuiHelpers.MainViewport.Pos + ImGui.GetIO().DisplaySize * 0.5f;
     _testDotFrames = TestDotFrames;
     _testDotRenderLogged = false;
-    Svc.Log.Information($"[LMC] marker test dot: drawing for {TestDotFrames} frame(s) (~{TestDotFrames / 60}s): one green dot at ({_testDotPos.X:F0},{_testDotPos.Y:F0}) through the same kind of window every marker uses, and a reference green dot at ({_testDotPos.X + TestDotReferenceOffset:F0},{_testDotPos.Y:F0}) painted directly on the screen layer - both visible says the window draw works, only the right one says windows are hidden, neither says the renderer is blocked");
+    Svc.Log.Information($"[LMC] marker test dot: drawing for {TestDotFrames} frame(s) (~{TestDotFrames / 60}s): dot A at ({_testDotPos.X:F0},{_testDotPos.Y:F0}) on the host overlay's draw list - the same path every marker dot uses since 0.2.8.11 - and dot B at ({_testDotPos.X + TestDotReferenceOffset:F0},{_testDotPos.Y:F0}) through the old per-dot window pattern every marker used before it. A visible without B says the old per-dot windows were the problem; both say the drawing works; neither says something outside the marker layer blocks the overlay too");
   }
 
   private void DrawTestDot()
   {
     _testDotFrames--;
     if (_testDotFrames == 0)
-      Svc.Log.Information("[LMC] marker test dot: window closed - if no green circle showed at the logged positions, the render-side numbers in this log name what blocked them");
+      Svc.Log.Information("[LMC] marker test dot: closed - if no green circle showed at the logged positions, the render-side numbers in this log name what blocked them");
     const float radius = 6f;
     var refDotPos = _testDotPos + new Vector2(TestDotReferenceOffset, 0f);
+    // 0.2.8.11 dot A: drawn on the host overlay's draw list - the SAME path every real marker
+    // dot now takes, with no window of its own.
+    var overlayList = ImGui.GetWindowDrawList();
+    var vtxBeforeA = overlayList.VtxBuffer.Size;
+    overlayList.AddCircleFilled(_testDotPos, radius, OnListColorPacked);
+    var vtxA = overlayList.VtxBuffer.Size - vtxBeforeA;
+    // 0.2.8.11 dot B: the legacy per-dot window pattern every marker used before this build,
+    // preserved exactly (explicit size, no content, zero padding) as the A/B control group.
     ImGuiHelpers.ForceNextWindowMainViewport();
-    ImGui.SetNextWindowPos(_testDotPos - new Vector2(radius + 1f));
+    ImGui.SetNextWindowPos(refDotPos - new Vector2(radius + 1f));
     ImGui.SetNextWindowSize(new Vector2(radius * 2f + 2f));
     ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
@@ -344,29 +379,27 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     ImGui.Begin("###LMCMarkerTestDot", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
       | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus
       | ImGuiWindowFlags.AlwaysUseWindowPadding);
-    var drawList = ImGui.GetWindowDrawList();
-    drawList.AddCircleFilled(_testDotPos, radius, OnListColorPacked);
-    // 0.2.8.8: read the renderer's own numbers while this window is still current - what ImGui
+    var legacyList = ImGui.GetWindowDrawList();
+    legacyList.AddCircleFilled(refDotPos, radius, OnListColorPacked);
+    // 0.2.8.8: read the legacy window's own numbers while it is still current - what ImGui
     // really gave it and what the circle is finally clipped by (MarkerRenderProbe).
     var winPos = ImGui.GetWindowPos();
     var winSize = ImGui.GetWindowSize();
-    var clipMin = drawList.GetClipRectMin();
-    var clipMax = drawList.GetClipRectMax();
-    var winVtx = drawList.VtxBuffer.Size;
+    var clipMin = legacyList.GetClipRectMin();
+    var clipMax = legacyList.GetClipRectMax();
+    var winVtx = legacyList.VtxBuffer.Size;
     ImGui.End();
     ImGui.PopStyleVar(2);
     ImGui.PopStyleColor();
-    // The labels and the reference dot go on the foreground list: the dot window is dot-sized and
-    // would clip them; the reference dot must have no window at all - it IS the control group.
+    // The labels go on the foreground list: neither dot's container is big enough to hold text.
     var foreground = ImGui.GetForegroundDrawList();
-    foreground.AddCircleFilled(refDotPos, radius, OnListColorPacked);
     foreground.AddText(_testDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC test dot");
     foreground.AddText(refDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC reference");
     if (!_testDotRenderLogged)
     {
       _testDotRenderLogged = true;
-      var verdict = MarkerRenderProbe.Check(winPos, winSize, clipMin, clipMax, winVtx, _testDotPos, radius);
-      Svc.Log.Information($"[LMC] marker test dot render: window dot {MarkerRenderProbe.VerdictLabel(verdict)} win=({winPos.X:0.#},{winPos.Y:0.#})+({winSize.X:0.#},{winSize.Y:0.#}) clip=({clipMin.X:0.#},{clipMin.Y:0.#})-({clipMax.X:0.#},{clipMax.Y:0.#}) vtx={winVtx} circle=({_testDotPos.X:0.#},{_testDotPos.Y:0.#}) r={radius:0.#} | reference dot painted directly on the screen layer at ({refDotPos.X:0.#},{refDotPos.Y:0.#})");
+      var verdict = MarkerRenderProbe.Check(winPos, winSize, clipMin, clipMax, winVtx, refDotPos, radius);
+      Svc.Log.Information($"[LMC] marker test dot render: overlay dot (A - the path every marker uses) vtx={vtxA} circle=({_testDotPos.X:0.#},{_testDotPos.Y:0.#}) r={radius:0.#} | legacy window dot (B) {MarkerRenderProbe.VerdictLabel(verdict)} win=({winPos.X:0.#},{winPos.Y:0.#})+({winSize.X:0.#},{winSize.Y:0.#}) clip=({clipMin.X:0.#},{clipMin.Y:0.#})-({clipMax.X:0.#},{clipMax.Y:0.#}) vtx={winVtx} circle=({refDotPos.X:0.#},{refDotPos.Y:0.#})");
     }
   }
 
@@ -946,6 +979,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var hostSize = ImGui.GetWindowSize();
     _renderCells.Clear();
 
+    // 0.2.8.11 THE ADDON'S OWN RECTANGLE: the grid addon's root node - the game's position,
+    // scale and size for the window itself, read the same frame the dots are drawn (directive
+    // measurement 1). The walk has agreed with each node's ScreenX/ScreenY on every build; this
+    // is the third opinion, the addon's own root, and the per-dot placement verdicts
+    // (MarkerPlacementProbe, harness case 160j) are graded against it in the render line: if
+    // the dots drew where the addon says the window is not, the mismatch names itself.
+    var rootNode = ((AtkUnitBase*)grid)->RootNode;
+    var rootResolved = rootNode != null && rootNode->ScaleX > 0 && rootNode->ScaleY > 0;
+    var rootPos = rootResolved ? new Vector2(rootNode->ScreenX, rootNode->ScreenY) : Vector2.Zero;
+    var rootSize = rootResolved ? new Vector2(rootNode->Width * rootNode->ScaleX, rootNode->Height * rootNode->ScaleY) : Vector2.Zero;
+
     // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
     // item is green whether or not the sheet calls it tradable (a config-entry bug is shown, not
     // hidden - the 0.1.17.0 honesty rule); only the GREY state requires real marketability.
@@ -987,12 +1031,6 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     Vector2 probeWalk = default;
     Vector2 probeScreen = default;
     var probeTaken = false;
-    // 0.2.8.10: the dot windows' real post-Begin verdicts (dropped at render = vertices added but
-    // the draw list never reaches the GPU) and duplicate window submissions this frame.
-    var droppedAtRender = 0;
-    var notActiveWindows = 0;
-    var collapsedWindows = 0;
-    var duplicateSubmissions = 0;
     for (var i = 0; i < slotCount; i++)
     {
       if (!classified.TryGetValue(i, out var entry))
@@ -1130,58 +1168,22 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (MarkerAnchor.IsNearScreenOrigin(center) && _loggedCornerReport.Add($"{addonName}:{containerLabel}"))
         Svc.Log.Information($"[LMC] markers: dot drawn near the screen corner on {addonName} ({containerLabel}) slot s{i} center=({center.X:F1},{center.Y:F1}) - the only green circle this plugin draws is this dot; a corner dot without this line is another plugin's overlay");
 
-      ImGuiHelpers.ForceNextWindowMainViewport();
-      // 0.1.31.0: the dot is anchored INSIDE the cell - center inset from the right edge and inset
-      // below the top edge (MarkerAnchor.Center). Until 0.1.30.0 the window sat at the cell's
-      // top-right corner minus the inset in BOTH axes (top - inset), so the dot's center was
-      // 2.5 px ABOVE the cell's top edge and most of the circle hung outside the cell - on the
-      // stacked E-grids it read as a dot on the grid above (a different bag), in sparse bags as
-      // a dot on the cell above ("seemingly random locations", the related support thread).
-      ImGuiHelpers.SetNextWindowPosRelativeMainViewport(MarkerAnchor.WindowPosition(position, size));
-      // 0.2.8.7: the window is explicitly sized to the drawn dot (MarkerAnchor.WindowSize). It has
-      // no ImGui content - the circle is drawn on its draw list in absolute coordinates - so the old
-      // AlwaysAutoResize window auto-fit to zero and ImGui clamped it to its 4x4 minimum, whose clip
-      // rect cut the circle (drawn at window-local (Radius, Radius), radius Radius*scale) down to a
-      // few pixels: the dots were effectively invisible on every build since the window went
-      // zero-padding (0.1.22.0), whatever the anchor math - four gate/probe builds included.
-      ImGui.SetNextWindowSize(MarkerAnchor.WindowSize(scale.X));
-      ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
-      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing. 0.2.8.7: with the size explicit, AlwaysAutoResize is gone - an auto-resized window without content clamps to ImGui's 4x4 minimum and clips the dot (the SetNextWindowSize note).
-      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
-      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
-      var windowName = $"###LMCMarker{addonName}{i}";
-      // 0.2.8.10: one submission per window per frame - a repeated name means this window's other
-      // submission had its position consumed and ignored (ImGui applies position handling only on
-      // the frame's first Begin of a window; the per-dot readback shows BeginCount too).
-      if (!_markerWindowsThisFrame.Add(windowName))
-        duplicateSubmissions++;
-      ImGui.Begin(windowName, ImGuiWindowFlags.NoTitleBar
-        | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs
-        | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
+      // 0.2.8.11 THE SINGLE-OVERLAY DRAW: the circle goes on the host overlay's draw list at the
+      // absolute anchor - no per-dot window at all (the Begin/End/flags/clip machinery the eight
+      // previous builds measured healthy while the player saw nothing). The draw list's
+      // coordinates are the same absolute space the anchors live in; the overlay covers the
+      // whole main viewport, so nothing clips. The probe below still measures the container
+      // rect, the clip and the vertices, and MarkerRenderProbe.Check grades the circle against
+      // them unchanged (harness case 160g).
       var drawList = ImGui.GetWindowDrawList();
-      // Absolute anchor, not cursor-relative: the center is exactly MarkerAnchor.Center(position,
-      // size) whatever the ImGui style state is (the 0.1.22.0 padding fix made cursor == window
-      // pos, but that equality is an assumption about style, not a position).
+      var vtxBefore = drawList.VtxBuffer.Size;
       drawList.AddCircleFilled(center, DotRadius * scale.X, color);
-      // 0.2.8.8: read this dot window's own numbers while it is still current - the size ImGui
-      // really gave it (a requested size is a floor, never a promise: the 0.2.8.7 review's open
-      // question, now measured) and the clip rect the circle is finally cut by. ImGui applies
-      // clip rects at render time, so the vertex count alone cannot catch clipping - the
-      // geometry check in MarkerRenderProbe.Check does, after the loop.
-      // 0.2.8.10: ALSO read the window's real post-Begin flags - what the probe could not see:
-      // whether ImGui will render this window at all, or silently drop it (skip/hidden set - the
-      // vertices are still added and the rects still measure, but the draw list never reaches the
-      // GPU). While the window is current, ImGuiP.GetCurrentWindow IS this window.
-      var markerWindow = ImGuiP.GetCurrentWindow();
-      var guardVerdict = MarkerRenderGuard.Classify(markerWindow.Active, markerWindow.Hidden, markerWindow.SkipItems, markerWindow.Collapsed, markerWindow.BeginCount);
-      if (guardVerdict == MarkerRenderGuard.Verdict.DroppedAtRender) droppedAtRender++;
-      else if (guardVerdict == MarkerRenderGuard.Verdict.NotActive) notActiveWindows++;
-      else if (guardVerdict == MarkerRenderGuard.Verdict.Collapsed) collapsedWindows++;
+      // 0.2.8.11 THE PLACEMENT PROBE: the dot's center against the game's own window rectangle
+      // (MarkerPlacementProbe), with the offset from the window's corner for the log line.
+      var onAddon = rootResolved && MarkerPlacementProbe.OnAddon(center, rootPos, rootSize);
+      var rel = center - rootPos;
       if (_renderCells.Count < MarkerRenderProbe.DotLimit)
-        _renderCells.Add((i, ImGui.GetWindowPos(), ImGui.GetWindowSize(), drawList.GetClipRectMin(), drawList.GetClipRectMax(), drawList.VtxBuffer.Size, center, DotRadius * scale.X, guardVerdict));
-      ImGui.End();
-      ImGui.PopStyleVar(2);
-      ImGui.PopStyleColor();
+        _renderCells.Add((i, hostPos, hostSize, drawList.GetClipRectMin(), drawList.GetClipRectMax(), drawList.VtxBuffer.Size - vtxBefore, center, DotRadius * scale.X, onAddon, rel));
     }
 
     // The one INFO line per (grid addon, container) pairing per session - how the in-game verify
@@ -1224,7 +1226,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         var display = ImGui.GetIO().DisplaySize;
         var cellsText = string.Join(" | ", probeCells.Select(c =>
           MarkerProbe.CellLine(c.Slot, c.ItemId, c.Kind, c.Walk, c.Screen, c.RawXY, c.Scale, c.Size)));
-        Svc.Log.Information($"[LMC] markers probe: {addonName} ({containerLabel}) draw #{probeState.Draws} of {stacks.Count} stacks, {nullDragDrops} slot(s) without a drag-drop; viewport=({viewport.Pos.X:0.#},{viewport.Pos.Y:0.#}) display=({display.X:0.#},{display.Y:0.#}) | {cellsText}");
+        Svc.Log.Information($"[LMC] markers probe: {addonName} ({containerLabel}) draw #{probeState.Draws} of {stacks.Count} stacks, {nullDragDrops} slot(s) without a drag-drop; viewport=({viewport.Pos.X:0.#},{viewport.Pos.Y:0.#}) display=({display.X:0.#},{display.Y:0.#}) gamewin={GameWindowSizeText()} | {cellsText}");
         MarkerProbe.RecordLogged(probeState, signature);
       }
     }
@@ -1245,9 +1247,18 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         var graded = _renderCells
           .Select(c => (Cell: c, Verdict: MarkerRenderProbe.Check(c.WindowPos, c.WindowSize, c.ClipMin, c.ClipMax, c.Vtx, c.Center, c.Radius)))
           .ToList();
-        var okCount = graded.Count(g => g.Verdict == MarkerRenderProbe.Verdict.Ok && g.Cell.Guard == MarkerRenderGuard.Verdict.Rendered);
-        var dotsText = string.Join(" | ", graded.Select(g => $"{MarkerRenderGuard.VerdictLabel(g.Cell.Guard)} {MarkerRenderProbe.DotLine(g.Cell.Slot, g.Verdict, g.Cell.WindowPos, g.Cell.WindowSize, g.Cell.ClipMin, g.Cell.ClipMax, g.Cell.Vtx, g.Cell.Center, g.Cell.Radius)}"));
-        Svc.Log.Information($"[LMC] markers render: {addonName} ({containerLabel}) pass #{renderState.Passes} host=({hostPos.X:0.#},{hostPos.Y:0.#})+({hostSize.X:0.#},{hostSize.Y:0.#}) winmin=({ImGui.GetStyle().WindowMinSize.X:0.#},{ImGui.GetStyle().WindowMinSize.Y:0.#}) | {dotsText} | {okCount} ok, {graded.Count - okCount} not fully inside their window/clip");
+        var okCount = graded.Count(g => g.Verdict == MarkerRenderProbe.Verdict.Ok);
+        var offAddonCount = graded.Count(g => !g.Cell.OnAddon);
+        var dotsText = string.Join(" | ", graded.Select(g =>
+          $"{MarkerRenderProbe.DotLine(g.Cell.Slot, g.Verdict, g.Cell.WindowPos, g.Cell.WindowSize, g.Cell.ClipMin, g.Cell.ClipMax, g.Cell.Vtx, g.Cell.Center, g.Cell.Radius)} {(g.Cell.OnAddon ? "place=on-addon" : "place=OFF-ADDON")} {MarkerPlacementProbe.RelText(g.Cell.Center, rootPos)}"));
+        // 0.2.8.11 THE VIEWPORT/BUFFER PAIR (the directive's second measurement): the drawing
+        // viewport and display size beside the game window's own client size - a scaled or
+        // letterboxed buffer shows up here as two different sizes for the same screen, and a
+        // coordinate-space disagreement between the game's layout and the drawn dots as a
+        // place=OFF-ADDON on every dot.
+        var viewport = ImGuiHelpers.MainViewport;
+        var fbs = ImGui.GetIO().DisplayFramebufferScale;
+        Svc.Log.Information($"[LMC] markers render: {addonName} ({containerLabel}) pass #{renderState.Passes} overlay=({hostPos.X:0.#},{hostPos.Y:0.#})+({hostSize.X:0.#},{hostSize.Y:0.#}) vp=({viewport.Pos.X:0.#},{viewport.Pos.Y:0.#})+({viewport.Size.X:0.#},{viewport.Size.Y:0.#}) fbs=({fbs.X:0.##},{fbs.Y:0.##}) gamewin={GameWindowSizeText()} addonRoot=({rootPos.X:0.#},{rootPos.Y:0.#})+({rootSize.X:0.#},{rootSize.Y:0.#}) | {dotsText} | {okCount} ok, {graded.Count - okCount} not fully inside the overlay, {offAddonCount} off-addon");
         MarkerRenderProbe.RecordLogged(renderState);
       }
     }
@@ -1271,21 +1282,18 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       outcome = "no-positions";
       outcomeDetail = $" ({nullDragDrops} without a drag-drop + {degenerateNodes} degenerate node(s))";
     }
-    // 0.2.8.10: the windows' real post-Begin verdicts outrank the bookkeeping - "drawn" while the
-    // windows are dropped at render is exactly the vanished-dots state the 0.2.8.8/0.2.8.9 probes
-    // could not see; the transition log names it when it changes. Duplicate submissions do not
-    // drop a dot (its window still renders) but they name a stale position, so they ride along.
-    if (drawnTotal > 0 && droppedAtRender + notActiveWindows + collapsedWindows > 0)
-    {
-      var alphaText = _lastStylePlan is { } observedStyle ? observedStyle.ObservedAlpha.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "?";
-      var depthText = _lastStylePlan is { } observedStyle2 ? observedStyle2.StyleVarStackDepth.ToString() : "?";
-      outcome = "dropped-at-render";
-      outcomeDetail = $" ({droppedAtRender} dropped + {notActiveWindows} not-active + {collapsedWindows} collapsed of {drawnTotal} drawn; style alpha {alphaText} stack {depthText} at PreDraw)";
-    }
-    else if (duplicateSubmissions > 0)
-    {
-      outcomeDetail += $" + {duplicateSubmissions} duplicate window submission(s) this frame";
-    }
+    // 0.2.8.11: no per-dot windows remain, so the dropped-at-render override is gone with them -
+    // the overlay's own post-Begin verdict is the host's, reported through the "host" transition
+    // by ReportHostVerdict() at Draw() entry, and the render line above carries the placement and
+    // vertex measurements per dot. What stays here is the outcome bookkeeping itself.
+  }
+
+  // 0.2.8.11: the game window's own client size (GameWindow.WindowWidth/Height - correct in
+  // windowed mode) for the viewport/buffer measurement; "?" when unavailable, never a throw.
+  private static unsafe string GameWindowSizeText()
+  {
+    var gameWindow = Framework.Instance()->GameWindow;
+    return gameWindow != null ? $"{gameWindow->WindowWidth}x{gameWindow->WindowHeight}" : "?";
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)
