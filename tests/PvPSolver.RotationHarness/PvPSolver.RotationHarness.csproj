@@ -18,11 +18,21 @@
     <RootNamespace>PvPSolver.RotationHarness</RootNamespace>
     <IsPackable>false</IsPackable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- CS0436: the Decisions files are compiled into this assembly AND exist in the referenced PvPSolver.Basic;
+         the local copy wins, which is the point: the files must compile standalone. -->
+    <NoWarn>$(NoWarn);CS0436;CS1574;CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="*.cs" />
     <Compile Include="Cases\*.cs" />
+    <!-- Fork-only pure decision cores (no Dalamud or game types): compiled in directly so T1 proves the files standalone. -->
+    <Compile Include="..\..\src\PvPSolver\PvPSolver.Basic\Decisions\*.cs" Link="Decisions\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Only for the real ActionID enum and the reflection proof of ModifySmitePvP. -->
+    <ProjectReference Include="..\..\src\PvPSolver\PvPSolver\PvPSolver.csproj" />
   </ItemGroup>
 </Project>

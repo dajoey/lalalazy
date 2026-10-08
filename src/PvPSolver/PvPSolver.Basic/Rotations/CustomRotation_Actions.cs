@@ -162,6 +162,7 @@ public partial class CustomRotation
 		setting.StatusNeed = [StatusID.PvPRoleActionSmite];
 		setting.IsFriendly = false;
 		setting.TargetType = TargetType.LowHPPercent;
+		setting.IgnoreGuard = true;
 	}
 
 	#endregion

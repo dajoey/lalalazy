@@ -14,6 +14,7 @@ internal static class Program
 
     private static int Main()
     {
+        AddDalamudResolver();
         SrcRoot = FindSrcRoot();
         Console.WriteLine("-- PvPSolver rotation harness --");
         Console.WriteLine("source root: " + SrcRoot);
@@ -25,8 +26,23 @@ internal static class Program
         GnbBlast.Run();
         GnbHeart.Run();
         PldThreshold.Run();
+        SmiteGuard.Run();
 
         return Harness.Finish();
+    }
+
+    // The plugin's keep-lists leave Dalamud's own assemblies out of the output folder; resolve them from the
+    // Dalamud dev folder the way the plugin build does so the real PvPSolver.Basic types load without a game.
+    private static void AddDalamudResolver()
+    {
+        var dir = Environment.GetEnvironmentVariable("DALAMUD_HOME")
+                  ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                      "XIVLauncher", "addon", "Hooks", "dev");
+        System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (ctx, name) =>
+        {
+            var file = Path.Combine(dir, name.Name + ".dll");
+            return File.Exists(file) ? ctx.LoadFromAssemblyPath(file) : null;
+        };
     }
 
     private static string FindSrcRoot()
