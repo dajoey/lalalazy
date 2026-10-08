@@ -119,6 +119,11 @@ internal abstract partial class CustomCombo : CustomComboFunctions
              resultingActionID == BLM.Triplecast))
             return false;
 
+        // Audit trail (v1.0.4.295): remember which preset put a cast-time cooldown on the button, so
+        // the IC| line written when the press actually goes out can name it.
+        if (resultingActionID != actionID)
+            InstantCastAudit.NoteComboSubstitution(Preset.ToString(), resultingActionID);
+
         var presetException = _presetsAllowedToReturnUnchanged
             .TryGetValue(Preset, out var actionException);
         var hasException = presetException && resultingActionID == actionException;

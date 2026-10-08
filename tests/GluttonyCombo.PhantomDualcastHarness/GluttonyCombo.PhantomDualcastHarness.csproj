@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- PhantomDualcastHarness (Gluttony does not understand the Phantom Red Mage Dualcast): offline
+       harness for the Occult Crescent instant-cast gates every "do not buy an instant cast" decision
+       reads (Swiftcast, Triplecast, Lightspeed, movement fillers, the auto-rez Swiftcast press).
+       The report: Swiftcast went out while Dualcast was up. The gates asked for status 5438; in the
+       7.55 content the Phantom Red Mage trait grants the ordinary Dualcast, status 1249, on every
+       job, so on a non-Red-Mage job the gates read "no Dualcast" for the whole proc.
+       THE REAL CODE UNDER TEST: src/GluttonyCombo/GluttonyCombo/CustomCombo/Functions/OccultInstantCast.cs
+       (and, for the logging cases, Data/InstantCastAuditFormat.cs) compiled UNCHANGED as links.
+       Everything they touch outside those files is faked in Fakes.cs (HasStatusEffect, JustUsed, the
+       player's cast bar, the Occult Crescent support-job byte). Nothing under src/ is edited by the
+       fakes; they live only in this fork-only project.
+         dotnet build tests/GluttonyCombo.PhantomDualcastHarness -c Release
+         dotnet tests/GluttonyCombo.PhantomDualcastHarness/bin/Release/net10.0/GluttonyCombo.PhantomDualcastHarness.dll
+       Prints PASS/FAIL per case; ends "OK (N checks)" and exits 0 only when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.PhantomDualcastHarness</RootNamespace>
+    <AssemblyName>GluttonyCombo.PhantomDualcastHarness</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\CustomCombo\Functions\OccultInstantCast.cs" Link="Real\OccultInstantCast.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\InstantCastAuditFormat.cs" Link="Real\InstantCastAuditFormat.cs" />
+  </ItemGroup>
+</Project>

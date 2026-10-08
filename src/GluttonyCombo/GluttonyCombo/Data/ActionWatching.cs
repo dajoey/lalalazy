@@ -616,6 +616,10 @@ public static class ActionWatching
                 var replacedWith = actionManager->GetAdjustedActionId(actionId);
                 var queuedAct = actionManager->GetAdjustedActionId(actionManager->QueuedActionId);
 
+                // One IC| line per instant-cast press (Swiftcast, Triplecast, ...) naming who sent it
+                // and what Dualcast state it was sent into. Never throws, throttled per action.
+                InstantCastAudit.Observe(replacedWith, mode);
+
                 if (IsEnabled(Preset.NIN_Anti_Rabbit))
                 {
                     // If the replaced action is a mudra and we're already in a mudra sequence

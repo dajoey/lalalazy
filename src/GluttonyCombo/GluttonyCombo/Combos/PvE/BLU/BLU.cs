@@ -154,7 +154,9 @@ internal partial class BLU : Caster
                         return ShockStrike;
                 }
 
-                if (ActionReady(Role.Swiftcast))
+                // Dualcast / Occult Quick already make the next spell instant (Phantom Red Mage /
+                // Time Mage): skip the Swiftcast and let the spell below take the free instant.
+                if (ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast)
                     return Role.Swiftcast;
                 if (ActionReady(FinalSting))
                     return FinalSting;
@@ -179,7 +181,7 @@ internal partial class BLU : Caster
 
                 if (CurrentTarget.HasStatus(Debuffs.DeepFreeze, true))
                 {
-                    if (ActionReady(Role.Swiftcast))
+                    if (ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast)
                         return Role.Swiftcast;
                     if (ActionReady(Ultravibration))
                         return Ultravibration;
@@ -504,7 +506,7 @@ internal partial class BLU : Caster
                 ActionReady(MatraMagic))
                 return Bristle;
 
-            if (!HasHealerMimicry && ActionReady(Role.Swiftcast))
+            if (!HasHealerMimicry && ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast)
                 return Role.Swiftcast;
 
             if (IsSpellActive(Surpanakha) && GetRemainingCharges(Surpanakha) > 0)
@@ -512,7 +514,7 @@ internal partial class BLU : Caster
 
             if (!HasHealerMimicry &&
                 ActionReady(MatraMagic) &&
-                LocalPlayer.HasStatus(Role.Buffs.Swiftcast))
+                (LocalPlayer.HasStatus(Role.Buffs.Swiftcast) || HasOccultInstantCast))
                 return MatraMagic;
 
             if (ActionReady(BeingMortal) && IsEnabled(Preset.BLU_NewMoonFluteOpener_DoTOpener))

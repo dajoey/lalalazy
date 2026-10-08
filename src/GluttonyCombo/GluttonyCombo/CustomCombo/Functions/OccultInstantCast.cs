@@ -24,11 +24,23 @@ internal abstract partial class CustomComboFunctions
         public const uint OccultQuickAction = 41625;
 
         /// <summary>
-        ///     Occult Crescent's own Dualcast, granted by Phantom Red Mage. This is NOT
-        ///     Red Mage's Dualcast (1249), and unlike RDM's job-restricted variant (1393)
-        ///     it carries no job restriction: it makes the next spell of any kind instant.
-        ///     Mirrors <c>OccultCrescent.Buffs.Dualcast</c>, duplicated here so the shared
-        ///     gates below don't reach into the content namespace.
+        ///     The Dualcast status the Phantom Red Mage trait grants in the 7.55 content, on EVERY
+        ///     job: the ordinary Dualcast, the same id as Red Mage's own (<c>RDM.Buffs.Dualcast</c>,
+        ///     15s, "the next spell will be cast immediately"). Evidence, not inference: the combo
+        ///     telemetry lines of a Summoner carry <c>1249:15.0</c> right after a hard cast with
+        ///     <see cref="Dualcast"/> absent in every line, and the game's status log shows 1249
+        ///     added to the player on non-Red-Mage jobs thousands of times against two sightings of
+        ///     <see cref="Dualcast"/> in all history. Duplicated here so the shared gates below do
+        ///     not reach into the Red Mage namespace.
+        /// </summary>
+        public const ushort PhantomRedMageDualcast = 1249;
+
+        /// <summary>
+        ///     The pre-7.55 Occult Dualcast marker (a permanent-flagged "Dualcast" status seen
+        ///     twice in September, from the old Phantom Red Mage action). It is NOT the proc the
+        ///     7.55 trait hands out (<see cref="PhantomRedMageDualcast"/> is), but the pre-7.55
+        ///     content still uses it, so it keeps counting. Mirrors
+        ///     <c>OccultCrescent.Buffs.Dualcast</c>, duplicated here for the same reason.
         /// </summary>
         public const ushort Dualcast = 5438;
 
@@ -105,6 +117,13 @@ internal abstract partial class CustomComboFunctions
     ///     duration, and it EXPIRES if it is not used. It comes straight back off the next hard
     ///     cast, which is what makes it cheap to lose and easy to keep losing.
     ///     <para/>
+    ///     <b>Which status (v1.0.4.295).</b> Reads BOTH ids. The 7.55 Phantom Red Mage trait puts
+    ///     the ordinary Dualcast (1249, 15s) on the player on every job, and that is the proc a
+    ///     Summoner, Black Mage or Sage actually holds; everything up to v1.0.4.294 asked for 5438
+    ///     only, which is absent for that whole window, so every gate built on this read "no
+    ///     Dualcast" and let a Swiftcast through. On Red Mage itself 1249 is the job's own Dualcast,
+    ///     which already meant exactly the same thing to the Red Mage rotation.
+    ///     <para/>
     ///     <b>v1.0.4.150 correction.</b> v1.0.4.148 claimed this proc has no clock, reasoning
     ///     from status 5438 carrying <c>IsPermanent</c> while RDM's Dualcast (1249), Swiftcast
     ///     (167), Triplecast (1211) and Occult Quick (4260) do not. That inference was wrong and
@@ -130,6 +149,7 @@ internal abstract partial class CustomComboFunctions
     ///     GCD was free.
     /// </summary>
     public static bool HasOccultDualcast =>
+        HasStatusEffect(OccultInstantCast.PhantomRedMageDualcast) ||
         HasStatusEffect(OccultInstantCast.Dualcast);
 
     /// <summary>
@@ -200,7 +220,7 @@ internal abstract partial class CustomComboFunctions
     ///     statement. No need to know which spell it is, and it covers casts the player started
     ///     by hand as well as ones the plugin chose.
     ///     <para/>
-    ///     Gated on having actually seen status 5438 at least once under this support job, rather
+    ///     Gated on having actually seen the proc (<see cref="HasOccultDualcast"/>) at least once under this support job, rather
     ///     than on a trait level this file would have to guess at. Costs the first proc of a
     ///     session its prediction and nothing after that.
     ///     <para/>
@@ -214,7 +234,7 @@ internal abstract partial class CustomComboFunctions
     public static bool OccultDualcastIncoming =>
         _occultDualcastExpectedUntilTick != 0 &&
         Environment.TickCount64 <= _occultDualcastExpectedUntilTick &&
-        !HasStatusEffect(OccultInstantCast.Dualcast);
+        !HasOccultDualcast;
 
     /// <summary>
     ///     Framework tick for <see cref="OccultDualcastIncoming"/>. Registered in
@@ -231,7 +251,7 @@ internal abstract partial class CustomComboFunctions
             return;
         }
 
-        if (HasStatusEffect(OccultInstantCast.Dualcast))
+        if (HasOccultDualcast)
             _seenOccultDualcast = true;
 
         if (!_seenOccultDualcast)

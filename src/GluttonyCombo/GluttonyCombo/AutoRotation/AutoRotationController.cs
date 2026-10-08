@@ -1767,6 +1767,7 @@ internal unsafe class AutoRotationController
                         {
                             if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                             {
+                                using var _ic = InstantCastAudit.Issuing("RezParty:variant-raise");
                                 ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
                                 return true;
                             }
@@ -1798,6 +1799,7 @@ internal unsafe class AutoRotationController
                     if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast) &&
                         !HasOrExpectsOccultInstantCast)
                     {
+                        using var _ic = InstantCastAudit.Issuing("RezParty:rdm");
                         ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
                         return true;
                     }
@@ -1826,6 +1828,7 @@ internal unsafe class AutoRotationController
                     {
                         if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                         {
+                            using var _ic = InstantCastAudit.Issuing("RezParty:non-rdm");
                             ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
                             return true;
                         }
