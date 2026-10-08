@@ -1,5 +1,9 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.6.0 (2026-10-08)
+### Fixed
+- **Import codes now carry only what can actually be bought today.** Some pieces are gated behind more than a quest: seasonal vendors also gate pieces on an achievement, and the previous filter only knew about quests, so pieces the game would not sell yet were still written into the codes, and the first one of them made Knightshopper refuse the whole import ("Item N is not available from its shared Gil vendor"). The shopping list now checks live quest and achievement progress: what can be bought now goes into the code, a piece whose cheapest listing is locked falls back to a listing that can be bought, and a piece with no buyable listing at all is left out and counted at the bottom of the window ("N missing piece(s) need quest or achievement progress you don't have yet - left out of the import"). The rule applies to every currency, not just gil.
+
 ## v0.5.5.0 (2026-10-08) [testing]
 ### Fixed
 - **Import codes now name vendors that Knightshopper itself has.** The previous build still produced Gil codes that Knightshopper refused whole ("Item N is not available from its shared Gil vendor"): the rule it used to decide which vendors Knightshopper knows was a guess and was wrong for most Gil shops. The rule now follows how Knightshopper builds its own vendor list: a vendor is an NPC the game actually places in an area, and seasonal NPCs that are re-used under new ids with the same name and the same shops count once. It applies to every currency, not just gil. The Gil code now carries several times as many pieces, because shops the old rule dropped by mistake are back.
