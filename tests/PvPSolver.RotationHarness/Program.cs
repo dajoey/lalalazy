@@ -20,6 +20,7 @@ internal static class Program
 
         Scaffold.Run();
         EmergencyGcd.Run();
+        SchChain.Run();
 
         return Harness.Finish();
     }
