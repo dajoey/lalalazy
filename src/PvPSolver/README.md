@@ -37,8 +37,9 @@ https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json
 
 | **Chat Command** | **Function** |
 |:---|:---|
-| `/pvpsolver` | Opens the rotation configuration GUI. |
-| `/pvs` | Shortcut to open the rotation configuration GUI. |
+| `/pvpsolver` | Opens the PvP Solver settings window (Match, Survival, Targeting, My Job, Display, Advanced). Every setting can be changed in any zone. |
+| `/pvs` | Shortcut to open the PvP Solver settings window. |
+| `/pvpsolver advanced [tab]` | Opens the full Rotation Solver settings window, optionally on a tab (for example `Actions` or `Lists`). The same window is under the Advanced tab. |
 
 ---
 
