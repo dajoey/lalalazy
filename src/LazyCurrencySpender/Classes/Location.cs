@@ -124,6 +124,7 @@ namespace CurrencySpender.Classes
             new Location { MapId = 197, TerritoryId = 0388, Position = new Pos(5.97f, 4.75f), NpcId = 1010488 }, // Tack & Feed Trader
 
             new Location { MapId = 257, TerritoryId = 0478, Position = new Pos(5.7f, 5.2f), NpcId = 1012228 },
+            new Location { MapId = 257, TerritoryId = 0478, Position = new Pos(5.77f, 6.12f), NpcId = 1033921 }, // Faux Commander (Faux Hollows)
             new Location { MapId = 366, TerritoryId = 0635, Position = new Pos(13.9f, 11.6f), NpcId = 1019450 },
             new Location { MapId = 051, TerritoryId = 0250, Position = new Pos(4.5f, 6.0f), NpcId = 1005244 },
             new Location { MapId = 856, TerritoryId = 1186, Position = new Pos(8.6f, 13.5f), NpcId = 1049079 }, // Zircon

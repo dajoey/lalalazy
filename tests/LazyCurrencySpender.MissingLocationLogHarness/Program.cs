@@ -6,6 +6,9 @@ namespace LazyCurrencySpender.MissingLocationLogHarness;
 /// <summary>
 ///     Offline assertions on the missing-map-location log policy. Replays the measured 2026-10-04
 ///     incident: seven shop NPCs with no location, logged once per item per frame at Error level.
+///     Plus the 2026-10-07 follow-up measured by the same query: the Faux Commander (1033921, the
+///     Faux Hollows vendor mapped from SpecialShop 1770282), which the 1.3.1.1 upstream sync added
+///     to the shop generation without a table entry - one Error per session init.
 ///     Also asserts the map-location table itself (the shipped data, parsed from
 ///     src/LazyCurrencySpender/Classes/Location.cs, which is not Dalamud-free and so cannot be
 ///     compiled here): every incident NPC is either placed with a non-zero position or recorded as
@@ -16,11 +19,12 @@ internal static class Program
     private static int _pass;
     private static int _fail;
 
-    // ffxivdb: NpcId -> ERR lines on 2026-10-04 (plugin_log_lines, context LazyCurrencySpender).
+    // ffxivdb: NpcId -> ERR lines (plugin_log_lines, context LazyCurrencySpender). The first seven
+    // on 2026-10-04 (per frame), the Faux Commander on 2026-10-07 (once per init, 1.3.1.1).
     private static readonly (uint NpcId, int Lines)[] Incident =
     [
         (1053904, 31272), (1016305, 27929), (1010488, 26856), (1056512, 26250),
-        (1049083, 23454), (1049034, 22864), (1017102, 564),
+        (1049083, 23454), (1049034, 22864), (1017102, 564), (1033921, 3),
     ];
 
     // Incident shop NPCs that stay OUT of the map-location table on purpose: the game data places
@@ -47,9 +51,9 @@ internal static class Program
                 if (level != MissingLocationLogLevel.None) emitted++;
             }
 
-        Check("replay covers the real incident (159,189 lines)", calls == 159_189, calls.ToString());
+        Check("replay covers the real incident (159,192 lines)", calls == 159_192, calls.ToString());
         Check("an expected data gap never logs at Error", errors == 0, errors.ToString());
-        Check("one notice per NPC for the whole replay (7, not 159,189)", emitted == 7, emitted.ToString());
+        Check("one notice per NPC for the whole replay (8, not 159,192)", emitted == 8, emitted.ToString());
 
         var fresh = new MissingLocationLog();
         Check("first sighting of an NPC is reported at Debug",

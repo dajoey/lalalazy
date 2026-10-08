@@ -1,5 +1,11 @@
 ﻿# Changelog - Lazy Currency Spender
 
+## v1.3.1.2 (2026-10-08) [testing]
+### Added
+- Added a map location for the Faux Commander (the Faux Hollows vendor in Idyllshire). Its Flag and TP buttons now draw like every other listed shop, and the plugin no longer logs a `Missing location: 1033921` error once at every startup.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.3.1.1 (2026-10-07) [testing]
 ### Changed
 - **Upstream sync through CurrencySpender 1.3.1.** New tracked currencies (Faux Leaf, Achievement Certificate, Oizys Credit, Auxesia Credit) and vendors (Quinnana, Faux Commander), data-driven custom-shop generation (in-code CustomShops replaces the hardcoded Cosmocredit item lists), upstream's config version migrations, and the Service.ObjectTable API rename.
