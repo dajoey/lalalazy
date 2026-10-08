@@ -192,6 +192,57 @@ Check("the vendor pairs behind the two live refusals are never exported", () =>
             throw new Exception($"catalog still names {item}@({vendor}, {shop}), refused live by Knightshopper");
 });
 
+Check("export filter: locked cheapest listing falls back to a buyable one, fully locked items are excluded", () =>
+{
+    // Synthetic catalog mirroring the live failure shape: the cheapest listing is locked
+    // (achievement-gated), a pricier listing of the same item is free, a second item is
+    // locked everywhere, a third is always buyable.
+    ShopEntry E(uint item, uint vendor, uint shop, byte currency, uint price, uint quest, uint ach) =>
+        new(item, vendor, shop, -1, currency, price, quest, ach, ShopSource.GilShop);
+    var catalog = new List<ShopEntry>
+    {
+        E(99991, 1, 100, 2, 100, 0, 876),   // cheapest, achievement-locked
+        E(99991, 2, 200, 2, 500, 0, 0),     // pricier, buyable
+        E(99992, 3, 300, 2, 37, 67756, 0),  // quest-locked, only listing
+        E(99994, 4, 400, 2, 37, 0, 0),      // control, always buyable
+    };
+    var names = new Dictionary<uint, string> { [99991] = "a", [99992] = "b", [99994] = "c" };
+    var armoire = new List<ShoppingListBuilder.ArmouryEntry>
+    {
+        new(99991, ShoppingListBuilder.Ownership.NotOwned),
+        new(99992, ShoppingListBuilder.Ownership.NotOwned),
+        new(99994, ShoppingListBuilder.Ownership.NotOwned),
+    };
+
+    var locked = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), catalog, names,
+        PlayerUnlockState.NothingUnlocked));
+    var gil = locked.Currencies.First(c => c.CurrencyId == 2).Items;
+    var a = gil.FirstOrDefault(i => i.Entry.ItemId == 99991)
+            ?? throw new Exception("fallback to the buyable listing did not happen");
+    if (a.Entry.VendorId != 2 || a.Entry.Price != 500)
+        throw new Exception($"fallback picked vendor {a.Entry.VendorId} price {a.Entry.Price}, expected the buyable 2/500");
+    if (gil.Any(i => i.Entry.ItemId == 99992))
+        throw new Exception("fully locked item 99992 reached the code");
+    var excluded99992 = locked.Excluded.FirstOrDefault(e => e.ItemId == 99992)
+        ?? throw new Exception("fully locked item 99992 is silently missing instead of excluded");
+    if (!excluded99992.Reason.StartsWith("locked") || !excluded99992.Reason.Contains("67756"))
+        throw new Exception($"locked reason does not name the gate: '{excluded99992.Reason}'");
+    if (!gil.Any(i => i.Entry.ItemId == 99994))
+        throw new Exception("buyable control item 99994 disappeared");
+
+    var earned = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), catalog, names,
+        new PlayerUnlockState(q => q == 67756, a2 => a2 == 876)));
+    var gilEarned = earned.Currencies.First(c => c.CurrencyId == 2).Items;
+    var aEarned = gilEarned.FirstOrDefault(i => i.Entry.ItemId == 99991)
+        ?? throw new Exception("earned achievement did not unlock the cheapest listing");
+    if (aEarned.Entry.VendorId != 1 || aEarned.Entry.Price != 100)
+        throw new Exception($"with the achievement earned the cheap listing should win, got vendor {aEarned.Entry.VendorId} price {aEarned.Entry.Price}");
+    if (!gilEarned.Any(i => i.Entry.ItemId == 99992))
+        throw new Exception("completed quest did not unlock item 99992");
+});
+
 Check("GROUND TRUTH: every exported code, every currency, passes Knightshopper's own catalog", () =>
 {
     var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>();
@@ -202,8 +253,13 @@ Check("GROUND TRUTH: every exported code, every currency, passes Knightshopper's
     var itemNames = new Dictionary<uint, string>();
     foreach (var item in Sheet<Item>())
         itemNames[item.RowId] = item.Name.ExtractText();
+
+    // Strictest export state: nothing completed, nothing earned. This is the 0.5.5.0
+    // verdict fix (task armoire-0550): Knightshopper aborts the whole buy on the first
+    // locked item, so the import must only contain what the player can actually buy now.
     var result = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
-        armoire, new HashSet<uint>(), snapshot.Entries, itemNames, int.MaxValue));
+        armoire, new HashSet<uint>(), snapshot.Entries, itemNames,
+        PlayerUnlockState.NothingUnlocked, int.MaxValue));
 
     var total = 0;
     var refused = new List<(string Currency, uint Item, string Name, uint Vendor, uint Shop, string Reason)>();
@@ -220,17 +276,47 @@ Check("GROUND TRUTH: every exported code, every currency, passes Knightshopper's
         Console.WriteLine($"  {group.CurrencyName}: {group.Items.Count} items exported, {accepted} accepted by Knightshopper's catalog, {group.Items.Count - accepted} refused");
     }
     Console.WriteLine($"  exported {total} item(s) across {result.Currencies.Count} currency code(s); Knightshopper's own catalog refuses {refused.Count}");
-    // The two items Knightshopper refused live must be IN the Gil code now (at a pair its own
-    // catalog has), not silently dropped to make the refusals go away.
+
+    // Nothing unlocked: every gated listing must be out of the codes. Anchors are the two
+    // pieces whose locked listings started this task: 4303 is achievement-gated
+    // (GilShopItem.AchievementRequired = 876 'Spreading the Love', Knightshopper's live
+    // refusal that reached the buy), 13298 is quest-gated (67756 'A Pair of Hearts').
     var gilGroup = result.Currencies.First(c => c.CurrencyId == 2);
     foreach (var item in new[] { 4303u, 13298u })
     {
-        var c = gilGroup.Items.FirstOrDefault(i => i.Entry.ItemId == item)
-                ?? throw new Exception($"item {item} is missing from the Gil code instead of being exported at a valid vendor");
+        var leaked = gilGroup.Items.FirstOrDefault(i => i.Entry.ItemId == item);
+        if (leaked != null)
+            throw new Exception($"item {item} is locked for a fresh character but {leaked.Entry.VendorId}/{leaked.Entry.ShopId} reached the import code");
+        if (!result.Excluded.Any(e => e.ItemId == item && e.Reason.StartsWith("locked")))
+            throw new Exception($"item {item} is neither in the code nor reported as locked-excluded");
+    }
+    var gatedLeaks = 0;
+    foreach (var group2 in result.Currencies)
+        foreach (var c in group2.Items)
+        {
+            if ((c.Entry.QuestRowId > 65535 && !PlayerUnlockState.NothingUnlocked.QuestComplete(c.Entry.QuestRowId))
+                || (c.Entry.AchievementRowId != 0 && !PlayerUnlockState.NothingUnlocked.AchievementEarned(c.Entry.AchievementRowId)))
+                throw new Exception($"gated item {c.Entry.ItemId} (quest {c.Entry.QuestRowId}, ach {c.Entry.AchievementRowId}) reached the import code");
+            gatedLeaks++;
+        }
+    Console.WriteLine($"  nothing-unlocked state: no gated listing reached the codes ({gatedLeaks} exported candidates all gate-free); locked pieces reported as excluded");
+
+    // Full-progress state: the same two anchors must come back, each at a pair
+    // Knightshopper's own catalog accepts (the 0.5.4->0.5.5 ground truth, preserved).
+    var unlockedResult = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), snapshot.Entries, itemNames,
+        PlayerUnlockState.EverythingUnlocked, int.MaxValue));
+    var unlockedGil = unlockedResult.Currencies.First(c => c.CurrencyId == 2);
+    foreach (var item in new[] { 4303u, 13298u })
+    {
+        var c = unlockedGil.Items.FirstOrDefault(i => i.Entry.ItemId == item)
+                ?? throw new Exception($"item {item} is missing from the Gil code with all progress done instead of being exported at a valid vendor");
+        var reason = truth.Validate(2, c.Entry.ItemId, c.Entry.VendorId, c.Entry.ShopId, c.Entry.SubCurrency);
+        if (reason != null)
+            throw new Exception($"item {item} exported at ({c.Entry.VendorId}, {c.Entry.ShopId}) but Knightshopper refuses it: {reason}");
         Console.WriteLine($"  anchor: {item} exported at ({c.Entry.VendorId}, {c.Entry.ShopId}), accepted by Knightshopper's catalog");
     }
-    var bango = gilGroup.Items.FirstOrDefault(i => i.Entry.ItemId == 4868);
-    Console.WriteLine($"  anchor: 4868 (Gysahl Greens) is {(bango == null ? "not an armoire item, so not in the code; checked directly above" : $"exported at ({bango.Entry.VendorId}, {bango.Entry.ShopId})")}");
+
     foreach (var r in refused)
         Console.WriteLine($"    REFUSED {r.Currency}: item {r.Item} '{r.Name}' @({r.Vendor}, {r.Shop}) - {r.Reason}");
     if (refused.Count > 0)

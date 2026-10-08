@@ -13,6 +13,7 @@ public sealed record ShopEntry(
     byte CurrencyId,
     uint? Price,
     uint QuestRowId,
+    uint AchievementRowId,
     ShopSource Source);
 
 public enum ShopSource : byte

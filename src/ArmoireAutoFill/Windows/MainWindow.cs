@@ -111,13 +111,18 @@ public class MainWindow : Window
             return;
         }
 
-        ImGui.Text($"Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
+        ImGui.Text("Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
         if (buyable == 0)
             ImGui.TextWrapped($"None of the {missing} missing piece(s) is sold by a vendor Knightshopper can reach "
                               + "(dropped, crafted, or handler-linked shop). Nothing to add to the shopping list.");
         if (excluded > 0)
             ImGui.TextColored(ColorMuted,
                 $"{inBags} missing piece(s) are already in your inventory/armoury chest — AutoStore handles those, no purchase needed.");
+        var progressLocked = result.Excluded.Count(e => e.Reason.StartsWith("locked"));
+        if (progressLocked > 0)
+            ImGui.TextColored(ColorMuted,
+                $"{progressLocked} missing piece(s) need quest or achievement progress you don't have yet — left out of the "
+                + "import (Knightshopper aborts the whole buy on the first item it cannot unlock).");
         if (result.MissingNotBuyable > 0)
             ImGui.TextColored(ColorMuted,
                 $"{result.MissingNotBuyable} missing piece(s) are not sold by any vendor Knightshopper can reach (dropped, crafted, or handler-linked shop).");
@@ -136,7 +141,6 @@ public class MainWindow : Window
 
         foreach (var group in result.Currencies)
         {
-            var questLocked = group.Items.Count(c => c.Entry.QuestRowId != 0);
             var priceLabel = group.TotalPrice > 0 ? $", {group.TotalPrice:N0} total" : string.Empty;
             ImGui.Text($"{group.CurrencyName}: {group.Items.Count} item(s){priceLabel}");
             ImGui.SameLine();
@@ -161,9 +165,6 @@ public class MainWindow : Window
             if (group.Truncated)
                 ImGui.TextColored(ColorMissing,
                     $"  Only the first {KnightshopperShare.MaxItems} items fit in one Knightshopper list — the rest are skipped this time.");
-            if (questLocked > 0)
-                ImGui.TextColored(ColorMuted,
-                    $"  {questLocked} of these are quest-locked: the vendor only sells them after you complete their quest.");
             if (group.CurrencyId == 2)
                 ImGui.TextColored(ColorMuted,
                     "  Gil prices are the standard vendor price; some vendors charge less with reputation.");

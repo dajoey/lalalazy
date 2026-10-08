@@ -1,9 +1,13 @@
 using ArmoireAutoFill.Data.Shopping;
 using ArmoireAutoFill.Logic;
 using ECommons.DalamudServices;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
 using LuminaItem = Lumina.Excel.Sheets.Item;
+using Achievement = FFXIVClientStructs.FFXIV.Client.Game.UI.Achievement;
+using LuminaAchievement = Lumina.Excel.Sheets.Achievement;
 
 namespace ArmoireAutoFill.Data;
 
@@ -44,7 +48,21 @@ public static class ArmoireShoppingInput
         }
 
         input = new ShoppingListBuilder.Input(entries, scanner.LastOwnedItemIds,
-            KnightshopperCatalogBuilder.Snapshot.Entries, names);
+            KnightshopperCatalogBuilder.Snapshot.Entries, names, UnlockState);
         return true;
+    }
+
+    // The export only imports what the player can actually buy now (verdict on 0.5.5.0,
+    // task armoire-0550): Knightshopper aborts the whole buy on the first item it cannot
+    // unlock, and its planner gates each listing on quest completion and achievement.
+    // Same two checks, straight from ClientStructs live state.
+    private static readonly PlayerUnlockState UnlockState = new(
+        QuestManager.IsQuestComplete,
+        AchievementEarned);
+
+    private static unsafe bool AchievementEarned(uint achievementId)
+    {
+        var achievement = Achievement.Instance();
+        return achievement != null && achievement->IsComplete((int)achievementId);
     }
 }

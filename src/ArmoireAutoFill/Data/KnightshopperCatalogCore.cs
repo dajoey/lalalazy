@@ -78,8 +78,15 @@ public sealed record CatalogBuildStats(
 //   * SpecialShop entries are included when their first cost is one of the mapped currency
 //     items below, or when CostType == 2 (special currency bucket, i.e. tomestones, where
 //     sub-currency = bucket id - 1).
-//   * Quest-locked entries are included (import validation does not check quests; the
-//     purchase does) and carry the quest row id so the UI can flag them.
+//   * Quest- and achievement-locked entries are included and carry both row ids —
+//     quest from GilShopItem.QuestRequired / SpecialShop.ItemStruct.Quest, achievement
+//     from GilShopItem.AchievementRequired / SpecialShop.ItemStruct.AchievementUnlock
+//     (the same fields Knightshopper's native listing data carries; cross-checked against
+//     its offline dump 2026-10-08, task armoire-0550: 1083 of the pairs match exactly,
+//     the sheet-only rest are shops its catalog lacks). Import validation checks neither,
+//     the purchase does — so the shopping-list export filters them by the player's live
+//     progress before encoding: Knightshopper aborts the whole buy on the first item it
+//     cannot unlock, and only what the player can actually buy now may be imported.
 public static class KnightshopperCatalogCore
 {
     // Currency item ids observed as SpecialShop costs. Sub-currency rules are
@@ -250,7 +257,7 @@ public static class KnightshopperCatalogCore
                         if (bucket is < 1 or > 3)
                             continue;
                         entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopNpcs),
-                            shop.RowId, bucket - 1, 7, currencyCost, receive.QuestRowId, ShopSource.SpecialShop));
+                            shop.RowId, bucket - 1, 7, currencyCost, receive.QuestRowId, receive.AchievementRowId, ShopSource.SpecialShop));
                         continue;
                     }
 
@@ -270,7 +277,7 @@ public static class KnightshopperCatalogCore
 
                     entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopNpcs),
                         shop.RowId, family.SubCurrency, family.CurrencyId, currencyCost,
-                        receive.QuestRowId, ShopSource.SpecialShop));
+                        receive.QuestRowId, receive.AchievementRowId, ShopSource.SpecialShop));
                 }
             }
             catch (Exception ex)
@@ -325,7 +332,7 @@ public static class KnightshopperCatalogCore
                         var quest = subrow.QuestRequired.FirstOrDefault(q => q.RowId != 0);
                         entries.Add(new ShopEntry(item.RowId, FirstNpc(gilShopNpcs),
                             shop.RowId, -1, 2, itemRow.PriceMid > 0 ? itemRow.PriceMid : null,
-                            quest.RowId, ShopSource.GilShop));
+                            quest.RowId, subrow.AchievementRequired.RowId, ShopSource.GilShop));
                     }
                 }
                 catch (Exception ex)
@@ -356,7 +363,7 @@ public static class KnightshopperCatalogCore
             clock.Elapsed.TotalMilliseconds);
     }
 
-    private record struct ReceivableItem(uint ItemId, uint QuestRowId);
+    private record struct ReceivableItem(uint ItemId, uint QuestRowId, uint AchievementRowId);
 
     // The receive scan replaces the previous FirstOrDefault over ReceiveItems: iterating real
     // rows and reading raw ids is always safe; the same (Item.RowId != 0 && ReceiveCount != 0)
@@ -366,7 +373,7 @@ public static class KnightshopperCatalogCore
     {
         foreach (var receiveItem in itemEntry.ReceiveItems)
             if (receiveItem.Item.RowId != 0 && receiveItem.ReceiveCount != 0)
-                return new ReceivableItem(receiveItem.Item.RowId, itemEntry.Quest.RowId);
+                return new ReceivableItem(receiveItem.Item.RowId, itemEntry.Quest.RowId, itemEntry.AchievementUnlock.RowId);
         return default;
     }
 

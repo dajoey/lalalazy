@@ -18,6 +18,7 @@ public static class ShoppingListBuilder
         IReadOnlySet<uint> OwnedItemIds,
         IReadOnlyList<ShopEntry> Catalog,
         IReadOnlyDictionary<uint, string> ItemNames,
+        PlayerUnlockState UnlockState,
         int MaxItemsPerCurrency = KnightshopperShare.MaxItems);
 
     // One armoire-eligible item with its current owned state.
@@ -67,9 +68,21 @@ public static class ShoppingListBuilder
                 continue;
             }
 
+            // Verdict on 0.5.5.0 (task armoire-0550): only import what the player can
+            // actually buy. Knightshopper aborts the whole buy on the first locked item,
+            // so quest- and achievement-gated listings are filtered on the player's live
+            // progress before the cheapest-per-currency pick. An item locked in every
+            // currency is reported as excluded, never silently dropped.
+            var buyableEntries = entries.Where(input.UnlockState.IsBuyableNow).ToList();
+            if (buyableEntries.Count == 0)
+            {
+                excluded.Add(new ExcludedItem(item.ItemId, name, PlayerUnlockState.LockedReason(entries)));
+                continue;
+            }
+
             // One candidate per item per currency: cheapest then lowest shop id, for
             // stable output. Multiple families legitimately produce separate candidates.
-            var picked = entries
+            var picked = buyableEntries
                 .OrderBy(e => e.Price ?? uint.MaxValue)
                 .ThenBy(e => e.ShopId)
                 .ThenBy(e => e.VendorId)
@@ -118,4 +131,44 @@ public static class CurrencyNames
         10 => "Occult Crescent",
         _ => $"Currency {currencyId}",
     };
+}
+
+// Player-progress checks the export filter consults. Evidence (task armoire-0550 verdict,
+// 2026-10-08): Knightshopper aborts the whole buy on the first locked item ("Band of
+// Eternal Passion is not unlocked for vendor 1017613"), so only what the player can
+// actually buy now may reach the import. Its planner's per-listing unlock rule, mirrored
+// here: a quest id <= 65535 is no gate, a zero achievement id is no gate, otherwise the
+// quest must be complete and the achievement earned on the live player state.
+//
+// Pure delegates so this file stays game-agnostic: the plugin wires the ClientStructs
+// checks (QuestManager.IsQuestComplete / Achievement.IsComplete), the offline harness
+// scripts explicit states.
+public sealed record PlayerUnlockState(
+    Func<uint, bool> QuestComplete,
+    Func<uint, bool> AchievementEarned)
+{
+    public static readonly PlayerUnlockState NothingUnlocked = new(_ => false, _ => false);
+    public static readonly PlayerUnlockState EverythingUnlocked = new(_ => true, _ => true);
+
+    public bool IsBuyableNow(ShopEntry entry) =>
+        (entry.QuestRowId <= 65535 || QuestComplete(entry.QuestRowId))
+        && (entry.AchievementRowId == 0 || AchievementEarned(entry.AchievementRowId));
+
+    // Why every listing of an item is locked, for the excluded-item report.
+    public static string LockedReason(IEnumerable<ShopEntry> entries)
+    {
+        uint quest = 0, achievement = 0;
+        foreach (var e in entries)
+        {
+            if (quest == 0 && e.QuestRowId > 65535) quest = e.QuestRowId;
+            if (achievement == 0 && e.AchievementRowId != 0) achievement = e.AchievementRowId;
+        }
+        return (quest, achievement) switch
+        {
+            (0, 0) => "locked: needs vendor unlock progress",
+            (_, 0) => $"locked: needs quest {quest}",
+            (0, _) => $"locked: needs achievement {achievement}",
+            _ => $"locked: needs quest {quest} and achievement {achievement}",
+        };
+    }
 }
