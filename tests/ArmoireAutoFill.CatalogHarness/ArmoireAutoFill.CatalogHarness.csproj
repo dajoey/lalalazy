@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Console harness, no Dalamud runtime. Compiles the REAL pure catalog core
+       (src/ArmoireAutoFill/Data/KnightshopperCatalogCore.cs) and runs it against a
+       read-only COPY of the real game excel sqpack (SpecialShop, GilShop, GilShopItem,
+       ENpcBase, ENpcResident, Item, Cabinet) so the Knightshopper catalog build is
+       asserted on real sheet rows, not fixtures. Regression target: the 0.5.1.0
+       in-game failure where the Lumina generated getter threw NullReferenceException
+       on the default nested struct returned by FirstOrDefault over an empty receive
+       list, aborting the whole catalog once per frame.
+       Lumina.dll + Lumina.Excel.dll are Dalamud api-15 reference assemblies; override
+       with -p:DalamudRefPath=<dir> (default: the local api-15 extraction).
+       The sqpack copy root (a folder containing ffxiv/0a0000.win32.*) is overridden
+       with -p:ArmoireSqpackPath=<dir> or the ARMOIRE_CATALOG_HARNESS_SQPACK env var.
+         dotnet run -p tests/ArmoireAutoFill.CatalogHarness -c Release -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ArmoireAutoFill.CatalogHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+    <DalamudRefPath Condition="'$(DalamudRefPath)' == ''">/home/dajoey/work/dalamud-refs/15.0.3.4</DalamudRefPath>
+    <ArmoireSqpackPath Condition="'$(ArmoireSqpackPath)' == ''">/home/dajoey/scratch/armoire-catalog-nullref/sqpack</ArmoireSqpackPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudRefPath)\Lumina.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudRefPath)\Lumina.Excel.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\ArmoireAutoFill\Data\KnightshopperCatalogCore.cs" Link="KnightshopperCatalogCore.cs" />
+    <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingModels.cs" Link="ShoppingModels.cs" />
+    <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingListBuilder.cs" Link="ShoppingListBuilder.cs" />
+    <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\KnightshopperShare.cs" Link="KnightshopperShare.cs" />
+  </ItemGroup>
+</Project>

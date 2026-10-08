@@ -1,5 +1,12 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.2.0 (2026-10-08) [testing]
+### Fixed
+- **The shopping list now builds.** On the previous testing build the Knightshopper shopping list always showed "Shop catalog unavailable": one shop entry with an unusual data shape aborted the whole catalog. That entry is now skipped instead, the rest of the list still builds, and a failure is no longer retried every frame.
+### Changed
+- The section now says what actually happened: game data not ready yet, a build failure (with a Refresh button — nothing retries automatically), or a normal empty result ("nothing to shop for").
+- One line per build in the plugin log reports how many shops were scanned, skipped and failed, and how many entries each currency produced.
+
 ## v0.5.1.0 (2026-10-08) [testing]
 ### Added
 - **The shopping list now shows its pieces.** Every currency section in the Knightshopper shopping list can be expanded into a table of the actual pieces: item, price, vendor, one needed of each. Gil prices are the standard vendor price from the item sheet (some vendors charge less with reputation).

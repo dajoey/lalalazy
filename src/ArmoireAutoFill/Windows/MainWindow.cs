@@ -65,10 +65,27 @@ public class MainWindow : Window
                 DrawKnightshopperShoppingBody();
             else
             {
-                KnightshopperCatalogBuilder.Build();
-                if (!KnightshopperCatalogBuilder.IsLoaded)
+                // One build attempt per open; a failure backs off (no per-frame retry, one
+                // log line) until the Refresh button is pressed.
+                KnightshopperCatalogBuilder.RequestBuild();
+                if (KnightshopperCatalogBuilder.SheetsUnavailable)
+                {
                     ImGui.TextColored(ColorMissing,
-                        "Shop catalog unavailable (required excel sheets missing). Check /xllog for errors.");
+                        "Game data is not available right now, so the shop catalog cannot be built. Reopen this window after the game has fully loaded, or press Refresh.");
+                    if (ImGui.Button("Refresh"))
+                        KnightshopperCatalogBuilder.RequestRefresh();
+                }
+                else if (KnightshopperCatalogBuilder.BuildFailed)
+                {
+                    ImGui.TextColored(ColorMissing,
+                        $"The shop catalog build failed ({KnightshopperCatalogBuilder.BuildFailureDetail}). It is not retried automatically — see /xllog for details, or press Refresh.");
+                    if (ImGui.Button("Refresh"))
+                        KnightshopperCatalogBuilder.RequestRefresh();
+                }
+                else
+                {
+                    ImGui.TextColored(ColorMuted, "Building the shop catalog…");
+                }
             }
         }
     }
