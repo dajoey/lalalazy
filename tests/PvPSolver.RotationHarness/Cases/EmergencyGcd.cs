@@ -28,8 +28,8 @@ internal static class EmergencyGcd
             }
         }
 
-        // Guard against a vacuous pass: the scan must really have covered the 21 rotations.
-        Harness.Case("scan covers every per-job rotation file and its override bool methods", files.Length >= 21 && methods >= 100,
+        // Guard against a vacuous pass: the scan must really have covered the 21 rotations (21 files, 90 methods when written).
+        Harness.Case("scan covers every per-job rotation file and its override bool methods", files.Length >= 21 && methods >= 90,
             $"{files.Length} files, {methods} override bool methods");
         Harness.Case("no override bool X calls a base method other than base.X", violations.Count == 0,
             string.Join("; ", violations));

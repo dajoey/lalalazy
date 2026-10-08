@@ -23,8 +23,9 @@ internal static class VprCoil
         Harness.Case("Rattling Coil branch gate is exactly UncoiledFuryPvP.Cooldown.IsCoolingDown",
             gates.Count == 1 && gates[0] == "UncoiledFuryPvP.Cooldown.IsCoolingDown", string.Join(" | ", gates));
 
-        Harness.Case("VPR rotation never waits on Snake Scales", !Regex.IsMatch(san, @"\bSnakeScalesPvP\b"),
-            "SnakeScalesPvP referenced in VPR_Default.PVP.cs");
+        var scales = Regex.IsMatch(san, @"\bSnakeScalesPvP\b");
+        Harness.Case("VPR rotation never waits on Snake Scales", !scales,
+            scales ? "SnakeScalesPvP referenced in VPR_Default.PVP.cs" : "no SnakeScalesPvP reference");
 
         // Canary: the same extraction on the old branch text must not come back as the new gate.
         const string oldBranch = "if (RattlingCoilPvP.CanUse(out action)) { if (SnakeScalesPvP.Cooldown.IsCoolingDown && UncoiledFuryPvP.Cooldown.IsCoolingDown) { return true; } }";
