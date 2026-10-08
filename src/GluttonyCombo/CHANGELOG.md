@@ -1,3 +1,9 @@
+## v1.0.4.294 (2026-10-08) [testing]
+### Fixed
+- **A crash is fixed in the target-hostility check shared by every job's retarget feature (the Dark Knight Shadowstride retarget among them).** When a target's object wrapper carried no valid in-game address, the check passed that empty address straight into a native game function and the game crashed. An object without an address is now treated as not hostile, and the native function is not called for it; targets with a live address keep their exact previous verdicts.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.293 (2026-10-08) [testing]
 ### Changed
 - **The Paladin one-button rotation now holds the Atonement chain (Atonement, Supplication, Sepulchre) outside Fight or Flight instead of spending it mid-combo, so Sepulchre is ready to use when the window opens.** Stacks about to expire (under six seconds) are still used so nothing is wasted, and every decision inside the Fight or Flight window is unchanged.

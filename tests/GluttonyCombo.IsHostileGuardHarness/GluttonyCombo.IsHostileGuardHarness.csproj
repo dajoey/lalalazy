@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- IsHostileGuardHarness (2026-10-08, crash dalamud_appcrash_20261008_124827): offline harness for
+       the vendored ECommons ObjectFunctions.IsHostile. The crash: a target wrapper whose Address is
+       IntPtr.Zero reached the native nameplate-colour function through DRK_RetargetShadowstride's
+       MouseOver/CurrentTarget IfHostile() chain and the game died on a read of address 0
+       (C0000005, RAX=RBX=RCX=0 at the call). IsHostile passed a.Address straight to the native
+       delegate with no guard.
+       THE REAL CODE UNDER TEST: src/GluttonyCombo/ECommons/ECommons/GameFunctions/ObjectFunctions.cs
+       and NameplateKind.cs, compiled UNCHANGED as links. Everything they touch outside those two
+       files is faked in Fakes.cs: the Dalamud IGameObject/IEventObj/IBattleNpc interfaces, Svc,
+       EzDelegate (whose "native" delegate records every invocation instead of reading game memory)
+       and the two FFXIVClientStructs structs the file points into. Nothing under src/ is edited by
+       the fakes; they live only in this fork-only project, so the nightly upstream merge never sees
+       them.
+         dotnet build tests/GluttonyCombo.IsHostileGuardHarness -c Release
+         dotnet tests/GluttonyCombo.IsHostileGuardHarness/bin/Release/net10.0/GluttonyCombo.IsHostileGuardHarness.dll
+       Prints PASS/FAIL per case; ends "OK" and exits 0 only when every case passes. The guard
+       cases (a null wrapper or a zero Address must return false WITHOUT invoking the native
+       delegate) fail against the unguarded source and pin the fix; the two valid-address cases are
+       characterization and must keep passing so the guard never changes a live target's verdict. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.IsHostileGuardHarness</RootNamespace>
+    <AssemblyName>GluttonyCombo.IsHostileGuardHarness</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real vendored ECommons files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\ECommons\ECommons\GameFunctions\ObjectFunctions.cs" Link="ECommons\ObjectFunctions.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\ECommons\ECommons\GameFunctions\NameplateKind.cs" Link="ECommons\NameplateKind.cs" />
+  </ItemGroup>
+</Project>

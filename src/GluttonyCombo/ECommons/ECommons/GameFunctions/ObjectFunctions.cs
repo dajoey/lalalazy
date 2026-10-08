@@ -46,6 +46,11 @@ public static unsafe class ObjectFunctions
 
     public static bool IsHostile(this IGameObject a)
     {
+        // Fork guard (2026-10-08, crash dalamud_appcrash_20261008_124827): a target wrapper whose
+        // Address is IntPtr.Zero (or a null wrapper) used to reach the native nameplate-colour
+        // function and died on a read of address 0 out of the DRK_RetargetShadowstride
+        // MouseOver/CurrentTarget IfHostile() chain. No address, nothing to inspect: not hostile.
+        if(a == null || a.Address == IntPtr.Zero) return false;
         GetNameplateColorNative ??= EzDelegate.Get<GetNameplateColorDelegate>(GetNameplateColorSig);
         var plateType = GetNameplateColorNative(a.Address);
         //4, 5, 6: Enemy players in PvP
