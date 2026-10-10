@@ -48,6 +48,10 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("panel.automarket", "Auto-Market panel");
 
   // ---- panel UI state ----
+  // _status and _categoryFilter are working values resolved from the saved configuration every
+  // frame (Draw), so the dropdowns remember their setting between sessions; picking in a
+  // dropdown writes the configuration. A stale saved category resolves to "every category" for
+  // display while the saved value is kept (see AutoMarketPanelModel.ResolveVisibleCategory).
   private AutoMarketPanelModel.StatusFilter _status = AutoMarketPanelModel.StatusFilter.All;
   private string _search = string.Empty;
   private uint _categoryFilter; // 0 = every category
@@ -192,6 +196,14 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
       var all = AutoMarketPanelModel.Build(stacks, entries, ItemNameResolver.GetItemName, ItemNameResolver.SearchCategoryId, IsMarketable);
       var counts = AutoMarketPanelModel.Count(all);
+
+      // The filter dropdowns remember their setting (0.2.8.15): the working values are resolved
+      // from the saved configuration every frame, so a plugin reload or game restart restores
+      // them. A saved category that is not in the current bags resolves to "every category" for
+      // display - it must not hide everything behind an invisible filter - while the saved value
+      // itself is kept until another is picked.
+      _status = AutoMarketPanelModel.ResolveVisibleStatus(c.AutoMarketPanelStatus);
+      _categoryFilter = AutoMarketPanelModel.ResolveVisibleCategory(c.AutoMarketPanelCategory, AutoMarketPanelModel.PresentCategories(all));
       var filters = new AutoMarketPanelModel.Filters(_status, _search, _categoryFilter, _showUnmarketable);
       var visible = AutoMarketPanelModel.Visible(all, filters);
       var bulk = AutoMarketPanelModel.PlanBulk(visible);
@@ -261,29 +273,36 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var statusIdx = (int)_status;
     ImGui.SetNextItemWidth(120);
     if (ImGui.Combo("##lmcPanelStatus", ref statusIdx, ["All", "On list", "Not on list", "Excluded"], 4))
+    {
       _status = (AutoMarketPanelModel.StatusFilter)statusIdx;
-    Tip("Show every marketable stack, only the ones on the Auto-Market list, only the ones missing from it, or only the ones quick-excluded from category routing.");
+      Plugin.Configuration.AutoMarketPanelStatus = _status;
+      Plugin.Configuration.Save();
+    }
+    Tip("Show every marketable stack, only the ones on the Auto-Market list, only the ones missing from it, or only the ones quick-excluded from category routing. This setting is remembered between sessions.");
 
     ImGui.SameLine(0, 12);
     ImGui.SetNextItemWidth(150);
     if (ImGui.BeginCombo("##lmcPanelCategory", _categoryFilter == 0 ? "Every category" : ItemNameResolver.GetSearchCategoryName(_categoryFilter)))
     {
       if (ImGui.Selectable("Every category", _categoryFilter == 0))
+      {
         _categoryFilter = 0;
-      var present = new List<uint>();
-      foreach (var r in all)
-        if (r.CategoryId != 0 && !present.Contains(r.CategoryId))
-          present.Add(r.CategoryId);
-      present.Sort();
-      foreach (var catId in present)
+        Plugin.Configuration.AutoMarketPanelCategory = 0;
+        Plugin.Configuration.Save();
+      }
+      foreach (var catId in AutoMarketPanelModel.PresentCategories(all))
       {
         var label = $"{ItemNameResolver.GetSearchCategoryName(catId)} ({catId})";
         if (ImGui.Selectable(label, _categoryFilter == catId))
+        {
           _categoryFilter = catId;
+          Plugin.Configuration.AutoMarketPanelCategory = catId;
+          Plugin.Configuration.Save();
+        }
       }
       ImGui.EndCombo();
     }
-    Tip("Only stacks in this market-board category.");
+    Tip("Only stacks in this market-board category. This setting is remembered between sessions; a category the current bags do not have shows as every category until it is picked again.");
 
     ImGui.SameLine(0, 12);
     var show = _showUnmarketable;

@@ -64,6 +64,16 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\StallGuard.cs" />
     <Compile Include="InventoryCases.cs" />
     <Compile Include="StallCases.cs" />
+    <Compile Include="ConfigurationStubs.cs" />
+    <Compile Include="PanelFilterCases.cs" />
     <Compile Include="Program.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 0.2.8.15: the REAL Configuration with the REAL Newtonsoft serializer (the package Dalamud
+         saves plugin configs with) - the panel-filter round trip (cases 170-173) is answered by
+         the exact code and serializer that ship. ConfigurationStubs.cs carries the small Dalamud
+         surface Configuration.cs touches (GluttonyCombo.ConfigMigrateHarness precedent). -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <Compile Include="..\..\src\LazyMarketCompanion\Configuration.cs" />
   </ItemGroup>
 </Project>

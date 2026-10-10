@@ -1,3 +1,10 @@
+## v0.2.8.15 (2026-10-10) [testing]
+### Changed
+- **The Auto-Market panel's two filter dropdowns remember their setting between sessions.** The status filter (every stack / on the list / not on the list / excluded) and the market-category filter used to reset to "every stack, every category" every time the plugin loaded or the game restarted; they now save as soon as they are changed and come back that way. A saved category the current bags do not contain still shows as "every category" instead of silently hiding everything, and the saved choice comes back when the bags hold that category again.
+### Notes
+- Untried build: tested offline against a saved-configuration round trip (the plugin's offline test suite), not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.14 (2026-10-08) [testing]
 ### Fixed
 - **A pinch row that cannot get its dialog or its price is now skipped; it no longer aborts the whole retainer with the price dialog left open.** Each row step waits for a dialog or a market price. When one never arrived, the wait ran into the task manager's hard 10-second limit, which discards every remaining task of the run and leaves the dialog on screen. Each row step now has a shorter budget of its own: when it runs out, the row is skipped with a log line naming the stage and row, the row's dialogs are closed, any late market reply is dropped, and the run carries on with the next row. A skipped row keeps its current price.

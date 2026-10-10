@@ -73,6 +73,45 @@ public static class AutoMarketPanelModel
   }
 
   /// <summary>
+  /// The category ids present in the current rows, sorted - both the panel's category dropdown
+  /// items and the saved-category staleness check (<see cref="ResolveVisibleCategory"/>) use this
+  /// one set, so the dropdown can never offer, or keep hidden, a category the bags do not have.
+  /// </summary>
+  public static List<uint> PresentCategories(IReadOnlyList<Row> rows)
+  {
+    var present = new List<uint>();
+    foreach (var r in rows)
+      if (r.CategoryId != 0 && !present.Contains(r.CategoryId))
+        present.Add(r.CategoryId);
+    present.Sort();
+    return present;
+  }
+
+  /// <summary>
+  /// The saved status filter as the panel shows it: a value outside the enum (a hand-edited or
+  /// future config) must never stand as an invisible filter, so it shows as All.
+  /// </summary>
+  public static StatusFilter ResolveVisibleStatus(StatusFilter saved)
+    => Enum.IsDefined(typeof(StatusFilter), saved) ? saved : StatusFilter.All;
+
+  /// <summary>
+  /// The saved category filter as the panel shows it: a saved category that is not among the
+  /// categories the current bags have would hide everything behind an invisible filter, so it
+  /// shows as every category (0) until another is picked - the saved value itself is kept, so
+  /// the choice comes back when the bags hold that category again.
+  /// </summary>
+  public static uint ResolveVisibleCategory(uint savedCategory, IReadOnlyList<uint> presentCategories)
+    => savedCategory != 0 && !Contains(presentCategories, savedCategory) ? 0u : savedCategory;
+
+  private static bool Contains(IReadOnlyList<uint> list, uint value)
+  {
+    foreach (var v in list)
+      if (v == value)
+        return true;
+    return false;
+  }
+
+  /// <summary>
   /// Rows by status, counted over EVERY grouped stack BEFORE filtering - the numbers the open log
   /// line carries and the "unmarketable" filter label shows. <see cref="Excluded"/> counts rows
   /// that are on the list AND quick-excluded (a subset of <see cref="OnList"/>).

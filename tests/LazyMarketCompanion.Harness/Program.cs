@@ -5907,6 +5907,9 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
 // 163-169. The retainer-dialog stall guard (0.2.8.14): see StallCases.cs.
 StallCases.Run((name, ok, detail) => Check(name, ok, detail));
 
+// 170-173. The panel filter dropdowns remember their setting (0.2.8.15): see PanelFilterCases.cs.
+PanelFilterCases.Run((name, ok, detail) => Check(name, ok, detail));
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

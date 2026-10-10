@@ -310,6 +310,23 @@ public sealed class Configuration : IPluginConfiguration
   public float AutoMarketPanelY { get; set; } = 64f;
 
   /// <summary>
+  /// The Auto-Market panel's status filter dropdown, remembered between sessions (0.2.8.15).
+  /// All (0) is the behaviour of builds before the filter was remembered, so an existing config
+  /// deserializes unchanged. The panel saves it when the dropdown changes; a value outside the
+  /// enum shows as All.
+  /// </summary>
+  public AutoMarket.AutoMarketPanelModel.StatusFilter AutoMarketPanelStatus { get; set; }
+    = AutoMarket.AutoMarketPanelModel.StatusFilter.All;
+
+  /// <summary>
+  /// The Auto-Market panel's category filter dropdown, remembered between sessions (0.2.8.15).
+  /// 0 = every category, the behaviour of builds before the filter was remembered. A saved
+  /// category that is not among the categories the current bags have still shows as "every
+  /// category" until another is picked; the saved value itself is kept.
+  /// </summary>
+  public uint AutoMarketPanelCategory { get; set; } = 0;
+
+  /// <summary>
   /// Which items get the retainer's free market slots when there are not enough for everything.
   /// FastestSellingFirst (the default) ranks by Universalis per-item sale velocity of the rule's own
   /// quality; items with no fresh data keep their list position and sort last.
