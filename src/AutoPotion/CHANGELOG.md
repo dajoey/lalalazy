@@ -1,5 +1,12 @@
 # Changelog - AutoPotion
 
+## v0.2.5.2 (2026-10-10) [testing]
+### Fixed
+- **Automatic item uses no longer cancel an open action sequence.** Any potion, ether, deep dungeon medicine or Echo Drops that would land while mudra seals or Ten Chi Jin are held is delayed until the sequence completes, instead of cancelling the ninjutsu mid-chain. The delay lasts only while the sequence is up (a mudra window is about six seconds) and lifts immediately after; at or below 25% HP the heal fires regardless - a cancelled jutsu is cheaper than dying. No other job's behaviour changes.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- With the optional decision log enabled, a held use is recorded with the `heldmudra` near-miss reason, rate-limited like every other near-miss line.
+
 ## v0.2.5.1 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the master switch, "Only in combat", "Only in a duty", the HP, MP and Regen potion switches with their thresholds, and Cure Silence (Echo Drops) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.

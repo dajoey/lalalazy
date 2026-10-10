@@ -161,6 +161,24 @@ internal class PotionService
         // enabled threshold was satisfied, which is the ordinary healthy tick and stays silent.
         string? nearMiss = null;
 
+        // v0.2.5.2 — the uninterruptible-sequence gate (ItemUseGate). A self-targeted item
+        // use while mudra seals (496) or Ten Chi Jin (1186) are held cancels the jutsu: live
+        // collisions had potions land mid-seals and drop the chain (ffxivdb 2026-10-10, PT
+        // fires at 12:36:13.847 and 12:36:27.050 ET inside GluttonyCombo mudra windows). One
+        // gate here, before every fire block, covers all four item kinds (HP, MP, regen,
+        // Echo Drops). The hold lifts on the next tick (~150 ms) once the sequence completes
+        // (a mudra window is ~6 s, TCJ ~10 s), and HP at or below the emergency floor fires
+        // anyway — a cancelled jutsu is cheaper than dying.
+        if (ItemUseGate.ShouldHold(PlayerHasStatus(ItemUseGate.MudraStatusId),
+                                   PlayerHasStatus(ItemUseGate.TenChiJinStatusId),
+                                   hpRatio))
+        {
+            _lastSkipReason =
+                $"held: mudra/Ten Chi Jin in progress (HP {hpRatio:P0} > {ItemUseGate.EmergencyHpFloor:P0} emergency floor)";
+            if (tap) PotionTelemetry.RecordNearMiss(PotionTelemetryFormat.ReasonHeldMudra, snap);
+            return;
+        }
+
         if (job.HpPotionEnable && hpRatio <= job.HpPotionThreshold / 100f)
         {
             var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, PickMode.HpBest, tap, out var why);
@@ -371,6 +389,7 @@ internal class PotionService
         Plugin.Log.Information($"  MpEnable={job.MpPotionEnable} MpThreshold={job.MpPotionThreshold}%");
         Plugin.Log.Information($"  RegenEnable={job.RegenPotionEnable} RegenThreshold={job.RegenPotionThreshold}%");
         Plugin.Log.Information($"  SilenceEchoDropsEnable={job.SilenceEchoDropsEnable} (Silence status {SilenceStatusId}, item {EchoDropsItemId})");
+        Plugin.Log.Information($"  SequenceGate: mudra={PlayerHasStatus(ItemUseGate.MudraStatusId)} tenChiJin={PlayerHasStatus(ItemUseGate.TenChiJinStatusId)} emergencyFloor={ItemUseGate.EmergencyHpFloor:P0}");
         Plugin.Log.Information($"InCombat={Plugin.Condition[ConditionFlag.InCombat]} BoundByDuty={Plugin.Condition[ConditionFlag.BoundByDuty]}");
         Plugin.Log.Information($"TerritoryId={territoryId} IsInDeepDungeon={IsInDeepDungeon()}");
 

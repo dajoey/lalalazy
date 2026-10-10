@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MudraGateHarness (2026-10-10, "autopotion is messing up ninja's mudra"): offline harness for
+       AutoPotion's uninterruptible-sequence gate. A self-targeted item use while mudra seals (status
+       496) or Ten Chi Jin (1186) are held cancels the jutsu; live ffxivdb lines show AutoPotion 0.2.5.1
+       firing exactly there (PT fires at 12:36:13.847 and 12:36:27.050 ET inside GluttonyCombo mudra
+       windows). THE REAL CODE UNDER TEST: src/AutoPotion/AutoPotion/ItemUseGate.cs and
+       PotionTelemetryFormat.cs, compiled UNCHANGED as links; the harness supplies the fake game state
+       (which statuses are up, the HP ratio) from those observed lines. No Dalamud, no game.
+         dotnet build tests/AutoPotion.MudraGateHarness -c Release
+         dotnet tests/AutoPotion.MudraGateHarness/bin/Release/net10.0/AutoPotion.MudraGateHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 only when every case passes. The two replay cases
+       FAIL against the ungated 0.2.5.1 decision (ShouldHold => false) and pin the fix; the
+       seals-dropped, emergency-floor, boundary and non-sequence cases are characterization so the
+       gate never holds a heal that 0.2.5.1 would have fired outside a sequence window. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AutoPotion.MudraGateHarness</RootNamespace>
+    <AssemblyName>AutoPotion.MudraGateHarness</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real gate + telemetry format, unchanged ==== -->
+    <Compile Include="..\..\src\AutoPotion\AutoPotion\ItemUseGate.cs" Link="ItemUseGate.cs" />
+    <Compile Include="..\..\src\AutoPotion\AutoPotion\PotionTelemetryFormat.cs" Link="PotionTelemetryFormat.cs" />
+  </ItemGroup>
+</Project>

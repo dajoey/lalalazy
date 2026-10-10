@@ -85,6 +85,14 @@ internal static class PotionTelemetryFormat
     public const string ReasonEdUseFail = "edusefail";
 
     /// <summary>
+    ///     A threshold was crossed and a candidate was ready, but an uninterruptible
+    ///     sequence was in progress (NIN mudra seals 496 / Ten Chi Jin 1186), so every
+    ///     item use is held until it completes (v0.2.5.2). Fires again on the next tick
+    ///     once the sequence drops; HP at or below the emergency floor never holds.
+    /// </summary>
+    public const string ReasonHeldMudra = "heldmudra";
+
+    /// <summary>
     ///     Sentinel written into <c>mpPct</c> for a job with no MP pool at all
     ///     (warriors, most gatherers), so a query can tell "0% MP" apart from
     ///     "this job has no MP".
