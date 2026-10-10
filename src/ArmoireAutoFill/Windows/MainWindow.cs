@@ -111,7 +111,7 @@ public class MainWindow : Window
             return;
         }
 
-        ImGui.Text("Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
+        ImGui.Text($"Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
         if (buyable == 0)
             ImGui.TextWrapped($"None of the {missing} missing piece(s) is sold by a vendor Knightshopper can reach "
                               + "(dropped, crafted, or handler-linked shop). Nothing to add to the shopping list.");
@@ -133,6 +133,15 @@ public class MainWindow : Window
         if (KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount > 0)
             ImGui.TextColored(ColorMuted,
                 $"{KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount} items left out: Knightshopper cannot buy them");
+        var leftOutPieces = KnightshopperCatalogBuilder.Snapshot.LeftOutPieces;
+        if (leftOutPieces.Count > 0 && ImGui.TreeNode($"Pieces no code can name ({leftOutPieces.Count})"))
+        {
+            // Per-piece reasons for everything the scan had to skip, so a gap is never
+            // silent (PvP currency coverage, task armoire-pvp-gear-coverage).
+            foreach (var piece in leftOutPieces)
+                ImGui.TextWrapped($"{input.ItemNames.GetValueOrDefault(piece.ItemId, $"item {piece.ItemId}")} — {piece.Reason}");
+            ImGui.TreePop();
+        }
         ImGui.TextColored(ColorMuted, KnightshopperInstructions.CatalogCheckNote());
 
         var ksLoaded = IsKnightshopperLoaded();

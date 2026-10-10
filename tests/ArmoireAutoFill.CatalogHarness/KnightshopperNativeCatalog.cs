@@ -130,4 +130,8 @@ public sealed class KnightshopperNativeCatalog
 
     public bool HasItem(int currency, uint item)
         => _items.TryGetValue(currency, out var byItem) && byItem.ContainsKey(item);
+
+    // Every item id Knightshopper's catalog lists in a currency.
+    public IEnumerable<uint> ItemsFor(int currency)
+        => _items.TryGetValue(currency, out var byItem) ? byItem.Keys : [];
 }

@@ -364,5 +364,94 @@ Check("GROUND TRUTH: every catalog entry, every currency, is a pair Knightshoppe
         throw new Exception($"Knightshopper's catalog lacks {unexpected.Count} catalog entries beyond the documented weapon shops - first: {unexpected[0]}");
 });
 
+Check("GROUND TRUTH: the PvP family covers the quartermaster shops Knightshopper's catalog has", () =>
+{
+    // The gap Joey reported (task armoire-pvp-gear-coverage): Trophy Crystal weapons and
+    // armour were missing from the shopping list. The shops themselves were never the
+    // problem - the crystal and collar quartermasters are placed ENpcBases whose ENpcData
+    // directly references the shop rows - the currency-cost map in KnightshopperCatalogCore
+    // simply did not know their cost items. Pins the full PvP family shape against the
+    // native catalog: crystal quartermaster 1038441 (Trophy Crystal, item 36656, sub 1),
+    // collar quartermaster 1024213 (Wolf Collar, item 21067, sub 2).
+    var pvp = snapshot.Entries.Where(e => e.CurrencyId == 5).ToList();
+    if (pvp.Count == 0)
+        throw new Exception("no PvP entries: the Trophy Crystal and Wolf Collar shops never reach the catalog");
+    foreach (var shop in new uint[] { 1770588, 1770589, 1770590, 1770591, 1770592, 1770593, 1770648, 1770649, 1770732, 1770972 })
+        if (!pvp.Any(e => e.VendorId == 1038441 && e.ShopId == shop && e.SubCurrency == 1))
+            throw new Exception($"Trophy Crystal shop {shop} missing at vendor 1038441 sub 1");
+    if (!pvp.Any(e => e.VendorId == 1024213 && e.ShopId == 1770594 && e.SubCurrency == 2))
+        throw new Exception("Wolf Collar shop 1770594 missing at vendor 1024213 sub 2");
+
+    // The reported class: a Tropaios weapon (Trophy Crystal weapons). Its pair must be one
+    // Knightshopper's own catalog accepts, not merely one we believe.
+    var weapon = pvp.FirstOrDefault(e => e.ItemId == 36963)
+                 ?? throw new Exception("Tropaios Sword 36963 (Trophy Crystal weapon) is not in the catalog");
+    var weaponRefusal = truth.Validate(5, weapon.ItemId, weapon.VendorId, weapon.ShopId, weapon.SubCurrency);
+    if (weaponRefusal != null)
+        throw new Exception($"Knightshopper's catalog refuses the Trophy Crystal pair for 36963: {weaponRefusal}");
+    Console.WriteLine($"  PvP: {pvp.Count} entries across {pvp.Select(e => e.ShopId).Distinct().Count()} shops, "
+                      + $"subs {string.Join(',', pvp.Select(e => e.SubCurrency).Distinct().OrderBy(x => x))}; "
+                      + $"anchor 36963 at ({weapon.VendorId}, {weapon.ShopId}) accepted");
+});
+
+Check("GROUND TRUTH: the PvP export code carries Trophy Crystal gear at pairs Knightshopper accepts", () =>
+{
+    var armoire = new List<ShoppingListBuilder.ArmouryEntry>();
+    foreach (var row in Sheet<LuminaCabinet>())
+        if (row.Item.RowId != 0)
+            armoire.Add(new ShoppingListBuilder.ArmouryEntry(row.Item.RowId, ShoppingListBuilder.Ownership.NotOwned));
+    var names = new Dictionary<uint, string>();
+    foreach (var item in Sheet<Item>())
+        names[item.RowId] = item.Name.ExtractText();
+
+    // Full-progress state: the PvP currency code must exist and carry the anchor weapon.
+    var unlocked = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), snapshot.Entries, names, PlayerUnlockState.EverythingUnlocked, int.MaxValue));
+    var pvpGroup = unlocked.Currencies.FirstOrDefault(c => c.CurrencyId == 5)
+                   ?? throw new Exception("no PvP currency code was generated at full progress");
+    var sword = pvpGroup.Items.FirstOrDefault(i => i.Entry.ItemId == 36963)
+                ?? throw new Exception("Tropaios Sword 36963 missing from the PvP code at full progress");
+    var swordRefusal = truth.Validate(5, sword.Entry.ItemId, sword.Entry.VendorId, sword.Entry.ShopId, sword.Entry.SubCurrency);
+    if (swordRefusal != null)
+        throw new Exception($"Knightshopper's catalog refuses the exported PvP item: {swordRefusal}");
+
+    // Nothing-unlocked state: no gated PvP listing may reach the code (the 0.5.5.0 rule).
+    var locked = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), snapshot.Entries, names, PlayerUnlockState.NothingUnlocked, int.MaxValue));
+    foreach (var group in locked.Currencies.Where(c => c.CurrencyId == 5))
+        foreach (var c in group.Items)
+            if (c.Entry.QuestRowId > 65535 || c.Entry.AchievementRowId != 0)
+                throw new Exception($"gated PvP item {c.Entry.ItemId} reached the nothing-unlocked code");
+    Console.WriteLine($"  PvP code at full progress: {pvpGroup.Items.Count} items; nothing-unlocked state exports "
+                      + $"{locked.Currencies.Where(c => c.CurrencyId == 5).Sum(c => c.Items.Count)} PvP items, all gate-free");
+});
+
+Check("GROUND TRUTH: every PvP armoire piece Knightshopper sells that the list cannot name is reported left out with a reason", () =>
+{
+    // Wolf Mark gear sits behind the mark quartermaster, whose ENpcBase data has no direct
+    // shop reference (one handler argument instead), so the scan can never name its shops
+    // without reproducing Knightshopper's native handler resolution. Those pieces must not
+    // vanish silently: each one missing from the catalog has to appear in the per-item
+    // left-out report with a stated reason (task armoire-pvp-gear-coverage: no silent gaps).
+    var armoire = new HashSet<uint>();
+    foreach (var row in Sheet<LuminaCabinet>())
+        if (row.Item.RowId != 0) armoire.Add(row.Item.RowId);
+    var covered = snapshot.Entries.Where(e => e.CurrencyId == 5).Select(e => e.ItemId).ToHashSet();
+    var unreported = new List<uint>();
+    foreach (var item in truth.ItemsFor(5))
+    {
+        if (!armoire.Contains(item) || covered.Contains(item)) continue;
+        if (!snapshot.LeftOutPieces.Any(p => p.ItemId == item))
+            unreported.Add(item);
+    }
+    if (unreported.Count > 0)
+        throw new Exception($"{unreported.Count} PvP armoire piece(s) are neither covered nor reported left out - first: {unreported[0]}");
+    var wolfMark = snapshot.LeftOutPieces.Where(p => p.ItemId == 7360).FirstOrDefault()
+                   ?? throw new Exception("Lionsmane Armet 7360 (Wolf Mark gear) is not in the left-out report");
+    if (string.IsNullOrWhiteSpace(wolfMark.Reason))
+        throw new Exception("left-out piece 7360 carries no reason");
+    Console.WriteLine($"  left-out report: {snapshot.LeftOutPieces.Count} piece(s) with reasons; PvP-family unreported: 0");
+});
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILURE(S)");
 return failures == 0 ? 0 : 1;

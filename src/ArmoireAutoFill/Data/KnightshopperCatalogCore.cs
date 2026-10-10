@@ -6,6 +6,9 @@ using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
 
 namespace ArmoireAutoFill.Data;
 
+// One armoire piece the shopping list cannot put in a code, with its per-item reason.
+public sealed record LeftOutPiece(uint ItemId, string Reason);
+
 // The scan result: buyable entries plus the skip accounting the UI reports.
 public sealed record CatalogSnapshot(
     IReadOnlyList<ShopEntry> Entries,
@@ -14,9 +17,10 @@ public sealed record CatalogSnapshot(
     int SkippedUnplacedVendors,
     int SkippedGilSpecialShops,
     int UnderlistedItemCount,
-    int LeftOutItemCount)
+    int LeftOutItemCount,
+    IReadOnlyList<LeftOutPiece> LeftOutPieces)
 {
-    public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0, 0, 0, 0);
+    public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0, 0, 0, 0, []);
 }
 
 // What one build attempt scanned and skipped, for the one-per-build log line and any
@@ -90,10 +94,18 @@ public sealed record CatalogBuildStats(
 public static class KnightshopperCatalogCore
 {
     // Currency item ids observed as SpecialShop costs. Sub-currency rules are
-    // family-specific and were validated against real shopping-list data:
+    // family-specific and were validated against real shopping-list data and against
+    // Knightshopper's own catalog (1.0.1.6 native dump, game 2026.08.05, the harness
+    // fixtures):
     //   * Hunt: ascending cost-item id (27 Allied Seal -> 0, 10307 Centurio Seal -> 1,
     //     26533 Sack of Nuts -> 2).
-    //   * PVP: Wolf Mark shops are sub-currency 0.
+    //   * PvP (currency 5): Wolf Mark shops are sub-currency 0; Trophy Crystal (36656)
+    //     shops are sub-currency 1 and Wolf Collar (21067) shops sub-currency 2. The
+    //     Trophy Crystal Exchange and Wolf Collar Exchange shops are directly linked to
+    //     placed quartermaster NPCs, so entries build for them; the Wolf Mark gear shops
+    //     hang off the mark quartermaster, whose ENpcData carries no direct shop
+    //     reference (one handler argument instead), so no entries can name them and
+    //     their pieces are reported left out per item instead.
     //   * Bicolor Gemstone and MGP are "simple" families (Knightshopper's import check
     //     ignores SubCurrency for them); its own lists use -1, so we do too.
     //   * Company seals are intentionally absent: Knightshopper's availability check has
@@ -108,6 +120,8 @@ public static class KnightshopperCatalogCore
         [10307] = (3, 1),  // Centurio Seal
         [26533] = (3, 2),  // Sack of Nuts
         [29] = (4, -1),    // MGP
+        [36656] = (5, 1),  // Trophy Crystal (crystal quartermaster, placed ENpcBase 1038441)
+        [21067] = (5, 2),  // Wolf Collar (collar quartermaster, placed ENpcBase 1024213)
     };
 
     internal static CatalogBuildStats Build(
@@ -190,6 +204,15 @@ public static class KnightshopperCatalogCore
         // Reported as "left out" in the window.
         var leftOutItems = new HashSet<uint>();
 
+        // Per-item reasons for every armoire piece no entry can ever name (its shops were
+        // skipped), so the window can list them by name instead of dropping them quietly.
+        var leftOutPieces = new Dictionary<uint, string>();
+        void NoteLeftOut(uint itemId, string reason)
+        {
+            if (armoireItems.Contains(itemId))
+                leftOutPieces.TryAdd(itemId, reason);
+        }
+
         var entries = new List<ShopEntry>();
         var skippedUnlinked = 0;
         var skippedUnplaced = 0;
@@ -211,7 +234,11 @@ public static class KnightshopperCatalogCore
                     {
                         var skippedReceive = FirstReceivableItem(itemEntry);
                         if (skippedReceive.ItemId != 0)
+                        {
                             underlistedItems.Add(skippedReceive.ItemId);
+                            NoteLeftOut(skippedReceive.ItemId,
+                                "sold only in a shop with no vendor link in the game data (opens through a dialogue handler)");
+                        }
                     }
                     continue;
                 }
@@ -228,6 +255,7 @@ public static class KnightshopperCatalogCore
                         {
                             underlistedItems.Add(skippedReceive.ItemId);
                             leftOutItems.Add(skippedReceive.ItemId);
+                            NoteLeftOut(skippedReceive.ItemId, "Knightshopper has no vendor for its shop");
                         }
                     }
                     continue;
@@ -269,6 +297,8 @@ public static class KnightshopperCatalogCore
                         // Gil-priced SpecialShop entry — excluded (see header comment).
                         skippedGilSpecial++;
                         underlistedItems.Add(receive.ItemId);
+                        NoteLeftOut(receive.ItemId,
+                            "sold for gil at a shop Knightshopper's Gil catalog does not carry");
                         continue;
                     }
 
@@ -300,7 +330,11 @@ public static class KnightshopperCatalogCore
                         skippedUnlinked++;
                         foreach (var skippedSubrow in shop)
                             if (skippedSubrow.Item.RowId != 0)
+                            {
                                 underlistedItems.Add(skippedSubrow.Item.RowId);
+                                NoteLeftOut(skippedSubrow.Item.RowId,
+                                    "sold only in a shop with no vendor link in the game data (opens through a dialogue handler)");
+                            }
                         continue;
                     }
 
@@ -315,6 +349,7 @@ public static class KnightshopperCatalogCore
                             {
                                 underlistedItems.Add(skippedSubrow.Item.RowId);
                                 leftOutItems.Add(skippedSubrow.Item.RowId);
+                                NoteLeftOut(skippedSubrow.Item.RowId, "Knightshopper has no vendor for its shop");
                             }
                         continue;
                     }
@@ -350,12 +385,19 @@ public static class KnightshopperCatalogCore
         // catalog cannot buy (their shops only sit behind NPCs it has no vendor for), minus
         // anything still sold by a kept shop.
         foreach (var entry in entries)
+        {
             leftOutItems.Remove(entry.ItemId);
+            leftOutPieces.Remove(entry.ItemId); // a covered piece is not left out
+        }
         leftOutItems.IntersectWith(armoireItems);
         var leftOutCount = leftOutItems.Count;
+        var leftOutPieceList = leftOutPieces
+            .OrderBy(p => p.Key)
+            .Select(p => new LeftOutPiece(p.Key, p.Value))
+            .ToList();
 
         snapshot = new CatalogSnapshot(entries, npcNames, skippedUnlinked, skippedUnplaced,
-            skippedGilSpecial, underlistedCount, leftOutCount);
+            skippedGilSpecial, underlistedCount, leftOutCount, leftOutPieceList);
         clock.Stop();
         return new CatalogBuildStats(
             specialShopSheet.Count, gilShopItemSheet?.Count ?? 0,

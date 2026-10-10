@@ -193,7 +193,7 @@ internal static class Program
         // item 103 sold for a currency family Knightshopper rejects (seals) -> excluded
         // from the catalog by the catalog builder, expressed here as a Hunt entry.
         ShopEntry E(uint item, uint vendor, uint shop, byte cur, int sub, uint? price, uint quest = 0) =>
-            new(item, vendor, shop, sub, cur, price, quest, cur == 2 ? ShopSource.GilShop : ShopSource.SpecialShop);
+            new(item, vendor, shop, sub, cur, price, quest, 0, cur == 2 ? ShopSource.GilShop : ShopSource.SpecialShop);
 
         var catalog = new List<ShopEntry>
         {
@@ -218,7 +218,8 @@ internal static class Program
             [100] = "Chevron Targe", [101] = "Peiste Staff", [102] = "Quest Blade", [103] = "Unsold Cloak",
         };
 
-        var result = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(armory, owned, catalog, names));
+        var result = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+            armory, owned, catalog, names, PlayerUnlockState.EverythingUnlocked));
 
         var gil = result.Currencies.FirstOrDefault(c => c.CurrencyId == 2);
         Check(gil != null && gil.Items.Count == 2, "gil group has 2 items",
@@ -249,7 +250,7 @@ internal static class Program
             .ToList();
         var bigNames = Enumerable.Range(0, 3).ToDictionary(i => (uint)(2000 + i), i => $"item{i}");
         var bigResult = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
-            bigArmory, owned, bigCatalog, bigNames, MaxItemsPerCurrency: 2));
+            bigArmory, owned, bigCatalog, bigNames, PlayerUnlockState.EverythingUnlocked, MaxItemsPerCurrency: 2));
         var bigGil = bigResult.Currencies.Single(c => c.CurrencyId == 2);
         Check(bigGil.Items.Count == 2 && bigGil.Truncated, "truncation to per-currency limit",
             $"{bigGil.Items.Count} truncated={bigGil.Truncated}");

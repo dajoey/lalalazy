@@ -1,5 +1,11 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.7.0 (2026-10-10)
+### Fixed
+- **The PvP shopping list now includes gear sold for Trophy Crystals and Wolf Collars.** The crystal quartermaster's Trophy Crystal Exchange (weapons, armour, accessories) and the collar quartermaster's exchange were missing from the list because their cost currencies were not mapped, so the PvP code came out empty. Both quartermasters are in the list now, checked against Knightshopper's own vendor catalog: every exported pair is one it accepts.
+- Pieces no import code can name are now listed in the window by name with the reason (the shop has no vendor link in the game data, or Knightshopper has no vendor for its shop), instead of being dropped quietly. The Wolf Mark gear behind the mark quartermaster falls in this list: its shop opens through a dialogue handler, so no vendor pair can be written for it.
+- The shopping summary line showed placeholder braces instead of the counts; it shows the numbers now.
+
 ## v0.5.6.0 (2026-10-08)
 ### Fixed
 - **Import codes now carry only what can actually be bought today.** Some pieces are gated behind more than a quest: seasonal vendors also gate pieces on an achievement, and the previous filter only knew about quests, so pieces the game would not sell yet were still written into the codes, and the first one of them made Knightshopper refuse the whole import ("Item N is not available from its shared Gil vendor"). The shopping list now checks live quest and achievement progress: what can be bought now goes into the code, a piece whose cheapest listing is locked falls back to a listing that can be bought, and a piece with no buyable listing at all is left out and counted at the bottom of the window ("N missing piece(s) need quest or achievement progress you don't have yet - left out of the import"). The rule applies to every currency, not just gil.
