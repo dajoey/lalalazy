@@ -15,7 +15,7 @@ namespace GluttonyCombo.Data;
 ///     When <see cref="Configuration.ComboTelemetry"/> is on, every time a
 ///     combo's settled action for a given button CHANGES, one structured line
 ///     is written at Information level through the normal plugin logger:
-///     <c>CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs</c>.<br />
+///     <c>CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|tenCharges|keyBuffs</c>.<br />
 ///     It rides the existing dalamud.log → ffxivdb <c>plugin_log_lines</c>
 ///     harvest (no transport of its own) and is joined to the ACT-derived
 ///     <c>action_events</c> table by timestamp + chosenActionId
@@ -72,9 +72,16 @@ internal static class ComboTelemetry
 
         try
         {
+            var job = Player.Job.ToString();
+            // NIN-1 (2026-10): which Ten-charge state sat behind each Raiton decision was
+            // unrecordable from the line alone. NIN lines carry the live charge count the
+            // same way NIN_Helper.MudraCharges reads it; every other job renders '-'.
+            uint? tenCharges = job == "NIN"
+                ? CustomComboFunctions.GetRemainingCharges(global::GluttonyCombo.Combos.PvE.NIN.Ten)
+                : null;
             var line = ComboTelemetryFormat.BuildLine(
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                Player.Job.ToString(),
+                job,
                 preset.ToString(),
                 original,
                 chosen,
@@ -82,6 +89,7 @@ internal static class ComboTelemetry
                 ActionWatching.WeaveActions.Count,
                 CustomComboFunctions.CanWeave(),
                 CustomComboFunctions.GetTargetHPPercent(),
+                tenCharges,
                 ConsultedBuffs());
             if (log)
                 Svc.Log.Information(line);

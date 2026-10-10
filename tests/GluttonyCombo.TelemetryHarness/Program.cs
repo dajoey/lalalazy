@@ -30,23 +30,25 @@ internal static class Program
             weaveCount: 0,
             canWeave: true,
             targetHpPct: 63.5f,
+            tenCharges: null,
             buffs: [new Buff(1249, true, 26.4f), new Buff(1234, true, null), new Buff(3211, false, 8.0f)]);
 
         Check("prefix is the greppable CT|", line.StartsWith("CT|", StringComparison.Ordinal));
         Check("exact line shape",
-            line == "CT|1788636000123|RDM|RDM_ST_SimpleMode|7524|25855|1.87|0+|63.5|1249:26.4;1234:-;t3211:8.0",
+            line == "CT|1788636000123|RDM|RDM_ST_SimpleMode|7524|25855|1.87|0+|63.5|-|1249:26.4;1234:-;t3211:8.0",
             line);
 
         var fields = line.Split('|');
-        Check("10 pipe-separated fields", fields.Length == 10, fields.Length.ToString());
+        Check("11 pipe-separated fields", fields.Length == 11, fields.Length.ToString());
         Check("field 1 is unix ms", fields[1] == "1788636000123");
         Check("originalActionId in field 4", fields[4] == "7524");
         Check("chosenActionId in field 5 (the join key)", fields[5] == "25855");
         Check("gcdRemaining 2dp", fields[6] == "1.87");
         Check("weave slot carries count + can-weave", fields[7] == "0+");
         Check("target HP% 1dp", fields[8] == "63.5");
-        Check("absent-but-consulted status renders as id:-", fields[9].Contains("1234:-", StringComparison.Ordinal));
-        Check("non-player status is t-prefixed", fields[9].Contains("t3211:8.0", StringComparison.Ordinal));
+        Check("the Ten-charge placeholder sits between target HP% and keyBuffs", fields[9] == "-");
+        Check("absent-but-consulted status renders as id:-", fields[10].Contains("1234:-", StringComparison.Ordinal));
+        Check("non-player status is t-prefixed", fields[10].Contains("t3211:8.0", StringComparison.Ordinal));
 
         // Culture must not be able to turn 1.87 into 1,87 and break the parser.
         var previous = CultureInfo.CurrentCulture;
@@ -55,34 +57,34 @@ internal static class Program
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
             var german = ComboTelemetryFormat.BuildLine(
                 1_788_636_000_123, "RDM", "RDM_ST_SimpleMode", 7524, 25855,
-                1.87f, 0, true, 63.5f, [new Buff(1249, true, 26.4f)]);
+                1.87f, 0, true, 63.5f, null, [new Buff(1249, true, 26.4f)]);
             Check("invariant decimals under de-DE",
-                german == "CT|1788636000123|RDM|RDM_ST_SimpleMode|7524|25855|1.87|0+|63.5|1249:26.4", german);
+                german == "CT|1788636000123|RDM|RDM_ST_SimpleMode|7524|25855|1.87|0+|63.5|-|1249:26.4", german);
         }
         finally { CultureInfo.CurrentCulture = previous; }
 
         // No buffs consulted: the trailing field is simply empty, never malformed.
         var noBuffs = ComboTelemetryFormat.BuildLine(
-            1, "WHM", "WHM_ST_MainCombo", 119, 3568, 2.50f, 2, false, 100.0f, []);
-        Check("empty keyBuffs still yields 10 fields", noBuffs.Split('|').Length == 10, noBuffs);
+            1, "WHM", "WHM_ST_MainCombo", 119, 3568, 2.50f, 2, false, 100.0f, null, []);
+        Check("empty keyBuffs still yields 11 fields", noBuffs.Split('|').Length == 11, noBuffs);
         Check("weave slot renders can-weave false", noBuffs.Split('|')[7] == "2-", noBuffs);
 
         // Budget: a flood of consulted statuses must not blow the ~200 char line.
         var many = Enumerable.Range(0, 40).Select(i => new Buff((uint)(3000 + i), i % 2 == 0, 12.3f)).ToArray();
         var long1 = ComboTelemetryFormat.BuildLine(
-            1_788_636_000_123, "SGE", "SGE_ST_DPS", 24283, 24284, 2.44f, 1, true, 12.7f, many);
+            1_788_636_000_123, "SGE", "SGE_ST_DPS", 24283, 24284, 2.44f, 1, true, 12.7f, null, many);
         Check("line stays within the 200-char budget",
             long1.Length <= ComboTelemetryFormat.MaxLineLength, $"len={long1.Length}");
         Check("truncated line is marked with ~", long1.EndsWith('~'), long1);
-        Check("truncation keeps all 10 fields", long1.Split('|').Length == 10, long1);
+        Check("truncation keeps all 11 fields", long1.Split('|').Length == 11, long1);
         Check("truncation never cuts a buff mid-entry",
-            long1.TrimEnd('~').Split('|')[9].Split(';').All(e => e.Length == 0 || e.Contains(':')), long1);
+            long1.TrimEnd('~').Split('|')[10].Split(';').All(e => e.Length == 0 || e.Contains(':')), long1);
 
         // A long combo name must not silently eat the buff list's structure.
         var longName = ComboTelemetryFormat.BuildLine(
-            1_788_636_000_123, "BLU", new string('X', 90), 11385, 11390, 2.20f, 0, false, 99.9f,
+            1_788_636_000_123, "BLU", new string('X', 90), 11385, 11390, 2.20f, 0, false, 99.9f, null,
             [new Buff(1234, true, 15.0f), new Buff(1235, true, 15.0f)]);
-        Check("long combo name still yields 10 fields", longName.Split('|').Length == 10, longName);
+        Check("long combo name still yields 11 fields", longName.Split('|').Length == 11, longName);
 
         // The emit gate: one line per CHANGE, not per frame.
         var seen = new Dictionary<(uint, uint), uint>();
@@ -96,6 +98,7 @@ internal static class Program
             ComboTelemetryFormat.ShouldEmit(seen, 3, 16457, 16457) &&
             !ComboTelemetryFormat.ShouldEmit(seen, 3, 16457, 16457));
 
+        TenChargeCases();
         BeastmasterCases();
         CrucibleCases();
         StallCases();
@@ -471,6 +474,90 @@ internal static class Program
         gate.Forget("AutoDuty");
         Check("LS| after the lease is released the same value is news again", gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "1"));
         Check("LS| ... and Forget touched only that plugin", !gate.ShouldEmit("Questionable", "OnlyAttackInCombat", "1"));
+    }
+
+    /// <summary>
+    ///     Invokes the pure <see cref="ComboTelemetryFormat.BuildLine"/> WITH the NIN-1
+    ///     Ten-charge field, or returns null before that field lands in the formatter.
+    ///     Reflection keeps this compiling against the pre-field source, so the red proof
+    ///     is a runtime FAIL, not a build error (the BST-1 tk= pattern).
+    /// </summary>
+    private static string? BuildWithTen(long unixMs, string job, string combo, uint original, uint chosen,
+        float gcdRemaining, int weaveCount, bool canWeave, float targetHpPct, uint? tenCharges,
+        IEnumerable<Buff> buffs)
+    {
+        var m = typeof(ComboTelemetryFormat).GetMethod("BuildLine",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+            new[]
+            {
+                typeof(long), typeof(string), typeof(string), typeof(uint), typeof(uint),
+                typeof(float), typeof(int), typeof(bool), typeof(float), typeof(uint?), typeof(IEnumerable<Buff>),
+            });
+        if (m is null)
+            return null;
+        try
+        {
+            return (string?)m.Invoke(null, new object?[]
+            {
+                unixMs, job, combo, original, chosen,
+                gcdRemaining, weaveCount, canWeave, targetHpPct, tenCharges, buffs,
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    ///     NIN-1 (2026-10): the Ten (mudra) charge count rides its own fixed field
+    ///     between targetHpPct and keyBuffs on CT| lines - a number on NIN lines, the
+    ///     stable <c>-</c> on every other job's line - so the cap-vs-uptime clause behind
+    ///     each Raiton decision becomes measurable straight out of ffxivdb. The field is
+    ///     fixed and sits BEFORE the only truncatable tail, so every position before
+    ///     keyBuffs stays protected.
+    /// </summary>
+    private static void TenChargeCases()
+    {
+        Console.WriteLine("-- NIN-1 Ten-charge field (CT| between targetHpPct and keyBuffs) --");
+
+        // (a) A NIN decision (Raiton 2267 chosen on the Fuma/Raiton button 2240) with 2 Ten charges banked.
+        var nin = BuildWithTen(1_788_636_000_456, "NIN", "NIN_ST_AdvancedMode", 2240, 2267,
+            0.95f, 1, true, 78.2f, 2, [new Buff(638, true, 12.0f)]);
+        Check("NIN-1: exact line shape with the Ten-charge field",
+            nin == "CT|1788636000456|NIN|NIN_ST_AdvancedMode|2240|2267|0.95|1+|78.2|2|638:12.0", nin);
+        var ninFields = nin?.Split('|');
+        Check("NIN-1: a NIN line carries 11 pipe-separated fields", ninFields?.Length == 11, nin);
+        Check("NIN-1: field 10 is the raw Ten charge count", ninFields?[9] == "2", nin);
+        Check("NIN-1: keyBuffs is still the last field", ninFields?[10] == "638:12.0", nin);
+
+        // (b) Every other job renders the stable '-' token in the new field.
+        var rdm = BuildWithTen(1, "RDM", "RDM_ST_SimpleMode", 7524, 25855,
+            1.87f, 0, true, 63.5f, null, [new Buff(1249, true, 26.4f)]);
+        Check("NIN-1: a non-NIN line renders '-' in the Ten-charge field",
+            rdm == "CT|1|RDM|RDM_ST_SimpleMode|7524|25855|1.87|0+|63.5|-|1249:26.4", rdm);
+
+        // Negatives: the fixed field never joins the truncatable tail.
+        var twelve = BuildWithTen(1_788_636_000_789, "NIN", "NIN_ST_AdvancedMode", 2240, 2267,
+            2.44f, 1, true, 12.7f, 1,
+            Enumerable.Range(0, 12).Select(i => new Buff((uint)(3000 + i), true, 12.3f)).ToArray());
+        Check("NIN-1: a 12-buff NIN line still fits the 200-char budget",
+            twelve?.Length <= ComboTelemetryFormat.MaxLineLength, $"len={twelve?.Length}");
+        Check("NIN-1: every position before the new field keeps the old shape",
+            twelve?.StartsWith("CT|1788636000789|NIN|NIN_ST_AdvancedMode|2240|2267|2.44|1+|12.7|", StringComparison.Ordinal) == true,
+            twelve);
+        Check("NIN-1: the Ten-charge field survives a full buff list intact",
+            twelve is not null && twelve.Split('|')[9] == "1" && twelve.Split('|')[10].Split(';').Length == 12, twelve);
+
+        var flood = BuildWithTen(1_788_636_000_123, "NIN", "NIN_ST_AdvancedMode", 2240, 2267,
+            2.44f, 1, true, 12.7f, 1,
+            Enumerable.Range(0, 40).Select(i => new Buff((uint)(3000 + i), i % 2 == 0, 12.3f)).ToArray());
+        Check("NIN-1: truncation keeps the Ten-charge field and marks with ~",
+            flood is not null && flood.Split('|')[9] == "1" && flood.EndsWith('~'), flood);
+        Check("NIN-1: the truncated line keeps all 11 fields",
+            flood?.Split('|').Length == 11, flood);
+        Check("NIN-1: truncation still never cuts a buff mid-entry",
+            flood?.TrimEnd('~').Split('|')[10].Split(';').All(e => e.Length == 0 || e.Contains(':')) == true, flood);
     }
 
     /// <summary> The stalled-GCD collector (SG|): line shape, reason words, and the continuing-stall rate. </summary>

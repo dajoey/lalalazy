@@ -1,3 +1,9 @@
+## v1.0.4.296 (2026-10-10) [testing]
+### Added
+- **Ninja combo-decision lines now name the number of mudra (Ten) charges held at the moment of the decision.** The new field sits between the target-health field and the consulted-status list on `CT|` lines: the live charge count on Ninja lines, `-` on every other job. This is the number that tells apart why a Raiton was thrown - charges about to cap versus the uptime clause - so Ninja's charge-pooling settings can be graded from real logs afterwards. No rotation behavior changes; the consulted-status list remains the only part of the line that can be cut short.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.295 (2026-10-08) [testing]
 ### Fixed
 - **Swiftcast, Triplecast and the other "do not buy an instant cast" decisions now see the Dualcast that the Phantom Red Mage trait grants on every job.** Every one of those decisions asked for the older Occult Dualcast status. In the current Occult Crescent content the Phantom Red Mage trait grants the ordinary Dualcast status instead (the same status Red Mage has, 15 seconds, on whatever job is being played), so on every job except Red Mage the decisions read "no Dualcast" for the whole proc and went ahead: the auto-rez Swiftcast press, the Healer and Caster raise buttons, the Black Mage, Pictomancer and White Mage Swiftcast and Triplecast presses, the Summoner egi Swiftcast option, the Astrologian Lightspeed presses, and the substituted-Swiftcast refusal in the combo layer all spent a cooldown on a cast that was already free. The movement fillers that stand down under a held Dualcast (Black Mage, Pictomancer, Sage, Scholar, Summoner, White Mage, Astrologian) now actually do, and the Summoner Slipstream and Ifrit gemshine picks that cast on the move under an instant-cast effect now count it too. Both Dualcast statuses count; Occult Quick handling is unchanged.

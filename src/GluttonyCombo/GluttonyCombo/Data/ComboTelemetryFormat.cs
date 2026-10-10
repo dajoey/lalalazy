@@ -45,15 +45,17 @@ internal static class ComboTelemetryFormat
 
     /// <summary>
     ///     Builds one telemetry line:
-    ///     <c>CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs</c>.
+    ///     <c>CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|tenCharges|keyBuffs</c>.
     /// </summary>
     /// <param name="weaveCount"> oGCDs already weaved in this GCD window. </param>
     /// <param name="canWeave"> Whether another weave fits right now; rendered as the <c>+</c>/<c>-</c> suffix on the weave slot. </param>
+    /// <param name="tenCharges"> The Ten (mudra) charge count on NIN lines (NIN-1); null renders the stable <c>-</c> on every other job's line. </param>
     /// <param name="buffs"> Statuses the combos consulted this frame. </param>
     internal static string BuildLine(
         long unixMs, string job, string combo,
         uint original, uint chosen,
         float gcdRemaining, int weaveCount, bool canWeave, float targetHpPct,
+        uint? tenCharges,
         IEnumerable<Buff> buffs)
     {
         var inv = CultureInfo.InvariantCulture;
@@ -67,7 +69,8 @@ internal static class ComboTelemetryFormat
           .Append(chosen).Append('|')
           .Append(gcdRemaining.ToString("F2", inv)).Append('|')
           .Append(weaveCount).Append(canWeave ? '+' : '-').Append('|')
-          .Append(targetHpPct.ToString("F1", inv)).Append('|');
+          .Append(targetHpPct.ToString("F1", inv)).Append('|')
+          .Append(tenCharges?.ToString(inv) ?? "-").Append('|');
 
         // Everything up to here is what the ffxivdb join needs; the buff list is
         // the only part allowed to be cut short.
