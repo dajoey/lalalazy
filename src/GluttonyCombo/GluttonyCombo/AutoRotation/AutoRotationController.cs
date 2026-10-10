@@ -151,6 +151,42 @@ internal unsafe class AutoRotationController
         }
     }
 
+    /// <summary> The freeze state already reported, so FZ| lines emit on change only. </summary>
+    private static (string Why, bool Frozen) _freezeReported = (string.Empty, false);
+
+    /// <summary>
+    ///     Emits FZ| freeze telemetry when one of the two silent autorotation freezes
+    ///     engages or releases: Penalty = the own-status Pyretic/Acceleration-Bomb
+    ///     scanner; Reflect = the enemy reflect/counter-stance scanner behind
+    ///     "Un-target and stop actions for Pyretics". Until 1.0.4.297 both suppressed
+    ///     the rotation with nothing in the log - a run could end with zero presses
+    ///     and no line naming the cause (2026-10-10 Eureka Orthos report). Mirrors the
+    ///     CT| tap: gated behind the same "Combo Decision Telemetry" switch, plugin
+    ///     log + ring, and never allowed to break the rotation.
+    /// </summary>
+    private static void ReportFreeze(string why, bool frozen)
+    {
+        if (_freezeReported.Why == why && _freezeReported.Frozen == frozen)
+            return;
+        _freezeReported = (why, frozen);
+        if (!Service.Configuration.ComboTelemetry)
+            return;
+
+        try
+        {
+            var line = ComboTelemetryFormat.BuildFreezeLine(
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Player.Job.ToString(), why, frozen);
+            Svc.Log.Information(line);
+            LalaTelemetry.Record(line);
+        }
+        catch (Exception ex)
+        {
+            // A telemetry tap must never be able to break the rotation it reports on.
+            Svc.Log.Debug($"FZ telemetry failed: {ex.Message}");
+        }
+    }
+
     /// <summary>
     ///     Toggles the auto-rotation setting.
     /// </summary>
@@ -161,6 +197,13 @@ internal unsafe class AutoRotationController
     {
         Service.Configuration.RotationConfig.Enabled = value;
         Service.Configuration.Save();
+
+        // Fork (1.0.4.297): the toggle used to leave the auto-preset caches alone, so
+        // it could not recover a stale list. 2026-10-10: a job change made inside a PvP
+        // map had filtered every PvE preset out of GetJobAutorots and toggling was the
+        // user's recovery attempt - re-arm so a toggle always refreshes the state it
+        // claims to change.
+        P.IPCSearch.UpdateActiveJobPresets();
 
         var stateControlled =
             P.UIHelper.AutoRotationStateControlled() is not null;
@@ -762,15 +805,25 @@ internal unsafe class AutoRotationController
         // Gate autorotation while the player has Pyretic / Acceleration Bomb / similar.
         // PlayerHasActionPenalty (Status.cs) is Wrath dynamic detection: icon-based
         // Pyretic scan + Acceleration Bomb expiry timing + encounter-specific IDs.
+        // Fork (1.0.4.297): both freezes here used to suppress the rotation silently;
+        // they now name themselves in the log (FZ| lines) so a dead run is diagnosable.
         if (PlayerHasActionPenalty(true))
+        {
+            ReportFreeze("Penalty", true);
             return true;
+        }
+        ReportFreeze("Penalty", false);
 
         // Enemy damage-reflect / spikes (e.g. Eureka Gelid Charge -> Ice Spikes,
         // Static Charge -> Shock Spikes, and the elemental Counter stances). Scans
         // nearby hostiles and stops + targets self until it clears on every mob.
         // Gated behind the same "Un-target and stop actions for Pyretics" toggle.
         if (cfg.DPSSettings.UnTargetAndDisableForPenalty && EnemyHasReflectPenalty())
+        {
+            ReportFreeze("Reflect", true);
             return true;
+        }
+        ReportFreeze("Reflect", false);
 
         return !cfg.Enabled
                || !Player.Available

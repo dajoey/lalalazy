@@ -17,6 +17,9 @@ internal static class ComboTelemetryFormat
     /// <summary> Fixed, greppable line prefix: <c>message LIKE 'CT|%'</c> in ffxivdb. </summary>
     public const string Prefix = "CT|";
 
+    /// <summary> Fixed, greppable line prefix for freeze telemetry: <c>message LIKE 'FZ|%'</c> in ffxivdb. </summary>
+    public const string FreezePrefix = "FZ|";
+
     /// <summary> Hard budget for one emitted line. </summary>
     public const int MaxLineLength = 200;
 
@@ -116,5 +119,21 @@ internal static class ComboTelemetryFormat
             sb.Append('~');
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///     Builds one freeze-telemetry line:
+    ///     <c>FZ|unixms|job|why=Penalty|frozen=1</c> on engage, <c>frozen=0</c> on
+    ///     release. <paramref name="why"/> is <c>Penalty</c> (the own-status
+    ///     Pyretic/Acceleration-Bomb scanner) or <c>Reflect</c> (the enemy
+    ///     reflect/counter-stance scanner behind the "Un-target and stop actions for
+    ///     Pyretics" toggle). Both freezes suppressed the autorotation silently until
+    ///     1.0.4.297 - a run could end with zero presses and nothing in the log to
+    ///     name the cause (2026-10-10 Eureka Orthos report).
+    /// </summary>
+    internal static string BuildFreezeLine(long unixMs, string job, string why, bool frozen)
+    {
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{FreezePrefix}{unixMs}|{job}|why={why}|frozen={(frozen ? '1' : '0')}");
     }
 }

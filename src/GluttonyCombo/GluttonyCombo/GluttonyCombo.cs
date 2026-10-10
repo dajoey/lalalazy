@@ -198,6 +198,17 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             if (onTerritoryChange || firstRun)
             {
+                // Fork (1.0.4.297): re-arm the auto-preset caches on every territory
+                // change. GetJobAutorots bakes the live PvP filter (ContentCheck
+                // .IsInPVPContent) into its cached result, and until now the cache was
+                // rebuilt only on job change, lease change or config change - so a job
+                // change made while standing in a PvP map kept the PvP-flavoured (no
+                // PvE) auto list after leaving, and the autorotation ran nothing until
+                // some unrelated re-arm. 2026-10-10 Eureka Orthos: a SAM job change
+                // inside a Crystalline Conflict map emptied the auto list for the rest
+                // of the session, through two Deep Dungeon runs and two manual toggles.
+                P.IPCSearch.UpdateActiveJobPresets();
+
                 if (Content.InstanceContentRow?.RowId > 0)
                     EnteringInstancedContent = true;
                 else if (Content.InstanceContentRow?.RowId == 0)

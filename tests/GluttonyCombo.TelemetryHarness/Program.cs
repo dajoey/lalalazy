@@ -103,6 +103,7 @@ internal static class Program
         CrucibleCases();
         StallCases();
         LeaseCases();
+        FreezeCases();
 
         Console.WriteLine(_fail == 0
             ? _canary > 0 ? $"OK ({_pass} checks, canary failed as expected)" : $"OK ({_pass} checks)"
@@ -474,6 +475,72 @@ internal static class Program
         gate.Forget("AutoDuty");
         Check("LS| after the lease is released the same value is news again", gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "1"));
         Check("LS| ... and Forget touched only that plugin", !gate.ShouldEmit("Questionable", "OnlyAttackInCombat", "1"));
+    }
+
+    /// <summary>
+    ///     FZ| freeze telemetry + GLU-1 auto-preset-cache re-arm wiring (2026-10-10,
+    ///     Eureka Orthos report). The report: a Samurai autorotation ran nothing for a
+    ///     whole Deep Dungeon run although the presets were auto-selected - the auto
+    ///     list had been rebuilt while the player stood in a PvP map, and neither a
+    ///     zone change nor the auto-rotation toggle ever re-armed it. GLU-1 pins the
+    ///     wiring that re-arms the cache; FZ-1 pins the shape of the new FZ| lines that
+    ///     name the two silent freezes (penalty scanner, enemy reflect scanner) so the
+    ///     next suppressed rotation explains itself in the log. BuildFreezeLine is
+    ///     invoked by reflection, so the red proof is a runtime FAIL, not a build
+    ///     error (the BST-1 tk= / NIN-1 tenCharges pattern).
+    /// </summary>
+    private static void FreezeCases()
+    {
+        Console.WriteLine("-- FZ freeze telemetry + GLU-1 cache re-arm wiring --");
+
+        var build = typeof(ComboTelemetryFormat).GetMethod("BuildFreezeLine",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+            new[] { typeof(long), typeof(string), typeof(string), typeof(bool) });
+
+        string? Line(long unixMs, string job, string why, bool frozen) => build is null
+            ? null
+            : (string?)build.Invoke(null, new object?[] { unixMs, job, why, frozen });
+
+        Check("FZ| formatter exists and renders an engaged Penalty freeze",
+            Line(1_791_665_521_933L, "SAM", "Penalty", true) == "FZ|1791665521933|SAM|why=Penalty|frozen=1",
+            Line(1_791_665_521_933L, "SAM", "Penalty", true) ?? "BuildFreezeLine missing");
+        Check("FZ| a release renders frozen=0",
+            Line(1_791_665_521_934L, "SAM", "Penalty", false) == "FZ|1791665521934|SAM|why=Penalty|frozen=0",
+            Line(1_791_665_521_934L, "SAM", "Penalty", false) ?? "BuildFreezeLine missing");
+        Check("FZ| the Reflect reason carries its own why token",
+            Line(1_791_665_521_935L, "RDM", "Reflect", true) == "FZ|1791665521935|RDM|why=Reflect|frozen=1",
+            Line(1_791_665_521_935L, "RDM", "Reflect", true) ?? "BuildFreezeLine missing");
+
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+            Check("FZ| invariant unix ms under de-DE",
+                Line(1_791_665_521_933L, "SAM", "Penalty", true) == "FZ|1791665521933|SAM|why=Penalty|frozen=1",
+                Line(1_791_665_521_933L, "SAM", "Penalty", true) ?? "BuildFreezeLine missing");
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
+
+        var prefix = (string?)typeof(ComboTelemetryFormat).GetField("FreezePrefix",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)?.GetValue(null);
+        Check("FZ| prefix is the greppable FZ|", prefix == "FZ|", prefix ?? "FreezePrefix missing");
+
+        // GLU-1: the wiring that lets a stale auto-preset list recover.
+        var main = RepoFile("GluttonyCombo.cs");
+        var territoryIdx = main.IndexOf("onTerritoryChange || firstRun", StringComparison.Ordinal);
+        var afterTerritory = territoryIdx >= 0 ? main[territoryIdx..] : string.Empty;
+        Check("GLU-1: a territory change re-arms the auto-preset cache",
+            territoryIdx >= 0 && afterTerritory.Contains("P.IPCSearch.UpdateActiveJobPresets()", StringComparison.Ordinal),
+            "GluttonyCombo.cs must call P.IPCSearch.UpdateActiveJobPresets() inside the onTerritoryChange branch");
+
+        var ctrl = RepoFile("AutoRotation", "AutoRotationController.cs");
+        Check("GLU-1: ToggleAutoRotation re-arms the auto-preset cache",
+            ctrl.Contains("UpdateActiveJobPresets()", StringComparison.Ordinal),
+            "ToggleAutoRotation must re-arm the cache so toggling can recover a stale list");
+        Check("GLU-1: both silent freezes report through the FZ| tap",
+            ctrl.Contains("ReportFreeze(\"Penalty\"", StringComparison.Ordinal)
+            && ctrl.Contains("ReportFreeze(\"Reflect\"", StringComparison.Ordinal),
+            "ShouldSkipAutorotation must emit FZ| when the penalty / reflect scanners suppress the rotation");
     }
 
     /// <summary>
