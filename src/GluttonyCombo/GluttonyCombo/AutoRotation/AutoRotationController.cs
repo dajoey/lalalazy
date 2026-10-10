@@ -178,7 +178,7 @@ internal unsafe class AutoRotationController
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 Player.Job.ToString(), why, frozen);
             Svc.Log.Information(line);
-            LalaTelemetry.Record(line);
+            Lalalazy.Telemetry.LalaTelemetry.Record(line);
         }
         catch (Exception ex)
         {
