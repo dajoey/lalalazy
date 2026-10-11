@@ -1,3 +1,10 @@
+## v1.0.4.299 (2026-10-11) [testing]
+### Added
+- **Upstream merge: WrathCombo's PvP custom-action series (parts 1-5).** The one-button PvP custom actions and their per-job config options are updated/completed across the PvP jobs (AST, BLM, BRD, DNC, DRG, DRK, GNB, MCH, MNK, NIN, PCT, PLD, RDM, RPR, SAM, SCH, SGE, SMN, VPR, WAR, WHM) - for example Scholar gains a Diabrosis target-HP% slider, and the Scholar Adloquium retarget option keeps its lalalazy heal-stack note.
+- **Toggling, holding or resuming a burst custom action now prints a line to the chat log** (upstream PR #1283).
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.298 (2026-10-10) [testing]
 ### Fixed
 - **The `FZ|` freeze-telemetry lines from 1.0.4.297 no longer repeat every frame.** Their engage/release check kept one shared "last reported" record for both freezes, but the rotation consults both freezes on the same tick, so the record never matched for long: every tick re-emitted a "released" line for each freeze - roughly a hundred lines per second in live play. That filled the game's log file to its size cap in about ninety minutes, after which the game wrote no further plugin log at all for the rest of the session - including these lines themselves, which is also why the frozen-freeze lines from the Deep Dungeon runs after the cap are unreadable. Each freeze now keeps its own record, and a line is written only when that freeze engages or releases: one line per change, a real freeze appears as a `frozen=1` line, and steady play writes nothing.
