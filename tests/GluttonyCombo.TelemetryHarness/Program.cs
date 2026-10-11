@@ -541,6 +541,49 @@ internal static class Program
             ctrl.Contains("ReportFreeze(\"Penalty\"", StringComparison.Ordinal)
             && ctrl.Contains("ReportFreeze(\"Reflect\"", StringComparison.Ordinal),
             "ShouldSkipAutorotation must emit FZ| when the penalty / reflect scanners suppress the rotation");
+
+        // FZ-2 (2026-10-11): the engage/release edge. 1.0.4.297 deduplicated both
+        // reasons through one shared (why, frozen) tuple, but ShouldSkipAutorotation
+        // reports two reasons every tick - the tuple mismatched for one of them every
+        // tick, so each tick emitted frozen=0 for both (~100 lines/s on live play,
+        // until dalamud.log hit its size cap) and a real engage never reached the log
+        // as frozen=1. The edge is per reason and pure, so it lives in the formatter
+        // next to the line builder it gates:
+        // ComboTelemetryFormat.ShouldEmitFreeze(ref reportedState, frozen).
+        var edge = typeof(ComboTelemetryFormat).GetMethod("ShouldEmitFreeze",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+            new[] { typeof(bool).MakeByRefType(), typeof(bool) });
+
+        bool Emitted(ref bool state, bool frozen)
+        {
+            if (edge is null)
+                return false;
+            var args = new object?[] { state, frozen };
+            var result = (bool)(edge.Invoke(null, args) ?? false);
+            state = (bool)args[0]!;
+            return result;
+        }
+
+        bool penalty = false, reflect = false;
+        Check("FZ| edge: the first quiet tick is not news",
+            edge is not null && !Emitted(ref penalty, false),
+            edge is null ? "ShouldEmitFreeze missing" : "a steady false state must not emit");
+        Check("FZ| edge: an engage emits exactly once",
+            edge is not null && Emitted(ref penalty, true) && !Emitted(ref penalty, true)
+            && !Emitted(ref penalty, true),
+            "the flip to frozen=1 emits one line; holding it emits none");
+        Check("FZ| edge: a release emits exactly once",
+            edge is not null && Emitted(ref penalty, false) && !Emitted(ref penalty, false),
+            "the flip back to frozen=0 emits one line");
+        Check("FZ| edge: the two reasons are independent flags",
+            edge is not null && Emitted(ref penalty, true) && Emitted(ref reflect, true)
+            && !Emitted(ref penalty, true) && !Emitted(ref reflect, true),
+            "one reason's engage must not force the other to re-emit (the 297 defect)");
+        Check("FZ| wiring: ReportFreeze keeps one state flag per reason, not one shared tuple",
+            ctrl.Contains("_penaltyFreezeReported", StringComparison.Ordinal)
+            && ctrl.Contains("_reflectFreezeReported", StringComparison.Ordinal)
+            && !ctrl.Contains("_freezeReported", StringComparison.Ordinal),
+            "the single shared (why, frozen) tuple re-emitted both reasons every tick (1.0.4.297 defect)");
     }
 
     /// <summary>

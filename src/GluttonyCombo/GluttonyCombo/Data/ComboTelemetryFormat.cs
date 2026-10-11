@@ -136,4 +136,24 @@ internal static class ComboTelemetryFormat
         return string.Create(CultureInfo.InvariantCulture,
             $"{FreezePrefix}{unixMs}|{job}|why={why}|frozen={(frozen ? '1' : '0')}");
     }
+
+    /// <summary>
+    ///     The engage/release edge for one freeze reason: true only when
+    ///     <paramref name="frozen"/> differs from the reason's reported state, and the
+    ///     state is updated so holding the same state emits nothing. The caller owns
+    ///     one flag per reason (FZ-2, 2026-10-11): 1.0.4.297 deduplicated both reasons
+    ///     through one shared (why, frozen) tuple, but the rotation reports the penalty
+    ///     and the reflect scanner on the same tick, so the tuple mismatched for one of
+    ///     them every tick and each tick emitted frozen=0 for both (~100 lines/s until
+    ///     dalamud.log hit its size cap, and no frozen=1 engage ever reached the log).
+    ///     The state updates before the caller's telemetry switch is consulted, so
+    ///     re-enabling the switch never replays a stale transition.
+    /// </summary>
+    internal static bool ShouldEmitFreeze(ref bool reported, bool frozen)
+    {
+        if (reported == frozen)
+            return false;
+        reported = frozen;
+        return true;
+    }
 }

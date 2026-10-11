@@ -151,8 +151,15 @@ internal unsafe class AutoRotationController
         }
     }
 
-    /// <summary> The freeze state already reported, so FZ| lines emit on change only. </summary>
-    private static (string Why, bool Frozen) _freezeReported = (string.Empty, false);
+    /// <summary>
+    ///     The freeze state already reported, per reason, so FZ| lines emit on change
+    ///     only. Two flags, not one shared tuple (FZ-2, 2026-10-11): ShouldSkipAutorotation
+    ///     reports Penalty and Reflect on the same tick, so a single (why, frozen) tuple
+    ///     mismatched for one of them every tick and emitted frozen=0 for both at tick
+    ///     rate until dalamud.log hit its size cap.
+    /// </summary>
+    private static bool _penaltyFreezeReported;
+    private static bool _reflectFreezeReported;
 
     /// <summary>
     ///     Emits FZ| freeze telemetry when one of the two silent autorotation freezes
@@ -166,9 +173,11 @@ internal unsafe class AutoRotationController
     /// </summary>
     private static void ReportFreeze(string why, bool frozen)
     {
-        if (_freezeReported.Why == why && _freezeReported.Frozen == frozen)
+        var edge = why == "Penalty"
+            ? ComboTelemetryFormat.ShouldEmitFreeze(ref _penaltyFreezeReported, frozen)
+            : ComboTelemetryFormat.ShouldEmitFreeze(ref _reflectFreezeReported, frozen);
+        if (!edge)
             return;
-        _freezeReported = (why, frozen);
         if (!Service.Configuration.ComboTelemetry)
             return;
 
