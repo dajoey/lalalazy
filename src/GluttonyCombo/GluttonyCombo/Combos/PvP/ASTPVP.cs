@@ -1,9 +1,10 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
+using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvP.ASTPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 using GluttonyCombo.Extensions;
 namespace GluttonyCombo.Combos.PvP;
@@ -93,7 +94,7 @@ internal static class ASTPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not Malefic)
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Malefic))
                 return actionID;
 
             // Card Draw
@@ -158,7 +159,7 @@ internal static class ASTPvP
                             : AspectedBenefic;
                 }
             }
-            return actionID;
+            return OriginalHook(Malefic);
         }
     }
 

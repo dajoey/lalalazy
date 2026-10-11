@@ -2,9 +2,10 @@
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
-using static GluttonyCombo.Combos.PvP.RDMPvP.Config;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
+using static GluttonyCombo.Combos.PvP.RDMPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 
 namespace GluttonyCombo.Combos.PvP;
@@ -119,7 +120,8 @@ internal static class RDMPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not Jolt3) return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Jolt3))
+                return actionID;
 
             #region Variables
             float targetCurrentPercentHp = GetTargetHPPercent();
@@ -135,7 +137,7 @@ internal static class RDMPvP
             bool hasScorch = OriginalHook(EnchantedRiposte) is Scorch;
             bool hasViceOfThorns = OriginalHook(Forte) is ViceOfThorns;
             bool hasPrefulgence = OriginalHook(Embolden) is Prefulgence;
-            bool hasGrandImpact = OriginalHook(actionID) is GrandImpact;
+            bool hasGrandImpact = OriginalHook(Jolt3) is GrandImpact;
             bool targetHasGuard = CurrentTarget.HasStatus(PvPCommon.Buffs.Guard, true);
             bool hasForte = IsOffCooldown(Forte) && OriginalHook(Forte) is Forte;
             bool hasEmbolden = IsOffCooldown(Embolden) && OriginalHook(Embolden) is Embolden;
@@ -223,7 +225,7 @@ internal static class RDMPvP
             }
 
             // Grand Impact / Jolt III
-            return OriginalHook(actionID);
+            return OriginalHook(Jolt3);
         }
     }
     internal class RDMPvP_Dash_Feature : CustomCombo

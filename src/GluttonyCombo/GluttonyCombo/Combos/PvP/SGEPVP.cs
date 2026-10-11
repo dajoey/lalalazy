@@ -1,9 +1,10 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using static GluttonyCombo.Window.Functions.UserConfig;
 using static GluttonyCombo.Combos.PvP.SGEPvP.Config;
+using GluttonyCombo.Native;
 
 using GluttonyCombo.Extensions;
 namespace GluttonyCombo.Combos.PvP;
@@ -80,7 +81,9 @@ internal static class SGEPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not Dosis) return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Dosis))
+                return actionID;
+
             if (IsEnabled(Preset.SGEPvP_BurstMode_KardiaReminder) && !LocalPlayer.HasStatus(Buffs.Kardia, true))
                 return Kardia;
 
@@ -119,7 +122,7 @@ internal static class SGEPvP
                 if (SGEPvP_BurstMode_KardiaReminder_Retarget && CanWeave() && GetTargetHPPercent(healTarget) <= SGEPvP_KardiaThreshold)
                     return Kardia.Retarget(Dosis, healTarget);
             }
-            return actionID;
+            return Dosis;
         }
     }
     internal class SGEPvP_RetargetKardia : CustomCombo

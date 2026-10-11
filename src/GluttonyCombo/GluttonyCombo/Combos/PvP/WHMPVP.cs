@@ -1,9 +1,10 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
+using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvP.WHMPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 using GluttonyCombo.Extensions;
 namespace GluttonyCombo.Combos.PvP;
@@ -81,9 +82,9 @@ internal static class WHMPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not Glare) 
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Glare))
                 return actionID;
-            
+
             if (!PvPCommon.TargetImmuneToDamage())
             {
                 //Limit break, with health slider
@@ -130,7 +131,11 @@ internal static class WHMPvP
                         ? Cure2.Retarget(Glare, healTarget)
                         : Cure2;
             }
-            return actionID;
+
+            if (ActionReady(Glare4))
+                return Glare4;
+
+            return Glare;
         }
     }
       

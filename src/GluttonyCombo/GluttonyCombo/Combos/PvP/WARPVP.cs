@@ -1,8 +1,9 @@
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
-using static GluttonyCombo.Window.Functions.UserConfig;
+using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvP.WARPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -14,6 +15,7 @@ internal static class WARPvP
         HeavySwing = 29074,
         Maim = 29075,
         StormsPath = 29076,
+        FellCleave = 29078,
         PrimalRend = 29084,
         Onslaught = 29079,
         Orogeny = 29080,
@@ -65,9 +67,9 @@ internal static class WARPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not (HeavySwing or Maim or StormsPath)) 
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, HeavySwing, Maim, StormsPath))
                 return actionID;
-            
+
             if (IsEnabled(Preset.WARPvP_Rampart) && PvPTank.CanRampart(WARPvP_RampartThreshold))
                 return PvPTank.Rampart;
 
@@ -140,7 +142,17 @@ internal static class WARPvP
                     }
                 }
             }
-            return actionID;
+
+            if (ActionReady(FellCleave))
+                return FellCleave;
+
+            if (ComboAction is HeavySwing)
+                return Maim;
+
+            if (ComboAction is Maim)
+                return StormsPath;
+
+            return HeavySwing;
         }
     }
 }

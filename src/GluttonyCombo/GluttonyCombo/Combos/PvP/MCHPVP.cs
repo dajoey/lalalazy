@@ -1,8 +1,9 @@
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
-using static GluttonyCombo.Combos.PvP.MCHPvP.Config;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
+using static GluttonyCombo.Combos.PvP.MCHPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -84,7 +85,7 @@ internal static class MCHPvP
         protected internal override Preset Preset => Preset.MCHPvP_BurstMode;
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not BlastCharge) 
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, BlastCharge))
                 return actionID;
 
             #region Variables
@@ -150,7 +151,7 @@ internal static class MCHPvP
                         return OriginalHook(ChainSaw);
                 }
             }
-            return actionID;
+            return BlastCharge;
         }
     }
 }

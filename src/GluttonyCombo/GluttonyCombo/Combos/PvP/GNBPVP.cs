@@ -1,9 +1,10 @@
 ﻿using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using GluttonyCombo.Window.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
-using static GluttonyCombo.Combos.PvP.GNBPvP.Config;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Combos.PvP.GNBPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -92,7 +93,9 @@ internal static class GNBPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not (KeenEdge or BrutalShell or SolidBarrel or BurstStrike)) return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, KeenEdge, BrutalShell, SolidBarrel, BurstStrike))
+                return actionID;
+
             int corundumThreshold = GNBPvP_CorundumThreshold;
             int blastingZoneThreshold = GNBPvP_BlastingZoneThreshold; 
 
@@ -133,7 +136,17 @@ internal static class GNBPvP
                 if (IsEnabled(Preset.GNBPvP_ST_GnashingFang) && (ActionReady(GnashingFang) || OriginalHook(GnashingFang) != GnashingFang))
                     return OriginalHook(GnashingFang);
             }
-            return actionID;
+
+            if (ActionReady(BrutalShell))
+                return BrutalShell;
+
+            if (ActionReady(SolidBarrel))
+                return SolidBarrel;
+
+            if (ActionReady(BurstStrike))   
+                return BurstStrike;
+
+            return KeenEdge;
         }
     }
     internal class GNBPvP_GnashingFang : CustomCombo

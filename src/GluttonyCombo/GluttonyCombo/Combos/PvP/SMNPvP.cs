@@ -2,9 +2,10 @@ using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
-using static GluttonyCombo.Combos.PvP.SMNPvP.Config;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
+using static GluttonyCombo.Combos.PvP.SMNPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -72,7 +73,8 @@ internal static class SMNPvP
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not Ruin3) return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Ruin3))
+                return actionID;
 
             #region Variables
             bool canWeave = CanWeave();
@@ -105,7 +107,7 @@ internal static class SMNPvP
                     return DeathFlare;
 
                 if (LocalPlayer.HasStatus(Buffs.FurtherRuin))
-                    return actionID;
+                    return Ruin4;
 
                 if (IsEnabled(Preset.SMNPvP_BurstMode_Necrotize) && GetRemainingCharges(Necrotize) > 0 && !LocalPlayer.HasStatus(Buffs.FurtherRuin))
                     return Necrotize;
@@ -125,7 +127,7 @@ internal static class SMNPvP
                 if (IsEnabled(Preset.SMNPvP_BurstMode_Slipstream) && IsOffCooldown(Slipstream))
                     return Slipstream;
             }
-            return actionID;
+            return Ruin3;
         }
     }
 }

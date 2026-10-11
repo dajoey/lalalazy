@@ -1,8 +1,9 @@
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
-using static GluttonyCombo.Window.Functions.UserConfig;
-using static GluttonyCombo.Combos.PvP.BRDPvP.Config;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
+using static GluttonyCombo.Combos.PvP.BRDPvP.Config;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -62,9 +63,9 @@ internal static class BRDPvP
         protected internal override Preset Preset => Preset.BRDPvP_BurstMode;
         protected override uint Invoke(uint actionID)
         {
-            if (actionID is not PowerfulShot) 
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, PowerfulShot))
                 return actionID;
-            
+
             var canWeave = CanWeave(0.5f);
             uint harmonicCharges = GetRemainingCharges(HarmonicArrow);
 
@@ -104,7 +105,7 @@ internal static class BRDPvP
                 }
                 return OriginalHook(PowerfulShot); // Main shot but also Pitch Perfect
             }
-            return actionID;
+            return PowerfulShot;
         }                       
     }
 }
