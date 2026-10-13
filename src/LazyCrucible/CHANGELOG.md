@@ -1,6 +1,13 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.16 (2026-10-13) [testing]
+### Added
+- **"Score: three familiars" run-roster mode, off by default.** For score runs. A run roster of one to three familiars scores the Beast Squad III bonus on every board, so with the option on the run roster is the best three familiars for the whole board instead of the board's full roster. The three are chosen from the familiars you own and that are not knocked out: they cover as many of the board's required interrupt, dispel and cleanse needs as any three can, then the damage the board calls to be blunted, then three of one kin when that costs no required cover (the Gambit bonus), then the rest by points. A roster of three saved for a different board is rewritten for the board you enter. Whatever the three cannot answer on the board is named on the window's summary line; nothing pops up. With three or fewer familiars the game registers the battlehorns itself, so the plugin leaves them alone. Found in the settings window and the Lazy Hub as "Score: three familiars".
+### Notes
+- With the option off, nothing changes. While AutoDuty drives the run roster the plugin stands by there, option on or off.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v0.1.9.15 (2026-10-13) [testing]
 ### Added
 - **Mitigation in the horn picks.** Fights with a damage wall now field a familiar that blunts it, ranked below every interrupt, dispel and cleanse need, and counted only for a familiar above the danger HP line. Durga's Atomic Ray gets a magic answer (drake's Smoldering Scales, pugil's Water Wall or a Scalekin's Scaleskin); Borgny gets coblyn's Vulcanize for the poison plus a magic answer; Gargoyle's Sweeping Evisceration gets a physical answer (a Beastkin's Beastskin, coblyn's Vulcanize or adamantoise's Harden Shell). The fight guide lists these under "Calls for".

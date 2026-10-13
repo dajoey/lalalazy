@@ -315,7 +315,7 @@ internal static unsafe class PetSelect
         var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
         var gate = DecideFormationWrite(new FormationGateInput(
             petPartyOpen, activePetOpen, surfaceKey == SurfacePreentry, addonMode, addonSub, selectedRaw, partyRows.Count,
-            RosterPlayerOwned: _rosterPlayerOwned));
+            RosterPlayerOwned: _rosterPlayerOwned, ScoreMode: cfg.ScoreThreeFamiliars));
         if (gate.Write == FormationWrite.None)
         {
             var skipNote = $"skip|{gate.Reason}|{addonMode}|{addonSub}";
@@ -379,6 +379,14 @@ internal static unsafe class PetSelect
             return;
         }
         _lastBasisNote = "";
+
+        // Score mode: the run roster is three familiars, which the game registers on the horns itself (7.57): leave its registration alone.
+        if (ScoreRoster.HornsLeftToGame(cfg.ScoreThreeFamiliars, partyRows.Count))
+        {
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|route={route}|calls=0|note=score_three_game_registered|sl={string.Join(".", selectedRaw)}");
+            _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
 
         int board;
         List<uint> nameIds;
@@ -699,24 +707,28 @@ internal static unsafe class PetSelect
         // The roster size is per board: the sheet table says 10/12/14/12/15 and the First Master's
         // Board menu itself read "0/12" (XBMPetParty 1181, 2026-09-26 14:37:31), so the hardcoded 10
         // under-filled every board after the first (Third Board runs carried 10 of 14).
+        var scoreMode = Plugin.Config.ScoreThreeFamiliars;
         var rosterSize = board >= 1 && board <= BST_CrucibleData.Boards.Length
             ? BST_CrucibleData.Boards[board - 1].Roster
             : 10;
-        var picks = BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hpMap, rosterSize);
+        // "Score: three familiars": the best three for the whole board (Beast Squad III), not the board's cap.
+        var picks = ScoreRoster.RosterPicks(scoreMode, board, candidates, hpMap, rosterSize);
         var desiredRows = picks.ConvertAll(p => p.Row);
+        var scoreNote = scoreMode ? ScoreRoster.UncoveredLine(board, desiredRows) : null;
 
         var snapshot = new List<int>(selectedRaw);
         var changes = PlanRosterChanges(selectedRaw, picks);
 
         var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|score3={(scoreMode ? 1 : 0)}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
             _arm = MarkFormationPassDone(in _arm);
-            SetSummary($"Run roster for {BoardName(board)} already set: {string.Join(", ", desiredRows.ConvertAll(BeastName))}");
+            SetSummary($"Run roster for {BoardName(board)} already set: {string.Join(", ", desiredRows.ConvertAll(BeastName))}"
+                + (scoreNote is null ? "" : $" {scoreNote}"));
             _rosterAfterPass = new HashSet<int>(snapshot);
             return;
         }
@@ -793,6 +805,8 @@ internal static unsafe class PetSelect
         _rosterAfterPass = new HashSet<int>(finalRows);
         Announce($"r|{board}|{string.Join(".", desiredRows)}", $"Run roster for {BoardName(board)}",
             picks.ConvertAll(p => p with { Why = "" }));
+        if (scoreNote is not null)
+            SetSummary($"{LastSummary} {scoreNote}");
     }
 
     /// <summary> The selection surface a formation phase writes: the pre-entry menu holds the run roster, a board the battlehorns. </summary>

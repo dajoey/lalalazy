@@ -13,6 +13,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary> Fill the three Battlehorn slots on the formation screen before each fight. </summary>
     public bool AutoHorns { get; set; } = true;
 
+    /// <summary> "Score: three familiars": the run roster is the best three for the whole board instead of the board's full cap. Off by default. </summary>
+    public bool ScoreThreeFamiliars { get; set; }
+
     /// <summary> Leave familiar screens alone while AutoDuty is running a board (it picks its own team). </summary>
     public bool YieldToAutoDuty { get; set; } = true;
 

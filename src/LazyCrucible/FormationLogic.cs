@@ -304,7 +304,8 @@ internal static class FormationLogic
         int AddonSubMode,
         IReadOnlyList<int> SelectedPetIds,
         int PartyCount,
-        bool RosterPlayerOwned = false);
+        bool RosterPlayerOwned = false,
+        bool ScoreMode = false);
 
     /// <summary>
     ///     Classify the open XBMPetParty screen from AtkValues [2] (Mode) and [3] (SubMode). PURE.
@@ -377,7 +378,9 @@ internal static class FormationLogic
             return (FormationWrite.Wait, "wait_horn_basis");
         if (g.RosterPlayerOwned)
             return (FormationWrite.None, "player_owned");
-        if (g.SelectedPetIds.Count is > 0 and <= 3)
+        // Score mode: a roster of one to three is the previous trio, judged against the one chosen for this board (the writer's plan is empty
+        // when it already matches). Otherwise a small roster is the player's and waits.
+        if (g.SelectedPetIds.Count is > 0 and <= 3 && !Policy.ScoreRoster.RewritesSmallRoster(g.ScoreMode))
             return (FormationWrite.Wait, "wait_roster_settle");
         // A settled roster menu always agrees on emptiness: both vectors empty (the buildable state)
         // or both holding the team. A non-empty party with an empty SelectedPetIds is the open's

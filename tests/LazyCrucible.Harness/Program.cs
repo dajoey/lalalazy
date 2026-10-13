@@ -37,6 +37,7 @@ internal static class Program
         AutoDutySurfaceCases.Run();
         HornRegistrationCases.Run();
         ItemValueCases.Run();
+        ScoreRosterCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;

@@ -50,6 +50,14 @@ internal sealed class MainWindow : Window
         }
         Help("Once per visit to the entry menu, sets the ten familiars that cover the board's battles best. A roster changed by hand is left alone until the next run.");
 
+        var score = cfg.ScoreThreeFamiliars;
+        if (ImGui.Checkbox("Score: three familiars", ref score))
+        {
+            cfg.ScoreThreeFamiliars = score;
+            changed = true;
+        }
+        Help("For score runs: the run roster is the best three familiars for the whole board instead of the full roster. Three familiars on the roster score the Beast Squad III bonus on every board, and three of one kin can add the Gambit bonus. The three chosen cover as many of the board's interrupt, dispel and cleanse needs as any three can; what they cannot answer is named on the summary line. Off by default; with it off nothing changes. Does nothing on a screen AutoDuty is driving.");
+
         var horns = cfg.AutoHorns;
         if (ImGui.Checkbox("Fill the Battlehorn slots before each fight", ref horns))
         {

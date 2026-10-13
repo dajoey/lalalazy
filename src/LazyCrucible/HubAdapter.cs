@@ -23,6 +23,9 @@ internal static class HubAdapter
         ep.Toggle("auto_roster", "Fill the familiar roster", () => Plugin.Config.AutoRoster,
             v => { Plugin.Config.AutoRoster = v; Plugin.Config.Save(); }, group: auto,
             tip: "Writes the familiar roster when the entry menu is open.");
+        ep.Toggle("score_three", "Score: three familiars", () => Plugin.Config.ScoreThreeFamiliars,
+            v => { Plugin.Config.ScoreThreeFamiliars = v; Plugin.Config.Save(); }, group: auto,
+            tip: "Fills the run roster with the best three familiars for the board instead of the full roster. Off by default.");
         ep.Toggle("auto_horns", "Set the Battlehorns", () => Plugin.Config.AutoHorns,
             v => { Plugin.Config.AutoHorns = v; Plugin.Config.Save(); }, group: auto,
             tip: "Writes the Battlehorn slots. It never starts the fight.");
