@@ -241,8 +241,10 @@ internal static partial class BST_CrucibleData
     public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562)];
 
     /// <summary>
-    ///     Hard hits on the character (or the highest-enmity target) worth dodging with Snarl -> Parting Blow: castbar
+    ///     Hard hits on the character (or the highest-enmity target) that a familiar with enough HP can take under Snarl: castbar
     ///     action ids bound from BossmodReborn's Crucible modules and the guides (two sources, or one real log), 2026-09-17.
+    ///     Snarl -> Parting Blow no longer dodges them: the 7.56 hotfix of 2026-09-17 removes Cover before the hit, and the
+    ///     recorded runs agree (about 92% of such hits went back to the character), so Parting Blow before the hit is not an answer.
     ///     Master's Board entries are the casts the recorded runs measured as single-target hits that follow the enmity holder
     ///     (<see cref="HeavyCasts"/>, kind Tankbuster: victim == holder in every logged cast); the two Second Master's ids in
     ///     <see cref="GuideBoundTankbusters"/> were never seen cast and stay guide-derived.

@@ -12,8 +12,9 @@
   "CHR": "CherryXIV Beastmaster-Reactions",
   "BMR": "BossmodReborn Crucible modules (BSD-3-Clause)",
   "R": "Reddit comment",
-  "YT": "video description",
-  "LOG": "recorded runs 2026-09-26..10-01, measured (CR| telemetry, network logs)"
+  "YT": "video description or comment",
+  "LOG": "recorded runs 2026-09-26..10-01, measured (CR| telemetry, network logs)",
+  "LSN": "Lodestone news and patch notes (7.56 hotfix of 2026-09-17: Parting Blow under Cover no longer nullifies a hit; patch 7.57)"
  },
  "fights": [
   {
@@ -133,8 +134,9 @@
      "ids": [],
      "cast": 5.0,
      "tell": "Knight single-target hard hit",
-     "do": "Let the pet take it, or Parting Blow 1-2 s before it lands",
+     "do": "Snarl so a familiar with enough HP takes it (Parting Blow no longer dodges it)",
      "src": [
+      "LSN",
       "NT"
      ]
     }
@@ -463,8 +465,10 @@
      ],
      "cast": 5.0,
      "tell": "Single-target hit on you plus poison",
-     "do": "Snarl, then Parting Blow 1-2 s before it lands; or cleanse after",
+     "do": "Pet takes it under Snarl; Parting Blow right after so the poison goes too",
      "src": [
+      "LSN",
+      "YT",
       "IV",
       "NT",
       "CHR",
@@ -636,8 +640,9 @@
      ],
      "cast": 5.0,
      "tell": "Strong single-target hit on you",
-     "do": "Snarl-parting, or let the pet take it",
+     "do": "Snarl so a familiar with enough HP takes it",
      "src": [
+      "LSN",
       "IV",
       "NT",
       "MRB",
@@ -812,8 +817,10 @@
      ],
      "cast": 5.0,
      "tell": "Hit on the enmity target plus poison",
-     "do": "Snarl or snarl-parting; cleanse the poison after",
+     "do": "Pet takes it under Snarl; Parting Blow right after so the poison goes too",
      "src": [
+      "LSN",
+      "YT",
       "IV",
       "NT",
       "MRB",
@@ -995,8 +1002,9 @@
      ],
      "cast": 5.0,
      "tell": "Strong single-target hit on you, about 30 s in",
-     "do": "Let the pet take it or snarl-parting; Beastskin in score runs",
+     "do": "Snarl so a familiar with enough HP takes it; Beastskin in score runs",
      "src": [
+      "LSN",
       "IV",
       "NT",
       "MRB",
@@ -3485,8 +3493,9 @@
      ],
      "cast": 5.0,
      "tell": "Queen Hawk hits the enmity target",
-     "do": "Snarl so the pet takes it, or snarl-parting",
+     "do": "Snarl so a familiar with enough HP takes it",
      "src": [
+      "LSN",
       "AS",
       "panel",
       "BMR"
@@ -3766,8 +3775,9 @@
      ],
      "cast": 4.7,
      "tell": "Cast on the enmity holder: five hits, 645-1,030 per cast in total",
-     "do": "Snarl then Parting Blow before it lands, or mitigate",
+     "do": "Snarl so a familiar with enough HP takes it, or mitigate",
      "src": [
+      "LSN",
       "BMR",
       "LOG"
      ]
@@ -3779,8 +3789,10 @@
      ],
      "cast": 7.6,
      "tell": "Hits whoever holds enmity, 1.3 s after the cast: 1,225 / 2,021",
-     "do": "Snarl then Parting Blow before it lands, or mitigate",
+     "do": "Save the Blink tome for it, or Beastskin, Challenge and take it",
      "src": [
+      "LSN",
+      "YT",
       "LOG"
      ]
     }
@@ -3800,9 +3812,10 @@
      ]
     },
     {
-     "text": "A Blink tome at the start",
+     "text": "A Blink tome, saved for Sweeping Evisceration rather than used at the start",
      "src": [
-      "G8"
+      "G8",
+      "YT"
      ]
     }
    ],
@@ -4076,8 +4089,9 @@
      ],
      "cast": 4.7,
      "tell": "Hit the enmity holder in 2 of 2 casts: 1,349 character, 1,112 familiar",
-     "do": "Snarl then Parting Blow before it lands, or mitigate",
+     "do": "Snarl so a familiar with enough HP takes it, or mitigate",
      "src": [
+      "LSN",
       "LOG"
      ]
     }
@@ -4499,8 +4513,10 @@
      ],
      "cast": 5.0,
      "tell": "4 successive 6y circles on you, leaving puddles",
-     "do": "Drop puddles in the center; Snarl, Parting Blow on the 4th",
+     "do": "Puddles in the center; pet takes the 4th under Snarl, Parting Blow right after",
      "src": [
+      "LSN",
+      "YT",
       "AS",
       "G8",
       "panel",
@@ -4590,8 +4606,9 @@
      ],
      "cast": 6.7,
      "tell": "Hit the enmity holder 4 of 4 times: 875 character, 1,077 familiar",
-     "do": "Snarl then Parting Blow before it lands, or mitigate",
+     "do": "Snarl so a familiar with enough HP takes it, or mitigate",
      "src": [
+      "LSN",
       "LOG"
      ]
     }
@@ -4633,7 +4650,7 @@
    "battle": 1,
    "title": "Flauros Piece + Lightning Sprite",
    "where": "Row 1",
-   "summary": "Snarl-parting Erratic Blaster, kill the sprites, get behind Charged Lightning.",
+   "summary": "Mitigate Erratic Blaster, cleanse Paralysis, kill sprites, get behind Charged Lightning.",
    "mechanics": [
     {
      "name": "Heat Lightning",
@@ -4721,8 +4738,9 @@
      ],
      "cast": 7.0,
      "tell": "Strong hit on you plus Paralysis; Snarl can't retarget it",
-     "do": "Snarl-parting: Parting Blow about 2 s before it lands",
+     "do": "Mitigate it (no Snarl redirect, no Parting Blow dodge); cleanse Paralysis after",
      "src": [
+      "LSN",
       "AS",
       "LSB",
       "R",
