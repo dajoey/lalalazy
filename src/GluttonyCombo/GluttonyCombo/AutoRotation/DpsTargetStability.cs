@@ -28,19 +28,31 @@ internal static class DpsTargetExposure
 }
 
 /// <summary>
-///     Cadence floor for one stream of DPS target picks: a different enemy is taken at most once per
-///     <see cref="DefaultMinPickIntervalMs"/>, except the first pick, a pick whose held enemy is gone, and a
-///     mechanic target, which switch at once.
+///     Cadence floor and stickiness for one stream of DPS target picks: a different enemy is taken at most once per
+///     <see cref="DefaultMinPickIntervalMs"/>, and only once the held enemy has stopped being preferred for
+///     <see cref="DefaultAbandonAfterMs"/>; the first pick, a pick whose held enemy is gone, and a mechanic target
+///     switch at once.
 /// </summary>
 /// <remarks>
 ///     This is the backstop under the root fix (<see cref="DpsTargetExposure"/>): every pick source
 ///     (mode dropdown, Crucible kill order, boss-mod target, fallback enemy) is a stateless function of live
 ///     inputs (distance, HP, reach, line of sight) that can flip from one frame to the next, so the stream
 ///     is bounded here whatever flips it. Not thread-safe: the framework thread only.
+///     <para>
+///     1.0.4.301: the floor alone only quantizes a flapping pick. Nearest mode among look-alike FATE mobs, or
+///     the single-target and AoE picks disagreeing, flipped the fresh pick on most presses (12..37 turned down
+///     per second in ffxivdb TS| rows, 2026-10-11 12:33:01..13), and the first press after each expiry took
+///     whichever enemy it preferred: a different target every ~1.03 s. The held enemy is now abandoned only
+///     when no press has preferred it for <see cref="DefaultAbandonAfterMs"/>, so a pick that keeps coming back
+///     is kept and a genuine change of preference still goes through.
+///     </para>
 /// </remarks>
 internal sealed class DpsTargetStability
 {
     internal const long DefaultMinPickIntervalMs = 1000;
+
+    /// <summary> How long the held enemy must go without being the preferred pick before a different one replaces it. </summary>
+    internal const long DefaultAbandonAfterMs = 1500;
 
     internal enum Why
     {
@@ -52,9 +64,9 @@ internal sealed class DpsTargetStability
         HeldInvalid,
         /// <summary> A mechanic target (interrupt, dispel carrier, boss-mod target) takes over at once. </summary>
         Forced,
-        /// <summary> The held pick has been held for the minimum interval and a different one is now preferred. </summary>
+        /// <summary> The held pick has been held for the minimum interval, no press has preferred it for the abandon time, and a different one is now preferred. </summary>
         Repick,
-        /// <summary> A different pick is preferred but the minimum interval has not passed: the held pick stays. </summary>
+        /// <summary> A different pick is preferred but the minimum interval has not passed, or the held pick was still preferred a moment ago: the held pick stays. </summary>
         Held,
     }
 
@@ -65,14 +77,18 @@ internal sealed class DpsTargetStability
     internal readonly record struct Result(ulong Id, Why Why, bool Changed, long HeldMs, int Suppressed);
 
     private readonly long _minIntervalMs;
+    private readonly long _abandonAfterMs;
     private ulong _held;
     private long _heldAtMs;
+    private long _heldPreferredAtMs;
     private int _suppressed;
 
     /// <param name="minIntervalMs"> 0 switches the floor off (every tick follows the fresh pick). </param>
-    public DpsTargetStability(long minIntervalMs = DefaultMinPickIntervalMs)
+    /// <param name="abandonAfterMs"> 0 switches the stickiness off (the floor alone decides, as in 1.0.4.283..300). </param>
+    public DpsTargetStability(long minIntervalMs = DefaultMinPickIntervalMs, long abandonAfterMs = DefaultAbandonAfterMs)
     {
         _minIntervalMs = minIntervalMs;
+        _abandonAfterMs = abandonAfterMs;
     }
 
     /// <summary>
@@ -90,7 +106,10 @@ internal sealed class DpsTargetStability
             return Commit(fresh, Why.First, nowMs);
 
         if (fresh == _held)
+        {
+            _heldPreferredAtMs = nowMs; // the held enemy is the pick again: it is not abandoned
             return new(_held, Why.None, false, nowMs - _heldAtMs, _suppressed);
+        }
 
         if (!heldStillValid(_held))
             return Commit(fresh, Why.HeldInvalid, nowMs);
@@ -98,7 +117,7 @@ internal sealed class DpsTargetStability
         if (forced)
             return Commit(fresh, Why.Forced, nowMs);
 
-        if (nowMs - _heldAtMs >= _minIntervalMs)
+        if (nowMs - _heldAtMs >= _minIntervalMs && nowMs - _heldPreferredAtMs >= _abandonAfterMs)
             return Commit(fresh, Why.Repick, nowMs);
 
         _suppressed++;
@@ -111,11 +130,20 @@ internal sealed class DpsTargetStability
         var suppressed = _suppressed;
         _held = fresh;
         _heldAtMs = nowMs;
+        _heldPreferredAtMs = nowMs;
         _suppressed = 0;
         return new(fresh, why, true, heldMs, suppressed);
     }
 
-    /// <summary> <c>TS|unixms|why=..|path=..|from=nameId|to=nameId|held=ms|sup=n</c>: one line per change of the DPS pick. </summary>
-    internal static string BuildLine(long unixMs, Why why, string path, uint fromNameId, uint toNameId, long heldMs, int suppressed) =>
-        $"TS|{unixMs}|why={why}|path={path}|from={fromNameId}|to={toNameId}|held={heldMs}|sup={suppressed}";
+    /// <summary>
+    ///     <c>TS|unixms|why=..|path=..|from=nameId|to=nameId|held=ms|sup=n[|fid=objectId|tid=objectId]</c>: one line per
+    ///     change of the DPS pick. The object ids (1.0.4.301) tell a swap between look-alike mobs of one species
+    ///     (same nameId) from a pick that stayed put.
+    /// </summary>
+    internal static string BuildLine(long unixMs, Why why, string path, uint fromNameId, uint toNameId, long heldMs, int suppressed,
+        ulong fromObjectId = 0, ulong toObjectId = 0)
+    {
+        var line = $"TS|{unixMs}|why={why}|path={path}|from={fromNameId}|to={toNameId}|held={heldMs}|sup={suppressed}";
+        return fromObjectId == 0 && toObjectId == 0 ? line : $"{line}|fid={fromObjectId}|tid={toObjectId}";
+    }
 }

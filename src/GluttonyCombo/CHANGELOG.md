@@ -1,3 +1,11 @@
+## v1.0.4.301 (2026-10-13) [testing]
+### Fixed
+- **Damage-dealer targeting: the target no longer hops between look-alike enemies about once a second.** In a FATE grind on the Nearest mode, the nearest enemy changes from one press to the next among mobs at almost the same distance, and the one-pick-per-second limit only spaced those hops one second apart. The held enemy is now kept while any press still picks it, and replaced once it has gone 1.5 seconds without being the pick. A dead or untargetable held enemy, the first pick, and boss-mod and Crucible mechanic targets still switch at once, and the one-second limit is unchanged. The enemy an out-of-range press is redirected to follows the same rule.
+### Added
+- Telemetry: the `TS|` line carries the object ids of both enemies (`fid`, `tid`), so a swap between mobs of one species shows as a swap.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.299 (2026-10-11) [testing]
 ### Added
 - **Upstream merge: WrathCombo's PvP custom-action series (parts 1-5).** The one-button PvP custom actions and their per-job config options are updated/completed across the PvP jobs (AST, BLM, BRD, DNC, DRG, DRK, GNB, MCH, MNK, NIN, PCT, PLD, RDM, RPR, SAM, SCH, SGE, SMN, VPR, WAR, WHM) - for example Scholar gains a Diabrosis target-HP% slider, and the Scholar Adloquium retarget option keeps its lalalazy heal-stack note.

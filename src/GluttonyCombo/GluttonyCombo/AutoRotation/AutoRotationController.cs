@@ -2201,6 +2201,9 @@ internal unsafe class AutoRotationController
         /// <summary> NameId of the pick last committed by <see cref="HoldDpsPick"/>, for the TS| line. </summary>
         private static uint _lastPickNameId;
 
+        /// <summary> GameObjectId of the pick last committed by <see cref="HoldDpsPick"/>, for the TS| line. </summary>
+        private static ulong _lastPickId;
+
         /// <summary> The enemy can still be attacked at all (alive, targetable, hostile, not immune). Reach and line of sight are the floor's business. </summary>
         private static bool DpsPickStillUsable(ulong id) =>
             id.GetBattleChara() is { } c
@@ -2229,8 +2232,10 @@ internal unsafe class AutoRotationController
             if (r.Changed && pick is not null)
             {
                 Svc.Log.Information(DpsTargetStability.BuildLine(
-                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), r.Why, path, _lastPickNameId, pick.NameId, r.HeldMs, r.Suppressed));
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), r.Why, path, _lastPickNameId, pick.NameId, r.HeldMs, r.Suppressed,
+                    _lastPickId, pick.GameObjectId));
                 _lastPickNameId = pick.NameId;
+                _lastPickId = pick.GameObjectId;
             }
 
             return pick;
@@ -2757,8 +2762,9 @@ internal unsafe class AutoRotationController
             if (hold is null)
                 return pick;
 
-            // Fork (1.0.4.283): the enemy a press is redirected to is held for the DPS pick interval while it stays
-            // reachable, instead of being re-picked (nearest, kill order) from scratch every press.
+            // Fork (1.0.4.283): the enemy a press is redirected to is held (same floor and, since 1.0.4.301, same
+            // stickiness as the DPS pick) while it stays reachable, instead of being re-picked (nearest, kill order)
+            // from scratch every press.
             var pickId = pick?.GameObjectId ?? 0;
             var r = hold.Resolve(
                 pickId,
