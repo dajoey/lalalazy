@@ -45,15 +45,6 @@ internal static unsafe class PetSelect
     private const int SurfacePreentry = 0;
     private const int SurfaceBoard = 1;
 
-    /// <summary>
-    ///     While AutoDuty drives, wait this long (ms) after its last selection edit before correcting need coverage:
-    ///     its horn picks and roster build come one toggle every ~0.5 s, and its confirm click follows the last toggle
-    /// by ~0.5 s (live 2026-10-02: 15:21:59.94 last toggle, 15:22:00.455 screen closed). 250 ms settles after the
-    ///     last toggle with the write still inside the open window; a write that misses the window fails its readback
-    ///     and aborts with restore, exactly like any other pass.
-    /// </summary>
-    private const long AutoDutySettleMs = 250;
-
     // AgentXBMStageDetailList.
     private const int StageContentId = 0x38;
     private const int StageMode = 0x3C;
@@ -93,20 +84,6 @@ internal static unsafe class PetSelect
     private static bool _disarmRestOfScreen;
     /// <summary> A selection edit this pass did not send, seen by the probe; consumed on the next tick. </summary>
     private static string? _pendingExternalEdit;
-    /// <summary> While AutoDuty drives: it wrote on this screen open, and when (Unix ms). The corrective pass waits for its selection to settle. </summary>
-    private static bool _adEditSeenThisOpen;
-    private static long _adLastEditMs;
-    /// <summary> While AutoDuty drives: corrections written this open, and when the last one was (Unix ms). AutoDuty keeps toggling after a write, so the pass stays armed for its next edit. </summary>
-    private static int _adCorrections;
-    private static long _adLastCorrectionMs;
-    /// <summary>
-    ///     While AutoDuty drives the preentry roster: the selected rows' signature last seen, and when it last
-    ///     changed (Unix ms) — the roster's settle clock (<see cref="FormationLogic.AutoDutyRosterStableMs"/>).
-    ///     The plugin reads the selection every frame, while the build's notebook writes never arrive as edit
-    ///     events, so membership — not edit times — is what can say the build has finished.
-    /// </summary>
-    private static string? _adRosterSig;
-    private static long _adRosterChangedMs;
     /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
     private static bool _rosterPlayerOwned;
     /// <summary> Roster membership right after this open's roster pass; a later difference is a manual edit. </summary>
@@ -170,12 +147,6 @@ internal static unsafe class PetSelect
         _lastBoard = 0;
         _lastPhaseSig = "";
         _disarmRestOfScreen = false;
-        _adEditSeenThisOpen = false;
-        _adLastEditMs = 0;
-        _adCorrections = 0;
-        _adLastCorrectionMs = 0;
-        _adRosterSig = null;
-        _adRosterChangedMs = 0;
         _lastBasisNote = "";
         _pendingExternalEdit = null;
         _rosterPlayerOwned = false;
@@ -275,12 +246,6 @@ internal static unsafe class PetSelect
             _loggedConflictThisPhase = false;
             _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
-            _adEditSeenThisOpen = false;
-            _adLastEditMs = 0;
-            _adCorrections = 0;
-            _adLastCorrectionMs = 0;
-            _adRosterSig = null;
-            _adRosterChangedMs = 0;
         }
         if (!_arm.ScreenOpen)
         {
@@ -288,12 +253,6 @@ internal static unsafe class PetSelect
             _loggedConflictThisPhase = false;
             _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
-            _adEditSeenThisOpen = false;
-            _adLastEditMs = 0;
-            _adCorrections = 0;
-            _adLastCorrectionMs = 0;
-            _adRosterSig = null;
-            _adRosterChangedMs = 0;
         }
 
         var armed = IsFormationArmed(in _arm) && (partyCount > 0 || rosterMenuBuild) && !_disarmRestOfScreen;
@@ -326,36 +285,23 @@ internal static unsafe class PetSelect
             return;
         }
 
-        // AutoDuty drives: no full need-first pass (its leveling team is its own), but need coverage is corrected
-        // on top of its settled selection (AutoDutyNeedFix): its picks are kept except where a need the fight
-        // calls for is uncovered, one correction per screen open, only after its last write has settled.
-        var autoDutyDriving = YieldReason == "autoduty_running";
-        if (autoDutyDriving)
+        // AutoDuty runs: LazyCrucible stands by on every surface AutoDuty drives (its own settings say which:
+        // AutoDutyCrucible.Driven; the roster always, the horns while its Fight picks is on) and writes nothing there.
+        // The need-coverage corrections that once wrote on top of its picks are retired: they reached the fight in
+        // 0 of 40 AutoDuty-driven fights because AutoDuty re-asserted its own picks. A surface AutoDuty leaves alone
+        // (Fight picks off) gets the usual need-first pass. The team AutoDuty chose is graded per fight instead
+        // (RunTracker: PS|..|note=fight_team|uncovered=).
+        if (YieldReason == "autoduty_running")
         {
+            var driven = ExternalDrivers.DrivenSurfaces;
+            var yields = AutoDutyCrucible.Yields(true, driven, SurfaceOf(surfaceKey));
             if (!_loggedConflictThisPhase)
             {
                 _loggedConflictThisPhase = true;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|driven={ExternalDrivers.DrivenNote}|yield={(yields ? 1 : 0)}");
             }
-            // The preentry roster correction under AutoDuty is withdrawn (0.1.9.12). AutoDuty re-asserts its roster
-            // through its own confirm sequence — row-select + remove-confirm pairs that remove unfamiliar rows one
-            // per ~0.4-0.5 s pass — and every correction this surface ever wrote was torn out before entry (the
-            // 0.1.9.6-0.1.9.9 screens: a mid-build write removed at the build's next confirm slot, an empty-roster
-            // write removed before the build even started). Its accept follows the build's last add by only
-            // ~0.43-0.54 s with no observable marker between: the confirm pairs that would mark the accept gap
-            // exist only when unfamiliar rows are already present, so a correction written into that gap is a bet
-            // on a sequence the plugin cannot see, and losing the bet costs the rows and the correction cap. The
-            // surface is left to AutoDuty entirely; the need it covered (the answerer rows AutoDuty's plan never
-            // includes — live: pets 11 and 7) still logs on the self-driven path, which is unchanged. The tracker
-            // below stays so the withdrawal can be re-examined cheaply if AutoDuty's sequence ever changes.
-            var adSelected = ReadPetIds(pet, PartySelectedPetIds);
-            var adSig = string.Join(".", adSelected.OrderBy(x => x));
-            _adRosterChangedMs = FormationLogic.AutoDutyRosterChangedMs(_adRosterSig, _adRosterChangedMs, adSig, now);
-            _adRosterSig = adSig;
-            var adDue = surfaceKey != SurfacePreentry && FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs,
-                _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs, adSelected.Count, FormationLogic.AutoDutyFullTeam);
-            if (!adDue)
-                return; // its selection has not settled yet, it has not written since our last correction, the cap is reached, or the preentry roster's correction is withdrawn
+            if (yields)
+                return; // not marked done: if AutoDuty stops while the screen is open, the screen is the player's again
         }
 
         if (!armed)
@@ -429,7 +375,7 @@ internal static unsafe class PetSelect
         if (gate.Write == FormationWrite.Roster)
         {
             _lastBasisNote = "";
-            ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw, autoDutyDriving);
+            ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
             return;
         }
         _lastBasisNote = "";
@@ -441,8 +387,6 @@ internal static unsafe class PetSelect
         var coverage = false;
         int battle;
         uint detailId;
-        var adFix = "";
-        var adMiss = "";
 
         if (stage != 0 && TryIdentifyBattle(stage, territoryBoard != 0 ? territoryBoard : (int)contentBoard,
                 out board, out battle, out detailId, out nameIds))
@@ -453,28 +397,12 @@ internal static unsafe class PetSelect
             foreach (var r in partyRows)
                 if (r is >= 1 and <= BST_Beasts.Count)
                     candidates.Add(r);
-            if (autoDutyDriving)
-            {
-                // Correct AutoDuty's settled picks in place: its rows kept except where the battle's needs are
-                // uncovered (a smaller driver team gets the answerer as an extra pick).
-                var driverRows = ResolveHornPetRows(selectedRaw, partyRows);
-                var fix = AutoDutyNeedFix.Horn(board, battle, driverRows, candidates, hpMap);
-                adFix = fix.Delta;
-                adMiss = string.Join(";", fix.Miss);
-                picks = fix.Rows.ConvertAll(r => new CrucibleBeastPick(r, 0, true, ""));
-                needStr = $"autoduty{fix.Delta}";
-            }
-            else
-            {
-                var selection = BST_CrucibleNeedFirst.Select(board, battle, candidates, hpMap, 3, "in the roster");
-                picks = selection.Picks;
-                needStr = GuideNeeds.Log(selection);
-            }
+            var selection = BST_CrucibleNeedFirst.Select(board, battle, candidates, hpMap, 3, "in the roster");
+            picks = selection.Picks;
+            needStr = GuideNeeds.Log(selection);
         }
         else
         {
-            if (autoDutyDriving)
-                return; // battle not identified: nothing to correct against
             board = territoryBoard != 0 ? territoryBoard
                 : contentBoard is >= 1 and <= 5 ? (int)contentBoard
                 : 0;
@@ -512,7 +440,7 @@ internal static unsafe class PetSelect
             return $"{p.Row}:idx{(idx < 0 ? "miss" : idx.ToString(CultureInfo.InvariantCulture))}:{Clean(p.Why, 80)}";
         }));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}|adedit={now - _adLastEditMs}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         // Mid-run unidentified: never replace a non-empty horn with coverage. Focus settles ~40 ms
         // later and re-arms an opponent-fitted pass; a coverage replace that aborts emptied the horn (.225).
@@ -527,8 +455,8 @@ internal static unsafe class PetSelect
         if (removeRows.Count == 0 && addRows.Count == 0
             && FormationLogic.HornSelectionMatches(currentHornRows, picks.ConvertAll(p => p.Row)))
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed{AdCorrectionNote(autoDutyDriving)}");
-            FinishPass(autoDutyDriving, now, wrote: false);
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
+            _arm = MarkFormationPassDone(in _arm);
             AnnounceHorns(board, battle, coverage, picks);
             LogHc(now, board, battle, detailId, currentHornRows);
             return;
@@ -592,7 +520,7 @@ internal static unsafe class PetSelect
         var finalIdx = ReadPetIds(pet, PartySelectedPetIds);
         LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", finalIdx)}");
         LogHc(now, board, battle, detailId, finalRows);
-        FinishPass(autoDutyDriving, now, wrote: true);
+        _arm = MarkFormationPassDone(in _arm);
         AnnounceHorns(board, battle, coverage, picks);
     }
 
@@ -661,15 +589,8 @@ internal static unsafe class PetSelect
         _pendingExternalEdit = null;
         if (!_arm.ScreenOpen)
             return;
-        if (YieldReason == "autoduty_running")
-        {
-            // While AutoDuty drives it owns the UI: selection edits are its (its leveling team build, its horn
-            // picks), so no player stand-down — but remember when it last wrote. The corrective pass waits for
-            // that selection to settle (AutoDutySettleMs) before it fixes need coverage, one correction per open.
-            _adEditSeenThisOpen = true;
-            _adLastEditMs = UnixMs();
-            return;
-        }
+        if (YieldReason == "autoduty_running" && AutoDutyCrucible.Yields(true, ExternalDrivers.DrivenSurfaces, SurfaceOf(surfaceKey)))
+            return; // a surface AutoDuty drives: the edits are its own (its team build, its horn picks), not the player's
         var already = _arm.PlayerEdited;
         _arm = MarkPlayerEdited(in _arm);
         if (surfaceKey == SurfacePreentry && petPartyOpen)
@@ -729,8 +650,7 @@ internal static unsafe class PetSelect
     }
 
     private static void ExecuteRosterWrite(
-        nint pet, string surfaceName, string route, bool sigsOk, long now, int territoryBoard, uint contentBoard, List<int> selectedRaw,
-        bool autoDutyDriving = false)
+        nint pet, string surfaceName, string route, bool sigsOk, long now, int territoryBoard, uint contentBoard, List<int> selectedRaw)
     {
         var board = territoryBoard != 0 ? territoryBoard
             : contentBoard is >= 1 and <= 5 ? (int)contentBoard
@@ -772,21 +692,7 @@ internal static unsafe class PetSelect
         var rosterSize = board >= 1 && board <= BST_CrucibleData.Boards.Length
             ? BST_CrucibleData.Boards[board - 1].Roster
             : 10;
-        string adFix = "", adMiss = "";
-        List<CrucibleBeastPick> picks;
-        if (autoDutyDriving)
-        {
-            // Correct AutoDuty's settled roster in place: its leveling picks kept except where a need of any of
-            // the board's battles has no healthy answerer in the roster (appended with room, swapped in without).
-            var fix = AutoDutyNeedFix.Roster(board, selectedRaw, candidates, hpMap, rosterSize);
-            adFix = fix.Delta;
-            adMiss = string.Join(";", fix.Miss);
-            picks = fix.Rows.ConvertAll(r => new CrucibleBeastPick(r, 0, true, ""));
-        }
-        else
-        {
-            picks = BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hpMap, rosterSize);
-        }
+        var picks = BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hpMap, rosterSize);
         var desiredRows = picks.ConvertAll(p => p.Row);
 
         var snapshot = new List<int>(selectedRaw);
@@ -794,12 +700,12 @@ internal static unsafe class PetSelect
 
         var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}|adedit={now - _adLastEditMs}|adstb={now - _adRosterChangedMs}|flutes={selectedRaw.Count}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}{AdCorrectionNote(autoDutyDriving)}");
-            FinishPass(autoDutyDriving, now, wrote: false);
+            LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
+            _arm = MarkFormationPassDone(in _arm);
             SetSummary($"Run roster for {BoardName(board)} already set: {string.Join(", ", desiredRows.ConvertAll(BeastName))}");
             _rosterAfterPass = new HashSet<int>(snapshot);
             return;
@@ -873,21 +779,15 @@ internal static unsafe class PetSelect
         var gained = finalRows.FindAll(r => !snapshot.Contains(r));
         var dropped = snapshot.FindAll(r => !finalRows.Contains(r));
         LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls={string.Join(",", calls)}|readback=ok|apply=needed|pre={string.Join(".", snapshot)}|post={string.Join(".", finalRows)}|gain={string.Join(".", gained)}|dropped={string.Join(".", dropped)}|sl={string.Join(".", finalRows)}");
-        FinishPass(autoDutyDriving, now, wrote: true);
+        _arm = MarkFormationPassDone(in _arm);
         _rosterAfterPass = new HashSet<int>(finalRows);
         Announce($"r|{board}|{string.Join(".", desiredRows)}", $"Run roster for {BoardName(board)}",
             picks.ConvertAll(p => p with { Why = "" }));
     }
 
-    /// <summary> <c>|adn=</c> for the run log while AutoDuty drives: how many corrections this screen open has made so far. </summary>
-    private static string AdCorrectionNote(bool autoDutyDriving) => autoDutyDriving ? $"|adn={_adCorrections}" : "";
+    /// <summary> The selection surface a formation phase writes: the pre-entry menu holds the run roster, a board the battlehorns. </summary>
+    private static CrucibleSurface SurfaceOf(int surfaceKey) => surfaceKey == SurfacePreentry ? CrucibleSurface.Roster : CrucibleSurface.Horns;
 
-    /// <summary>
-    ///     End of a pass that wrote (or found nothing to write). Outside AutoDuty the pass is done for this screen open. While AutoDuty
-    ///     drives it is NOT: AutoDuty keeps toggling after our write and confirms ~0.5 s after its last toggle, so the pass stays armed and
-    ///     the next AutoDuty edit brings the correction again (<see cref="FormationLogic.AutoDutyCorrectionDue"/>), up to the cap; a pass
-    ///     that wrote counts toward the cap, a check that found the selection already right does not.
-    /// </summary>
     private static string _lastHcKey = "";
 
     /// <summary>
@@ -908,21 +808,6 @@ internal static unsafe class PetSelect
             return;
         _lastHcKey = key;
         LogPs($"HC|{now}|b={board}|bt={battle}|detail={detailId}|sl={sl}|needs={needs}");
-    }
-
-    private static void FinishPass(bool autoDutyDriving, long now, bool wrote)
-    {
-        if (!autoDutyDriving)
-        {
-            _arm = MarkFormationPassDone(in _arm);
-            return;
-        }
-
-        _adLastCorrectionMs = now;
-        if (wrote)
-            _adCorrections++;
-        if (_adCorrections >= FormationLogic.AutoDutyMaxCorrections)
-            _arm = MarkFormationPassDone(in _arm);
     }
 
     private static void AbortWithRestore(

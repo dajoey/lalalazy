@@ -2,6 +2,7 @@ using System.Globalization;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LazyCrucible.Policy;
 
 namespace LazyCrucible;
 
@@ -10,7 +11,8 @@ namespace LazyCrucible;
 ///     campsite's rest picker. Each has its own switch. A screen is acted on once per open, one input at a time, and every
 ///     input is checked before it is sent (<see cref="ActuationGuard"/>), confirmed only on the Yes/No prompt that input
 ///     opened (<see cref="PromptGuard"/>), and read back from the screen afterwards; any mismatch, an input the player
-///     made on the same screen, or AutoDuty running stands the automation down for the rest of that open. Nothing here
+///     made on the same screen, or AutoDuty running with that screen in its own settings stands the automation down for the
+///     rest of that open (<see cref="AutoDutyCrucible.Driven"/>; a screen AutoDuty's settings leave alone is handled as usual). Nothing here
 ///     walks, enters, commences, starts a battle, presses Rest, suspends, forfeits, sells or closes a screen.
 ///     Log lines: <c>SL|ms|screen=..|...</c> (decision, input, read-back) through <see cref="CrucibleLog"/>.
 /// </summary>
@@ -28,6 +30,24 @@ internal static unsafe class SelectionScreens
     internal static string Status { get; private set; } = "";
 
     private static readonly ScreenLatch Shop = new(), Feed = new(), Camp = new(), Treasure = new(), Booty = new();
+
+    /// <summary> Each screen's latch with the selection surface it is (what another driver may own). </summary>
+    private static readonly (ScreenLatch Latch, CrucibleSurface Surface)[] Latches =
+    [
+        (Shop, CrucibleSurface.Shop), (Feed, CrucibleSurface.Feed), (Camp, CrucibleSurface.Camp),
+        (Treasure, CrucibleSurface.Treasure), (Booty, CrucibleSurface.Spoils),
+    ];
+
+    /// <summary> The surface of a pending input's screen name. </summary>
+    private static CrucibleSurface SurfaceOf(string screen) => screen switch
+    {
+        "shop" => CrucibleSurface.Shop,
+        "feed" => CrucibleSurface.Feed,
+        "camp" => CrucibleSurface.Camp,
+        "treasure" => CrucibleSurface.Treasure,
+        "booty" => CrucibleSurface.Spoils,
+        _ => CrucibleSurface.All,
+    };
     private static readonly FeedMemory Memory = new();
     private static readonly HashSet<int> ShopFailed = [];
 
@@ -146,15 +166,24 @@ internal static unsafe class SelectionScreens
 
         ConsumeExternalEdit(feedOpen ? Feed : campOpen ? Camp : null);
 
-        if (yieldReason is not null)
+        // Stand by on every screen another driver owns: all of them for an older GluttonyCombo; while AutoDuty runs, only the ones its
+        // own Crucible settings say it drives (AutoDutyCrucible.Driven: Shop with the feed picker, Treasure, Loot, Rest; all of them
+        // while its settings are unreadable). A screen AutoDuty leaves alone is acted on as usual.
+        var driven = yieldReason is null ? CrucibleSurface.None
+            : yieldReason == "autoduty_running" ? ExternalDrivers.DrivenSurfaces
+            : CrucibleSurface.All;
+        if (driven != CrucibleSurface.None)
         {
-            if (_pending is not null)
+            if (_pending is not null && (driven & SurfaceOf(_pending.Screen)) != 0)
+            {
                 Log($"screen={_pending.Screen}|abort=yield|why={yieldReason}");
-            _pending = null;
-            foreach (var l in new[] { Shop, Feed, Camp, Treasure, Booty })
-                if (l.Open && !l.StoodDown)
-                    l.StandDown(yieldReason);
-            return;
+                _pending = null;
+            }
+            foreach (var (latch, surface) in Latches)
+                if (latch.Open && !latch.StoodDown && (driven & surface) != 0)
+                    latch.StandDown(yieldReason!);
+            if (driven == CrucibleSurface.All)
+                return;
         }
 
         try

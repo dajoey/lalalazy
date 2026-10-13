@@ -25,8 +25,7 @@ internal sealed class MainWindow : Window
             ImGui.TextColored(new Vector4(1f, 0.55f, 0.3f, 1f),
                 "An older GluttonyCombo that also fills familiars is loaded. LazyCrucible is not writing until it is updated.");
         else if (PetSelect.YieldReason == "autoduty_running")
-            ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f),
-                "AutoDuty is running this board and picks its own familiars; LazyCrucible is leaving the familiar screens alone.");
+            ImGui.TextDisabled(Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces));
         else if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
             ImGui.TextColored(new Vector4(0.6f, 0.85f, 0.6f, 1f),
                 $"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.");
@@ -125,7 +124,7 @@ internal sealed class MainWindow : Window
             cfg.YieldToAutoDuty = yieldAd;
             changed = true;
         }
-        Help("AutoDuty can run whole Crucible boards and fills the roster and horns with its own team (for example a leveling team). While it is running, LazyCrucible does not touch any Crucible screen, so the two never overwrite each other.");
+        Help("AutoDuty can run whole Crucible boards with its own team (for example a leveling team). While it is running, LazyCrucible stands by on every screen AutoDuty's own Crucible settings hand to AutoDuty (the run roster always; the battlehorns with its Fight picks on; the shop, treasure, spoils and campsite with their own toggles on) and works the rest, so the two never overwrite each other. AutoDuty's settings are only read, never changed.");
 
         var announce = cfg.AnnouncePicks;
         if (ImGui.Checkbox("Announce picks in chat", ref announce))

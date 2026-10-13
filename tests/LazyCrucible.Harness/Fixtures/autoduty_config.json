@@ -1,0 +1,149 @@
+﻿{
+  "profileData": [
+    {
+      "Name": "Migrated",
+      "CIDs": [],
+      "Config": {
+        "Meta": {
+          "dutyModeEnum": 0,
+          "Unsynced": false,
+          "Crucible": {
+            "Degree": "First",
+            "TeamMode": "Leveling",
+            "LevelingMode": "Carry_Minus_2",
+            "CustomTeam": [],
+            "ShopLists": [
+              {
+                "Name": "Default",
+                "Order": [
+                  {
+                    "ID": 140,
+                    "Blocked": false
+                  }
+                ]
+              }
+            ],
+            "ShopListIndex": 0,
+            "ShopGearOrder": [],
+            "FightPicks": true,
+            "Loot": true,
+            "Treasure": true,
+            "Shop": true,
+            "Rest": true,
+            "Items": true,
+            "RespectGearRequirements": true,
+            "RecommendedTeamCap": 15,
+            "ClassificationLock": 0
+          },
+          "ShowMainWindowOnStartup": false
+        },
+        "Log": {},
+        "Overlay": {},
+        "DutyConfig": {},
+        "Loop": {},
+        "SelectedTrustMembers": []
+      }
+    },
+    {
+      "Name": "Main",
+      "CIDs": [
+        18014400000000123
+      ],
+      "Config": {
+        "Meta": {
+          "dutyModeEnum": 0,
+          "Unsynced": false,
+          "Crucible": {
+            "Degree": "Standard",
+            "TeamMode": "Recommended",
+            "LevelingMode": "None",
+            "CustomTeam": [],
+            "ShopLists": [
+              {
+                "Name": "Default",
+                "Order": [
+                  {
+                    "ID": 140,
+                    "Blocked": false
+                  }
+                ]
+              }
+            ],
+            "ShopListIndex": 0,
+            "ShopGearOrder": [],
+            "FightPicks": false,
+            "Loot": true,
+            "Treasure": false,
+            "Shop": false,
+            "Rest": true,
+            "Items": true,
+            "RespectGearRequirements": true,
+            "RecommendedTeamCap": 15,
+            "ClassificationLock": 0
+          },
+          "ShowMainWindowOnStartup": false
+        },
+        "Log": {},
+        "Overlay": {},
+        "DutyConfig": {},
+        "Loop": {},
+        "SelectedTrustMembers": []
+      }
+    },
+    {
+      "Name": "Numeric",
+      "CIDs": [
+        18014400000000456
+      ],
+      "Config": {
+        "Meta": {
+          "dutyModeEnum": 0,
+          "Unsynced": false,
+          "Crucible": {
+            "Degree": "Third",
+            "TeamMode": 2,
+            "LevelingMode": 0,
+            "CustomTeam": [],
+            "ShopLists": [
+              {
+                "Name": "Default",
+                "Order": [
+                  {
+                    "ID": 140,
+                    "Blocked": false
+                  }
+                ]
+              }
+            ],
+            "ShopListIndex": 0,
+            "ShopGearOrder": [],
+            "FightPicks": true,
+            "Loot": true,
+            "Treasure": true,
+            "Shop": true,
+            "Rest": true,
+            "Items": true,
+            "RespectGearRequirements": true,
+            "RecommendedTeamCap": 15,
+            "ClassificationLock": 0
+          },
+          "ShowMainWindowOnStartup": false
+        },
+        "Log": {},
+        "Overlay": {},
+        "DutyConfig": {},
+        "Loop": {},
+        "SelectedTrustMembers": []
+      }
+    }
+  ],
+  "charByCID": {
+    "18014400000000123": {
+      "CID": 18014400000000123,
+      "Name": "Test Character",
+      "World": "Test"
+    }
+  },
+  "DefaultConfigName": "Migrated",
+  "Language": "en-US"
+}
