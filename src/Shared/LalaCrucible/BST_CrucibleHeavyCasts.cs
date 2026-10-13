@@ -83,9 +83,9 @@ internal static partial class BST_CrucibleData
         new(48730, "Grim Fate", 4, 5, 4.7f, 1.3f, CrucibleHitKind.Tankbuster, 212, 212, 7, 6, false,
             "Gargoyle Piece, hit id 48731 is a FIVE-hit string of 121-212 each, 645-1,030 per cast; cast line names the holder 7 of 7; first hit 1.3 s after the castbar."),
         new(50649, "Obliterate", 4, 7, 4.7f, 0.3f, CrucibleHitKind.Tankbuster, 1349, 1112, 2, 2, false,
-            "Golem Piece. Victim was the holder in 2 of 2 (character 1,349, familiar 1,112); only two casts logged."),
+            "Golem Piece. Victim was the holder in 2 of 2 (character 1,349, familiar 1,112); only two casts logged. Re-checked 2026-10-13 over 7 casts (ffxivdb to 10-11): the holder at the hit took it 7 of 7 (familiar 1, character 6, one of them after a Parting Blow recalled the familiar); BMR's knockback typing does not change who is hit."),
         new(48669, "On the Properties of Darkness", 4, 1, 7.7f, 0.3f, CrucibleHitKind.Tankbuster, 1265, 0, 13, 10, false,
-            "Strix Piece. Hit the character in 10 of 10 hits and never the familiar, which the guide's 'room-wide, cannot be avoided' contradicts; the character held enmity in every logged cast, so following the holder is consistent but not proven against a familiar holding it."),
+            "Strix Piece. Hit the character in 10 of 10 hits and never the familiar, which the guide's 'room-wide, cannot be avoided' contradicts; the character held enmity in every logged cast, so following the holder is consistent but not proven against a familiar holding it. Settled 2026-10-13 over 139 casts (ffxivdb to 10-11): a familiar still holding after a Snarl took it 2 of 2 (2,004 / 2,045, degree not recorded, so not in MaxOnFamiliar); with a Parting Blow during the cast, the character 39 of 39. It follows the holder; BMR's room-wide typing is wrong about the target."),
 
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,

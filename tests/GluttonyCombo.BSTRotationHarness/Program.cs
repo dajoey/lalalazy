@@ -51,6 +51,7 @@ internal static class Program
         TankbusterSnarlOnly();
         CrucibleDegreeAware();
         OptionalRecallHeldForTankbuster();
+        CruxLane();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -342,13 +343,14 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 56 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite, King Ahriman's Final Hourglass added)",
+        Check("Crucible priority adds: exact game-data set, 61 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite, King Ahriman's Final Hourglass added; 2026-10-13: the Administrator out, its five adds and the pyrobolus in)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
                 14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
                 14598,
-                14605, 14607, 14610, 14620, 14621, 14622, 14624, 14625, 14629,
+                14605, 14607, 14620, 14621, 14622, 14624, 14625, 14629,
+                14611, 14612, 14613, 14614, 14616, 14627,
                 14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
                 14676, 14677, 14680, 14681, 14683, 14689, 14691, 14692, 14699,
@@ -3135,5 +3137,187 @@ internal static class Program
             _canary++;
             Console.WriteLine($"FAIL CANARY (expected to FAIL): {what}");
         }
+    }
+
+    // ================================================================== crux lane (2026-10-13 research pass)
+
+    /// <summary>
+    ///     The 2026-10-13 BST / BMR research pass, lane crux: stock BossMod Reborn's incoming-hit clock (skin and potion for a
+    ///     predicted hit on the character that no table knows, a logged-only familiar save), the poison shed after a poisoning hit on
+    ///     the familiar, the Administrator / Progenitrix kill orders, the conditional do-not-attack targets (Abaddon, the Gigantis
+    ///     gels), the release reach around do-not-attack enemies, Crucible Ash as the next heal grade, Blink and poison resistance,
+    ///     and the AutoDuty team that cannot dispel (nothing holds for an answer that cannot come).
+    /// </summary>
+    private static void CruxLane()
+    {
+        Console.WriteLine("-- crux: BMR hit clock, poison shed, kill orders, conditional targets, release reach, Ash, Blink --");
+        var cfg = BstSettings.Defaults();
+        string Show(BstDecision d) => $"{d.ActionId}/{d.Reason} sh={d.Shadow} [{d.Declines}]";
+
+        // ---- BMR decode: bit 0 the character, bits 1-23 the familiar (allied NPC slots 24-63 are not the familiar)
+        Check("crux: BMR mask bit 0 is the character", BST_CrucibleLogic.BmrHitsPlayer(1ul) && !BST_CrucibleLogic.BmrHitsPlayer(2ul));
+        Check("crux: BMR mask bits 1-23 are the familiar, 24+ are allied NPCs",
+            BST_CrucibleLogic.BmrHitsFamiliar(2ul) && BST_CrucibleLogic.BmrHitsFamiliar(1ul << 23) && !BST_CrucibleLogic.BmrHitsFamiliar(1ul)
+            && !BST_CrucibleLogic.BmrHitsFamiliar(1ul << 24));
+
+        // ---- (a) a predicted hit on the character that no table knows: the held skin inside the lead time
+        var meltdown = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 9, BmrSeen = true, BmrHitIn = 7.9f, BmrHitType = 2, BmrHitOnPlayer = true, BmrMaxCast = float.MaxValue,
+            KinshipHeld = true, BeastModeResolved = BST.Scaleskin, ReadyBeastMode = true, PlayerHpPercent = 90f, PlayerHp = 7000f,
+        };
+        var d = Decide(meltdown, cfg);
+        Check("crux: Meltdown (no castbar) predicted 7.9 s out on the character, Scaleskin held: the skin", d is { ActionId: BST.Scaleskin, Reason: "crucible:bmr-skin" }, Show(d));
+        Check("crux: ... Beastskin held: the skin",
+            Decide(meltdown with { BeastModeResolved = BST.Beastskin }, cfg) is { ActionId: BST.Beastskin, Reason: "crucible:bmr-skin" });
+        Check("crux: ... the hit 12 s out: not yet", Decide(meltdown with { BmrHitIn = 12f }, cfg).Reason != "crucible:bmr-skin");
+        Check("crux: ... the prediction is on the familiar only: no skin",
+            Decide(meltdown with { BmrHitOnPlayer = false, BmrHitOnFamiliar = true }, cfg).Reason != "crucible:bmr-skin");
+        Check("crux: ... BMR absent (neutral reading): nothing",
+            Decide(meltdown with { BmrSeen = false, BmrHitIn = float.MaxValue, BmrHitType = 0, BmrHitOnPlayer = false }, cfg).Reason != "crucible:bmr-skin");
+        Check("crux: ... survival off: nothing", Decide(meltdown, cfg with { CrucibleSurvival = false }).Reason != "crucible:bmr-skin");
+        Check("crux: ... a registered tankbuster on the castbar: the table owns it, no BMR skin",
+            Decide(meltdown with { TargetCastId = 48822, TargetCastRemaining = 4f, BmrHitType = 1 }, cfg).Reason != "crucible:bmr-skin");
+        var snarlable = meltdown with { BmrHitType = 1, KinshipHeld = false, BeastModeResolved = 0, ReadyBeastMode = false, ReadySnarl = true, EnemyTargetsPlayer = true };
+        Check("crux: a BMR tankbuster prediction never fires Snarl", Decide(snarlable, cfg).ActionId != BST.Snarl, Show(Decide(snarlable, cfg)));
+
+        // ---- (c) the tankbuster-guard potion on a predicted hit on a low character
+        var low = meltdown with { KinshipHeld = false, BeastModeResolved = 0, ReadyBeastMode = false, PlayerHpPercent = 30f, PlayerHp = 2400f, ReadyHealPotion = 46961 };
+        d = Decide(low, cfg);
+        Check("crux: a predicted hit on a 30% character, no skin held: the potion", d is { ActionId: 46961, Reason: "crucible:bmr-potion" }, Show(d));
+        Check("crux: ... at 40%: no potion", Decide(low with { PlayerHpPercent = 40f, PlayerHp = 3200f }, cfg).Reason != "crucible:bmr-potion");
+        Check("crux: ... a skin held and the hit inside the lead: the skin first",
+            Decide(low with { KinshipHeld = true, BeastModeResolved = BST.Scaleskin, ReadyBeastMode = true }, cfg).Reason == "crucible:bmr-skin");
+        Check("crux: ... a registered tankbuster cast up with no cover: the table's own potion, not the BMR one",
+            Decide(low with { ActiveSlot = 0, PetObjectPresent = false, TargetCastId = 48822, TargetCastRemaining = 3f }, cfg).Reason == "crucible:raidwide-guard");
+
+        // ---- (b) logged only: the familiar save Parting Blow a predicted hit on a low familiar would call for
+        var famHit = CrucibleState() with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 1, BmrSeen = true, BmrHitIn = 1.0f, BmrHitType = 1, BmrHitOnFamiliar = true, BmrMaxCast = float.MaxValue,
+            PetHpPercent = 45f, PetHp = 1500f, SinceSummon = 3f, SinceHornPress = 4f, EnemyTargetsPet = true, EnemyTargetsPlayer = false,
+        };
+        d = Decide(famHit, cfg);
+        Check("crux: a predicted hit on a 45% familiar 1.0 s out: logged in sh=, no Parting Blow",
+            d.Shadow == "crucible:bmr-petsave-shadow" && d.ActionId != BST.PartingBlow, Show(d));
+        Check("crux: ... 2 s out: not logged", Decide(famHit with { BmrHitIn = 2f }, cfg).Shadow != "crucible:bmr-petsave-shadow");
+        Check("crux: ... the familiar at 80%: not logged", Decide(famHit with { PetHpPercent = 80f }, cfg).Shadow != "crucible:bmr-petsave-shadow");
+        Check("crux: ... no resummon horn: not logged",
+            Decide(famHit with { ReadyHorn2 = false, ReadyHorn3 = false }, cfg).Shadow != "crucible:bmr-petsave-shadow");
+
+        // ---- poison shed: the familiar took a poisoning hit; a Parting Blow takes the poison away with it (ignores the minimum stay)
+        var thrust = CrucibleState() with { PetPoisonStatus = 5140, PetPoisonRemaining = 17f, SinceSummon = 3f, SinceHornPress = 4f };
+        d = Decide(thrust, cfg);
+        Check("crux: Deadly Thrust's Poison on the familiar 3 s after its summon, a horn ready: Parting Blow at once", d is { ActionId: BST.PartingBlow, Reason: "exit:poison-shed" }, Show(d));
+        Check("crux: ... no resummon horn ready: the familiar stays",
+            Decide(thrust with { ReadyHorn2 = false, ReadyHorn3 = false }, cfg).ActionId != BST.PartingBlow);
+        Check("crux: ... the familiar mid-order (Tempered Release 1 s ago): waits", Decide(thrust with { SinceTempered = 1f }, cfg).ActionId != BST.PartingBlow);
+        Check("crux: ... covering a character at 40%: the familiar keeps the enemy",
+            Decide(thrust with { SinceSnarl = 5f, EnemyTargetsPet = true, EnemyTargetsPlayer = false, PlayerHpPercent = 40f }, cfg).ActionId != BST.PartingBlow);
+        Check("crux: ... no poison: no Parting Blow (control)", Decide(thrust with { PetPoisonStatus = 0, PetPoisonRemaining = 0f }, cfg).ActionId != BST.PartingBlow);
+        var vomitString = thrust with { PetPoisonStatus = 5183, PetPoisonRemaining = 11f };
+        Check("crux: Toxicosis just refreshed (the Toxic Vomit string still running): the familiar stays",
+            Decide(vomitString, cfg).ActionId != BST.PartingBlow);
+        Check("crux: Toxicosis not refreshed for 4 s (the string has ended): Parting Blow",
+            Decide(vomitString with { PetPoisonRemaining = 7.5f }, cfg) is { ActionId: BST.PartingBlow, Reason: "exit:poison-shed" });
+
+        // ---- kill orders: Administrator (Bug / Cobra, Dreadnaught, Drone / Footman, boss last), Progenitrix (Grenade, Pyrobolus, Bomb)
+        BST_CrucibleLogic.TargetCandidate T(uint nameId, bool forbidden = false) => new(nameId, 100f, false, Forbidden: forbidden);
+        List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
+        Check("crux: Administrator wave: Bug and Cobra first (boss, bug, footman, dreadnaught, drone, cobra)",
+            Allowed(T(14610), T(14611), T(14612), T(14613), T(14614), T(14616)).SequenceEqual(new[] { 1, 5 }));
+        Check("crux: ... then the Dreadnaught", Allowed(T(14610), T(14612), T(14613), T(14614)).SequenceEqual(new[] { 2 }));
+        Check("crux: ... then the Footman and the Drone", Allowed(T(14610), T(14612), T(14614)).SequenceEqual(new[] { 1, 2 }));
+        Check("crux: ... the boss last", Allowed(T(14610)).SequenceEqual(new[] { 0 }));
+        Check("crux: the Administrator itself is not a priority add",
+            !BST_CrucibleData.PriorityAdds.Contains(14610) && new uint[] { 14611, 14612, 14613, 14614, 14616, 14627 }.All(BST_CrucibleData.PriorityAdds.Contains));
+        Check("crux: Progenitrix wave: the Grenade, then the Pyrobolus, then the Bomb",
+            Allowed(T(14625), T(14627), T(14624)).SequenceEqual(new[] { 2 }) && Allowed(T(14625), T(14627)).SequenceEqual(new[] { 1 })
+            && Allowed(T(14623), T(14625)).SequenceEqual(new[] { 1 }));
+
+        // ---- conditional do-not-attack: the Abaddon while a Morpho lives; the Gigantis gel of the other element than the club
+        Check("crux: Abaddon held back while a Morpho lives", BST_CrucibleLogic.ConditionallyForbidden(14655, 0, true, 0, false));
+        Check("crux: ... free once every Morpho is gone", !BST_CrucibleLogic.ConditionallyForbidden(14655, 0, false, 0, false));
+        Check("crux: a forbidden candidate is never picked (drake, abaddon held back)",
+            Allowed(T(14651), T(14655, forbidden: true)).SequenceEqual(new[] { 0 })
+            && BST_CrucibleLogic.SafeTargets(new[] { T(14651), T(14655, forbidden: true) }).SequenceEqual(new[] { 0 }));
+        Check("crux: ... and only a forbidden one up: nothing to pick", Allowed(T(14655, forbidden: true)).Count == 0);
+        const uint lightning = BST_CrucibleData.CongealedLightningBase, kindling = BST_CrucibleData.CongealedKindlingBase;
+        Check("crux: fire club, new gels up: Congealed Lightning is saved for the bait",
+            BST_CrucibleLogic.ConditionallyForbidden(14672, lightning, false, BST_CrucibleData.GigantisClubFire, true));
+        Check("crux: ... and Congealed Kindling (the club's own element) is killed",
+            !BST_CrucibleLogic.ConditionallyForbidden(14673, kindling, false, BST_CrucibleData.GigantisClubFire, true));
+        Check("crux: lightning club: Kindling saved, Lightning killed",
+            BST_CrucibleLogic.ConditionallyForbidden(14673, kindling, false, BST_CrucibleData.GigantisClubLightning, true)
+            && !BST_CrucibleLogic.ConditionallyForbidden(14672, lightning, false, BST_CrucibleData.GigantisClubLightning, true));
+        Check("crux: no club element yet, or no new gel since it changed, or a small gel: nothing held back",
+            !BST_CrucibleLogic.ConditionallyForbidden(14672, lightning, false, 0, true)
+            && !BST_CrucibleLogic.ConditionallyForbidden(14672, lightning, false, BST_CrucibleData.GigantisClubFire, false)
+            && !BST_CrucibleLogic.ConditionallyForbidden(14672, 0x4D06, false, BST_CrucibleData.GigantisClubFire, true));
+
+        // ---- release reach: the active familiar's own area, from its own source point (Zu eggs hatch on any hit)
+        var behemoth = BST_Beasts.ByRow(50);
+        var worm = BST_Beasts.ByRow(28);
+        Check("crux: Meteor (18 y on the target) reaches an egg 15 y from the target (the old fixed 10 y did not)",
+            BST_CrucibleLogic.ReleaseReachesProtected(behemoth, 25f, 15f, 0.5f));
+        Check("crux: ... not one 20 y from the target", !BST_CrucibleLogic.ReleaseReachesProtected(behemoth, 25f, 20f, 0.5f));
+        Check("crux: Bottomless Desert (12 y around the familiar) reaches an egg 11 y from the familiar, 20 y from the target",
+            BST_CrucibleLogic.ReleaseReachesProtected(worm, 11f, 20f, 0.5f) && !BST_CrucibleLogic.ReleaseReachesProtected(worm, 13f, 2f, 0.5f));
+        Check("crux: a single-target release reaches nothing beside its target", !BST_CrucibleLogic.ReleaseReachesProtected(BST_Beasts.ByRow(1), 1f, 1f, 0.5f));
+        var eggs = CrucibleState() with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 3, Slot1Beast = 28, PetObjectBeast = 28, OneWithNature = true, ReadyTempered = true, ReadyBorrow = true,
+            ReleaseProtectedNear = true,
+        };
+        d = Decide(eggs, cfg);
+        Check("crux: an egg inside the worm's release area: Borrow instead of the release", d.ActionId != BST.TemperedRelease && d.ActionId == BST.Borrow, Show(d));
+        Check("crux: ... no egg inside it: the release (control)", Decide(eggs with { ReleaseProtectedNear = false }, cfg).ActionId == BST.TemperedRelease);
+        var caw = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 1, CrucibleNeeds = CrucibleNeeds.Dispel, Slot1Beast = BST_CrucibleLogic.VultureRow, PetObjectBeast = BST_CrucibleLogic.VultureRow,
+            OneWithNature = true, ReadyTempered = true, TargetHasDispellableBuff = true, EnemyHasDispellableBuff = true, ReleaseProtectedNear = true,
+        };
+        Check("crux: the Caw is not sent with a do-not-attack enemy inside its 8 y", Decide(caw, cfg).Reason != "crucible:dispel-caw");
+        Check("crux: ... and is with none (control)", Decide(caw with { ReleaseProtectedNear = false }, cfg).Reason == "crucible:dispel-caw");
+
+        // ---- Crucible Ash: the next grade after the Beast Potions, through the same item menu
+        Func<uint, bool> clear = _ => true;
+        var grades = BST_CrucibleData.HealPotionActions;
+        Check("crux: only G3 Crucible Ash held: it is offered", BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46965u }, new HashSet<uint>(), clear) == 46965u);
+        Check("crux: a G1 Beast Potion and G3 Ash held: the potion first",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46959u, 46965u }, new HashSet<uint>(), clear) == 46959u);
+        Check("crux: G1 and G2 Ash held: the G2", BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46963u, 46964u }, new HashSet<uint>(), clear) == 46964u);
+        var ashSlots = BST_CrucibleLogic.HeldHealSlots(new List<(bool, uint)> { (true, 130u), (true, 82u), (true, 80u) }, BST_CrucibleData.HealPotionItemRows);
+        Check("crux: the HUD rows 80-82 are the Ash actions 46963-46965", ashSlots.TryGetValue(46965u, out var s82) && s82 == 1
+            && ashSlots.TryGetValue(46963u, out var s80) && s80 == 2 && BST_CrucibleData.HealPotionItemRows[81] == 46964u);
+
+        // ---- Blink and poison resistance
+        var snap = CrucibleState() with
+        {
+            ActiveSlot = 0, PetObjectPresent = false, EnemyTargetsPet = false, TargetCastId = 48822, TargetCastRemaining = 3f,
+            PlayerHpPercent = 30f, PlayerHp = 2385f, ReadyHealPotion = 46961, PlayerBlink = true,
+        };
+        d = Decide(snap, cfg);
+        Check("crux: Blink up, a physical tankbuster (Salivous Snap) on a 30% character: no potion",
+            d.Reason != "crucible:raidwide-guard" && d.Declines.Contains("crucible:raidwide-guard-blink"), Show(d));
+        Check("crux: ... Blink up, a magic one (Toxic Vomit): the potion", Decide(snap with { TargetCastId = 48809 }, cfg).Reason == "crucible:raidwide-guard");
+        Check("crux: ... no Blink: the potion (control)", Decide(snap with { PlayerBlink = false }, cfg).Reason == "crucible:raidwide-guard");
+        Check("crux: a poison does not count as cleansable while the character resists poison",
+            !BST_CrucibleLogic.CleanseCounts(5140, true) && !BST_CrucibleLogic.CleanseCounts(5183, true));
+        Check("crux: ... it does without the resistance, and other debuffs always do",
+            BST_CrucibleLogic.CleanseCounts(5140, false) && BST_CrucibleLogic.CleanseCounts(17, true));
+
+        // ---- the AutoDuty team (bat, diremite, sabotender) on the Strix fight: no answerer, and nothing holds waiting for one
+        var trio = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 1, CrucibleNeeds = CrucibleNeeds.Dispel, Slot1Beast = 19, Slot2Beast = 8, Slot3Beast = 22,
+            ActiveSlot = 2, PetObjectBeast = 8, TargetHasDispellableBuff = true, EnemyHasDispellableBuff = true, ReadyHorn1 = true,
+        };
+        d = Decide(trio, cfg);
+        Check("crux: Strix buff up, no dispeller on the team: the rotation goes on (dispel-unavailable is a log, not a hold)",
+            d.ActionId != BST_CrucibleLogic.Hold && d.Declines.Contains("crucible:dispel-unavailable"), Show(d));
+        var batOut = trio with { ActiveSlot = 1, PetObjectBeast = 19, OneWithNature = true, ReadyTempered = true, ReadyHorn1 = false, ReadyHorn2 = true };
+        d = Decide(batOut, cfg);
+        Check("crux: ... the bat out on a fight that needs no cleanse: its release is not held", d.ActionId == BST.TemperedRelease && !d.Declines.Contains("own:held-for"), Show(d));
     }
 }

@@ -5,6 +5,7 @@ using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Services.IPC_Subscriber;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -203,6 +204,72 @@ internal partial class BST
             $"DS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|enemy={_dispelEnemyName}|st={string.Join(',', DispelStatuses)}|futile={string.Join(',', futile)}");
     }
 
+    // ------------------------------------------------------------------ crux lane 2026-10-13: BMR hit clock, conditional targets, release reach
+
+    /// <summary> Gigantis Piece (Second Master's battle 10), whose status 2056 names the club's element. </summary>
+    private const uint GigantisNameId = 14670;
+
+    /// <summary> A Morpho lives on the field (the Abaddon is held back while one does), as last read. </summary>
+    internal static bool MorphoAlive;
+
+    /// <summary> The Gigantis club's element (status 2056's param: 0x499 lightning, 0x49A fire), 0 while none is known or no Gigantis is up. </summary>
+    internal static uint ClubElement;
+
+    /// <summary> A big gel has spawned since the club last changed element (BMR lifts the gel rule until one has). </summary>
+    internal static bool GelsSinceClub;
+
+    private static readonly HashSet<ulong> GelsSeen = [];
+    private static readonly List<(Vector3 Position, float Hitbox)> ProtectedScratch = [];
+
+    /// <summary> Held back now though attackable some of the time (<see cref="BST_CrucibleLogic.ConditionallyForbidden"/>), with the context last read. </summary>
+    internal static bool CrucibleForbidden(IBattleChara enemy) =>
+        BST_CrucibleLogic.ConditionallyForbidden(enemy.NameId, enemy.BaseId, MorphoAlive, ClubElement, GelsSinceClub);
+
+    /// <summary> Stock BMR's incoming-hit clock (<see cref="BossModHints"/>) into the state; neutral when BMR is absent. </summary>
+    private static void ReadBmrHints(ref BST_RotationLogic.BstState s, long now)
+    {
+        var bmr = BossModHints.Read(now);
+        s.BmrSeen = bmr.Seen;
+        s.BmrHitIn = bmr.HitIn;
+        s.BmrHitType = bmr.HitType;
+        s.BmrHitOnPlayer = BST_CrucibleLogic.BmrHitsPlayer(bmr.Players);
+        s.BmrHitOnFamiliar = BST_CrucibleLogic.BmrHitsFamiliar(bmr.Players);
+        s.BmrMaxCast = bmr.MaxCast;
+    }
+
+    /// <summary> The Gigantis club's element and the gels spawned since it changed; everything resets while no Gigantis is up. </summary>
+    private static void TrackClub(bool gigantisUp, uint club, bool newGel)
+    {
+        if (!gigantisUp)
+        {
+            ClubElement = 0;
+            GelsSinceClub = false;
+            GelsSeen.Clear();
+            return;
+        }
+        if (club != 0 && club != ClubElement)
+        {
+            ClubElement = club;
+            GelsSinceClub = false;
+        }
+        if (newGel)
+            GelsSinceClub = true;
+    }
+
+    /// <summary> The character carries a cleansable debuff that is worth the cleanse: a poison does not count while poison is resisted. </summary>
+    private static bool CleansableWorthIt(IBattleChara player, bool poisonResistant)
+    {
+        if (!player.HasCleansableDebuff)
+            return false;
+        if (!poisonResistant)
+            return true;
+        foreach (var status in player.StatusList)
+            if (status.StatusId != 0 && global::GluttonyCombo.Data.StatusCache.DispellableStatuses.Contains(status.StatusId)
+                && BST_CrucibleLogic.CleanseCounts(status.StatusId, true))
+                return true;
+        return false;
+    }
+
     private static long _degreeNextPollMs;
     private static int _degreeRead = CrucibleDegree.Unknown;
 
@@ -255,6 +322,8 @@ internal partial class BST
             _healPressPendingTick = 0;
             _healPressTick = 0;
             _itemMenuOpenedTick = 0;
+            MorphoAlive = false;
+            TrackClub(false, 0, false);
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -266,18 +335,37 @@ internal partial class BST
 
         ReadDegree(ref s);
         var now = Environment.TickCount64;
+        ReadBmrHints(ref s, now);
         var target = s.HasHostileTarget ? CurrentTarget as IBattleChara : null;
 
         // Enemies present: count, highest HP, which panel battle they belong to, eggs / morphos near the target.
         var shellUp = false;
+        var morphoAlive = false;
+        var gigantisUp = false;
+        var newGel = false;
+        uint club = 0;
+        ProtectedScratch.Clear();
         foreach (var obj in Svc.Objects)
         {
             if (obj is not IBattleNpc npc || npc.IsDead || !npc.IsTargetable || npc.CurrentHp == 0 || !npc.IsHostile())
                 continue;
 
             var nameId = npc.NameId;
+            if (nameId == BST_CrucibleData.MorphoNameId)
+                morphoAlive = true;
+            if (nameId == GigantisNameId)
+            {
+                gigantisUp = true;
+                foreach (var status in npc.StatusList)
+                    if (status.StatusId == BST_CrucibleData.GigantisClubStatus && status.Param != 0)
+                        club = status.Param;
+            }
+            if (npc.BaseId is BST_CrucibleData.CongealedLightningBase or BST_CrucibleData.CongealedKindlingBase && GelsSeen.Add(npc.GameObjectId))
+                newGel = true;
+
             if (BST_CrucibleData.DoNotAttack.TryGetValue(nameId, out var reach))
             {
+                ProtectedScratch.Add((npc.Position, npc.HitboxRadius));
                 if (target is null)
                     continue;
                 if (npc.GameObjectId == target.GameObjectId)
@@ -314,6 +402,12 @@ internal partial class BST
         if (s.CrucibleBattle >= 0)
             s.CrucibleNeeds = BattleNeedsCached(s.CrucibleBoard, s.CrucibleBattle);
 
+        // Attackable some of the time, held back now: the Abaddon while a Morpho lives, the Gigantis gel saved for the bait.
+        MorphoAlive = morphoAlive;
+        TrackClub(gigantisUp, club, newGel);
+        if (target is not null && CrucibleForbidden(target))
+            s.TargetDoNotAttack = true;
+
         // A shell (the Ymir's Vulnerability Down) that was up and is gone: the window the guide wants a stun or bind in.
         if (_shellWasUp && !shellUp)
             _shellBrokeTick = now;
@@ -334,7 +428,15 @@ internal partial class BST
                 BST_CrucibleData.HealPotionActions, HeldHealActions(), RefusedHealActions(now),
                 id => GetCooldownRemainingTime(id) < 0.1f);
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
-        s.PlayerHasCleansableDebuff = player.HasCleansableDebuff;
+        var poisonResistant = false;
+        foreach (var status in player.StatusList)
+        {
+            if (status.StatusId == BST_CrucibleData.BlinkStatus)
+                s.PlayerBlink = true;
+            else if (BST_CrucibleData.PoisonResistStatuses.Contains(status.StatusId))
+                poisonResistant = true;
+        }
+        s.PlayerHasCleansableDebuff = CleansableWorthIt(player, poisonResistant);
 
         // Familiar HP, remembered per beast so a low familiar is not summoned straight back into danger.
         var party = ReadPartyHp();
@@ -343,6 +445,31 @@ internal partial class BST
         {
             s.PetHpPercent = 100f * pet.CurrentHp / pet.MaxHp;
             s.PetHp = pet.CurrentHp;
+
+            // A poison the familiar sheds by leaving (a string's Toxicosis wins: its refresh gates the shed).
+            foreach (var status in pet.StatusList)
+            {
+                if (!BST_CrucibleData.PoisonShedStatuses.Contains(status.StatusId))
+                    continue;
+                s.PetPoisonStatus = status.StatusId;
+                s.PetPoisonRemaining = status.RemainingTime;
+                if (BST_CrucibleData.PoisonStringStatuses.Contains(status.StatusId))
+                    break;
+            }
+
+            // The familiar's own release area against every do-not-attack enemy (the eggs), from the release's own source point.
+            if (ProtectedScratch.Count > 0 && BST_RotationLogic.ActiveBeast(s) is { } releaser)
+            {
+                foreach (var (position, hitbox) in ProtectedScratch)
+                {
+                    var fromTarget = target is null ? float.MaxValue : Vector3.Distance(target.Position, position);
+                    if (BST_CrucibleLogic.ReleaseReachesProtected(releaser, Vector3.Distance(pet.Position, position), fromTarget, hitbox))
+                    {
+                        s.ReleaseProtectedNear = true;
+                        break;
+                    }
+                }
+            }
             activeRow = BST_RotationLogic.SlotBeast(s, s.ActiveSlot);
             if (activeRow == 0)
                 activeRow = s.PetObjectBeast;

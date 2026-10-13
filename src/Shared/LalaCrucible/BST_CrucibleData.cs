@@ -270,9 +270,11 @@ internal static partial class BST_CrucibleData
     ///     Crucible heal potions as the actions the character performs, strongest first (a G3 healed 39% to 75% of a
     ///     7,950 HP bar on 2026-10-03). The HUD slot binding and the stock are the game's: a press with none held fails
     ///     silently, so the live layer offers only ids with stock in the HUD (see <see cref="HealPotionItemRows"/>) and
-    ///     a clear recast, and steps down a grade when a press does not land.
+    ///     a clear recast, and steps down a grade when a press does not land. Crucible Ash G3-G1 (46965-46963: 40 / 25 / 10% of HP to
+    ///     the character and nearby allies, familiar included) is the next grade after every Beast Potion; it is drunk through the same
+    ///     item menu (AutoDuty's Crucible item engine uses the same open-slot, first-entry steps for rows 80-82).
     /// </summary>
-    public static readonly uint[] HealPotionActions = [46962, 46961, 46960, 46959];
+    public static readonly uint[] HealPotionActions = [46962, 46961, 46960, 46959, 46965, 46964, 46963];
 
     /// <summary>
     ///     XBMItem sheet row -> heal potion action, for the live HUD stock walk: the Crucible item HUD carries these
@@ -286,6 +288,9 @@ internal static partial class BST_CrucibleData
         [77] = 46960,
         [78] = 46961,
         [79] = 46962,
+        [80] = 46963, // G1 Crucible Ash
+        [81] = 46964, // G2 Crucible Ash
+        [82] = 46965, // G3 Crucible Ash
     };
 
     /// <summary>
@@ -302,11 +307,14 @@ internal static partial class BST_CrucibleData
         14548, 14553, 14558, 14559,
         // Board 3: bone bishop, cockerel, pullet, golem, shambling, crawling, flowertender, guardia, Thanatos
         14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
-        // M1: queen hawk, ice sprite, administrator, biloko, sapling, diremite, grenade, bomb, toxic mass,
+        // M1: queen hawk, ice sprite, biloko, sapling, diremite, grenade, bomb, toxic mass,
         //     Strix Plume (the add that casts the 12 s Aero III knockback; no cast of Aero III was ever flagged interruptible in
         //     five logged casts, so killing the add is the only counter - live 2026-10-01 it stood at 100% beside the boss while
-        //     the cast went off in three runs)
-        14605, 14607, 14610, 14622, 14620, 14621, 14624, 14625, 14629, 14598,
+        //     the cast went off in three runs),
+        //     the Administrator's adds (bug, footman, dreadnaught, drone, cobra; the Administrator itself, 14610, is the battle's
+        //     main enemy and dies last: BMR AdministratorPiece.cs priorities and the fight guide's kill order), pyrobolus
+        14605, 14607, 14622, 14620, 14621, 14624, 14625, 14629, 14598,
+        14611, 14612, 14613, 14614, 14616, 14627,
         // M2: lightning sprite, deepeye, bomb, atomos wave adds (gremlins, puddings, bavarois, flan, vodoriga, dahak),
         //     barbmole (drake-fight spinemole), spinner-rook, lamia, cyclops x2 (medusa + gigantis), congealed gels,
         //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues
@@ -334,7 +342,9 @@ internal static partial class BST_CrucibleData
     ///     before the crawling piece whose touch breaks Unbeastable). Orders, from the fight guide's kill orders (the
     ///     research-to-behaviour audit of 2026-10-02 checked all 26): siren wave, crawling piece before the shamblings; treant
     ///     wave "Biloko &gt; Sapling &gt; Diremite &gt; Slug / Treant" (the biloko's Natural Nurture heals the wave, the sapling's
-    ///     Grab and Grow buffs an ally); the woken Thanatos before its guardia; the progenitrix's grenade before its bombs; the
+    ///     Grab and Grow buffs an ally); the woken Thanatos before its guardia; the progenitrix's grenade, then the pyrobolus, then
+    ///     the bombs; the Administrator's bug and cobra, then the dreadnaught, then the drone and footman (2026-10-13, BMR and the
+    ///     fight guide agree; no recorded run yet); the
     ///     boogyman's self-destructing bomb, the deepeye, then the light sprite; Pas de Seul's Succubus Mage before the Knights;
     ///     the ogre's small wisps before the great wisp; the pullet (Caustic Vomit) before the cockerel; the cactuar pack's
     ///     flowertender before the guardia; the Atomos summons bavarois, then pudding / flan / dahak, then gremlins and
@@ -347,7 +357,7 @@ internal static partial class BST_CrucibleData
         [[14586], [14585]],                                    // siren wave: crawling first
         [[14622], [14620], [14621]],                           // treant wave: biloko, sapling, diremite
         [[14595], [14591]],                                    // Thanatos before the guardia that covers it
-        [[14624], [14625]],                                    // progenitrix wave: grenade first
+        [[14624], [14627], [14625]],                           // progenitrix wave: grenade, pyrobolus, bomb (BMR ProgenitrixPiece.cs 5 / 4 / 3)
         [[14640], [14639], [14641]],                           // boogyman wave: self-destructing bomb, deepeye, light sprite
         [[14683], [14681], [14676, 14677], [14680]],           // moogle finale: Mogmugger, Melomogs, kinged healer and caster, Kinged Swordsmog
         [[14542], [14543]],                                    // Pas de Seul: Succubus Mage before the Knights
@@ -356,6 +366,7 @@ internal static partial class BST_CrucibleData
         [[14589], [14591]],                                    // cactuar pack: flowertender before the guardia
         [[14646], [14645, 14647, 14649], [14644, 14643, 14648]], // Atomos summons: bavarois; pudding, flan, dahak; gremlins, vodoriga
         [[14689], [14691, 14692]],                             // King Ahriman: the Final Hourglass before Hapalit and Dirty Eye
+        [[14611, 14616], [14613], [14614, 14612]],             // Administrator: bug and cobra, dreadnaught, drone and footman (boss last; BMR + guide)
     ];
 
     /// <summary>
