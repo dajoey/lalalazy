@@ -140,6 +140,6 @@ internal static class RunTracker
     {
         var board = Board != 0 ? Board : Focus.Board;
         var alive = Roster.Where(r => RosterHp.GetValueOrDefault(r, 100) > 0).ToList();
-        return RunContext.Build(board, LastBattle, guide.ThreatsOf, alive, RosterHp, PlayerHpPercent, goal);
+        return RunContext.Build(board, LastBattle, guide.ThreatsOf, alive, RosterHp, PlayerHpPercent, goal, AgentProbe.Degree.Value);
     }
 }
