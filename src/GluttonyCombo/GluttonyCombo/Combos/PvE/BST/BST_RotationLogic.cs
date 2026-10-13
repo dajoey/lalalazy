@@ -760,7 +760,7 @@ internal static class BST_RotationLogic
         }
 
         // ---------------------------------------------------------- 6. instinctual combos
-        var combo = ChooseInstinctual(s, beast, declines, crucible);
+        var combo = ChooseInstinctual(s, beast, declines, crucible, cfg.UseShieldCharge);
         if (combo.ActionId == BST.Trick && crucible && s.ProtectedNearTarget)
             declines.Add("crucible:trick-protected-near");
         // The L50 finishers hit everything around the target (Calamity: a line to it), an egg / morpho included.
@@ -1036,7 +1036,8 @@ internal static class BST_RotationLogic
         s.Level >= LvBorrow && s.ReadyBorrow && !(s.KinshipHeld && s.KinshipSlot == s.ActiveSlot);
 
     /// <summary> Trick / axe pairing, chain follow-ups, L50 finishers, bare-axe and overcap rules. </summary>
-    public static (uint ActionId, string Reason) ChooseInstinctual(in BstState s, BeastmasterBeast? beast, List<string> declines, bool crucible = false)
+    public static (uint ActionId, string Reason) ChooseInstinctual(in BstState s, BeastmasterBeast? beast, List<string> declines, bool crucible = false,
+        bool dashGapClose = false)
     {
         if (s.Level < LvAvalancheAxe)
             return (0, "");
@@ -1050,18 +1051,24 @@ internal static class BST_RotationLogic
         // L50 finisher: Sun/Moon active and TP 250 -> the axe whose finisher is the OPPOSITE type (Universality).
         // Hawkish Talons rushes to the target (Action sheet AffectsPosition); Risen Fall and Calamity do not move the character. The dash
         // answers to the same landing check as Shield Charge, and where it may not land, Calamity (Gale Axe, a 10 y line) completes the
-        // Universality in its place. On a Crucible board the finishers stay melee-only; elsewhere they reach their real range (25 y).
+        // Universality in its place. On a Crucible board the finishers stay melee-only. Elsewhere Risen Fall and Calamity reach their real
+        // range (25 y / 10 y); Hawkish Talons closes a gap only where Shield Charge may (gap-closing on) and the landing is known safe.
         if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe)
         {
-            var reach = crucible ? 3.5f : FinisherRange;
-            if (s.SunMoon == BeastmasterAffinity.Moonstalker && s.TargetDistance <= reach)
+            if (s.SunMoon == BeastmasterAffinity.Moonstalker && s.TargetDistance <= (crucible ? 3.5f : FinisherRange))
                 return (BST.SpinningAxe, "finisher:risenfall-universality");
-            if (s.SunMoon == BeastmasterAffinity.Sunstrider && s.TargetDistance <= reach)
+            if (s.SunMoon == BeastmasterAffinity.Sunstrider)
             {
-                if (DashLandingDecline(s, crucible) is not { } blocked)
+                var hold =
+                    s.TargetDistance <= 3.5f ? DashLandingDecline(s, crucible) :
+                    crucible || s.TargetDistance > FinisherRange ? "" :            // out of reach: nothing to record (as before)
+                    !dashGapClose ? "finisher:hawkishtalons-gap-close-off" :
+                    DashLandingDecline(s, crucible: true);                          // beyond melee the landing must be known safe
+                if (hold is null)
                     return (BST.MistralAxe, "finisher:hawkishtalons-universality");
-                declines.Add(blocked.Replace("shieldcharge:", "finisher:hawkishtalons-"));
-                if (s.TargetDistance <= CalamityRange)
+                if (hold.Length != 0)
+                    declines.Add(hold.Replace("shieldcharge:", "finisher:hawkishtalons-"));
+                if (s.TargetDistance <= (crucible ? 3.5f : CalamityRange))
                     return (BST.GaleAxe, "finisher:calamity-universality");
             }
         }
@@ -1118,26 +1125,29 @@ internal static class BST_RotationLogic
         // Start a pair: both gauges ready, not locked, axe recast free.
         if (familiarOut && order != ComboOrder.None && !locked && s.PlayerTp >= 100 && s.FamiliarTp >= 100 && s.ReadyAxe)
         {
-            // Either order ends in a Trick: neither starts while the familiar carries out a release or is leaving.
+            // Either order ends in a Trick: neither starts while the familiar carries out a release or is leaving. The pair waits, but
+            // the bare axe below still spends TP that is about to cap.
             if (PetBusyDecline(s) is { } busy)
             {
                 declines.Add(busy);
-                return (0, "");
-            }
-            if (order == ComboOrder.TrickFirst)
-            {
-                if (s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
-                    return (BST.Trick, "combo:trick-first");
-                declines.Add("combo:trick-first-waiting");
             }
             else
             {
-                var ccw = CounterClockwise(petAffinity);
-                if (s.GcdReady && targetInMelee && AxeLearned(ccw, s.Level))
-                    return (AxeFor(ccw), "combo:axe-first");
-                declines.Add("combo:axe-first-waiting");
+                if (order == ComboOrder.TrickFirst)
+                {
+                    if (s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
+                        return (BST.Trick, "combo:trick-first");
+                    declines.Add("combo:trick-first-waiting");
+                }
+                else
+                {
+                    var ccw = CounterClockwise(petAffinity);
+                    if (s.GcdReady && targetInMelee && AxeLearned(ccw, s.Level))
+                        return (AxeFor(ccw), "combo:axe-first");
+                    declines.Add("combo:axe-first-waiting");
+                }
+                return (0, "");
             }
-            return (0, "");
         }
 
         if (locked)
