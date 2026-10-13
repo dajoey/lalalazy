@@ -3375,7 +3375,7 @@ internal static class Program
             Decide(famHit with { ReadyHorn2 = false, ReadyHorn3 = false }, cfg).Shadow != "crucible:bmr-petsave-shadow");
 
         // ---- poison shed: the familiar took a poisoning hit; a Parting Blow takes the poison away with it (ignores the minimum stay)
-        var thrust = CrucibleState() with { PetPoisonStatus = 5140, PetPoisonRemaining = 17f, SinceSummon = 3f, SinceHornPress = 4f };
+        var thrust = CrucibleState() with { PetPoisonStatus = 5140, PetPoisonRemaining = 17f, PetPoisonCastId = 46906, SinceSummon = 3f, SinceHornPress = 4f };
         d = Decide(thrust, cfg);
         Check("crux: Deadly Thrust's Poison on the familiar 3 s after its summon, a horn ready: Parting Blow at once", d is { ActionId: BST.PartingBlow, Reason: "exit:poison-shed" }, Show(d));
         Check("crux: ... no resummon horn ready: the familiar stays",
@@ -3384,7 +3384,7 @@ internal static class Program
         Check("crux: ... covering a character at 40%: the familiar keeps the enemy",
             Decide(thrust with { SinceSnarl = 5f, EnemyTargetsPet = true, EnemyTargetsPlayer = false, PlayerHpPercent = 40f }, cfg).ActionId != BST.PartingBlow);
         Check("crux: ... no poison: no Parting Blow (control)", Decide(thrust with { PetPoisonStatus = 0, PetPoisonRemaining = 0f }, cfg).ActionId != BST.PartingBlow);
-        var vomitString = thrust with { PetPoisonStatus = 5183, PetPoisonRemaining = 11f };
+        var vomitString = thrust with { PetPoisonStatus = 5183, PetPoisonRemaining = 11f, PetPoisonCastId = 48809 };
         Check("crux: Toxicosis just refreshed (the Toxic Vomit string still running): the familiar stays",
             Decide(vomitString, cfg).ActionId != BST.PartingBlow);
         Check("crux: Toxicosis not refreshed for 4 s (the string has ended): Parting Blow",
@@ -3488,5 +3488,53 @@ internal static class Program
         var batOut = trio with { ActiveSlot = 1, PetObjectBeast = 19, OneWithNature = true, ReadyTempered = true, ReadyHorn1 = false, ReadyHorn2 = true };
         d = Decide(batOut, cfg);
         Check("crux: ... the bat out on a fight that needs no cleanse: its release is not held", d.ActionId == BST.TemperedRelease && !d.Declines.Contains("own:held-for"), Show(d));
+
+        CruxReviewFixes();
+    }
+
+    /// <summary>
+    ///     Review of lane crux (2026-10-13). (2) The BMR skin rule spent a held Vileskin on a BMR-predicted raidwide in the knockback
+    ///     fights (Ymir's Blanket Thunder before Tsunami, Lakhamu's Sand Tempest before Landslip, Atomos' Forsaken Fount before Shockwave),
+    ///     leaving it on its 90 s recast for the push; and Vileskin (knockback immunity, block) does nothing for a magic raidwide. (6) The
+    ///     poison shed keyed on the status alone, and Poison 5140 also comes from the Chimera: only the poison the named casts put on the
+    ///     familiar is shed.
+    /// </summary>
+    private static void CruxReviewFixes()
+    {
+        Console.WriteLine("-- crux review: Vileskin kept for the knockback, poison shed tied to its casts --");
+        var cfg = BstSettings.Defaults();
+        string Show(BstDecision d) => $"{d.ActionId}/{d.Reason} [{d.Declines}]";
+
+        var ymir = CrucibleState() with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 2, BattleHasKnockback = true,
+            BmrSeen = true, BmrHitIn = 6f, BmrHitType = 2, BmrHitOnPlayer = true, BmrMaxCast = float.MaxValue,
+            KinshipHeld = true, BeastModeResolved = BST.Vileskin, ReadyBeastMode = true, PlayerHpPercent = 90f, PlayerHp = 7000f,
+        };
+        var d = Decide(ymir, cfg);
+        Check("crux review: Ymir (a knockback battle), a BMR raidwide on the character, Vileskin held: Vileskin is kept for Tsunami",
+            !(d.ActionId == BST.Vileskin && d.Reason == "crucible:bmr-skin"), Show(d));
+        Check("crux review: ... a BMR tankbuster in the same battle: still kept", Decide(ymir with { BmrHitType = 1 }, cfg).Reason != "crucible:bmr-skin");
+        Check("crux review: ... Scaleskin held there: the skin goes (it is not the knockback answer)",
+            Decide(ymir with { BeastModeResolved = BST.Scaleskin }, cfg) is { ActionId: BST.Scaleskin, Reason: "crucible:bmr-skin" });
+        var plain = ymir with { CrucibleBoard = 4, CrucibleBattle = 6, BattleHasKnockback = false };
+        Check("crux review: no knockback in the battle, a predicted raidwide: Vileskin is no answer to it, kept",
+            Decide(plain, cfg).Reason != "crucible:bmr-skin", Show(Decide(plain, cfg)));
+        Check("crux review: no knockback in the battle, a predicted tankbuster: Vileskin (block) goes",
+            Decide(plain with { BmrHitType = 1 }, cfg) is { ActionId: BST.Vileskin, Reason: "crucible:bmr-skin" });
+        Check("crux review: the knockback battles match the core lane's table (Ymir, Lakhamu, Atomos, Progenitrix in; Administrator out)",
+            BST_CrucibleData.KnockbackBattles.Contains((3, 2)) && BST_CrucibleData.KnockbackBattles.Contains((3, 5))
+            && BST_CrucibleData.KnockbackBattles.Contains((5, 4)) && BST_CrucibleData.KnockbackBattles.Contains((4, 9))
+            && !BST_CrucibleData.KnockbackBattles.Contains((4, 6)) && BST_CrucibleData.KnockbackBattles.Count == 16);
+        Check("merge: the shared knockback battles equal the battles of the core lane's knockback casts, both ways",
+            BST_CrucibleData.KnockbackBattles.All(kb => BST.CrucibleKnockbacks.BattleHasKnockback(kb.Board, kb.Battle))
+            && BST.CrucibleKnockbacks.Casts.All(c => BST_CrucibleData.KnockbackBattles.Contains((c.Board, c.Battle))));
+
+        var chimera = CrucibleState() with { PetPoisonStatus = 5140, PetPoisonRemaining = 14f, PetPoisonCastId = 0, SinceSummon = 3f, SinceHornPress = 4f };
+        Check("crux review: Poison 5140 from another source (the Chimera): the familiar stays", Decide(chimera, cfg).ActionId != BST.PartingBlow,
+            Show(Decide(chimera, cfg)));
+        Check("crux review: ... the same status after Cold Caress: Parting Blow",
+            Decide(chimera with { PetPoisonCastId = 46935 }, cfg) is { ActionId: BST.PartingBlow, Reason: "exit:poison-shed" });
+        Check("crux review: ... after an unrelated cast id: the familiar stays", Decide(chimera with { PetPoisonCastId = 49332 }, cfg).ActionId != BST.PartingBlow);
     }
 }

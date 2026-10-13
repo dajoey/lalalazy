@@ -982,7 +982,7 @@ internal static class BST_CrucibleLogic
         // inside the skin lead, and the tankbuster guard's potion at its HP line. Never Snarl: baits and raidwides do not follow enmity.
         if (BmrHitOnCharacterSoon(s))
         {
-            if (s.KinshipHeld && s.ReadyBeastMode && s.CanWeave && s.BeastModeResolved is BST.Scaleskin or BST.Beastskin or BST.Vileskin)
+            if (s.KinshipHeld && s.ReadyBeastMode && s.CanWeave && BmrSkinAnswers(s))
                 return (s.BeastModeResolved, "crucible:bmr-skin");
             if (s.PlayerHpPercent is > 0f and <= TankbusterGuardHpPercent && potion != 0)
                 return (potion, "crucible:bmr-potion");
@@ -1403,6 +1403,19 @@ internal static class BST_CrucibleLogic
     public static bool BmrHitOnCharacterSoon(in BstState s) =>
         s.BmrHitOnPlayer && s.BmrHitIn is > 0f and <= SkinGuardLeadSeconds && !TableKnowsCast(s);
 
+    /// <summary>
+    ///     The held skin answers BMR's predicted hit: Scaleskin (magic barrier) and Beastskin (physical cut) always; Vileskin (knockback
+    ///     immunity, 100% block) only for a predicted tankbuster, never for a raidwide (often magic, which block does nothing for), and never
+    ///     in a battle with a known knockback, where it is kept for the push (review 2026-10-13: spent on Blanket Thunder, Sand Tempest or
+    ///     Forsaken Fount, it was on its 90 s recast for Tsunami, Landslip and Shockwave).
+    /// </summary>
+    public static bool BmrSkinAnswers(in BstState s) => s.BeastModeResolved switch
+    {
+        BST.Scaleskin or BST.Beastskin => true,
+        BST.Vileskin => s.BmrHitType == 1 && !s.BattleHasKnockback,
+        _ => false,
+    };
+
     /// <summary> A predicted hit on the familiar this close is what a familiar-save Parting Blow would have to beat (retreat ~2.3 s). </summary>
     public const float BmrPetSaveShadowSeconds = 1.5f;
 
@@ -1426,7 +1439,9 @@ internal static class BST_CrucibleLogic
     /// </summary>
     public static bool PoisonShedDue(in BstState s, in BstSettings cfg)
     {
-        if (!FamiliarOut(s) || s.PetPoisonStatus == 0 || !BST_CrucibleData.PoisonShedStatuses.Contains(s.PetPoisonStatus))
+        // Only the poison one of the named casts put on the familiar: 5140 also comes from other enemies (the Chimera).
+        if (!FamiliarOut(s) || s.PetPoisonStatus == 0 || !BST_CrucibleData.PoisonShedStatuses.Contains(s.PetPoisonStatus)
+            || !BST_CrucibleData.PoisonShedCasts.Contains(s.PetPoisonCastId))
             return false;
         if (BST_CrucibleData.PoisonStringStatuses.Contains(s.PetPoisonStatus)
             && s.PetPoisonRemaining > BST_CrucibleData.PoisonStringFullSeconds - BST_CrucibleData.PoisonStringGapSeconds)

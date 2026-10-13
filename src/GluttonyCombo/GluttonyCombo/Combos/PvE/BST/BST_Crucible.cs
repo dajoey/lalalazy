@@ -225,6 +225,41 @@ internal partial class BST
     internal static bool CrucibleForbidden(IBattleChara enemy) =>
         BST_CrucibleLogic.ConditionallyForbidden(enemy.NameId, enemy.BaseId, MorphoAlive, ClubElement, GelsSinceClub);
 
+    /// <summary> The last shed-eligible cast (<see cref="BST_CrucibleData.PoisonShedCasts"/>) seen on any enemy's castbar, and when. </summary>
+    private static uint _shedCastId;
+
+    private static long _shedCastTick;
+
+    /// <summary> The familiar object whose poison is being judged, whether it was poisoned last tick, and the cast its poison is put down to. </summary>
+    private static ulong _poisonPetId;
+
+    private static bool _petWasPoisoned;
+    private static uint _petPoisonCast;
+
+    /// <summary> A poison landing this long after a shed-eligible castbar was last seen belongs to that cast (the hits land 0.3-1.3 s around the bar's end). </summary>
+    private const long PoisonCastWindowMs = 4000;
+
+    /// <summary>
+    ///     The cast the familiar's current poison is put down to: judged once, when the poison first appears on this familiar (a shed-eligible
+    ///     castbar seen within <see cref="PoisonCastWindowMs"/> before it, else 0 = another source), and kept while the poison stays. Toxic
+    ///     Vomit's follow-up hits refresh the same poison without a castbar, so the mark from the first hit carries the string.
+    /// </summary>
+    private static uint PoisonCastFor(ulong petId, bool poisoned, long now)
+    {
+        if (petId != _poisonPetId)
+        {
+            _poisonPetId = petId;
+            _petWasPoisoned = false;
+            _petPoisonCast = 0;
+        }
+        if (poisoned && !_petWasPoisoned)
+            _petPoisonCast = _shedCastTick != 0 && now - _shedCastTick <= PoisonCastWindowMs ? _shedCastId : 0;
+        else if (!poisoned)
+            _petPoisonCast = 0;
+        _petWasPoisoned = poisoned;
+        return _petPoisonCast;
+    }
+
     /// <summary> Stock BMR's incoming-hit clock (<see cref="BossModHints"/>) into the state; neutral when BMR is absent. </summary>
     private static void ReadBmrHints(ref BST_RotationLogic.BstState s, long now)
     {
@@ -324,6 +359,9 @@ internal partial class BST
             _itemMenuOpenedTick = 0;
             MorphoAlive = false;
             TrackClub(false, 0, false);
+            _shedCastId = 0;
+            _shedCastTick = 0;
+            _poisonPetId = 0;
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -362,6 +400,11 @@ internal partial class BST
             }
             if (npc.BaseId is BST_CrucibleData.CongealedLightningBase or BST_CrucibleData.CongealedKindlingBase && GelsSeen.Add(npc.GameObjectId))
                 newGel = true;
+            if (npc.IsCasting && BST_CrucibleData.PoisonShedCasts.Contains(npc.CastActionId))
+            {
+                _shedCastId = npc.CastActionId;
+                _shedCastTick = now;
+            }
 
             if (BST_CrucibleData.DoNotAttack.TryGetValue(nameId, out var reach))
             {
@@ -401,6 +444,8 @@ internal partial class BST
 
         if (s.CrucibleBattle >= 0)
             s.CrucibleNeeds = BattleNeedsCached(s.CrucibleBoard, s.CrucibleBattle);
+
+        s.BattleHasKnockback = BST_CrucibleData.KnockbackBattles.Contains((s.CrucibleBoard, s.CrucibleBattle));
 
         // Attackable some of the time, held back now: the Abaddon while a Morpho lives, the Gigantis gel saved for the bait.
         MorphoAlive = morphoAlive;
@@ -456,6 +501,7 @@ internal partial class BST
                 if (BST_CrucibleData.PoisonStringStatuses.Contains(status.StatusId))
                     break;
             }
+            s.PetPoisonCastId = PoisonCastFor(pet.GameObjectId, s.PetPoisonStatus != 0, now);
 
             // The familiar's own release area against every do-not-attack enemy (the eggs), from the release's own source point.
             if (ProtectedScratch.Count > 0 && BST_RotationLogic.ActiveBeast(s) is { } releaser)
