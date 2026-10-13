@@ -85,7 +85,44 @@ internal static class Program
         var timelineSrc = File.ReadAllText(FindSource("BMRTimeline_IPCSubscriber.cs"));
         var isEnabledBody = Between(timelineSrc, "internal static bool IsEnabled", "[EzIPC(");
         Check("BMRTimeline IsEnabled logs through a PresenceLatch",
-            System.Text.RegularExpressions.Regex.IsMatch(timelineSrc, @"PresenceLatch\s+_presence\s*=") && isEnabledBody.Contains("_presence.Changed("));
+            System.Text.RegularExpressions.Regex.IsMatch(timelineSrc, @"PresenceLatch\s+_presence\s*=") && (isEnabledBody.Contains("_presence.Changed(") || isEnabledBody.Contains("_presence.Observe(")));
+
+        // Unload drops the timings read from BMR: the latch's change to "not present" runs the reset exactly once.
+        Console.WriteLine("-- BMR unload resets the timeline data --");
+        var observe = latchType?.GetMethod("Observe", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+        Check("PresenceLatch.Observe exists", observe != null);
+        if (latchType != null && observe != null)
+        {
+            var latch = Activator.CreateInstance(latchType, nonPublic: true)!;
+            var logs = 0;
+            var resets = 0;
+            var nextRaidwideIn = float.MaxValue; // stands in for DataCenter.BMRNextRaidwideIn
+            Action<bool> log = _ => logs++;
+            Action gone = () => { resets++; nextRaidwideIn = float.MaxValue; };
+            void Frames(bool present, int frames)
+            {
+                for (var i = 0; i < frames; i++)
+                {
+                    observe.Invoke(latch, new object[] { present, log, gone });
+                    if (present) nextRaidwideIn = 3.5f; // BossModUpdater polling a live timeline
+                }
+            }
+            Frames(true, 1000);
+            Check("BMR present at start: logged once, no reset", logs == 1 && resets == 0, $"logs={logs} resets={resets}");
+            Check("while present the timing is live", nextRaidwideIn == 3.5f);
+            Frames(false, 1000);
+            Check("BMR unloads: timings reset once (no stale 3.5 s raidwide left)", resets == 1 && nextRaidwideIn == float.MaxValue, $"resets={resets} value={nextRaidwideIn}");
+            Check("BMR unloads: logged once more, not per frame", logs == 2, logs.ToString());
+            Frames(true, 1000);
+            Frames(false, 1000);
+            Check("load then unload again: one more reset each unload", resets == 2 && logs == 4, $"resets={resets} logs={logs}");
+        }
+
+        var majorSrc = File.ReadAllText(FindSource(Path.Combine("..", "Updaters", "MajorUpdater.cs")));
+        Check("IsEnabled resets DataCenter BMR data through the latch",
+            isEnabledBody.Contains("_presence.Observe(") && isEnabledBody.Contains("DataCenter.ResetBmrData"));
+        Check("MajorUpdater gates BossModUpdater on BMRTimeline IsEnabled (the latch sees every unload while active)",
+            System.Text.RegularExpressions.Regex.IsMatch(majorSrc, @"if \(BMRTimeline_IPCSubscriber\.IsEnabled\)\s*\{\s*BossModUpdater\.Update\(\);"));
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -111,9 +148,9 @@ internal static class Program
         return j < 0 ? text[i..] : text[i..j];
     }
 
-    private static void Check(string name, bool ok)
+    private static void Check(string name, bool ok, string detail = "")
     {
         if (ok) { _pass++; Console.WriteLine("PASS " + name); }
-        else { _fail++; Console.WriteLine("FAIL " + name); }
+        else { _fail++; Console.WriteLine("FAIL " + name + (detail.Length > 0 ? $"  [{detail}]" : "")); }
     }
 }

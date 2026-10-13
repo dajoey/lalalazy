@@ -271,5 +271,20 @@ namespace RotationSolver.IPC
 			_last = present;
 			return true;
 		}
+
+		/// <summary>
+		///     Feeds one answer. On a change it calls <paramref name="log"/>; on a change to "not present" it also
+		///     calls <paramref name="gone"/>, so data read from the plugin is dropped once when it unloads instead of
+		///     lingering at its last values.
+		/// </summary>
+		internal bool Observe(bool present, Action<bool> log, Action gone)
+		{
+			if (!Changed(present))
+				return false;
+			log(present);
+			if (!present)
+				gone();
+			return true;
+		}
 	}
 }

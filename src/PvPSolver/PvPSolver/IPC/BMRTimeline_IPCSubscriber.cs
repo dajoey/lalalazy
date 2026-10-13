@@ -12,19 +12,21 @@ internal static class BMRTimeline_IPCSubscriber
 
 	private static readonly PresenceLatch _presence = new();
 
-	// Asked every frame (config window, BossModUpdater): the answer is logged once, then only when it changes.
+	// Asked every active frame (MajorUpdater gate) and by the config window: the answer is logged once, then only
+	// when it changes, and when BossModReborn goes away the timings read from it are reset once (not left stale).
 	internal static bool IsEnabled
 	{
 		get
 		{
 			var ready = IPCSubscriber_Common.IsReady("BossModReborn");
-			if (_presence.Changed(ready))
-				PluginLog.Information(ready
-					? "[BMR] BossModReborn is loaded: timeline integration available."
-					: "[BMR] BossModReborn is not loaded (no loaded plugin named BossModReborn): timeline integration off.");
+			_presence.Observe(ready, LogPresence, DataCenter.ResetBmrData);
 			return ready;
 		}
 	}
+
+	private static void LogPresence(bool ready) => PluginLog.Information(ready
+		? "[BMR] BossModReborn is loaded: timeline integration available."
+		: "[BMR] BossModReborn is not loaded (no loaded plugin named BossModReborn): timeline integration off, BMR timings reset.");
 
 	[EzIPC("HasActiveModule", true)]
 	internal static readonly Func<bool>? HasActiveModule;
