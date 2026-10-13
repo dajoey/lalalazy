@@ -52,6 +52,7 @@ internal static class Program
         CrucibleDegreeAware();
         OptionalRecallHeldForTankbuster();
         CruxLane();
+        CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -1273,8 +1274,6 @@ internal static class Program
         Bool("BST_CrucibleSnarlParting", "CrucibleSnarlParting");
         Bool("BST_CrucibleSurvival", "CrucibleSurvival");
         Bool("BST_CruciblePackWindow", "CruciblePackWindow");
-        var lead = Literal("BST_CrucibleSnarlPartingLead");
-        if (lead is null || Math.Abs(d.CrucibleSnarlPartingLead - int.Parse(lead) / 10f) > 0.001f) bad.Add($"CrucibleSnarlPartingLead: shipped {lead ?? "missing"} (tenths), harness {d.CrucibleSnarlPartingLead}");
         Check("harness default settings equal the shipped config defaults (Crucible options, read from BST_Config.cs)", bad.Count == 0, string.Join(" | ", bad));
     }
 
@@ -1286,7 +1285,6 @@ internal static class Program
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
         // The log-only modes still exist as options; they were the harness default until 2026-10-05, the plugin ships On / on.
         var shadowCfg = cfg with { CrucibleAggro = CrucibleAggroMode.Shadow, CrucibleSnarlParting = false };
-        var spOff = on with { CrucibleSnarlParting = false };
         var cycle = cfg with { CrucibleCycleForDamage = true };
         var prepull = cfg with { CruciblePrepullHorns = true };
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
@@ -1686,32 +1684,11 @@ internal static class Program
         Check("familiar 25% holding aggro, character 80%, On: Challenge",
             Decide(CrucibleState() with { PetHpPercent = 25f, ReadyHorn2 = false, ReadyHorn3 = false, ReadyParting = false, EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true }, on).Reason == "aggro:challenge-pet-low");
 
-        // Score mode and Snarl -> Parting Blow (a stand-in tankbuster id, then a real one)
-        const uint tb = 999_001;
-        BST_CrucibleData.Tankbusters.Add(tb);
+        // Score mode (the Snarl -> Parting Blow cases that stood here went with the dead path, core lane 2026-10-13)
         var scoreCfg = on with { CrucibleScoreMode = true };
         Check("score mode: target on the familiar -> Challenge",
             Decide(CrucibleState() with { EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, scoreCfg).Reason == "aggro:challenge-score");
         Check("score mode: a low character does not Snarl", Decide(lowChar, scoreCfg).ActionId != BST.Snarl);
-        var spCfg = on with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }; // the dormant Parting Blow step, opted in
-        var castStart = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 4f, ReadySnarl = true };
-        Check("tankbuster cast starts: Snarl", Decide(castStart, spCfg).Reason == "aggro:snarl-tankbuster", Decide(castStart, spCfg).Reason);
-        var landing = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 1.2f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
-        Check("1.2 s before it lands with Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
-        Check("3 s before it lands: not yet", Decide(landing with { TargetCastRemaining = 3f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("no Snarl in the last 45 s: no whiff", Decide(landing with { SinceSnarl = 60f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("snarl-parting switched off: no Parting Blow", Decide(landing, spOff).Reason != "crucible:snarl-parting");
-        // Never evaluated while off, so no run could grade it (0 snarl-parting decisions in 209 logged tankbuster casts, 2026-09-24 .. 10-01):
-        // the open window is logged in the shadow field while the option is off, so the next run can be graded without anyone reporting it.
-        Check("snarl-parting off: the open window is logged for grading and nothing is pressed",
-            Decide(landing, spOff) is { Shadow: "crucible:snarl-parting-off" } offLogged && offLogged.ActionId != BST.PartingBlow, Decide(landing, spOff).Shadow);
-        Check("... also when no Snarl was used (the dodge never set up)", Decide(landing with { SinceSnarl = 60f }, spOff).Shadow == "crucible:snarl-parting-off");
-        Check("... not logged before the window (3 s before it lands)", Decide(landing with { TargetCastRemaining = 3f }, spOff).Shadow != "crucible:snarl-parting-off");
-        Check("... not logged with the aggro option off", Decide(landing, spOff with { CrucibleAggro = CrucibleAggroMode.Off }).Shadow != "crucible:snarl-parting-off");
-        Check("... not logged when the option is on (it presses instead)", Decide(landing, spCfg).Shadow != "crucible:snarl-parting-off");
-        Check("snarl-parting in log-only mode: logged, not pressed",
-            Decide(landing, shadowCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
-        Check("score mode with the dormant Parting Blow step opted in: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }).ActionId == BST.Snarl);
         // 2026-10-06 review finding: the score-mode Snarl site guards on the recall the same way the normal-mode sites
         // do, but had no case of its own — a recall in flight (the familiar already leaving) must not take the Snarl.
         // A real measured tankbuster (48717 Sweeping Evisceration): the cover check cannot model a stand-in id.
@@ -1723,9 +1700,6 @@ internal static class Program
         Check("score mode, tankbuster cast, recall no longer in flight (3.5 s ago): the tankbuster Snarl fires",
             Decide(scoreTb with { SincePartingBlow = 3.5f }, scoreSnarlCfg).Reason == "aggro:snarl-tankbuster",
             Decide(scoreTb with { SincePartingBlow = 3.5f }, scoreSnarlCfg).Reason);
-        BST_CrucibleData.Tankbusters.Remove(tb);
-        Check("Erratic Blaster castbar 1.4 s left (lands in 1.7 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.4f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("Erratic Blaster castbar 1.0 s left (lands in 1.3 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.0f }, spCfg).Reason == "crucible:snarl-parting");
 
         // Frontal-cleave-auto bosses (Third Board: siren elite 14583, Guttler boss 14592; also Pas de
         // Seul and Lauda). Their autos are a cone that hits the familiar too, so the familiar must NOT
@@ -1962,6 +1936,7 @@ internal static class Program
         private BeastmasterAffinity _lastInstinctualAffinity;
         private bool _lastWasPet;
         private float _lastAxeAt = -100, _lastTrickAt = -100, _lastTemperedAt = -100, _lastBorrowAt = -100, _lastHornAt = -100, _lastPetHeartAt = -100;
+        private float _lastPartingAt = -100; // core lane 2026-10-13: the live half always fills SincePartingBlow; the sim left it at 0 s
         private BeastmasterAffinity _lastAxeAffinity;
 
         // stats
@@ -2166,6 +2141,7 @@ internal static class Program
                 SinceBorrow = Since(_lastBorrowAt),
                 SinceAxe = Since(_lastAxeAt),
                 SincePetHeart = Since(_lastPetHeartAt),
+                SincePartingBlow = Since(_lastPartingAt),
                 LastAxeAffinity = _lastAxeAffinity,
                 TemperedRecastRemaining = _temperedCd,
                 ReadyHorn1 = HornReadyNow(1),
@@ -2299,7 +2275,7 @@ internal static class Program
                         Fail("partingblow-round-ending", $"target {TargetHp:0}% ({d.Reason})");
                     if (petSave && TargetHp <= BST_CrucibleLogic.EnemyDyingHp)
                         Fail("petsave-on-dying-enemy", $"target {TargetHp:0.0}%");
-                    _partingCd = 10f; _animLock = 0.6f; _vantageUntil = -1;
+                    _partingCd = 10f; _animLock = 0.6f; _vantageUntil = -1; _lastPartingAt = _t;
                     if (_level >= LvTrick) _familiarTp = Math.Min(250, _familiarTp + 24);
                     Bump(id);
                     Retreat("partingblow", allowPetless: petSave);
@@ -2470,7 +2446,6 @@ internal static class Program
         Console.WriteLine("-- master board fights (measured) --");
         var cfg = BstSettings.Defaults();
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
-        var spCfg = on with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }; // the dormant Parting Blow step, opted in
         var cycle = cfg with { CrucibleCycleForDamage = true };
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
 
@@ -2491,16 +2466,7 @@ internal static class Program
         // Toxic Vomit 48809 (Borgny): the plugin shows 4.7 s remaining at cast start, the log says a 3.2 s cast and the hit lands 3.5 s
         // after the start, i.e. 1.2 s BEFORE the plugin's remaining reaches 0 (CR|...|c=48809:4.7 at 13.69, hit at 17.11; 15 of 15 casts).
         Check("hit delay 48809 Toxic Vomit: lands 1.2 s before the plugin's remaining reaches 0 (was +1.5, guide)", BST_CrucibleData.TankbusterHitDelay(48809) == -1.2f, BST_CrucibleData.TankbusterHitDelay(48809).ToString());
-
-        // Snarl -> Parting Blow with that timing (lead 1.5 s): Toxic Vomit with 2.5 s remaining lands in 1.3 s.
-        var landing = CrucibleState() with { TargetCastId = 48809, TargetCastRemaining = 2.5f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
-        Check("Toxic Vomit, 2.5 s remaining (hit lands in 1.3 s), Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" },
-            Decide(landing, spCfg).Reason);
-        Check("Toxic Vomit, 1.0 s remaining: the hit already landed 0.2 s ago, no Parting Blow", Decide(landing with { TargetCastRemaining = 1.0f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("Toxic Vomit, 4.0 s remaining: too early", Decide(landing with { TargetCastRemaining = 4.0f }, spCfg).Reason != "crucible:snarl-parting");
-        var sweeping = landing with { TargetCastId = 48717, TargetCastRemaining = 0.4f };
-        Check("Sweeping Evisceration, 0.4 s remaining (hit lands in 1.7 s): not yet", Decide(sweeping, spCfg).Reason != "crucible:snarl-parting");
-        Check("Sweeping Evisceration, 0.1 s remaining (hit lands in 1.4 s): Parting Blow", Decide(sweeping with { TargetCastRemaining = 0.1f }, spCfg).Reason == "crucible:snarl-parting");
+        // (The Snarl -> Parting Blow timing cases that used these delays went with the dead path, core lane 2026-10-13.)
 
         // --- the measured table and what it may claim ---
         var boards123 = new HashSet<uint> { 46935, 46934, 46872, 46906, 46920, 48138, 48204, 48247, 48620, 48471, 48489, 50465, 48563 };
@@ -2877,7 +2843,7 @@ internal static class Program
         var landed = Decide(landing, on);
         Check("1.4 s before it lands, the familiar holding: NO Parting Blow (it sends the hit back to the character)",
             landed.ActionId != BST.PartingBlow && landed.Reason != "crucible:snarl-parting", $"{landed.ActionId}/{landed.Reason}");
-        Check("... and the window is still logged for grading", landed.Shadow == "crucible:snarl-parting-off", landed.Shadow);
+        Check("... and no Parting Blow window is logged any more (the dodge is gone, core lane 2026-10-13)", !landed.Shadow.Contains("snarl-parting"), landed.Shadow);
         foreach (var (name, id, remaining) in new[] { ("Toxic Vomit", toxicVomit, 2.5f), ("Erratic Blaster", erraticBlaster, 1.0f), ("On the Properties of Darkness", darkness, 0.4f), ("Obliterate", obliterate, 1.0f) })
         {
             var d = Decide(landing with { TargetCastId = id, TargetCastRemaining = remaining }, on);
@@ -2891,8 +2857,6 @@ internal static class Program
         Check("... Parting Blow on cooldown (a horn lock from an earlier recall): the Snarl still covers it",
             Decide(golem with { ReadyParting = false }, on).Reason == "aggro:snarl-tankbuster", Decide(golem with { ReadyParting = false }, on).Reason);
         Check("... a familiar at 2,000 HP (under twice the 1,112): no cover", Decide(golem with { PetHp = 2000f, PetHpPercent = 60f }, on).Reason != "aggro:snarl-tankbuster");
-        Check("... the same cast with the dormant Parting Blow step opted in: the old window still presses",
-            Decide(landing with { TargetCastId = obliterate, TargetCastRemaining = 1.0f }, on with { CrucibleTankbusterParting = true }) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
         Check("Salivous Snap cast starts (Borgny): Snarl covers it", Decide(start with { CrucibleBattle = 0, TargetCastId = 48822, TargetCastRemaining = 6.7f }, on).Reason == "aggro:snarl-tankbuster");
 
         // Grim Fate (Gargoyle, 48730) is a FIVE-hit string: the recorded 212 is one hit, so the familiar has to hold five of them twice over.
@@ -3069,6 +3033,180 @@ internal static class Program
         Check("Crushing Blade (a Third Board tankbuster, nothing recorded on a familiar) up: the pack Parting Blow waits",
             crushing.ActionId != BST.PartingBlow && crushing.Declines.Contains("crucible:pack-tankbuster-up"), $"{crushing.ActionId}/{crushing.Reason} [{crushing.Declines}]");
         Check("... and the hold is not logged as the option being off", crushing.Shadow != "crucible:pack-parting-off", crushing.Shadow);
+    }
+
+    // ================================================================== core lane 2026-10-13 (every title starts "core:")
+
+    private static void CoreLane20261013()
+    {
+        Console.WriteLine("-- core lane 2026-10-13: busy familiar, Snarl cover only, L50 finishers, knockback Vileskin, Shield Charge lock, short fights --");
+        var cfg = BstSettings.Defaults();
+        string D(BstDecision d) => $"{d.ActionId}/{d.Reason} [{d.Declines}] sh={d.Shadow}";
+
+        // ---------------------------------------------------------- 1. Trick into a familiar busy with an order (U1+U2)
+        // ffxivdb 09-08..10-11: a Trick pressed while 1964 (Tempered Release order) sat on the familiar got its Heart 31 of 164 (18.9%),
+        // during or up to 2 s after 1965 (Parting Blow order) 20 of 91, every other Trick 2,461 of 2,984 (82.5%).
+        var t = BaseState(30) with
+        {
+            Slot1Beast = 1, Slot2Beast = 34, Slot3Beast = 26, SlotBeastsKnown = true, ActiveSlot = 1, PetObjectPresent = true, PetObjectBeast = 1,
+            PlayerTp = 100, FamiliarTp = 100, ReadyTrick = true, ReadyAxe = true, SinceSummon = 20f, SinceHornPress = 21f, ReadyParting = false,
+            PetOrder = PetOrder.None,
+        };
+        Check("core: control: a free familiar, both gauges at 100 -> Trick", Decide(t, cfg) is { ActionId: BST.Trick, Reason: "combo:trick-first" }, D(Decide(t, cfg)));
+        var rel = Decide(t with { PetOrder = PetOrder.Release, SinceTempered = 2f }, cfg);
+        Check("core: Tempered Release order on the familiar (1964) -> no Trick, decline trick:pet-busy-order",
+            rel.ActionId != BST.Trick && rel.Declines.Contains("trick:pet-busy-order"), D(rel));
+        var rec = Decide(t with { PetOrder = PetOrder.Recall, SincePartingBlow = 1f }, cfg);
+        Check("core: Parting Blow order on the familiar (1965) -> no Trick", rec.ActionId != BST.Trick && rec.Declines.Contains("trick:pet-busy-order"), D(rec));
+        Check("core: a Snarl order (1966) does not block Trick", Decide(t with { PetOrder = PetOrder.Snarl }, cfg).ActionId == BST.Trick);
+        // statuses unreadable: the press timers stand in
+        var unk = t with { PetOrder = PetOrder.Unknown };
+        var unkTr = Decide(unk with { SinceTempered = 4f }, cfg);
+        Check("core: statuses unreadable, Tempered Release 4.0 s ago -> no Trick, decline trick:pet-busy-timer",
+            unkTr.ActionId != BST.Trick && unkTr.Declines.Contains("trick:pet-busy-timer"), D(unkTr));
+        Check("core: statuses unreadable, Tempered Release 5.0 s ago -> Trick", Decide(unk with { SinceTempered = 5f }, cfg).ActionId == BST.Trick);
+        Check("core: statuses unreadable, Parting Blow 2.5 s ago -> no Trick", Decide(unk with { SincePartingBlow = 2.5f }, cfg).ActionId != BST.Trick);
+        Check("core: statuses unreadable, Parting Blow 3.5 s ago -> Trick", Decide(unk with { SincePartingBlow = 3.5f }, cfg).ActionId == BST.Trick);
+        // read, no order status yet: an order pressed under 1 s ago has not reached the familiar (approved addition)
+        var flight = Decide(t with { SinceTempered = 0.5f }, cfg);
+        Check("core: no order status, Tempered Release pressed 0.5 s ago (in flight) -> no Trick, decline trick:pet-order-in-flight",
+            flight.ActionId != BST.Trick && flight.Declines.Contains("trick:pet-order-in-flight"), D(flight));
+        Check("core: no order status, Parting Blow pressed 0.5 s ago (in flight) -> no Trick", Decide(t with { SincePartingBlow = 0.5f }, cfg).ActionId != BST.Trick);
+        Check("core: no order status, Tempered Release 1.5 s ago (the order already resolved) -> Trick", Decide(t with { SinceTempered = 1.5f }, cfg).ActionId == BST.Trick);
+        // every Trick path and the axe-first pair start
+        var afterAxe = t with { SinceAxe = 1f, LastAxeAffinity = BeastmasterAffinity.Rampant };
+        Check("core: control: Trick continues the chain after an axe", Decide(afterAxe, cfg).Reason == "combo:trick-after-axe", D(Decide(afterAxe, cfg)));
+        Check("core: Trick after an axe, familiar on a release order -> no Trick", Decide(afterAxe with { PetOrder = PetOrder.Release }, cfg).ActionId != BST.Trick);
+        var over = t with { FamiliarTp = 240, PlayerTp = 50 };
+        Check("core: control: familiar TP 240, player 50 -> overcap Trick", Decide(over, cfg).Reason == "trick:overcap", D(Decide(over, cfg)));
+        Check("core: overcap Trick, familiar leaving (1965) -> no Trick", Decide(over with { PetOrder = PetOrder.Recall }, cfg).ActionId != BST.Trick);
+        var axeFirst = t with { Level = 40, MasterStacks = 2, NaturalStacks = 0, GcdReady = true };
+        Check("core: control: L40, 2 Mastered and no Natural -> axe-first pair start", Decide(axeFirst, cfg).Reason == "combo:axe-first", D(Decide(axeFirst, cfg)));
+        var axeFirstBusy = Decide(axeFirst with { PetOrder = PetOrder.Release }, cfg);
+        Check("core: axe-first pair start while the familiar carries out a release -> held (its Trick would land on the busy familiar)",
+            axeFirstBusy.Reason != "combo:axe-first" && axeFirstBusy.Declines.Contains("trick:pet-busy-order"), D(axeFirstBusy));
+        var crT = CrucibleState() with { PlayerTp = 100, FamiliarTp = 100, ReadyTrick = true, ReadyAxe = true, PetOrder = PetOrder.None };
+        Check("core: control: Crucible board, free familiar -> Trick", Decide(crT, cfg).ActionId == BST.Trick, D(Decide(crT, cfg)));
+        Check("core: Crucible board, release order on the familiar -> no Trick", Decide(crT with { PetOrder = PetOrder.Release }, cfg).ActionId != BST.Trick);
+
+        // ---------------------------------------------------------- 2. Snarl -> Parting Blow is gone (Sep 17 hotfix); the cover Snarl stays
+        Check("core: BstSettings no longer carries CrucibleTankbusterParting", typeof(BstSettings).GetField("CrucibleTankbusterParting") is null);
+        Check("core: BstSettings no longer carries CrucibleSnarlPartingLead", typeof(BstSettings).GetField("CrucibleSnarlPartingLead") is null);
+        var cfgSrc = RepoFile("Combos", "PvE", "BST", "BST_Config.cs");
+        Check("core: the BST_CrucibleSnarlParting key is kept (it gates the cover Snarl; saved configs keep their value)",
+            cfgSrc.Contains("BST_CrucibleSnarlParting = new(\"BST_CrucibleSnarlParting\", true)", StringComparison.Ordinal));
+        Check("core: the lead slider config is gone", !cfgSrc.Contains("BST_CrucibleSnarlPartingLead", StringComparison.Ordinal));
+        Check("core: no Parting Blow step left in the live settings or the Crucible logic",
+            !RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("TankbusterParting", StringComparison.Ordinal)
+            && !RepoFile("Combos", "PvE", "BST", "BST_CrucibleLogic.cs").Contains("SnarlPartingWindow", StringComparison.Ordinal)
+            && !RepoFile("Combos", "PvE", "BST", "BST_RotationLogic.cs").Contains("snarl-parting", StringComparison.Ordinal));
+        var resx = RepoFile("Resources", "Localization", "JobConfigs", "BST_Config.resx");
+        Check("core: the option reads as what it does now", resx.Contains("<value>{0} a familiar into known tankbusters it can survive</value>", StringComparison.Ordinal));
+        var tvLanding = CrucibleState() with { TargetCastId = 48809, TargetCastRemaining = 2.5f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
+        var tvD = Decide(tvLanding, cfg);
+        Check("core: Toxic Vomit about to land on the covering familiar: no Parting Blow, and no snarl-parting window logged",
+            tvD.ActionId != BST.PartingBlow && !tvD.Shadow.Contains("snarl-parting") && !tvD.Reason.Contains("snarl-parting"), D(tvD));
+        var golemCover = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 7, TargetCastId = 50649, TargetCastRemaining = 4.7f, ReadySnarl = true, ReadyParting = true,
+            PetHp = 3492f, PetHpPercent = 100f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("core: the cover Snarl is unchanged (Obliterate, a 3,492 HP familiar)", Decide(golemCover, cfg).Reason == "aggro:snarl-tankbuster", D(Decide(golemCover, cfg)));
+        Check("core: ... and stays off with the option off", Decide(golemCover, cfg with { CrucibleSnarlParting = false }).Reason != "aggro:snarl-tankbuster");
+
+        // ---------------------------------------------------------- 3. L50 finishers (U4): the dash lands somewhere; Calamity does not move
+        // xivapi v2 Action (2026-10-13): Brutal Rage 44930 and Hawkish Talons 44931 AffectsPosition=true, range 25; Risen Fall 44932 false,
+        // range 25; Calamity 44933 false, range 10 (a line).
+        var fin = BaseState(50) with { PlayerTp = 250, ReadyAxe = true, TargetDistance = 3f, SunOrMoonActive = true, SunMoon = BeastmasterAffinity.Sunstrider };
+        var crFin = CrucibleState(50) with { PlayerTp = 250, ReadyAxe = true, TargetDistance = 3f, SunOrMoonActive = true, SunMoon = BeastmasterAffinity.Sunstrider, ReadyParting = false };
+        Check("core: control: Crucible, Sunstrider, clean landing -> Hawkish Talons", Decide(crFin, cfg) is { ActionId: BST.MistralAxe, Reason: "finisher:hawkishtalons-universality" }, D(Decide(crFin, cfg)));
+        var crDanger = Decide(crFin with { DashLanding = DashLanding.Danger }, cfg);
+        Check("core: Crucible, Sunstrider, landing in danger -> Calamity (Gale Axe) instead of the dash",
+            crDanger is { ActionId: BST.GaleAxe, Reason: "finisher:calamity-universality" } && crDanger.Declines.Contains("finisher:hawkishtalons-landing-danger"), D(crDanger));
+        Check("core: Crucible, Sunstrider, landing unreachable -> Calamity", Decide(crFin with { DashLanding = DashLanding.Unreachable }, cfg).ActionId == BST.GaleAxe);
+        Check("core: Crucible, Sunstrider, landing unknown (no boss-mod answer) -> Calamity", Decide(crFin with { DashLanding = DashLanding.Unknown }, cfg).ActionId == BST.GaleAxe);
+        Check("core: Crucible, Moonstalker, landing in danger -> Risen Fall still (it does not move the character)",
+            Decide(crFin with { SunMoon = BeastmasterAffinity.Moonstalker, DashLanding = DashLanding.Danger }, cfg).Reason == "finisher:risenfall-universality");
+        Check("core: Crucible keeps the melee gate: Sunstrider at 8 y -> no finisher", Decide(crFin with { TargetDistance = 8f }, cfg).Reason.StartsWith("finisher:") == false);
+        Check("core: outside the Crucible, Sunstrider at 15 y, clean landing -> Hawkish Talons (25 y)", Decide(fin with { TargetDistance = 15f }, cfg).Reason == "finisher:hawkishtalons-universality", D(Decide(fin with { TargetDistance = 15f }, cfg)));
+        Check("core: outside the Crucible, Moonstalker at 20 y -> Risen Fall (25 y)", Decide(fin with { TargetDistance = 20f, SunMoon = BeastmasterAffinity.Moonstalker }, cfg).Reason == "finisher:risenfall-universality");
+        Check("core: outside the Crucible, 26 y -> no finisher", !Decide(fin with { TargetDistance = 26f }, cfg).Reason.StartsWith("finisher:"));
+        Check("core: outside the Crucible, Sunstrider at 8 y, landing in danger -> Calamity (10 y)", Decide(fin with { TargetDistance = 8f, DashLanding = DashLanding.Danger }, cfg).Reason == "finisher:calamity-universality");
+        var farDanger = Decide(fin with { TargetDistance = 15f, DashLanding = DashLanding.Danger }, cfg);
+        Check("core: outside the Crucible, Sunstrider at 15 y, landing in danger -> neither (Calamity reaches 10 y), decline recorded",
+            !farDanger.Reason.StartsWith("finisher:") && farDanger.Declines.Contains("finisher:hawkishtalons-landing-danger"), D(farDanger));
+        Check("core: outside the Crucible, landing unknown -> Hawkish Talons (unknown blocks only on a board, as for Shield Charge)",
+            Decide(fin with { DashLanding = DashLanding.Unknown }, cfg).Reason == "finisher:hawkishtalons-universality");
+        Check("core: the landing is asked while a Sunstrider finisher is on the table (Shield Charge not ready)",
+            DashLandingWanted(fin with { ReadyShieldCharge = false, HasHostileTarget = true }));
+        Check("core: ... not under Moonstalker (Risen Fall does not move), nor below 250 TP, nor without Sun/Moon",
+            !DashLandingWanted(fin with { SunMoon = BeastmasterAffinity.Moonstalker }) && !DashLandingWanted(fin with { PlayerTp = 200 })
+            && !DashLandingWanted(fin with { SunOrMoonActive = false, SunMoon = BeastmasterAffinity.None }));
+        Check("core: BST.ReadState asks for the landing through DashLandingWanted", RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("DashLandingWanted(s)", StringComparison.Ordinal));
+        // (d) the finishers are AoEs: the same protected-enemy hold Trick and Seedsower get
+        var prot = Decide(crFin with { ProtectedNearTarget = true }, cfg);
+        Check("core: Crucible, an egg / morpho in AoE reach of the target -> no finisher, decline crucible:finisher-protected-near",
+            !prot.Reason.StartsWith("finisher:") && prot.Declines.Contains("crucible:finisher-protected-near"), D(prot));
+        Check("core: ... Moonstalker (Risen Fall) too", !Decide(crFin with { ProtectedNearTarget = true, SunMoon = BeastmasterAffinity.Moonstalker }, cfg).Reason.StartsWith("finisher:"));
+        Check("core: ... and the Calamity fallback too", !Decide(crFin with { ProtectedNearTarget = true, DashLanding = DashLanding.Danger }, cfg).Reason.StartsWith("finisher:"));
+
+        // ---------------------------------------------------------- 4. Vileskin held for a known knockback (U5)
+        Check("core: knockback table: 19 casts, unique ids, every row a real board battle",
+            BST.CrucibleKnockbacks.Casts.Length == 19 && BST.CrucibleKnockbacks.Casts.Select(c => c.CastId).Distinct().Count() == 19
+            && BST.CrucibleKnockbacks.Casts.All(c => BST_CrucibleData.Battles.Any(b => b.Board == c.Board && b.Battle == c.Battle)));
+        Check("core: knockback table: Aero III 48667 (Strix, 4.1), Obliterate 50649 (Golem, 4.7), Tsunami 48481 (Ymir, 3.2)",
+            BST.CrucibleKnockbacks.IsKnockbackCast(48667) && BST.CrucibleKnockbacks.IsKnockbackCast(50649) && BST.CrucibleKnockbacks.IsKnockbackCast(48481)
+            && BST.CrucibleKnockbacks.BattleHasKnockback(4, 1) && BST.CrucibleKnockbacks.BattleHasKnockback(4, 7) && !BST.CrucibleKnockbacks.BattleHasKnockback(1, 1)
+            && !BST.CrucibleKnockbacks.IsKnockbackCast(0));
+        var vile = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 7, KinshipHeld = true, ReadyBeastMode = true, BeastModeResolved = BST.Vileskin, PlayerTargetedByEnemy = true,
+            ReadyParting = false,
+        };
+        var vileHeld = Decide(vile, cfg);
+        Check("core: Golem fight (Obliterate knocks back), no knockback cast up -> Vileskin held, decline vileskin:held-for-knockback",
+            vileHeld.ActionId != BST.Vileskin && vileHeld.Declines.Contains("vileskin:held-for-knockback"), D(vileHeld));
+        Check("core: ... a knockback cast with 2.5 s left -> Vileskin", Decide(vile with { KnockbackCastRemaining = 2.5f }, cfg) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin-knockback" },
+            D(Decide(vile with { KnockbackCastRemaining = 2.5f }, cfg)));
+        Check("core: ... 4 s left -> still held", Decide(vile with { KnockbackCastRemaining = 4f }, cfg).ActionId != BST.Vileskin);
+        Check("core: ... 2.5 s left but no weave window -> waits for the weave (not logged as held)",
+            Decide(vile with { KnockbackCastRemaining = 2.5f, CanWeave = false }, cfg) is { } nw && nw.ActionId != BST.Vileskin && !nw.Declines.Contains("vileskin:held-for-knockback"));
+        Check("core: ... the push does not care who the enemy targets: 2 s left, character not targeted -> Vileskin",
+            Decide(vile with { KnockbackCastRemaining = 2f, PlayerTargetedByEnemy = false }, cfg).ActionId == BST.Vileskin);
+        Check("core: Ymir fight (Tsunami 48481, 35 y push): Vileskin held, then pressed with 2 s left on the cast",
+            Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 2 }, cfg).ActionId != BST.Vileskin
+            && Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 2, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback"
+            && BST.CrucibleKnockbacks.IsKnockbackCast(48481));
+        Check("core: Lakhamu fight (Landslip 48556, 20 y push): Vileskin held, then pressed with 2 s left on the cast",
+            Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5 }, cfg).ActionId != BST.Vileskin
+            && Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback"
+            && BST.CrucibleKnockbacks.IsKnockbackCast(48556));
+        Check("core: a Crucible fight with no knockback (bone knight) -> Vileskin as today (targeted)",
+            Decide(vile with { CrucibleBoard = 1, CrucibleBattle = 1 }, cfg) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin" });
+        Check("core: battle not identified -> Vileskin as today", Decide(vile with { CrucibleBattle = -1 }, cfg).ActionId == BST.Vileskin);
+        Check("core: outside the Crucible -> Vileskin as today", Decide(vile with { CrucibleBoard = 0 }, cfg).ActionId == BST.Vileskin);
+        Check("core: Vileskin switched off -> nothing, knockback or not", Decide(vile with { KnockbackCastRemaining = 2f }, cfg with { UseVileskin = false }).ActionId != BST.Vileskin);
+        Check("core: BST.ReadState fills the knockback clock", RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("s.KnockbackCastRemaining =", StringComparison.Ordinal));
+
+        // ---------------------------------------------------------- 5. Shield Charge animation lock 1.1 s (U14)
+        var sc = BaseState(30) with { TargetDistance = 10f, ReadyShieldCharge = true, ShieldChargeCharges = 1, ShieldChargeMax = 1 };
+        Check("core: control: 10 y, a weave window -> Shield Charge gap-close", Decide(sc, cfg).Reason == "shieldcharge:gapclose", D(Decide(sc, cfg)));
+        var clip = Decide(sc with { ShieldChargeClipsGcd = true }, cfg);
+        Check("core: the window fits a 0.6 s weave but not Shield Charge's 1.1 s lock -> no dash, decline shieldcharge:weave-too-short",
+            clip.ActionId != BST.ShieldCharge && clip.Declines.Contains("shieldcharge:weave-too-short"), D(clip));
+        Check("core: in melee with charges below the cap (no dash wanted) the short window is not logged",
+            !Decide(sc with { TargetDistance = 2f, ShieldChargeCharges = 1, ShieldChargeMax = 3, ShieldChargeClipsGcd = true }, cfg).Declines.Contains("shieldcharge:weave-too-short"));
+        Check("core: the overcap spend waits for a 1.1 s window too",
+            Decide(sc with { TargetDistance = 3f, ShieldChargeClipsGcd = true }, cfg with { UseShieldCharge = false, ShieldChargeOvercap = true }).ActionId != BST.ShieldCharge);
+        Check("core: the lock constant is 1.1 s and BST.ReadState uses it", ShieldChargeAnimationLock == 1.1f
+            && RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("CanWeave(BST_RotationLogic.ShieldChargeAnimationLock)", StringComparison.Ordinal));
+
+        // ---------------------------------------------------------- 6. short fights: nothing waits for stacks (F11, no behavior change)
+        var shortFight = CrucibleState(50) with { CrucibleBoard = 4, CrucibleBattle = 2, MasterStacks = 2, NaturalStacks = 1, PlayerTp = 100, FamiliarTp = 100, ReadyTrick = true, ReadyAxe = true, ReadyParting = false };
+        Check("core: L50 non-boss Crucible fight, 2 Mastered stacks, no Sun/Moon: the pair starts at once (no axe held for the long build)",
+            Decide(shortFight, cfg).ActionId == BST.Trick, D(Decide(shortFight, cfg)));
+        Check("core: ... and the axe follows the pet's Heart at once",
+            Decide(shortFight with { SinceTrick = 1.5f, SincePetHeart = 0.5f, GcdReady = true }, cfg).Reason.StartsWith("combo:axe-"), D(Decide(shortFight with { SinceTrick = 1.5f, SincePetHeart = 0.5f, GcdReady = true }, cfg)));
     }
 
     // ================================================================== helpers

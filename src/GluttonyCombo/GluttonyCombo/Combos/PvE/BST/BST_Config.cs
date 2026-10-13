@@ -21,7 +21,6 @@ internal partial class BST
             BST_CruciblePetSwapHp = new("BST_CruciblePetSwapHp", 55),
             BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 30),
             BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.On),
-            BST_CrucibleSnarlPartingLead = new("BST_CrucibleSnarlPartingLead", 15),
             BST_AoePartingBlowEnemies = new("BST_AoePartingBlowEnemies", 3);
 
         public static UserBool
@@ -47,6 +46,7 @@ internal partial class BST
             BST_CrucibleHornWarning = new("BST_CrucibleHornWarning", true),
             BST_CrucibleTargeting = new("BST_CrucibleTargeting", true),
             BST_CrucibleScoreMode = new("BST_CrucibleScoreMode", false),
+            // Key kept from the Snarl -> Parting Blow days: it gates the cover Snarl now (saved configs keep their value).
             BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", true),
             BST_CrucibleSurvival = new("BST_CrucibleSurvival", true),
             BST_CruciblePackWindow = new("BST_CruciblePackWindow", false),

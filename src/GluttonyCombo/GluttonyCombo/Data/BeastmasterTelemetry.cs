@@ -46,6 +46,7 @@ internal static class BeastmasterTelemetry
 
     /// <summary> Stalled-GCD gate and movement tracking for <c>SG|</c> / <c>CR|mv=</c>. </summary>
     private static CrucibleStallFormat.GateState _stallGate;
+    private static CrucibleStallFormat.GcdReadyClock _gcdReadyClock;
     private static long _lastPosTick;
     private static Vector3 _lastPos;
     private static float _moveSpeed;
@@ -59,6 +60,7 @@ internal static class BeastmasterTelemetry
         _gate.Reset();
         _crucibleGate.Reset();
         _stallGate.Reset();
+        _gcdReadyClock = default;
         _lastPosTick = 0;
         _moveSpeed = 0f;
     }
@@ -152,7 +154,10 @@ internal static class BeastmasterTelemetry
             && sheet.CanTargetHostile && !sheet.CanTargetSelf;
         // ActionWatching keeps LOCAL time; subtracting UtcNow saturated every line at s=999 (2026-10-03).
         var sinceFire = CrucibleStallFormat.SinceFireSeconds(ActionWatching.TimeSinceLastAction);
-        var holding = CrucibleStallFormat.IsStalled(s.InCombat, s.GcdReady, isAttack, sinceFire);
+        // The stall runs from the GCD-ready moment too (2026-10-13): from the last send alone, every GCD sent without a weave read 2 s stalled.
+        var sinceGcdReady = _gcdReadyClock.Update(unixMs, global::GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions.RemainingGCD);
+        var idle = CrucibleStallFormat.IdleSeconds(sinceFire, sinceGcdReady);
+        var holding = CrucibleStallFormat.IsStalled(s.InCombat, s.GcdReady, isAttack, idle);
         if (!holding)
             return;
 
@@ -175,7 +180,7 @@ internal static class BeastmasterTelemetry
                 why = CrucibleStallFormat.Reason.Range;
         }
 
-        var snap = new CrucibleStallFormat.Snapshot(act, why, edge, BST.LastCrucibleTargetNameId, sinceFire, s.DashHold);
+        var snap = new CrucibleStallFormat.Snapshot(act, why, edge, BST.LastCrucibleTargetNameId, idle, s.DashHold);
         if (CrucibleStallFormat.ShouldEmit(ref _stallGate, unixMs, snap))
         {
             var line = CrucibleStallFormat.BuildLine(unixMs, snap);

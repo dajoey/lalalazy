@@ -141,4 +141,73 @@ internal partial class BST
 
     /// <inheritdoc cref="StatusRangeStart"/>
     public const ushort StatusRangeEnd = 4651;
+
+    // ------------------------------------------------------------------ core lane 2026-10-13
+
+    /// <summary>
+    ///     The Summon Order statuses the game puts on the FAMILIAR (not the player) while it carries out an order. The sheet calls
+    ///     them four identical generic rows; each one follows exactly one order (ffxivdb, status added up to 2.5 s after the press,
+    ///     09-08..10-11): 1915 after Trick 3,230 of 3,906, 1964 after Tempered Release 3,146 of 3,222, 1965 after Parting Blow
+    ///     1,715 of 3,559, 1966 after Snarl 2,273 of 3,258. A Trick pressed while 1964 was on the familiar got its Heart 18.9% of
+    ///     the time, during or up to 2 s after 1965 22%, every other Trick 82.5%.
+    /// </summary>
+    public static class PetOrderStatus
+    {
+        public const ushort
+            Trick = 1915,
+            Release = 1964,
+            Recall = 1965,
+            Snarl = 1966;
+    }
+
+    /// <summary>
+    ///     Crucible casts that knock the character back (or slam it far enough that Vileskin's 15 s knockback immunity answers
+    ///     them), with the battle they belong to. Ids are the casts stock BossMod Reborn's Crucible modules key their knockback
+    ///     components on (origin/main be8ff771c, BossMod/Modules/Global/CrucibleOfTheUnbroken/; the module and line are in
+    ///     <see cref="KnockbackCast.Source"/>). Most are cast by an invisible helper, so the live half scans every caster in the
+    ///     arena, not just the target. Not listed: Progenitrix Meltdown (no castbar, head marker 412 only), Lauda's Unseen Force
+    ///     (the push comes when a status runs out), the Ice Dragon's Touchdown (a 0.5 s cast BMR models outside its knockback
+    ///     components).
+    /// </summary>
+    public static class CrucibleKnockbacks
+    {
+        public readonly record struct KnockbackCast(uint CastId, byte Board, byte Battle, string Name, string Source);
+
+        public static readonly KnockbackCast[] Casts =
+        [
+            new(48168, 2, 3, "Typhoon", "02SecondBoard/WyvernPiece.cs:17,55 (WyvernPiece, 3.0 s, 10 y)"),
+            new(48199, 2, 5, "Shockwave", "02SecondBoard/YoungerTablitaurPiece.cs:24,87 (helper, 7.0 s, 20 y donut)"),
+            new(48202, 2, 5, "Shockwave (long)", "02SecondBoard/YoungerTablitaurPiece.cs:28,87 (helper, 10.5 s, 20 y donut)"),
+            new(48607, 3, 0, "Beastly Aura", "03ThirdBoard/GuttlerTheGutter.cs:25,233-242 (helper, 7.0 s, 20 y)"),
+            new(48471, 3, 1, "Crushing Blade", "03ThirdBoard/CavalierPiece.cs:23,99-116 (CavalierPiece on the player, 5.0 s, 15 y)"),
+            new(48481, 3, 2, "Tsunami", "03ThirdBoard/YmirPiece.cs:17,126 (helper, 8.0 s, 35 y)"),
+            new(48556, 3, 5, "Landslip", "03ThirdBoard/LakhamuPiece.cs:24,149 (helper, 8.0 s, 20 y)"),
+            new(48816, 4, 0, "Touchdown", "04FirstMasterBoard/BorgnyTheVenomous.cs:21,243 (helper, 4.0 s, 30 y)"),
+            new(48667, 4, 1, "Aero III", "04FirstMasterBoard/StrixPiece.cs:21,50 (Strix Plume, 12.0 s, 25 y)"),
+            new(50758, 4, 2, "Tremblor", "04FirstMasterBoard/MorbolPiece.cs:27,54 (helper, 5.0 s, 10 y)"),
+            new(48725, 4, 5, "Fivefold Fallout", "04FirstMasterBoard/GargoylePiece.cs:38,310-326 (helper, 3.0 s, 20 y)"),
+            new(50649, 4, 7, "Obliterate", "04FirstMasterBoard/GolemPiece.cs:21,269 (golem, 5.0 s, 17 y)"),
+            new(48805, 4, 9, "Fiery Fury", "04FirstMasterBoard/ProgenitrixPiece.cs:27,147 (helper, 7.9 s, 15 y)"),
+            new(49453, 5, 0, "Beastly Aura", "05SecondMasterBoard/LaudaTheSpellcleaver.cs:29,161-170 (helper, 7.0 s, 20 y)"),
+            new(49473, 5, 0, "Guttler Glutter", "05SecondMasterBoard/LaudaTheSpellcleaver.cs:72,645 (Lauda, 27.1 s, 20 y)"),
+            new(49226, 5, 3, "Swing Round", "05SecondMasterBoard/BoogymanPiece.cs:19,62 (helper, 5.0 s, 20 y)"),
+            new(49238, 5, 4, "Shockwave", "05SecondMasterBoard/AtomosPiece.cs:26,85 (Atomos, 6.0 s, 16 y)"),
+            new(49242, 5, 4, "Water III", "05SecondMasterBoard/AtomosPiece.cs:40,106 (bavarois, 2.0 s, 20 y)"),
+            new(49274, 5, 6, "Thermobaric Charge", "05SecondMasterBoard/DurgaPiece.cs:28,154 (helper, 2.0 s, 40 y)"),
+        ];
+
+        private static readonly System.Collections.Generic.HashSet<uint> CastIds = [.. System.Linq.Enumerable.Select(Casts, c => c.CastId)];
+
+        /// <summary> The cast is a known Crucible knockback. </summary>
+        public static bool IsKnockbackCast(uint castId) => castId != 0 && CastIds.Contains(castId);
+
+        /// <summary> The battle (board 1-5, battle 0 = boss) has a known knockback cast. </summary>
+        public static bool BattleHasKnockback(int board, int battle)
+        {
+            foreach (var c in Casts)
+                if (c.Board == board && c.Battle == battle)
+                    return true;
+            return false;
+        }
+    }
 }

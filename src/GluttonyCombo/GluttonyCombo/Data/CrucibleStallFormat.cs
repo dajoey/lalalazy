@@ -95,14 +95,44 @@ internal static class CrucibleStallFormat
 
     /// <summary>
     ///     The live sampler's holding test: in combat, the global cooldown ready, the rotation chose a
-    ///     hostile-targeted action, and nothing has fired for over <see cref="StallAfterSeconds"/>.
+    ///     hostile-targeted action, and nothing has fired for over <see cref="StallAfterSeconds"/> since the GCD came ready
+    ///     (<paramref name="idleSeconds"/> from <see cref="IdleSeconds"/>).
     /// </summary>
-    internal static bool IsStalled(bool inCombat, bool gcdReady, bool choseHostileAction, float sinceFireSeconds) =>
-        inCombat && gcdReady && choseHostileAction && sinceFireSeconds > StallAfterSeconds;
+    internal static bool IsStalled(bool inCombat, bool gcdReady, bool choseHostileAction, float idleSeconds) =>
+        inCombat && gcdReady && choseHostileAction && idleSeconds > StallAfterSeconds;
+
+    /// <summary>
+    ///     How long nothing has been sent since the global cooldown came ready: the later of the last send and the GCD-ready moment.
+    ///     Measured from the last send alone (to 2026-10-13), every GCD sent without a weave read 2.0-2.2 s "stalled" once the GCD
+    ///     entered its queue window: 46,722 SG| lines on 10-06 against about 1,300 s of real idle.
+    /// </summary>
+    internal static float IdleSeconds(float sinceFireSeconds, float sinceGcdReadySeconds) => MathF.Min(sinceFireSeconds, sinceGcdReadySeconds);
+
+    /// <summary> Seconds since the global cooldown came ready (its remaining recast reached 0); 0 while it rolls. One per sampler. </summary>
+    internal struct GcdReadyClock
+    {
+        public bool Ready;
+        public long ReadyAtMs;
+
+        public float Update(long nowMs, float remainingGcdSeconds)
+        {
+            if (remainingGcdSeconds > 0f)
+            {
+                Ready = false;
+                return 0f;
+            }
+            if (!Ready)
+            {
+                Ready = true;
+                ReadyAtMs = nowMs;
+            }
+            return MathF.Max(0f, (nowMs - ReadyAtMs) / 1000f);
+        }
+    }
 
     /// <summary>
     ///     <c>SG|unixms|act=id|r=reason|d=edge|t=nameId|s=seconds</c>. <c>d</c> is the hitbox-edge distance to the
-    ///     target (empty without one), <c>s</c> how long nothing has been sent. <c>t</c> is 0 without a target. On
+    ///     target (empty without one), <c>s</c> how long nothing has been sent since the GCD came ready. <c>t</c> is 0 without a target. On
         ///     range lines, <c>|dh=</c> names why the rotation's own gap-close (Shield Charge) did not fire.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)

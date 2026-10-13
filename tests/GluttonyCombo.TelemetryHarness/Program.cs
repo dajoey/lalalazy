@@ -105,6 +105,7 @@ internal static class Program
         StallCases();
         LeaseCases();
         FreezeCases();
+        CoreStallClockCases(); // core lane 2026-10-13 (titles prefixed "core:")
 
         Console.WriteLine(_fail == 0
             ? _canary > 0 ? $"OK ({_pass} checks, canary failed as expected)" : $"OK ({_pass} checks)"
@@ -776,6 +777,82 @@ internal static class Program
         parts[3] = "GluttonyCombo";
         rel.CopyTo(parts, 4);
         return File.ReadAllText(Path.Combine(parts));
+    }
+
+    /// <summary>
+    ///     core lane 2026-10-13 (T9): the SG| stall clock ran from the last action, so every GCD sent without a weave read 2.0-2.2 s
+    ///     "stalled" the moment the GCD entered its queue window (10-06: 46,722 SG lines against ~1,300 s of real idle). It now runs from
+    ///     the later of the last send and the moment the GCD came ready.
+    /// </summary>
+    private static void CoreStallClockCases()
+    {
+        Console.WriteLine("-- core: SG| stall clock runs from GCD-ready, not from the last action --");
+        Check("core: SG| a GCD sent 2.1 s ago, the next GCD ready 0.1 s ago, no weave: 0.1 s idle",
+            Math.Abs(CrucibleStallFormat.IdleSeconds(2.1f, 0.1f) - 0.1f) < 0.001f, CrucibleStallFormat.IdleSeconds(2.1f, 0.1f).ToString(CultureInfo.InvariantCulture));
+        Check("core: SG| ... and that is not a stall",
+            !CrucibleStallFormat.IsStalled(true, true, true, CrucibleStallFormat.IdleSeconds(2.1f, 0.1f)));
+        Check("core: SG| GCD ready 1.5 s, last send 4 s ago: a stall of 1.5 s",
+            CrucibleStallFormat.IsStalled(true, true, true, CrucibleStallFormat.IdleSeconds(4f, 1.5f))
+            && Math.Abs(CrucibleStallFormat.IdleSeconds(4f, 1.5f) - 1.5f) < 0.001f);
+        Check("core: SG| an ability sent 0.4 s ago while the GCD sat ready 3 s: not a stall yet (something was sent)",
+            !CrucibleStallFormat.IsStalled(true, true, true, CrucibleStallFormat.IdleSeconds(0.4f, 3f)));
+
+        var clock = new CrucibleStallFormat.GcdReadyClock();
+        var rolling = clock.Update(1_000, 0.8f);
+        var cameReady = clock.Update(1_800, 0f);
+        var held = clock.Update(3_300, 0f);
+        var rolledAgain = clock.Update(3_350, 2.45f);
+        var readyAgain = clock.Update(5_800, 0f);
+        var later = clock.Update(6_400, 0f);
+        Check("core: SG| GCD-ready clock: 0 while the GCD rolls, counts from the tick it reached 0, resets on the next GCD",
+            rolling == 0f && cameReady == 0f && Math.Abs(held - 1.5f) < 0.001f && rolledAgain == 0f && readyAgain == 0f && Math.Abs(later - 0.6f) < 0.001f,
+            $"{rolling} {cameReady} {held} {rolledAgain} {readyAgain} {later}");
+
+        // Replay of 10-06 13:09:36-46: five on-time GCDs (2.5 s recast, each sent 0.05 s after the GCD came ready), no weaves, the
+        // sampler ticking every 16 ms. The old clock wrote one SG| line per GCD; none of them was a stall.
+        int Replay(float pressLatency, float idleAfterThirdGcd, out float longest)
+        {
+            var c = new CrucibleStallFormat.GcdReadyClock();
+            var gate = new CrucibleStallFormat.GateState();
+            var lines = 0;
+            longest = 0f;
+            var lastPress = 0f;
+            var gcdEnd = 2.5f;
+            var presses = 1;
+            for (var now = 0f; now < 14f; now += 0.016f)
+            {
+                var due = gcdEnd + pressLatency + (presses == 3 ? idleAfterThirdGcd : 0f);
+                if (presses < 6 && now >= due)
+                {
+                    lastPress = now;
+                    gcdEnd = now + 2.5f;
+                    presses++;
+                }
+                var remaining = MathF.Max(0f, gcdEnd - now);
+                var ms = (long)(now * 1000f);
+                var idle = CrucibleStallFormat.IdleSeconds(now - lastPress, c.Update(ms, remaining));
+                if (presses < 6 && CrucibleStallFormat.IsStalled(true, remaining <= 0.5f, true, idle))
+                {
+                    var snap = new CrucibleStallFormat.Snapshot(44879, CrucibleStallFormat.Reason.Unknown, 0.5f, 14531, idle);
+                    if (CrucibleStallFormat.ShouldEmit(ref gate, ms, snap))
+                    {
+                        lines++;
+                        longest = MathF.Max(longest, idle);
+                    }
+                }
+            }
+            return lines;
+        }
+        var cadence = Replay(0.05f, 0f, out _);
+        Check("core: SG| replay: five on-time GCDs with no weave write no SG| line (was one per GCD)", cadence == 0, $"{cadence} lines");
+        var stalled = Replay(0.05f, 3f, out var longestIdle);
+        Check("core: SG| replay: a GCD held 3 s still logs, and its s= reads the idle since GCD-ready (about 1-3 s, not 4.5-5.5)",
+            stalled >= 1 && longestIdle is > 1f and < 3.1f, $"{stalled} lines, longest {longestIdle:0.00}");
+
+        var src = ReadSamplerSource();
+        Check("core: SG| the live sampler feeds the GCD-ready clock from the game's remaining GCD and measures idle with it",
+            src.Contains("GcdReadyClock", StringComparison.Ordinal) && src.Contains("CrucibleStallFormat.IdleSeconds(", StringComparison.Ordinal)
+            && src.Contains("RemainingGCD", StringComparison.Ordinal));
     }
 
     private static void Check(string what, bool ok, string? detail = null)
