@@ -1,5 +1,14 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.8 (2026-10-13) [testing]
+### Fixed
+- **BossMod Reborn no longer runs its own job rotations beside Gluttony Combo during FATEs.** The FATE grind creates and uses its own BossMod preset, "LazyFateAutomation", holding only the movement, FATE-targeting, level-sync and stay-close-to-target modules (melee and tanks close in, other roles hold at 10 yalms), and rewrites it each time the grind starts so an old or edited copy cannot bring job rotations back.
+- **The grind no longer clears a BossMod preset another plugin (such as AutoDuty) or the player set.** It turns its preset on and off with BossMod Reborn's standard preset calls and only ever clears its own. Two calls BossMod Reborn does not provide, which failed on every attempt, are gone, and a failing call is logged once per run.
+### Changed
+- The BossMod preset named "Gluttony" that earlier versions created is no longer used. It is left untouched in BossMod's preset list and can be deleted there by hand.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v0.0.3.7 (2026-10-05) [testing]
 ### Fixed
 - **The boss FATE icon on the server info bar entry now actually renders.** The previous testing build showed no icon at all because the glyph reference pointed at an empty slot instead of the boss FATE icon; the icon value is now pinned so it stays the boss glyph.

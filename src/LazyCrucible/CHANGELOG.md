@@ -1,6 +1,21 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.15 (2026-10-13) [testing]
+### Added
+- **Mitigation in the horn picks.** Fights with a damage wall now field a familiar that blunts it, ranked below every interrupt, dispel and cleanse need, and counted only for a familiar above the danger HP line. Durga's Atomic Ray gets a magic answer (drake's Smoldering Scales, pugil's Water Wall or a Scalekin's Scaleskin); Borgny gets coblyn's Vulcanize for the poison plus a magic answer; Gargoyle's Sweeping Evisceration gets a physical answer (a Beastkin's Beastskin, coblyn's Vulcanize or adamantoise's Harden Shell). The fight guide lists these under "Calls for".
+- One telemetry line per fight names the team on the horns and the needs it cannot answer (`uncovered=`).
+### Changed
+- **Works with AutoDuty.** While AutoDuty runs, it handles the run roster, shop, treasure, spoils and campsite itself, so the plugin stands by there; the battlehorns are AutoDuty's only with its "Fight picks" on, and the plugin picks them otherwise. AutoDuty's active profile is read through AutoDuty's own interface (its config file when that is unavailable), never changed; when neither can be read, every screen stands by, as before. The window shows one quiet line naming the screens it is standing by on.
+- **No more corrections on top of AutoDuty's familiar picks.** AutoDuty re-applied its own picks every time, so they never reached a fight.
+- **Fight guide: the Snarl -> Parting Blow advice is gone** (Parting Blow no longer dodges a hit since the September 17 hotfix). Plain tankbusters say to let a familiar with enough HP take them under Snarl; poisoning ones (Deadly Thrust, Cold Caress, Toxic Vomit) say to Parting Blow right after the hit so the poison leaves with the familiar; Gargoyle's Sweeping Evisceration says to save the Blink tome for it.
+- Item values: Beastly Knife is valued like the elemental axes; Hero's Crown counts its Excellence proc (9 s of nullified attacks); Rapid Recast gear is valued; reraise items are worth a little less at Third Degree.
+### Fixed
+- **Patch 7.57: battlehorns the game registered itself (teams of three or fewer) are left alone**; a knocked-out member of a three-familiar team is no longer toggled off the horns.
+- **Patch 7.57: the board's degree survives a job change** (the game now keeps the Crucible Mode until logout), so the degree passed to Gluttony Combo is no longer reset when the character returns to Beastmaster. It is forgotten at logout.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v0.1.9.14 (2026-10-06) [testing]
 ### Fixed
 - **The board's difficulty degree now reaches Gluttony Combo during a fight.** The degree is set in the lobby (by a click or by AutoDuty) and the character then zones into the duty; the plugin used to forget it at every loading screen, so a fight always read as an unknown degree. It is now kept across loading screens and still forgotten when the Beastmaster job is left or the plugin unloads.

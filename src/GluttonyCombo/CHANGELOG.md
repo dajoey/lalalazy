@@ -5,6 +5,32 @@
 ### Notes
 - Testing channel only; the production channel is unchanged. Not verified in play yet.
 
+## v1.0.4.300 (2026-10-13) [testing]
+### Added
+- **Beastmaster, Crucible: BossMod Reborn's hit predictions are used.** With BossMod Reborn installed, a hit it predicts on the character that no known cast covers (raidwides, baits, the Progenitrix's Meltdown, which has no castbar) gets a held Scaleskin or Beastskin shortly before it lands (Vileskin only for a predicted tankbuster, and never in a fight where it is kept for a knockback), or a heal at low HP. Snarl is never used on a prediction alone. A familiar save on a predicted hit is only logged for now.
+- **Beastmaster, Crucible: poison leaves with the familiar.** A familiar poisoned by Deadly Thrust, Cold Caress or Borgny's Toxic Vomit is sent away with Parting Blow once the attack is over and another horn is ready, so the poison leaves with it. Poison from any other source does not trigger it.
+- **Beastmaster, Crucible: Vileskin is saved for the knockbacks.** In a fight with a known knockback (19 casts across 16 battles, among them Tsunami, Landslip, Aero III and Obliterate), Vileskin waits for the cast and goes in with 3 seconds or less left on it, whoever the enemy is targeting. Other fights keep the old rule.
+- **Beastmaster, Crucible: Crucible Ash is used as a heal** after the Beast Potions run out.
+- Telemetry: the Crucible line records BossMod Reborn's predicted hits; a `DS|` line records BossMod Reborn's two dash-safety answers for Shield Charge when they change.
+### Changed
+- **Beastmaster: Trick is no longer sent to a familiar that is busy or leaving.** While a Tempered Release is being carried out, or Parting Blow is sending the familiar away, Trick and any Trick-and-axe pair wait. A Trick pressed into such an order lands its Heart only about one time in five, against more than four in five otherwise. An axe that spends capped TP still goes.
+- **Beastmaster: the L50 finishers check where the dash lands.** Hawkish Talons rushes to the target, so it passes the same landing check as Shield Charge; where it may not land, Calamity completes Universality instead. Outside the Crucible, Hawkish Talons dashes from beyond melee only with Shield Charge gap-closing on and a landing known to be safe; the other finishers fire up to their real range (25 yalms, Calamity 10). In the Crucible they stay melee-only and are held when an egg or a morpho is within reach of the target.
+- **Beastmaster: Shield Charge waits for a window long enough for its 1.1-second lock**, so the dash no longer pushes the next GCD back.
+- **Beastmaster, Crucible: kill orders and protected enemies.** Administrator: Bugs and Cobras first, the Administrator last. Progenitrix adds: Grenade, then Pyrobolus, then Bomb. The Abaddon is not attacked while any Morpho lives. Gigantis: the large gel of the other element than the club is left for Smashing Stamp. A familiar's area release is held when its own reach (from the familiar or the target, by release) would touch an egg, instead of a fixed 10 yalms.
+- The Crucible tankbuster option now reads "Snarl a familiar into known tankbusters it can survive"; its saved value is kept.
+- **"Use boss-mod targeting when active" is shown disabled, with a note, when the installed BossMod Reborn has no priority target** (stock builds have none). The stored setting is kept, and the rotation stops asking after the first try until BossMod Reborn reloads or updates.
+- BossMod Reborn conflict warnings name the active preset, and name a Beastmaster rotation or Crucible AI module in it, since it would press job actions beside the rotation. The AI-targeting warning appears only when BossMod Reborn's AI would really pick targets.
+### Removed
+- **The Snarl then Parting Blow tankbuster dodge** and its lead-time setting. The September 17 hotfix ended it: the hit goes back to the character. The cover Snarl, where a familiar takes a known tankbuster it can survive, is unchanged.
+### Fixed
+- **The BossMod Reborn conflict check no longer fails every 8 seconds while a BossMod Reborn preset is active** (AutoDuty, FATE automation). It reads the active preset through BossMod Reborn's public interface, works on stock builds, and a failing check can no longer stop the combo-conflict check. The "Periodic check failed" line names the check.
+- **A job change no longer overwrites BossMod Reborn's saved "Max distance to target".** The role distance is applied as a temporary override that BossMod Reborn never saves (BossMod Reborn 7.5.6.34 or newer; older builds are left untouched).
+- **Shield Charge is no longer held because the enemy's own centre stands in a danger zone.** Only the landing point counts, as in BossMod Reborn's check of its own gap-closers. With Shield Charge set to overcap-only, the check runs only at full charges, and range stalls are no longer reported as BossMod Reborn danger.
+- Crucible: no heal is spent before a physical tankbuster while Blink is up, and a poison is not cleansed while poison resistance is up.
+- Crucible telemetry: an ordinary GCD sent without a weave no longer logs as a stall; the stall clock starts when the GCD comes ready.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.298 (2026-10-10)
 ### Fixed
 - **The `FZ|` freeze-telemetry lines from 1.0.4.297 no longer repeat every frame.** Their engage/release check kept one shared "last reported" record for both freezes, but the rotation consults both freezes on the same tick, so the record never matched for long: every tick re-emitted a "released" line for each freeze - roughly a hundred lines per second in live play. That filled the game's log file to its size cap in about ninety minutes, after which the game wrote no further plugin log for the rest of the session - including these lines themselves. Each freeze now keeps its own record, and a line is written only when that freeze engages or releases: one line per change, a real freeze appears as a `frozen=1` line, and steady play writes nothing.
