@@ -57,6 +57,18 @@ internal sealed class IpcEndpointLatch
     }
 
     /// <summary>
+    ///     Whether a throttled re-check is due: <paramref name="lastCheckedMs"/> null means never checked (due at
+    ///     once); otherwise due once <paramref name="intervalMs"/> has passed on the same millisecond clock.
+    /// </summary>
+    /// <remarks>
+    ///     "Never" is an explicit null, not a <c>long.MinValue</c> sentinel: <c>now - long.MinValue</c> overflows to
+    ///     a negative number, so a sentinel start made the throttle never pass and the settings UI never saw the
+    ///     endpoint as missing.
+    /// </remarks>
+    internal static bool RecheckDue(long? lastCheckedMs, long nowMs, long intervalMs) =>
+        lastCheckedMs is not { } last || nowMs - last >= intervalMs;
+
+    /// <summary>
     ///     Dalamud's errors for "nothing usable is registered under this name": not registered at all
     ///     (IpcNotReadyError), or registered with other generic types or arity (IpcTypeMismatchError,
     ///     IpcLengthMismatchError). Matched by type name so this file needs no Dalamud reference; reflection

@@ -190,6 +190,28 @@ Check("latch: a wrapped IpcNotReadyError is recognised",
 Check("latch: IpcValueNullError is not 'missing' (the endpoint answered)", false,
     IpcEndpointLatch.IsMissingEndpointError(new Dalamud.Plugin.Ipc.Exceptions.IpcValueNullError()));
 
+// Settings-UI re-check throttle (review finding 4). The UI asks at most once a second; the first ask must go
+// through. The shipped field started at long.MinValue, so now - last overflowed negative, the throttle never
+// passed, and the greyed checkbox / note / LazyHub disable never appeared.
+const long Uptime = 5_000_000L; // Environment.TickCount64 a few minutes into a session
+Check("UI throttle: never checked -> due at once", true, IpcEndpointLatch.RecheckDue(null, Uptime, 1000));
+Check("UI throttle: never checked at clock 0 -> due", true, IpcEndpointLatch.RecheckDue(null, 0, 1000));
+Check("UI throttle: checked 200 ms ago -> not due", false, IpcEndpointLatch.RecheckDue(Uptime - 200, Uptime, 1000));
+Check("UI throttle: checked 1 s ago -> due", true, IpcEndpointLatch.RecheckDue(Uptime - 1000, Uptime, 1000));
+
+// The settings-UI sequence on stock BMR: the first draw re-checks, probes once, and reports Missing.
+long? lastUiCheck = null;
+var uiLatch = new IpcEndpointLatch();
+var uiMissing = false;
+if (IpcEndpointLatch.RecheckDue(lastUiCheck, Uptime, 1000))
+{
+    lastUiCheck = Uptime;
+    if (uiLatch.StateFor(Gen7534) == IpcEndpointLatch.State.Unknown)
+        uiLatch.RecordFailure(Gen7534, notReady); // the one probe call throws IpcNotReadyError
+    uiMissing = uiLatch.StateFor(Gen7534) == IpcEndpointLatch.State.Missing;
+}
+Check("UI: first settings draw on stock BMR reports the endpoint missing (greys the option)", true, uiMissing);
+
 // A latched endpoint answers 0 = no opinion, so the gate keeps the dropdown path (state 3 above).
 Check("latch: missing endpoint (id 0) falls back to the dropdown", false,
     BossModTargetingGate.ShouldUseBossModTarget(checkboxOn: true, bossModTargetId: 0, targetUsable: false));
