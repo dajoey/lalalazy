@@ -316,6 +316,8 @@ internal static class BST_RotationLogic
         public float PetPoisonRemaining;          // its time left (s)
         public bool ReleaseProtectedNear;         // a do-not-attack enemy stands inside the active familiar's own release area (its reach, from its own source point)
         public bool PlayerBlink;                  // Blink (4849) on the character: most physical hits are nullified
+        public uint PetPoisonCastId;              // the shed-eligible cast (BST_CrucibleData.PoisonShedCasts) seen just before that poison landed, 0 = another source / unknown
+        public bool BattleHasKnockback;           // this battle has a known knockback cast (Vileskin is kept for it)
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>

@@ -26,11 +26,31 @@ internal static partial class BST_CrucibleData
     /// </summary>
     public static readonly HashSet<uint> PoisonStringStatuses = [5183, 5553, 5554];
 
+    /// <summary>
+    ///     The casts whose poison a familiar sheds: Deadly Thrust 46906, Cold Caress 46935, Toxic Vomit 48809 and its follow-up hits 48810.
+    ///     A poison only counts when one of these was being cast just before it landed on the familiar: 5140 also comes from the Chimera
+    ///     and other enemies, and those are not shed.
+    /// </summary>
+    public static readonly HashSet<uint> PoisonShedCasts = [46906, 46935, 48809, 48810];
+
     /// <summary> Toxicosis as applied (11.7 s measured, 11.8 s on some rows): the full duration a refresh restores. </summary>
     public const float PoisonStringFullSeconds = 11.7f;
 
     /// <summary> The string's hits land 3.1-3.2 s apart: a Toxicosis not refreshed for this long has no hit of the string left. </summary>
     public const float PoisonStringGapSeconds = 3.5f;
+
+    // ------------------------------------------------------------------ knockback battles
+
+    /// <summary>
+    ///     (board, battle) of every battle with a known knockback cast: the battles of the core lane's <c>BST.CrucibleKnockbacks.Casts</c>
+    ///     (BST_Helper.cs, from stock BMR's Crucible knockback components). Vileskin (knockback immunity) is kept for the push there, never
+    ///     spent on a predicted hit. Kept as a battle list here so this rule needs nothing from that file; on merge it can read
+    ///     <c>BST.CrucibleKnockbacks.BattleHasKnockback</c> instead.
+    /// </summary>
+    public static readonly HashSet<(int Board, int Battle)> KnockbackBattles =
+    [
+        (2, 3), (2, 5), (3, 0), (3, 1), (3, 2), (3, 5), (4, 0), (4, 1), (4, 2), (4, 5), (4, 7), (4, 9), (5, 0), (5, 3), (5, 4), (5, 6),
+    ];
 
     // ------------------------------------------------------------------ the character's own protection
 
