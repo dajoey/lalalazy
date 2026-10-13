@@ -16,6 +16,7 @@ using GluttonyCombo.Extensions;
 using GluttonyCombo.Native;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Services.IPC_Subscriber;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -456,6 +457,10 @@ public static class ConflictingPlugins
     /// <returns>
     ///     Whether there are settings conflicts.
     /// </returns>
+    /// <summary> Fork (bst1013): "'Name' " for a known BossMod Reborn preset, else empty. </summary>
+    private static string PresetLabel(string? presetName) =>
+        string.IsNullOrEmpty(presetName) ? string.Empty : $"'{presetName}' ";
+
     private static bool TryGetSettingConflicts(out Conflict[] conflicts)
     {
         conflicts = [];
@@ -498,11 +503,13 @@ public static class ConflictingPlugins
 
         #region BossModReborn
 
+        // Fork (bst1013): on BossMod Reborn this flag comes from the active preset's modules (stock
+        // Presets.Get), so the text names the preset instead of pointing at the AI's Manual targeting.
         if (ConflictingPluginsChecks.BossModReborn.TargetingSettingConflicted)
         {
             conflicts = conflicts.Append(new Conflict(
                     "BossModReborn", ConflictType.Settings,
-                    "AI is enabled WITH targeting [check 'Manual targeting']"))
+                    $"Autorotation Preset {PresetLabel(ConflictingPluginsChecks.BossModReborn.ActivePresetName)}is enabled WITH targeting [remove 'Automatic targeting' from preset or use a non-default preset]"))
                 .ToArray();
         }
 
@@ -530,11 +537,16 @@ public static class ConflictingPlugins
                 .ToArray();
         }
 
+        // Fork (bst1013): a BST rotation or Crucible AI module in the active preset presses job actions
+        // beside Gluttony; the warning names it so it can be removed from the preset.
         if (ConflictingPluginsChecks.BossModReborn.AutorotationConflicted)
         {
+            var jobModule = ConflictingPluginsChecks.BossModReborn.JobActionModule;
             conflicts = conflicts.Append(new Conflict(
                     "BossModReborn", ConflictType.Settings,
-                    "Autorotation Preset is enabled WITH job rotations [remove rotations from preset or use a non-default preset]"))
+                    jobModule is null
+                        ? "Autorotation Preset is enabled WITH job rotations [remove rotations from preset or use a non-default preset]"
+                        : $"Autorotation Preset {PresetLabel(ConflictingPluginsChecks.BossModReborn.ActivePresetName)}runs the '{BossModRebornState.ShortModuleName(jobModule)}' module ({jobModule}) which presses job actions beside {GluttonyCombo.P.Name} [remove it from the preset or use a non-default preset]"))
                 .ToArray();
         }
         #endregion

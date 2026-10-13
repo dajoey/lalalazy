@@ -105,7 +105,11 @@ public sealed partial class GluttonyCombo
             group: targeting, state: () => LazyHubOptionLock("DPSRotationMode"));
         ep.Toggle("boss_mod_targeting", "Use boss-mod targeting when active", () => Rot().DPSSettings.UseBossModTargeting,
             v => { Rot().DPSSettings.UseBossModTargeting = v; Save(); }, group: targeting,
-            tip: "Only has an effect while BossMod Reborn has an active fight module.");
+            tip: "Only has an effect while BossMod Reborn has an active fight module.",
+            // bst1013: stock BossMod Reborn provides no priority target; the toggle is then disabled, value kept.
+            state: () => Data.Conflicts.ConflictingPluginsChecks.BossModReborn.PriorityTargetEndpointMissing
+                ? new ControlState(Enabled: false, Why: "The installed BossMod Reborn does not provide a priority target, so this has no effect.")
+                : new ControlState());
         // In Gluttony a null target count means "AoE off" (a checkbox in its settings that is not exposed here), so there is no
         // number to show or change while it is off.
         ep.Stepper("aoe_targets", "AoE needs at least", min: 0, max: 8, step: 1, get: () => Eff().DPSSettings.DPSAoETargets ?? 0,

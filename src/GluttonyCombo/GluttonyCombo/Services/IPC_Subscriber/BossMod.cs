@@ -8,7 +8,9 @@ using ECommons.Reflection;
 using GluttonyCombo.Services.IPC;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 // ReSharper disable InlineTemporaryVariable
 
@@ -84,9 +86,12 @@ internal sealed class BossModIPC(
         return tickServiceValue;
     }
 
-    private IEnumerable<object?> GetModules(bool isReborn)
+    // Original BossMod (VBM) only: walks TickService._rotation.Presets. BossMod Reborn is read through its
+    // stock IPC instead (ActivePresetVerdict); the reborn branch of this walk reflected into BMR internals that
+    // stock BMR does not have and threw on every check while a preset was active (bst1013).
+    private IEnumerable<object?> GetModules()
     {
-        var entryPoint = isReborn ? Plugin : GetTickService();
+        var entryPoint = GetTickService();
         if (entryPoint is null)
         {
             PluginLog.Debug(
@@ -102,22 +107,7 @@ internal sealed class BossModIPC(
             yield break;
         }
 
-        if (isReborn)
-        {
-            var preset = rotationManager.GetFoP("Preset");
-            if (preset != null)
-            {
-                var modules = preset.GetFoP("Modules");
-                var c = (int)modules.GetType().GetProperty("Count")!.GetValue(modules)!;
-                for (int i = 0; i < c; i++)
-                {
-                    var item = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { i });
-                    yield return item;
-                }
-            }
-        }
-
-        var presets = isReborn ? rotationManager.GetFoP("ActiveModules") : rotationManager.GetFoP("Presets");
+        var presets = rotationManager.GetFoP("Presets");
         if (presets is null)
         {
             PluginLog.Debug(
@@ -133,40 +123,34 @@ internal sealed class BossModIPC(
             if (item is null)
                 continue;
 
-            var modules = isReborn ? item?.GetFoP("Module") : item?.GetFoP("Modules");
+            var modules = item?.GetFoP("Modules");
             if (modules is null)
             {
                 continue;
             }
-            if (isReborn)
-            {
-                yield return modules;
-            }
-            else
-            {
-                var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
 
-                for (int p = 0; p < modCount; p++)
-                {
-                    var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
-                    yield return module;
-                }
+            var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
+
+            for (int p = 0; p < modCount; p++)
+            {
+                var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
+                yield return module;
             }
         }
     }
 
-    private IEnumerable<object?> GetModuleTypes(bool isReborn)
+    private IEnumerable<object?> GetModuleTypes()
     {
-        foreach (var module in GetModules(isReborn))
+        foreach (var module in GetModules())
         {
             var moduleType = module.GetType().GetProperty("Type").GetValue(module);
             yield return moduleType;
         }
     }
 
-    private IEnumerable<object?> GetPresets(bool isReborn)
+    private IEnumerable<object?> GetPresets()
     {
-        var entryPoint = isReborn ? Plugin : GetTickService();
+        var entryPoint = GetTickService();
         if (entryPoint is null)
         {
             PluginLog.Debug(
@@ -182,13 +166,7 @@ internal sealed class BossModIPC(
             yield break;
         }
 
-        if (isReborn)
-        {
-            var preset = rotationManager.GetFoP("Preset");
-            yield return preset;
-        }
-
-        var presets = isReborn ? rotationManager.GetFoP("ActiveModules") : rotationManager.GetFoP("Presets");
+        var presets = rotationManager.GetFoP("Presets");
         if (presets is null)
         {
             PluginLog.Debug(
@@ -205,6 +183,54 @@ internal sealed class BossModIPC(
         }
     }
 
+    // ------------------------------------------------------------------ BossMod Reborn: stock preset IPC
+
+    private bool _presetCached;
+    private string? _presetCachedName;
+    private DateTime _presetCachedStamp;
+    private DateTime _presetCachedAtUtc;
+    private BossModPresetVerdict _presetVerdict;
+
+    /// <summary>
+    ///     Fork (bst1013): the last preset verdict read by <see cref="ActivePresetVerdict"/> (default before the
+    ///     first read). The conflict warnings name the preset and the job-action module from it.
+    /// </summary>
+    internal BossModPresetVerdict LastPresetVerdict => _presetVerdict;
+
+    /// <summary>
+    ///     Fork (bst1013): what BossMod Reborn's active preset does, from stock IPC only:
+    ///     <c>Presets.GetForceDisabled</c>, <c>Presets.GetActive</c>, then <c>Presets.Get(name)</c> (the preset as
+    ///     JSON) when the name or <c>Configuration.LastModified</c> changed or the cached answer is a minute old.
+    ///     Decision logic in <see cref="BossModRebornState"/> (harness-proven). Throws when an IPC call fails or
+    ///     the reply cannot be read, so the calling probe reports it by name.
+    /// </summary>
+    internal BossModPresetVerdict ActivePresetVerdict()
+    {
+        var forceDisabled = IpcStallTrace.Time("Presets.GetForceDisabled", _presetsGetForceDisabled);
+        var name = forceDisabled ? null : IpcStallTrace.Time("Presets.GetActive", _presetsGetActive);
+        var stamp = LastModified();
+        var now = DateTime.UtcNow;
+        if (!BossModRebornState.PresetNeedsRead(_presetCached, _presetCachedName, _presetCachedStamp,
+                _presetCachedAtUtc, name, stamp, now))
+            return _presetVerdict;
+
+        var json = string.IsNullOrEmpty(name)
+            ? null
+            : IpcStallTrace.Time("Presets.Get", () => _presetsGet(name));
+        _presetVerdict = BossModRebornState.EvaluatePreset(name, forceDisabled, json);
+        _presetCached = true;
+        _presetCachedName = name;
+        _presetCachedStamp = stamp;
+        _presetCachedAtUtc = now;
+        PluginLog.Verbose(
+            $"[ConflictingPlugins] [{PluginName}] Active preset read: {_presetVerdict}");
+
+        if (_presetVerdict.ParseError is { } error)
+            throw new InvalidOperationException(
+                $"`Presets.Get` reply for the active preset could not be read ({error})");
+        return _presetVerdict;
+    }
+
     public bool IsAutoTargetingEnabled(bool isReborn)
     {
         if (!PluginIsLoaded)
@@ -214,34 +240,29 @@ internal sealed class BossModIPC(
             return false;
         }
 
-        var presets = GetPresets(isReborn);
+        if (isReborn)
+            return ActivePresetVerdict().AutoTarget;
+
+        var presets = GetPresets();
         foreach (var preset in presets)
         {
             if (preset.GetFoP<string>("Name") == "VBM Multibox")
                 continue;
 
-            var modules = isReborn ? preset?.GetFoP("Module") : preset?.GetFoP("Modules");
+            var modules = preset?.GetFoP("Modules");
             if (modules is null)
             {
                 continue;
             }
-            if (isReborn)
+
+            var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
+
+            for (int p = 0; p < modCount; p++)
             {
-                var moduleType = modules.GetType().GetProperty("Type").GetValue(modules);
+                var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
+                var moduleType = module.GetType().GetProperty("Type").GetValue(module);
                 if (moduleType is Type t && t.FullName.Contains("AutoTarget"))
                     return true;
-            }
-            else
-            {
-                var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
-
-                for (int p = 0; p < modCount; p++)
-                {
-                    var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
-                    var moduleType = module.GetType().GetProperty("Type").GetValue(module);
-                    if (moduleType is Type t && t.FullName.Contains("AutoTarget"))
-                        return true;
-                }
             }
         }
 
@@ -300,7 +321,10 @@ internal sealed class BossModIPC(
             return false;
         }
 
-        var modules = GetModuleTypes(isReborn);
+        if (isReborn)
+            return ActivePresetVerdict().Autorotation;
+
+        var modules = GetModuleTypes();
         foreach (var module in modules)
         {
             if (module is Type mt && !mt.FullName.Contains("MiscAI"))
@@ -336,6 +360,11 @@ internal sealed class BossModIPC(
         }
     }
 
+    /// <summary>
+    ///     Fork (bst1013): BossMod Reborn's "Use custom queueing for manually pressed actions", read through the
+    ///     stock <c>Configuration</c> console IPC (<c>["ActionTweaksConfig", "UseManualQueue"]</c>, never saved)
+    ///     instead of reflecting into <c>_amex._manualQueue._config</c>.
+    /// </summary>
     public bool IsUsingCustomQueuingReborn()
     {
         if (!PluginIsLoaded)
@@ -345,31 +374,9 @@ internal sealed class BossModIPC(
             return false;
         }
 
-        var amex = Plugin.GetFoP("_amex");
-        if (amex == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx field");
-            return false;
-        }
-
-        var manualQueue = amex.GetFoP("_manualQueue");
-        if (manualQueue == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual field");
-            return false;
-        }
-
-        var manualQueueConfig = manualQueue.GetFoP("_config");
-        if (manualQueueConfig == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual.Config field");
-            return false;
-        }
-
-        var customQueuingEnabled = manualQueueConfig.GetFoP<bool>("UseManualQueue");
+        var reply = IpcStallTrace.Time("Configuration",
+            () => _configuration(["ActionTweaksConfig", "UseManualQueue"], false));
+        var customQueuingEnabled = BossModRebornState.ConsoleBool(reply) == true;
 
         PluginLog.Verbose(
             $"[ConflictingPlugins] [{PluginName}] `ManualQueue.Enabled`: {customQueuingEnabled}");
@@ -389,17 +396,18 @@ internal sealed class BossModIPC(
         var entryPoint = isReborn ? Plugin : GetTickService();
         if (isReborn)
         {
-            var ai = Plugin.GetFoP("_ai");
-            var beh = ai.GetType().GetField("Beh").GetValue(ai);
-            var enabled = beh is not null;
-
-            if (!enabled)
+            // Fork (bst1013): BMR's AI picks targets only with the AI on, an AI preset chosen, ForbidActions off and
+            // ManualTarget off (AI/AIBehaviour.cs). AI on/off is not published, so that one bit stays a reflection
+            // read of AIManager.Beh; the rest comes from stock IPC (AI.GetPreset, Configuration console reads).
+            var aiOn = Plugin.GetFoP("_ai")?.GetFoP("Beh") is not null;
+            if (!aiOn)
                 return false;
 
-            var config = beh.GetFoP("_config");
-            var target = config.GetFoP<bool>("ManualTarget");
-
-            return !target;
+            return BossModRebornState.AiTargetsOnItsOwn(
+                aiOn,
+                IpcStallTrace.Time("AI.GetPreset", _aiGetPreset),
+                IpcStallTrace.Time("Configuration", () => _configuration(["AIConfig", "ManualTarget"], false)),
+                IpcStallTrace.Time("Configuration", () => _configuration(["AIConfig", "ForbidActions"], false)));
         }
         else
         {
@@ -434,42 +442,6 @@ internal sealed class BossModIPC(
                               $"`Configuration.LastModified` failed: " +
                               e.ToStringFull());
             return DateTime.MinValue;
-        }
-    }
-
-    public bool IsAIActive()
-    {
-        if (!IsEnabled || !PluginIsLoaded)
-            return false;
-
-        try
-        {
-            var ai = Plugin.GetFoP("_ai");
-            if (ai == null)
-            {
-                PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access _ai field");
-                return false;
-            }
-
-            var aiConfig = ai.GetFoP("Config") ?? ai.GetFoP("_config");
-            if (aiConfig == null)
-            {
-                PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access AI.Config field");
-                return false;
-            }
-
-            var aiEnabled = (bool)(aiConfig.GetFoP("Enabled") ??
-                             (ai.GetFoP("Beh") is not null));
-            return aiEnabled;
-        }
-        catch (Exception e)
-        {
-            PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] " +
-                              $"`IsAIActive` failed: " +
-                              e.ToStringFull());
-            return false;
         }
     }
 
@@ -508,6 +480,46 @@ internal sealed class BossModIPC(
             PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] " +
                               $"Failed to set MaxDistanceToTarget: " +
                               e.ToStringFull());
+        }
+    }
+
+    private readonly IpcEndpointLatch _setTransientLatch = new();
+
+    /// <summary>
+    ///     Fork (bst1013): BossMod Reborn's AI distance for the current role, as a TRANSIENT override through
+    ///     stock <c>Configuration.SetTransient(["AIConfig", "MaxDistanceToTarget", value])</c> (BMR
+    ///     Config/ConfigRoot.cs SetTransient): the user's saved value stays in BMR's file and returns on restart,
+    ///     and a value the user sets while it is overridden wins. The reflection write this replaces changed the
+    ///     live node, which BMR then saved over the user's own value. <c>Configuration.ClearTransient</c> is never
+    ///     called: it restores every plugin's overrides, not only ours. BMR builds before 7.5.6.34 do not register
+    ///     SetTransient; then nothing is written and that is said once.
+    /// </summary>
+    public void SetMaxDistanceToTargetTransient(float distance)
+    {
+        if (!TryGetProviderGeneration(out var generation) || !_setTransientLatch.ShouldCall(generation))
+            return;
+
+        // BMR parses the value with float.Parse in the calling thread's culture; IPC runs on this thread.
+        var args = BossModRebornState.MaxDistanceTransientArgs(distance, CultureInfo.CurrentCulture);
+        try
+        {
+            var problems = IpcStallTrace.Time("Configuration.SetTransient", () => _setTransient(args));
+            _setTransientLatch.RecordSuccess(generation);
+            if (problems is { Count: > 0 })
+                PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] `Configuration.SetTransient` " +
+                                  $"refused MaxDistanceToTarget={args[2]}: {string.Join(" | ", problems)}");
+            else
+                PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] MaxDistanceToTarget={args[2]} (transient, not saved)");
+        }
+        catch (Exception e)
+        {
+            if (_setTransientLatch.RecordFailure(generation, e))
+                PluginLog.Information($"[ConflictingPlugins] [{PluginName}] `Configuration.SetTransient` is not " +
+                                      $"provided by this BossMod Reborn build ({generation.Split('#')[0]}); its AI " +
+                                      $"distance to target is left at the user's own value.");
+            else
+                PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] `Configuration.SetTransient` failed: " +
+                                  $"{e.GetType().Name}: {e.Message}");
         }
     }
 
@@ -552,6 +564,10 @@ internal sealed class BossModIPC(
         return smartTargetEnabled;
     }
 
+    private readonly IpcEndpointLatch _priorityTargetLatch = new();
+    private long _priorityTargetUiCheckedMs = long.MinValue;
+    private bool _priorityTargetUiMissing;
+
     /// <summary>
     ///     Fork (1.0.4.241): BossMod Reborn's fight-aware combat target for the active
     ///     module — the forced target when a module demands one, otherwise the head of
@@ -559,24 +575,72 @@ internal sealed class BossModIPC(
     ///     endpoint, has no active module, or the module expresses no attackable opinion;
     ///     callers (the "Use boss-mod targeting when active" checkbox path) fall back to
     ///     their own targeting on 0.
+    ///     <para>
+    ///         bst1013: stock BossMod Reborn registers no <c>Hints.PriorityTarget</c> (only a fork did). The first
+    ///         endpoint-missing error latches it for this BMR load (<see cref="IpcEndpointLatch"/>), writes one
+    ///         Information line and stops calling; a BMR reload or update re-arms it.
+    ///     </para>
     /// </summary>
     public ulong GetPriorityTargetId()
     {
-        if (!IsEnabled || !PluginIsLoaded)
+        if (!TryGetProviderGeneration(out var generation) || !_priorityTargetLatch.ShouldCall(generation))
             return 0ul;
 
         try
         {
-            return IpcStallTrace.Time("Hints.PriorityTarget", _priorityTarget);
+            var id = IpcStallTrace.Time("Hints.PriorityTarget", _priorityTarget);
+            _priorityTargetLatch.RecordSuccess(generation);
+            return id;
         }
         catch (Exception e)
         {
-            // Endpoint not registered by the installed BMR build (e.g. upstream
-            // replaced the fleet fork), or transient IPC failure: treat as no opinion.
-            PluginLog.Verbose($"[BossModTargeting] [{PluginName}] " +
-                              $"`Hints.PriorityTarget` unavailable: {e.Message}");
+            if (_priorityTargetLatch.RecordFailure(generation, e))
+                PluginLog.Information($"[BossModTargeting] [{PluginName}] `Hints.PriorityTarget` is not provided " +
+                                      $"by this BossMod Reborn build ({generation.Split('#')[0]}); boss-mod targeting " +
+                                      $"is inactive and the targeting mode applies.");
+            else
+                PluginLog.Verbose($"[BossModTargeting] [{PluginName}] " +
+                                  $"`Hints.PriorityTarget` unavailable: {e.Message}");
             return 0ul;
         }
+    }
+
+    /// <summary>
+    ///     Fork (bst1013): whether the loaded BossMod Reborn lacks <c>Hints.PriorityTarget</c>, for the settings
+    ///     UI. Re-read at most once a second; when this BMR load has not been asked yet, asks once (the answer
+    ///     outside a fight is harmless).
+    /// </summary>
+    public bool IsPriorityTargetEndpointMissing()
+    {
+        var now = Environment.TickCount64;
+        if (now - _priorityTargetUiCheckedMs < 1000)
+            return _priorityTargetUiMissing;
+        _priorityTargetUiCheckedMs = now;
+
+        if (!TryGetProviderGeneration(out var generation))
+            return _priorityTargetUiMissing = false;
+        if (_priorityTargetLatch.StateFor(generation) == IpcEndpointLatch.State.Unknown)
+            GetPriorityTargetId();
+        return _priorityTargetUiMissing =
+            _priorityTargetLatch.StateFor(generation) == IpcEndpointLatch.State.Missing;
+    }
+
+    /// <summary>
+    ///     Fork (bst1013): the loaded, version-valid provider plugin and its generation (version + instance), in
+    ///     one plugin-list scan. A reload creates a new instance, so a latched endpoint is asked again.
+    /// </summary>
+    private bool TryGetProviderGeneration(out string generation)
+    {
+        generation = string.Empty;
+        if (!DalamudReflector.TryGetDalamudPlugin(PluginName, out var plugin, ignoreCache: true))
+            return false;
+
+        var version = plugin.GetType().Assembly.GetName().Version ?? new Version(0, 0, 0, 1);
+        if (version < ValidVersion && version != new Version(0, 0, 0, 0))
+            return false;
+
+        generation = $"{version}#{RuntimeHelpers.GetHashCode(plugin)}";
+        return true;
     }
 
     /// <summary>
@@ -614,5 +678,25 @@ internal sealed class BossModIPC(
 
     [EzIPC("BossMod.Hints.IsDashSafe", false)]
     private readonly Func<Vector3, Vector3, bool> _isDashSafe = null!;
+
+    // Fork (bst1013): stock BossMod Reborn endpoints for the conflict check and the AI distance
+    // (BMR Framework/IPCProvider.cs at 7.5.6.35; SetTransient from 7.5.6.34).
+    [EzIPC("BossMod.Presets.GetActive", false)]
+    private readonly Func<string?> _presetsGetActive = null!;
+
+    [EzIPC("BossMod.Presets.GetForceDisabled", false)]
+    private readonly Func<bool> _presetsGetForceDisabled = null!;
+
+    [EzIPC("BossMod.Presets.Get", false)]
+    private readonly Func<string, string?> _presetsGet = null!;
+
+    [EzIPC("BossMod.AI.GetPreset", false)]
+    private readonly Func<string> _aiGetPreset = null!;
+
+    [EzIPC("BossMod.Configuration", false)]
+    private readonly Func<List<string>, bool, List<string>> _configuration = null!;
+
+    [EzIPC("BossMod.Configuration.SetTransient", false)]
+    private readonly Func<List<string>, List<string>> _setTransient = null!;
 #pragma warning restore CS8618, CS0649
 }

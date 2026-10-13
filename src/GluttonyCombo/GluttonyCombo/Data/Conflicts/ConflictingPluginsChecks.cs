@@ -93,16 +93,26 @@ public static class ConflictingPluginsChecks
         }
         catch (Exception e)
         {
-            PluginLog.Verbose(
-                $"[ConflictingPlugins] [{name}] Periodic probe failed: " +
-                $"{e.GetType().Name}: {e.Message}");
-            const string line =
-                "[ConflictingPlugins] Periodic check failed (async plugin?)";
-            if (PeriodicCheckWarnGate.ShouldEmit(
-                    line, DateTime.UtcNow, out var suppressed))
-                PluginLog.Warning(
-                    line + PeriodicCheckWarnGate.SuppressedNote(suppressed));
+            ReportProbeFailure(name, null, e);
         }
+    }
+
+    /// <summary>
+    ///     Fork (bst1013): the failure line names the check and the probe that threw
+    ///     (<see cref="ConflictProbeFailure.Line" />), so each failing probe gets its own
+    ///     throttle window and the log says what to look at. The exception message stays
+    ///     at Verbose.
+    /// </summary>
+    private static void ReportProbeFailure(string check, string? probe, Exception e)
+    {
+        PluginLog.Verbose(
+            $"[ConflictingPlugins] [{check}] Periodic probe {probe ?? "check"} failed: " +
+            $"{e.GetType().Name}: {e.Message}");
+        var line = ConflictProbeFailure.Line(check, probe, e);
+        if (PeriodicCheckWarnGate.ShouldEmit(
+                line, DateTime.UtcNow, out var suppressed))
+            PluginLog.Warning(
+                line + PeriodicCheckWarnGate.SuppressedNote(suppressed));
     }
 
     internal static BossModCheck BossMod { get; } = new();
@@ -155,9 +165,31 @@ public static class ConflictingPluginsChecks
         public bool RetargetingConflicted;
         public bool AiTargetingConflicted;
 
+        /// <summary> Fork (bst1013): BossMod Reborn's active preset at the last check (null = none). </summary>
+        public string? ActivePresetName;
+
+        /// <summary>
+        ///     Fork (bst1013): a module in BossMod Reborn's active preset that presses Beastmaster job actions
+        ///     beside Gluttony (a BST rotation or a Crucible AI module), named in the autorotation warning.
+        /// </summary>
+        public string? JobActionModule;
+
         protected override BossModIPC IPC => (BossModIPC)_ipc;
 
-        internal void SetMaxDistanceToTarget(float distance) => IPC.SetMaxDistanceToTarget(distance);
+        private bool IsReborn => IPC.PluginName.Contains("Reborn");
+
+        /// <summary>
+        ///     The role's AI distance. BossMod Reborn: a transient override through stock
+        ///     <c>Configuration.SetTransient</c>, never saved over the user's value (bst1013). Original BossMod:
+        ///     the reflection write, unchanged.
+        /// </summary>
+        internal void SetMaxDistanceToTarget(float distance)
+        {
+            if (IsReborn)
+                IPC.SetMaxDistanceToTargetTransient(distance);
+            else
+                IPC.SetMaxDistanceToTarget(distance);
+        }
 
         /// <summary>
         ///     Fork (1.0.4.241): BMR priority-target IPC accessor for the targeting bridge
@@ -166,11 +198,15 @@ public static class ConflictingPluginsChecks
         internal ulong GetPriorityTargetId() => IPC.GetPriorityTargetId();
 
         /// <summary>
+        ///     Fork (bst1013): the loaded BossMod Reborn has no <c>Hints.PriorityTarget</c> (stock builds), so
+        ///     boss-mod targeting cannot act. False when BMR is not loaded.
+        /// </summary>
+        internal bool PriorityTargetEndpointMissing => IPC.IsPriorityTargetEndpointMissing();
+
+        /// <summary>
         ///     Fork (1.0.4.258): BMR's dash-safety answer for a landing point (null = BMR cannot answer).
         /// </summary>
         internal bool? IsDashSafe(System.Numerics.Vector3 from, System.Numerics.Vector3 to) => IPC.IsDashSafe(from, to);
-
-        internal bool IsAIActive() => IPC.IsAIActive();
 
 
         public override void CheckForConflict(bool forceRefresh = false)
@@ -181,7 +217,7 @@ public static class ConflictingPluginsChecks
             _maxConflictsInARow = 1;
 #endif
 
-            var isReborn = IPC.PluginName.Contains("Reborn");
+            var isReborn = IsReborn;
             // Reset the conflict timer, must exceed the threshold within 2 minutes
             if (_conflictFirstSeen is not null &&
                 DateTime.Now - _conflictFirstSeen > TS.FromMinutes(2))
@@ -206,27 +242,41 @@ public static class ConflictingPluginsChecks
                 return;
             }
 
-            // Check for a targeting conflict
-            TargetingSettingConflicted = IPC.IsAutoTargetingEnabled(isReborn) &&
-                AutoRotationController.cfg.DPSRotationMode != DPSRotationMode.Manual;
-
-            RetargetingConflicted = isReborn && IPC.IsSmartTargetEnabled();
-
-            // Check for a queue conflict
-            QueueSettingConflicted = isReborn ? IPC.IsUsingCustomQueuingReborn() : IPC.IsUsingCustomQueuing();
-
-            AutorotationConflicted = IPC.IsUsingAutorotation(isReborn);
-
-            AiTargetingConflicted = IPC.IsAITargetingEnabled(isReborn);
+            // Fork (bst1013): the combo check runs FIRST and every probe runs on its own, so a
+            // failing settings probe can no longer blind the HasEntries check (on stock BMR the
+            // old reborn targeting probe threw on every check while a preset was active, and
+            // nothing after it ran). A failure reads false and is reported by name.
 
             // Check for a combo conflict
-            if (isReborn ? IPC.HasAutomaticActionsQueuedReborn() : IPC.HasAutomaticActionsQueued())
+            if (Probe("HasEntries", () => isReborn
+                    ? IPC.HasAutomaticActionsQueuedReborn()
+                    : IPC.HasAutomaticActionsQueued()))
             {
                 PluginLog.Verbose(
                     $"[ConflictingPlugins] [{Name}] Actions are Queued");
                 _conflictFirstSeen ??= DateTime.Now; // Set the time seen if empty
                 _conflictsInARow++;
             }
+
+            // Check for a targeting conflict
+            TargetingSettingConflicted = Probe("AutoTarget", () => IPC.IsAutoTargetingEnabled(isReborn)) &&
+                AutoRotationController.cfg.DPSRotationMode != DPSRotationMode.Manual;
+
+            RetargetingConflicted = isReborn && Probe("SmartTargeting", IPC.IsSmartTargetEnabled);
+
+            // Check for a queue conflict
+            QueueSettingConflicted = Probe("ManualQueue", () => isReborn
+                ? IPC.IsUsingCustomQueuingReborn()
+                : IPC.IsUsingCustomQueuing());
+
+            AutorotationConflicted = Probe("Autorotation", () => IPC.IsUsingAutorotation(isReborn));
+
+            AiTargetingConflicted = Probe("AITargeting", () => IPC.IsAITargetingEnabled(isReborn));
+
+            // The preset verdict the two probes above read (cached; stock IPC), for the warning text.
+            var preset = isReborn ? IPC.LastPresetVerdict : default;
+            ActivePresetName = preset.PresetName;
+            JobActionModule = preset.JobActionModule;
 
             // Save a complete conflict
             // ReSharper disable once InvertIf
@@ -236,6 +286,10 @@ public static class ConflictingPluginsChecks
                 MarkConflict();
             }
         }
+
+        /// <summary> One probe of this check, isolated and reported by name (<see cref="ConflictProbeFailure.Run" />). </summary>
+        private bool Probe(string probe, Func<bool> check) =>
+            ConflictProbeFailure.Run(probe, check, (p, e) => ReportProbeFailure(Name, p, e));
     }
 
     internal sealed class MOActionCheck() : ConflictCheck(new MOActionIPC())

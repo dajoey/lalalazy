@@ -23,5 +23,12 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC\LogEmitGate.cs" Link="LogEmitGate.cs" />
+    <!-- bst1013: stock-BMR conflict probes. BossModRebornState turns stock IPC replies (Presets.Get JSON,
+         Configuration console replies) into the verdicts; ConflictProbeFailure is the per-probe runner and the
+         named failure line. PresetSamples.cs holds real-shaped Presets.Get replies. -->
+    <Compile Include="BossModRebornCases.cs" />
+    <Compile Include="PresetSamples.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC_Subscriber\BossModRebornState.cs" Link="BossModRebornState.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\Conflicts\ConflictProbeFailure.cs" Link="ConflictProbeFailure.cs" />
   </ItemGroup>
 </Project>

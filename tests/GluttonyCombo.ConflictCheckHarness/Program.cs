@@ -443,6 +443,11 @@ internal static class Program
         Check("a rollover line carries the suppressed count",
             notesSeen >= 1, notesSeen.ToString());
 
+        // ---------------------------------------------------------------------------
+        // 4. bst1013: the BossModReborn probes on stock BossMod Reborn (BossModRebornCases.cs).
+        // ---------------------------------------------------------------------------
+        BossModRebornCases.Run(Check);
+
         Console.WriteLine($"PASS={_pass} FAIL={_fail} " +
             $"({_pass + _fail} cases, incident replayed from {t0:HH:mm} UTC, " +
             $"{emitted} emitted / {dropped} suppressed)");

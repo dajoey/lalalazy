@@ -23,5 +23,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\BossModTargetingGate.cs" Link="BossModTargetingGate.cs" />
+    <!-- bst1013: the endpoint-missing latch behind GetPriorityTargetId and the SetTransient distance write. -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC\IpcEndpointLatch.cs" Link="IpcEndpointLatch.cs" />
   </ItemGroup>
 </Project>
