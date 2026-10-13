@@ -19,6 +19,9 @@ namespace LazyFateAutomation.Harness;
 ///     6. releasing that preset: only BMR's stock Presets.GetActive/SetActive/ClearActive are used, the active
 ///        preset is cleared only when it is the plugin's own (never AutoDuty's or the player's), and a BMR IPC
 ///        endpoint that is not registered is reported once and skipped, never once per loop iteration.
+///     7. approaching FATE mobs: the preset carries BMR's move-to-target module (MiscAI.StayCloseToTarget) with a
+///        role range in BMR's option format, and the vnavmesh stuck fallback stays armed as a backstop while
+///        the preset is active.
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -106,6 +109,7 @@ internal static class Program {
         DtrToggleTests();
         BossModPresetTests();
         BossModReleaseTests();
+        ApproachTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
         if (_fail == 0) Console.WriteLine("OK");
@@ -429,6 +433,64 @@ internal static class Program {
         var control = files.TryGetValue("FateBossModControl.cs", out var c) ? c : "";
         Check("the release asks GetActive and the ownership rule before ClearActive",
             control.Contains("FateBossModRelease.ShouldClearActive(") && control.Contains("GetActive"));
+    }
+
+    private static void ApproachTests() {
+        Console.WriteLine("-- approach: preset walks to the target (StayCloseToTarget), stuck fallback stays armed --");
+        const string stay = "BossMod.Autorotation.MiscAI.StayCloseToTarget";
+
+        using var doc = System.Text.Json.JsonDocument.Parse(FateBossModPreset.Json);
+        var mods = doc.RootElement.GetProperty("Modules");
+        var hasStay = mods.TryGetProperty(stay, out var stayArr);
+        Check("preset contains a move-to-target module (MiscAI.StayCloseToTarget)", hasStay);
+
+        // BMR StayCloseToTarget.cs (origin/main be8ff771c == tag 7.5.6.34 bbfa7192a): track "range", options
+        // "OnHitbox" then 1.1..30 in 0.1 steps named with InvariantCulture (so "2.6", "10", never "2.60" or "10.0").
+        var options = new HashSet<string> { "OnHitbox" };
+        for (var f = 1.1f; f <= 30f; f = MathF.Round(f + 0.1f, 1))
+            options.Add(f.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        string? baseRange = null;
+        if (hasStay)
+            foreach (var e in stayArr.EnumerateArray())
+                if (e.GetProperty("Track").GetString() == "range") baseRange = e.GetProperty("Option").GetString();
+        Check("preset base range is a valid BMR option", baseRange != null && options.Contains(baseRange), baseRange ?? "<none>");
+        Check("preset base range is melee reach (2.6, AutoDuty's default), so a failed per-role update never strands melee",
+            baseRange == "2.6", baseRange ?? "<none>");
+
+        // Per-role range (AutoDuty BMRoleChecks: Role 1 tank / 2 melee -> 2.6, everything else -> 10).
+        Check("tank (Role 1) range 2.6", FateBossModPreset.StayCloseRange(1) == "2.6", FateBossModPreset.StayCloseRange(1) ?? "<null>");
+        Check("melee (Role 2) range 2.6", FateBossModPreset.StayCloseRange(2) == "2.6", FateBossModPreset.StayCloseRange(2) ?? "<null>");
+        Check("ranged/caster (Role 3) range 10, never melee", FateBossModPreset.StayCloseRange(3) == "10", FateBossModPreset.StayCloseRange(3) ?? "<null>");
+        Check("healer (Role 4) range 10, never melee", FateBossModPreset.StayCloseRange(4) == "10", FateBossModPreset.StayCloseRange(4) ?? "<null>");
+        Check("every role range is a valid BMR option",
+            new byte[] { 0, 1, 2, 3, 4 }.All(r => FateBossModPreset.StayCloseRange(r) is { } v && options.Contains(v)));
+
+        var grindSrc = File.ReadAllText(FindSource("FateGrind.cs"));
+        Check("FateGrind sets the role range on StayCloseToTarget each FATE",
+            Regex.IsMatch(grindSrc, @"SetTransient\(\s*""BossMod\.Autorotation\.MiscAI\.StayCloseToTarget""\s*,\s*""range""\s*,\s*FateBossModPreset\.StayCloseRange\("));
+
+        // Stuck fallback: still armed while BossMod drives (a backstop after BMR had time to path/dodge).
+        Check("preset active, still for 10 s -> fallback fires", FateStuckBackstop.IsStuck(10_000, bossModDriving: true));
+        Check("preset active, still for 2 s -> BossMod gets time first", !FateStuckBackstop.IsStuck(2_000, bossModDriving: true));
+        Check("no BossMod, still for 2 s -> fallback fires as before (1.5 s)", FateStuckBackstop.IsStuck(2_000, bossModDriving: false));
+        Check("no BossMod, still for 1 s -> not yet", !FateStuckBackstop.IsStuck(1_000, bossModDriving: false));
+        // Reach: while BossMod drives, anywhere inside its role range (+1 y slack) is "at the target", so the backstop
+        // never drags a ranged job to melee; without BossMod the old max(3, hitbox + 2) rule is unchanged.
+        Check("BossMod driving, caster 9 y out (hitbox 1, range 10) counts as at the target",
+            9f <= FateStuckBackstop.ReachRange(1f, FateBossModPreset.StayCloseRangeYalms(3)));
+        Check("BossMod driving, melee at its goal edge (hitbox 1, 3.5 y) counts as at the target",
+            3.5f <= FateStuckBackstop.ReachRange(1f, FateBossModPreset.StayCloseRangeYalms(2)));
+        Check("BossMod driving, melee 8 y out is still out of reach (backstop can fire)",
+            8f > FateStuckBackstop.ReachRange(1f, FateBossModPreset.StayCloseRangeYalms(2)));
+        Check("no BossMod: reach is the old max(3, hitbox + 2)",
+            FateStuckBackstop.ReachRange(0.5f, null) == 3f && FateStuckBackstop.ReachRange(4f, null) == 6f);
+
+        var stuckBody = grindSrc.Contains("private async Task HandleCombatStuckDetection")
+            ? grindSrc[grindSrc.IndexOf("private async Task HandleCombatStuckDetection", StringComparison.Ordinal)..] : "";
+        stuckBody = stuckBody.Length > 0 ? stuckBody[..Math.Max(0, stuckBody.IndexOf("\n    }\n", StringComparison.Ordinal))] : "";
+        Check("HandleCombatStuckDetection no longer bails out while the preset is active",
+            stuckBody.Length > 0 && !stuckBody.Contains("if (FateBossModControl.IsOwnActive())"));
+        Check("HandleCombatStuckDetection decides through FateStuckBackstop.IsStuck", stuckBody.Contains("FateStuckBackstop.IsStuck("));
     }
 
     private static string FindSource(string file) {
