@@ -3205,6 +3205,37 @@ internal static class Program
             Decide(shortFight, cfg).ActionId == BST.Trick, D(Decide(shortFight, cfg)));
         Check("core: ... and the axe follows the pet's Heart at once",
             Decide(shortFight with { SinceTrick = 1.5f, SincePetHeart = 0.5f, GcdReady = true }, cfg).Reason.StartsWith("combo:axe-"), D(Decide(shortFight with { SinceTrick = 1.5f, SincePetHeart = 0.5f, GcdReady = true }, cfg)));
+
+        // ---------------------------------------------------------- review fixes (2026-10-13)
+        // Review 3: Hawkish Talons is a dash. Beyond melee it may close the gap only where Shield Charge may (gap-closing on) and the
+        // landing is known safe; with gap-closing off (the overcap-only setup) or no boss-mod answer it stays melee-only, as before.
+        var overcapOnly = cfg with { UseShieldCharge = false, ShieldChargeOvercap = true };
+        var far = fin with { TargetDistance = 20f };
+        Check("core: review 3: outside the Crucible, gap-closing off (overcap only), 20 y, landing unknown -> no Hawkish Talons",
+            Decide(far with { DashLanding = DashLanding.Unknown }, overcapOnly).Reason != "finisher:hawkishtalons-universality", D(Decide(far with { DashLanding = DashLanding.Unknown }, overcapOnly)));
+        var offSafe = Decide(far, overcapOnly);
+        Check("core: review 3: ... gap-closing off, 20 y, clean landing -> still no dash, decline finisher:hawkishtalons-gap-close-off",
+            offSafe.Reason != "finisher:hawkishtalons-universality" && offSafe.Declines.Contains("finisher:hawkishtalons-gap-close-off"), D(offSafe));
+        var onUnknown = Decide(far with { DashLanding = DashLanding.Unknown }, cfg);
+        Check("core: review 3: ... gap-closing on, 20 y, no boss-mod answer -> no dash, decline finisher:hawkishtalons-landing-unknown",
+            onUnknown.Reason != "finisher:hawkishtalons-universality" && onUnknown.Declines.Contains("finisher:hawkishtalons-landing-unknown"), D(onUnknown));
+        Check("core: review 3: ... gap-closing off, 8 y -> Calamity (it does not move the character)",
+            Decide(fin with { TargetDistance = 8f }, overcapOnly).Reason == "finisher:calamity-universality", D(Decide(fin with { TargetDistance = 8f }, overcapOnly)));
+        Check("core: review 3: ... gap-closing off, in melee -> Hawkish Talons as before",
+            Decide(fin, overcapOnly).Reason == "finisher:hawkishtalons-universality");
+        Check("core: review 3: ... gap-closing off, Moonstalker at 20 y -> Risen Fall keeps its 25 y",
+            Decide(far with { SunMoon = BeastmasterAffinity.Moonstalker }, overcapOnly).Reason == "finisher:risenfall-universality");
+        Check("core: review 3: ... gap-closing on, 20 y, clean landing -> Hawkish Talons closes the gap",
+            Decide(far, cfg).Reason == "finisher:hawkishtalons-universality");
+
+        // Review 5: the busy-familiar gate holds Trick and the pair start, not the bare axe that spends capped TP.
+        var capped = t with { PetOrder = PetOrder.Release, PlayerTp = 240, GcdReady = true };
+        var cappedD = Decide(capped, cfg);
+        Check("core: review 5: familiar on a release order, player TP 240 -> the TP-cap axe still goes (axe:overcap), the pair waits",
+            cappedD.Reason == "axe:overcap" && cappedD.Declines.Contains("trick:pet-busy-order"), D(cappedD));
+        Check("core: review 5: ... and while the familiar is leaving (1965)", Decide(capped with { PetOrder = PetOrder.Recall }, cfg).Reason == "axe:overcap");
+        Check("core: review 5: ... TP 150 (no cap): nothing pressed for the pair, the decline recorded",
+            Decide(capped with { PlayerTp = 150 }, cfg) is { } notCapped && notCapped.ActionId != BST.Trick && !notCapped.Reason.StartsWith("axe:") && notCapped.Declines.Contains("trick:pet-busy-order"));
     }
 
     // ================================================================== helpers
