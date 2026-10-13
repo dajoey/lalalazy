@@ -49,9 +49,14 @@ internal static class DegreeLatchCases
         Check("the hooks come down for a loading screen (no player): First Degree is kept", latch.Value == CrucibleDegree.First, latch.Value.ToString());
         latch.HooksDown(playerAvailable: false);
         Check("a second loading screen keeps it too", latch.Value == CrucibleDegree.First, latch.Value.ToString());
+        // Patch 7.57 (2026-10-13 notes): the game remembers the Crucible Mode until logout, so a job change no longer resets it.
         latch.HooksDown(playerAvailable: true);
-        Check("the hooks come down with the player present (a job change): forgotten", latch.Value == CrucibleDegree.Unknown, latch.Value.ToString());
+        Check("the hooks come down with the player present (a job change): First Degree is kept (7.57 keeps the mode until logout)",
+            latch.Value == CrucibleDegree.First, latch.Value.ToString());
+        latch.LoggedOut();
+        Check("logout forgets it (the game's mode returns to its default)", latch.Value == CrucibleDegree.Unknown, latch.Value.ToString());
 
+        latch.Note(0, 2, 2, 3);
         latch.Reset();
         Check("a reset (job change, unload) forgets it", latch.Value == CrucibleDegree.Unknown, latch.Value.ToString());
     }

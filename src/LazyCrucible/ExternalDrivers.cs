@@ -79,11 +79,14 @@ internal static class ExternalDrivers
     }
 
     /// <summary>
-    ///     AutoDuty activates BossMod Reborn's "AutoDuty" preset for a run (it retargets to enemies of its own
-    ///     choosing and walks the character to them) and only clears it when the run stops or finishes. A stalled
-    ///     loop never does, and BossMod Reborn keeps the preset until something clears it, so the player's manual
-    ///     fights were steered by it. Clears it, but only while AutoDuty is judged stalled, the player is in a board
-    ///     and the active preset is AutoDuty's own.
+    ///     AutoDuty activates one of its own BossMod Reborn presets for a run and only clears it when the run stops or
+    ///     finishes. Which one depends on its rotation setting: with RotationPlugin = WrathCombo (the setup this plugin
+    ///     suite runs) it is "AutoDuty Passive", movement only (it walks the character to its target; no AutoTarget
+    ///     module, so it does not pick targets); with BossMod or All, and in the Novice Hall, it is "AutoDuty", which
+    ///     also carries AutoTarget and BossMod Reborn's own rotation. A stalled loop never clears either, and BossMod
+    ///     Reborn keeps the preset until something does, so the player's manual fights were steered by it. Clears it,
+    ///     but only while AutoDuty is judged stalled, the player is in a board and the active preset is one of
+    ///     AutoDuty's (any name starting with "AutoDuty" covers both).
     /// </summary>
     private static void ClearStaleAutoDutyPreset(int board)
     {

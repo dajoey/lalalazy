@@ -7,9 +7,10 @@ namespace LazyCrucible.Policy;
 ///     XBMStageDetailList agent receives, and <c>Plugin</c> publishes <see cref="Value"/> to GluttonyCombo over Dalamud IPC
 ///     (<see cref="CrucibleDegree.IpcName"/>). See <see cref="CrucibleDegree"/> for the event and what it was measured against.
 ///     <para>
-///         The value is the LAST degree set since the plugin loaded and stays until the next set-degree event: the layout keeps its selection
-///         between runs, so an AutoDuty loop (which sets it once per queue) and a player's own click both land here. Before the first event the
-///         value is <see cref="CrucibleDegree.Unknown"/>, and the consumer reads that conservatively.
+///         The value is the LAST degree set since the plugin loaded (or the character logged in) and stays until the next set-degree event:
+///         the layout keeps its selection between runs, and since patch 7.57 the game keeps it until logout, so an AutoDuty loop (which sets
+///         it once per queue) and a player's own click both land here. Before the first event the value is
+///         <see cref="CrucibleDegree.Unknown"/>, and the consumer reads that conservatively: nothing assumes Standard.
 ///     </para>
 /// </summary>
 internal sealed class DegreeLatch
@@ -28,16 +29,19 @@ internal sealed class DegreeLatch
     }
 
     /// <summary>
-    ///     The hooks come down. With no player at all this is a loading screen (the character is gone for the zone change), and the degree
-    ///     survives it: AutoDuty sets it in the lobby and the queue then zones into the duty, so forgetting it here left every fight reading
-    ///     unknown. With the player present the hooks come down for a job change, and nothing watches the layout then: forget.
+    ///     The hooks come down, and the degree survives it either way. With no player at all this is a loading screen (the character is
+    ///     gone for the zone change): AutoDuty sets the degree in the lobby and the queue then zones into the duty, so forgetting it here
+    ///     left every fight reading unknown. With the player present it is a job change: since patch 7.57 the game itself remembers the
+    ///     Crucible Mode until logout, and only a Beastmaster can open the board layout to change it, so the degree last set is still the
+    ///     game's when the character is a Beastmaster again. Only <see cref="LoggedOut"/> and an unload forget it.
     /// </summary>
     public void HooksDown(bool playerAvailable)
     {
-        if (playerAvailable)
-            Reset();
     }
 
-    /// <summary> Forget the degree (job change, unload). </summary>
+    /// <summary> The character logged out: the game's Crucible Mode returns to its default, so the latch forgets. </summary>
+    public void LoggedOut() => Reset();
+
+    /// <summary> Forget the degree (logout, unload). </summary>
     public void Reset() => Value = CrucibleDegree.Unknown;
 }

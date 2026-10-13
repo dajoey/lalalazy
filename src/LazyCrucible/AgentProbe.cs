@@ -57,8 +57,8 @@ internal static unsafe class AgentProbe
 
     /// <summary>
     ///     The board's degree as the layout last set it (<see cref="DegreeLatch"/>), published to GluttonyCombo over IPC by <c>Plugin</c>. Fed
-    ///     from the same latch point as the familiar selection, never behind the log breaker. Forgotten when the hooks come down for a job change (nothing
-    ///     is watching the layout then, so a later change would go unseen), kept across a loading screen (<see cref="DegreeLatch.HooksDown"/>).
+    ///     from the same latch point as the familiar selection, never behind the log breaker. Kept across a loading screen and a job change (the
+    ///     game keeps the Crucible Mode until logout since 7.57, <see cref="DegreeLatch.HooksDown"/>); forgotten at logout and on unload.
     /// </summary>
     internal static readonly DegreeLatch Degree = new();
 
@@ -117,7 +117,11 @@ internal static unsafe class AgentProbe
     }
 
     /// <summary> Unhook everything and forget the degree (unload). </summary>
-    public static void Teardown() => Unhook(playerAvailable: true);
+    public static void Teardown()
+    {
+        Unhook(playerAvailable: true);
+        Degree.Reset();
+    }
 
     /// <summary> Unhook everything because the character is not a Beastmaster (job change) or is gone for a loading screen: see <see cref="DegreeLatch.HooksDown"/>. </summary>
     public static void TeardownNotBst(bool playerAvailable) => Unhook(playerAvailable);

@@ -119,6 +119,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi += ToggleWindow;
         Framework.Update += OnFrameworkUpdate;
+        ClientState.Logout += OnLogout;
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -338,6 +339,18 @@ public sealed class Plugin : IDalamudPlugin
         ToggleWindow();
     }
 
+    /// <summary>
+    ///     Logout: the game's Crucible Mode returns to its default (patch 7.57 remembers it until logout, across job changes and loading
+    ///     screens), so the degree published to GluttonyCombo is forgotten until the board layout sets it again.
+    /// </summary>
+    private static void OnLogout(int type, int code)
+    {
+        if (AgentProbe.Degree.Value == Lalalazy.Crucible.CrucibleDegree.Unknown)
+            return;
+        AgentProbe.Degree.LoggedOut();
+        CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=degree|dg={AgentProbe.Degree.Value}|via=logout|calls=0");
+    }
+
     public void Dispose()
     {
         _hub?.Dispose();   // first: a provider must never outlive its plugin
@@ -350,6 +363,7 @@ public sealed class Plugin : IDalamudPlugin
             // ignored: unload path
         }
         Framework.Update -= OnFrameworkUpdate;
+        ClientState.Logout -= OnLogout;
         AgentProbe.Teardown();
         ScreenRecorder.Stop();
         PetSelect.Dispose();
