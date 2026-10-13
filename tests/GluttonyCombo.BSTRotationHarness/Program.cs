@@ -3171,6 +3171,14 @@ internal static class Program
             Decide(vile with { KnockbackCastRemaining = 2.5f, CanWeave = false }, cfg) is { } nw && nw.ActionId != BST.Vileskin && !nw.Declines.Contains("vileskin:held-for-knockback"));
         Check("core: ... the push does not care who the enemy targets: 2 s left, character not targeted -> Vileskin",
             Decide(vile with { KnockbackCastRemaining = 2f, PlayerTargetedByEnemy = false }, cfg).ActionId == BST.Vileskin);
+        Check("core: Ymir fight (Tsunami 48481, 35 y push): Vileskin held, then pressed with 2 s left on the cast",
+            Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 2 }, cfg).ActionId != BST.Vileskin
+            && Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 2, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback"
+            && BST.CrucibleKnockbacks.IsKnockbackCast(48481));
+        Check("core: Lakhamu fight (Landslip 48556, 20 y push): Vileskin held, then pressed with 2 s left on the cast",
+            Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5 }, cfg).ActionId != BST.Vileskin
+            && Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback"
+            && BST.CrucibleKnockbacks.IsKnockbackCast(48556));
         Check("core: a Crucible fight with no knockback (bone knight) -> Vileskin as today (targeted)",
             Decide(vile with { CrucibleBoard = 1, CrucibleBattle = 1 }, cfg) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin" });
         Check("core: battle not identified -> Vileskin as today", Decide(vile with { CrucibleBattle = -1 }, cfg).ActionId == BST.Vileskin);
