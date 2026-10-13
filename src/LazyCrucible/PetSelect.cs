@@ -430,7 +430,7 @@ internal static unsafe class PetSelect
         var snapshot = new List<int>(selectedRaw);
         var currentHornRows = ResolveHornPetRows(selectedRaw, partyRows);
         var changes = PlanHornChanges(currentHornRows, picks);
-        var (removeRows, addRows) = PlanHornMembershipDelta(currentHornRows, picks);
+        var (removeRows, addRows) = PlanHornWrites(partyRows, currentHornRows, picks);
 
         var candStr = string.Join(",", ReadPartyHpRaw(pet, partyRows).ConvertAll(p =>
             $"{p.Row}:{(p.Max == 0 || p.Current == 0 ? 0 : (int)Math.Round(100.0 * p.Current / p.Max))}"));
@@ -449,6 +449,16 @@ internal static unsafe class PetSelect
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=leave_standing_horn|apply=not_needed|sl={string.Join(".", snapshot)}");
             LogHc(now, board, battle, detailId, currentHornRows);
             _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
+        // Patch 7.57: a team of three or fewer is registered on the horns by the game itself. A horn holding the whole team is
+        // the game's registration: nothing to choose, nothing to write (FormationLogic.HornFilledByGame).
+        if (FormationLogic.HornFilledByGame(partyRows, currentHornRows))
+        {
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=game_registered|apply=not_needed|sl={string.Join(".", snapshot)}");
+            _arm = MarkFormationPassDone(in _arm);
+            LogHc(now, board, battle, detailId, currentHornRows);
             return;
         }
 

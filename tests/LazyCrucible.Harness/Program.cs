@@ -35,6 +35,7 @@ internal static class Program
         AutoDutyWatchCases.Run();
         DegreeLatchCases.Run();
         AutoDutySurfaceCases.Run();
+        HornRegistrationCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;

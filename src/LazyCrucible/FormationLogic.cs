@@ -118,6 +118,34 @@ internal static class FormationLogic
     }
 
     /// <summary>
+    ///     Whether the game itself already registered the whole team on the horns. PURE. Since patch 7.57 a team of three or fewer
+    ///     familiars gets every member registered on a battlehorn on the team review screen; with no more familiars than horns there
+    ///     is nothing left to choose, so a horn holding every party member is the game's registration and is left alone.
+    /// </summary>
+    public static bool HornFilledByGame(IReadOnlyList<int> partyRows, IReadOnlyList<int> currentHornRows)
+    {
+        var party = new HashSet<int>();
+        foreach (var row in partyRows)
+            if (row is >= 1 and <= BST_Beasts.Count)
+                party.Add(row);
+        if (party.Count is 0 or > 3)
+            return false;
+        var horn = new HashSet<int>();
+        foreach (var row in currentHornRows)
+            if (row is >= 1 and <= BST_Beasts.Count)
+                horn.Add(row);
+        return party.IsSubsetOf(horn);
+    }
+
+    /// <summary>
+    ///     The horn toggles a pass plans: none on a horn the game filled (<see cref="HornFilledByGame"/>: no fighting the game's
+    ///     registration, no removing a knocked-out member it registered), else <see cref="PlanHornMembershipDelta"/>. PURE.
+    /// </summary>
+    public static (List<int> RemoveRows, List<int> AddRows) PlanHornWrites(
+        IReadOnlyList<int> partyRows, IReadOnlyList<int> currentHornRows, IReadOnlyList<CrucibleBeastPick> picks) =>
+        HornFilledByGame(partyRows, currentHornRows) ? ([], []) : PlanHornMembershipDelta(currentHornRows, picks);
+
+    /// <summary>
     ///     Membership delta for the live Battlehorn toggle route. PURE. EventToggle flips membership, so a
     ///     slot-ordered rewrite that re-toggles an already-selected familiar deselects it (live .225 late-run
     ///     aborts). Removals are current rows not in the desired set; additions are desired rows missing from
