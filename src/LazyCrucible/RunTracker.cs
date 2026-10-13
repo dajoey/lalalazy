@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Conditions;
 using ECommons.DalamudServices;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lalalazy.Crucible;
 
@@ -68,6 +69,7 @@ internal static class RunTracker
                 if (!Fought.Contains(battle))
                     Fought.Add(battle);
                 CrucibleLog.Line($"RT|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|fight|b={board}|bt={battle}|fought={string.Join(".", Fought)}");
+                LogFightTeam(board, battle);
             }
         }
 
@@ -86,6 +88,30 @@ internal static class RunTracker
                 RosterHp = hp;
             }
         }
+    }
+
+    /// <summary>
+    ///     One line per fight grading the team that actually stands on the horns once the fight has started (the game's own horn
+    ///     assignment, so it is right whoever picked: AutoDuty, the player or this plugin): <c>PS|..|note=fight_team|team=19.8.22|uncovered=D|drv=ad</c>.
+    ///     <c>uncovered</c> lists the needs the team cannot answer (<see cref="Policy.AutoDutyCrucible.Uncovered"/>: I/D/C, empty = all
+    ///     answered); <c>drv=ad</c> when AutoDuty picked the horns, <c>lc</c> otherwise. Read-only.
+    /// </summary>
+    private static unsafe void LogFightTeam(int board, int battle)
+    {
+        var team = new List<int>(3);
+        var manager = ActionManager.Instance();
+        if (manager is not null)
+        {
+            var pets = manager->BeastmasterPets;
+            for (var i = 0; i < pets.Length && i < 3; i++)
+                if (pets[i] is > 0 and <= BST_Beasts.Count)
+                    team.Add(pets[i]);
+        }
+        var adHorns = PetSelect.YieldReason == "autoduty_running"
+                      && (ExternalDrivers.DrivenSurfaces & Policy.CrucibleSurface.Horns) != 0;
+        var uncovered = team.Count == 0 ? "?" : Policy.AutoDutyCrucible.Uncovered(board, battle, team, RosterHp);
+        CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=fight_team|b={board}|bt={battle}" +
+                         $"|team={string.Join(".", team)}|uncovered={uncovered}|drv={(adHorns ? "ad" : "lc")}|calls=0");
     }
 
     private static unsafe (int, int) ReadFocus(int territoryBoard)
@@ -114,6 +140,6 @@ internal static class RunTracker
     {
         var board = Board != 0 ? Board : Focus.Board;
         var alive = Roster.Where(r => RosterHp.GetValueOrDefault(r, 100) > 0).ToList();
-        return RunContext.Build(board, LastBattle, guide.ThreatsOf, alive, RosterHp, PlayerHpPercent, goal);
+        return RunContext.Build(board, LastBattle, guide.ThreatsOf, alive, RosterHp, PlayerHpPercent, goal, AgentProbe.Degree.Value);
     }
 }

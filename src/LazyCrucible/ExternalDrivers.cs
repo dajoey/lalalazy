@@ -1,4 +1,5 @@
 using ECommons.DalamudServices;
+using ECommons.GameHelpers;
 using Lalalazy.Crucible;
 using LazyCrucible.Policy;
 
@@ -11,6 +12,8 @@ namespace LazyCrucible;
 ///     <c>AutoDuty.IsStopped</c>, <c>IsLooping</c> and <c>IsNavigating</c>. While it is stepping, AutoDuty owns the
 ///     run. <c>IsStopped</c> alone is not enough: a loop can keep reporting "running" long after its last step
 ///     (live 2026-09-29), so <see cref="AutoDutyWatch"/> also reads the other two and where the player stands.
+///     Which screens AutoDuty owns while it runs comes from its own Crucible settings (<see cref="DrivenSurfaces"/>):
+///     LazyCrucible stands by on those and picks on the rest.
 /// </summary>
 internal static class ExternalDrivers
 {
@@ -45,6 +48,30 @@ internal static class ExternalDrivers
     /// <summary> What the stand-down saw, for its note: <c>ad=driving|nav=1|loop=1</c>. </summary>
     public static string Detail => $"ad={StateName(Watch.Status)}|nav={Flag(_navigating)}|loop={Flag(_looping)}";
 
+    /// <summary>
+    ///     The selection surfaces AutoDuty drives with its own Crucible settings (<see cref="AutoDutyCrucible.Driven"/>; every
+    ///     surface while the settings are unreadable). Meaningful only while <see cref="AutoDutyRunning"/>.
+    /// </summary>
+    public static CrucibleSurface DrivenSurfaces
+    {
+        get
+        {
+            Poll();
+            return AutoDutyCrucible.Driven(_config);
+        }
+    }
+
+    /// <summary> <see cref="DrivenSurfaces"/> for a log field: <c>Roster+Horns</c>, <c>All</c>. </summary>
+    public static string DrivenNote => DrivenSurfaces.ToString().Replace(", ", "+");
+
+    // AutoDuty's Crucible settings, read-only from its own config file (AutoDuty has no IPC for them). Re-read when the file
+    // changes or the character does, at most every few seconds; never written.
+    private static AutoDutyCrucibleConfig? _config;
+    private static DateTime _configStamp = DateTime.MinValue;
+    private static ulong _configCid;
+    private static DateTime _nextConfigCheck = DateTime.MinValue;
+    private static string _lastConfigLogged = "";
+
     private static void Poll()
     {
         var now = DateTime.UtcNow;
@@ -55,6 +82,8 @@ internal static class ExternalDrivers
         _stopped = Ipc("AutoDuty.IsStopped") ?? true; // not installed, not loaded, or no such IPC
         _looping = _stopped ? null : Ipc("AutoDuty.IsLooping");
         _navigating = _stopped ? null : Ipc("AutoDuty.IsNavigating");
+        if (!_stopped)
+            RefreshConfig(now);
 
         var territory = (uint)Svc.ClientState.TerritoryType;
         var board = BST_CrucibleData.BoardOfTerritory(territory);
@@ -79,11 +108,78 @@ internal static class ExternalDrivers
     }
 
     /// <summary>
-    ///     AutoDuty activates BossMod Reborn's "AutoDuty" preset for a run (it retargets to enemies of its own
-    ///     choosing and walks the character to them) and only clears it when the run stops or finishes. A stalled
-    ///     loop never does, and BossMod Reborn keeps the preset until something clears it, so the player's manual
-    ///     fights were steered by it. Clears it, but only while AutoDuty is judged stalled, the player is in a board
-    ///     and the active preset is AutoDuty's own.
+    ///     Read AutoDuty's Crucible settings (<c>pluginConfigs/AutoDuty/AutoDutyConfigV2.json</c>, the folder next to this plugin's
+    ///     own config) when the file or the character changed. Opened read-only and shared, so AutoDuty can keep writing it. A missing,
+    ///     locked or half-written file reads as unknown (every surface stands by) and is tried again on the next check; one
+    ///     <c>PS|..|note=autoduty_config</c> line per change of what was read, no error lines.
+    /// </summary>
+    private static void RefreshConfig(DateTime now)
+    {
+        if (now < _nextConfigCheck)
+            return;
+        _nextConfigCheck = now.AddSeconds(5);
+
+        var cid = Player.CID;
+        string? path = null;
+        var stamp = DateTime.MinValue;
+        try
+        {
+            var dir = Svc.PluginInterface.ConfigDirectory.Parent?.FullName;
+            if (dir is not null)
+            {
+                path = Path.Combine(dir, "AutoDuty", "AutoDutyConfigV2.json");
+                if (File.Exists(path))
+                    stamp = File.GetLastWriteTimeUtc(path);
+            }
+        }
+        catch
+        {
+            stamp = DateTime.MinValue;
+        }
+
+        if (stamp == _configStamp && cid == _configCid)
+            return;
+        _configStamp = stamp;
+        _configCid = cid;
+
+        AutoDutyCrucibleConfig? read = null;
+        if (path is not null && stamp != DateTime.MinValue)
+        {
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                read = AutoDutyCrucible.Parse(reader.ReadToEnd(), cid);
+            }
+            catch
+            {
+                read = null;
+            }
+            if (read is null)
+                _configStamp = DateTime.MinValue; // half-written or locked: read it again next time
+        }
+        _config = read;
+
+        var line = read is null
+            ? $"read=0|file={(stamp == DateTime.MinValue ? "missing" : "unreadable")}"
+            : $"read=1|profile={read.Profile}|team={read.TeamMode}|lvl={read.LevelingMode}|dg={read.Degree}|fp={(read.FightPicks ? 1 : 0)}" +
+              $"|shop={(read.Shop ? 1 : 0)}|tr={(read.Treasure ? 1 : 0)}|loot={(read.Loot ? 1 : 0)}|rest={(read.Rest ? 1 : 0)}";
+        if (line == _lastConfigLogged)
+            return;
+        _lastConfigLogged = line;
+        CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=autoduty_config|{line}" +
+                         $"|driven={AutoDutyCrucible.Driven(read).ToString().Replace(", ", "+")}|calls=0");
+    }
+
+    /// <summary>
+    ///     AutoDuty activates one of its own BossMod Reborn presets for a run and only clears it when the run stops or
+    ///     finishes. Which one depends on its rotation setting: with RotationPlugin = WrathCombo (the setup this plugin
+    ///     suite runs) it is "AutoDuty Passive", movement only (it walks the character to its target; no AutoTarget
+    ///     module, so it does not pick targets); with BossMod or All, and in the Novice Hall, it is "AutoDuty", which
+    ///     also carries AutoTarget and BossMod Reborn's own rotation. A stalled loop never clears either, and BossMod
+    ///     Reborn keeps the preset until something does, so the player's manual fights were steered by it. Clears it,
+    ///     but only while AutoDuty is judged stalled, the player is in a board and the active preset is one of
+    ///     AutoDuty's (any name starting with "AutoDuty" covers both).
     /// </summary>
     private static void ClearStaleAutoDutyPreset(int board)
     {

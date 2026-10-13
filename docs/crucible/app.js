@@ -164,13 +164,21 @@ const NEED_LABEL = { [NEEDS.Interrupt]: 'Interrupt', [NEEDS.Dispel]: 'Dispel', [
 
 /** What the fight calls for and which picked familiar answers each need (or why none does). */
 function needsHtml(selection) {
-  if (selection.needs.length === 0) return '';
+  const count = selection.needs.length + selection.mitigation.length;
+  if (count === 0) return '';
   const rows = selection.needs.map((n) => {
     const tag = n.need.tier === TIER.Required ? '' : ' <small>(useful)</small>';
     const by = n.row ? `<b>${esc(beastName(n.row))}</b>` : `<span class="cp-sub">${esc(n.whyNot)}</span>`;
     return `<div class="cp-cast"><b>${NEED_LABEL[n.need.kind]}</b>${tag} <span class="m">${esc(n.need.what)}</span> → ${by}</div>`;
   }).join('');
-  return `<details class="cp-casts" open><summary>The fight calls for (${selection.needs.length})</summary>${rows}</details>`;
+  // Mitigation ranks below every ability need: a note of who blunts it, never a warning.
+  const mit = selection.mitigation.map((m) => {
+    const by = m.row
+      ? `<b>${esc(beastName(m.row))}</b> <small>(${esc(adv.mitName(m.row, m.need.kind))})</small>`
+      : '<span class="cp-sub">no pick answers it</span>';
+    return `<div class="cp-cast"><b>Mitigate ${adv.mitWord(m.need.kind)}</b> <span class="m">${esc(m.need.what)}</span> → ${by}</div>`;
+  }).join('');
+  return `<details class="cp-casts" open><summary>The fight calls for (${count})</summary>${rows}${mit}</details>`;
 }
 
 function battleNeeds(board, battle) {
@@ -274,6 +282,7 @@ function renderSummary() {
       <div><b>Team size</b>up to ${bm.teamSize}</div>
       <div><b>Unlock</b>${esc(bm.unlockQuest?.name || '—')}</div>
       <div><b>Legendary line</b>≈ ${CONFIG.legendary[state.board].toLocaleString()} <span class="cp-sub">(guides)</span></div>
+      ${bm.spacePoints?.['Elite Enemy'] ? `<div><b>Elite enemy</b>${bm.spacePoints['Elite Enemy'].toLocaleString()} points each <span class="cp-sub">(7.57)</span></div>` : ''}
     </div>
     <div class="cp-picks"><h3>Your team for this board <span class="cp-sub">(${Math.min(team.length, bm.teamSize)} of ${bm.teamSize}, familiars that make a fight's top three, most fights first)</span></h3>${teamHtml}</div>
     <details class="cp-casts"><summary>Score bonuses on this board (${bonuses.length})</summary>

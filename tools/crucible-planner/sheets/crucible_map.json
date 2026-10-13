@@ -83,7 +83,7 @@
     "Economic Ethos": 750,
     "Starve the Fever": 750,
     "Coin Clutcher": 500,
-    "Sleepless Survival": 375,
+    "Sleepless Survival": 1000,
     "Beastkin Gambit": 750,
     "Vilekin Gambit": 750,
     "Cloudkin Gambit": 750,
@@ -95,6 +95,9 @@
     "First Degree": 4000,
     "Second Degree": 6250,
     "Third Degree": 9000
+   },
+   "space_points": {
+    "Elite Enemy": 800
    },
    "node_count": 13,
    "nodes": [
@@ -1378,7 +1381,7 @@
     "Starve the Fever": 750,
     "Coin Clutcher": 500,
     "Rolling in Riches": 500,
-    "Sleepless Survival": 375,
+    "Sleepless Survival": 1000,
     "Beastkin Gambit": 750,
     "Vilekin Gambit": 750,
     "Cloudkin Gambit": 750,
@@ -1390,6 +1393,9 @@
     "First Degree": 4000,
     "Second Degree": 6250,
     "Third Degree": 9000
+   },
+   "space_points": {
+    "Elite Enemy": 800
    },
    "node_count": 14,
    "nodes": [
@@ -2784,7 +2790,7 @@
     "Feed the Bold": 1500,
     "Coin Clutcher": 500,
     "Rolling in Riches": 500,
-    "Sleepless Survival": 375,
+    "Sleepless Survival": 1000,
     "Beastkin Gambit": 750,
     "Vilekin Gambit": 750,
     "Cloudkin Gambit": 750,
@@ -2796,6 +2802,9 @@
     "First Degree": 4000,
     "Second Degree": 6250,
     "Third Degree": 9000
+   },
+   "space_points": {
+    "Elite Enemy": 800
    },
    "node_count": 17,
    "nodes": [
@@ -4695,7 +4704,7 @@
     "Starve the Fever": 750,
     "Coin Clutcher": 500,
     "Rolling in Riches": 500,
-    "Sleepless Survival": 375,
+    "Sleepless Survival": 1000,
     "Beastkin Gambit": 750,
     "Vilekin Gambit": 750,
     "Cloudkin Gambit": 750,
@@ -4707,6 +4716,9 @@
     "First Degree": 4000,
     "Second Degree": 6250,
     "Third Degree": 9000
+   },
+   "space_points": {
+    "Elite Enemy": 800
    },
    "node_count": 15,
    "nodes": [
@@ -7341,7 +7353,7 @@
     "Feed the Bold": 1500,
     "Coin Clutcher": 500,
     "Rolling in Riches": 500,
-    "Sleepless Survival": 375,
+    "Sleepless Survival": 1000,
     "Beastkin Gambit": 750,
     "Vilekin Gambit": 750,
     "Cloudkin Gambit": 750,
@@ -7353,6 +7365,9 @@
     "First Degree": 4000,
     "Second Degree": 6250,
     "Third Degree": 9000
+   },
+   "space_points": {
+    "Elite Enemy": 800
    },
    "node_count": 26,
    "nodes": [

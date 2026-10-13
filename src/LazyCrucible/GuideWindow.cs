@@ -181,7 +181,8 @@ internal sealed class GuideWindow : Window
         }
 
         var rows = GuideNeeds.Rows(selection);
-        if (rows.Count > 0)
+        var mitigation = GuideNeeds.MitigationRows(selection);
+        if (rows.Count > 0 || mitigation.Count > 0)
         {
             Heading("Calls for");
             foreach (var r in rows)
@@ -192,6 +193,15 @@ internal sealed class GuideWindow : Window
                 var by = r.Covered ? $" — {FamiliarState.BeastName(r.CoveredBy)}" : $" — {r.WhyNot}";
                 ImGui.TextWrapped($"{r.Tool}{tier}: {r.What}{by}");
                 Src(r.Src.ToList());
+            }
+            // Mitigation ranks below every ability need: never a warning, only a note of who answers it.
+            foreach (var m in mitigation)
+            {
+                ImGui.TextColored(m.CoveredBy != 0 ? Good : Muted, m.CoveredBy != 0 ? "✓" : "·");
+                ImGui.SameLine();
+                var by = m.CoveredBy != 0 ? $" — {FamiliarState.BeastName(m.CoveredBy)} ({m.Skill})" : " — no pick answers it";
+                ImGui.TextWrapped($"{m.Tool}: {m.What}{by}");
+                Src(m.Src.ToList());
             }
         }
 

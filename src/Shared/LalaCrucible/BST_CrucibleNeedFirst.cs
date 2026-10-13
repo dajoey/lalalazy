@@ -22,7 +22,11 @@ public readonly record struct CrucibleNeedStatus(CrucibleAbilityNeed Need, int R
 }
 
 /// <summary> Horn picks for one battle plus the status of every need the fight has. </summary>
-public sealed record CrucibleSelection(List<CrucibleBeastPick> Picks, List<CrucibleNeedStatus> Needs);
+public sealed record CrucibleSelection(List<CrucibleBeastPick> Picks, List<CrucibleNeedStatus> Needs)
+{
+    /// <summary> The fight's mitigation needs (<see cref="CrucibleNeedModel.MitigationItems"/>) and which pick answers each. </summary>
+    public List<CrucibleMitigationStatus> Mitigation { get; init; } = [];
+}
 
 /// <summary>
 ///     What one battle needs, in ONE list: the abilities (interrupt, dispel, cleanse) with a tier, and the crowd
@@ -36,6 +40,7 @@ public sealed class CrucibleNeedModel
 {
     private static readonly Dictionary<(int, int), CrucibleNeedModel> Cache = [];
     private static Func<int, int, IReadOnlyList<CrucibleAbilityNeed>>? _extras;
+    private static Func<int, int, IReadOnlyList<CrucibleMitigationNeed>>? _mitigationExtras;
 
     /// <summary> Vulnerability bit 3 is "interrupt" (a Soulkin need, not crowd control). </summary>
     public const ushort CrowdControlBits = 0x7FF & ~(1 << 3);
@@ -53,12 +58,25 @@ public sealed class CrucibleNeedModel
     /// <summary> Crowd-control statuses any enemy of the battle is vulnerable to (vulnerability bits 0-10 minus interrupt). </summary>
     public ushort CrowdControl { get; }
 
-    private CrucibleNeedModel(int board, int battle, List<CrucibleAbilityNeed> items, ushort crowdControl)
+    /// <summary>
+    ///     Damage the fight calls to be blunted (a magic wall, a poison, a physical tankbuster), from <see cref="MitigationExtras"/>;
+    ///     empty without them. The picker ranks these BELOW every ability need: they only decide between familiars that cover the
+    ///     same interrupt / dispel / cleanse needs, so they never displace a Required (or Useful) answer.
+    /// </summary>
+    public IReadOnlyList<CrucibleMitigationNeed> MitigationItems { get; }
+
+    /// <summary> The kinds in <see cref="MitigationItems"/>. </summary>
+    public CrucibleMitigation Mitigation { get; }
+
+    private CrucibleNeedModel(int board, int battle, List<CrucibleAbilityNeed> items, ushort crowdControl, List<CrucibleMitigationNeed> mitigation)
     {
         Board = board;
         Battle = battle;
         Items = items;
         CrowdControl = crowdControl;
+        MitigationItems = mitigation;
+        foreach (var m in mitigation)
+            Mitigation |= m.Kind;
         var required = CrucibleNeeds.None;
         var any = CrucibleNeeds.None;
         foreach (var i in items)
@@ -88,6 +106,23 @@ public sealed class CrucibleNeedModel
         }
     }
 
+    /// <summary>
+    ///     Mitigation needs a host knows (LazyCrucible: the fight guide's <c>mitigate</c> lines). Unset, no fight has any, so a host that
+    ///     never installs them (GluttonyCombo) picks exactly as before. Setting it clears the cache.
+    /// </summary>
+    public static Func<int, int, IReadOnlyList<CrucibleMitigationNeed>>? MitigationExtras
+    {
+        get => _mitigationExtras;
+        set
+        {
+            lock (Cache)
+            {
+                _mitigationExtras = value;
+                Cache.Clear();
+            }
+        }
+    }
+
     public static CrucibleNeedModel For(int board, int battle)
     {
         lock (Cache)
@@ -111,7 +146,11 @@ public sealed class CrucibleNeedModel
                 if (e.Board == board && e.Battle == battle)
                     cc |= (ushort)(e.Vulnerable & CrowdControlBits);
 
-            var model = new CrucibleNeedModel(board, battle, items, cc);
+            var mitigation = new List<CrucibleMitigationNeed>();
+            if (_mitigationExtras?.Invoke(board, battle) is { } mit)
+                mitigation.AddRange(mit);
+
+            var model = new CrucibleNeedModel(board, battle, items, cc, mitigation);
             Cache[(board, battle)] = model;
             return model;
         }
@@ -208,16 +247,18 @@ internal static class BST_CrucibleNeedFirst
         var everyone = Candidates(candidateRows, hpByRow, dropDead: false);
         var cands = everyone.Where(c => c.Hp > 0).ToList();
 
-        var chosen = new List<(Cand C, CrucibleNeeds New, int Weak)>(slots);
+        var chosen = new List<(Cand C, CrucibleNeeds New, CrucibleMitigation Mit, int Weak)>(slots);
         var covered = CrucibleNeeds.None;
         var coveredBy = new Dictionary<CrucibleNeeds, int>();
+        var mitCovered = CrucibleMitigation.None;
+        var mitCoveredBy = new Dictionary<CrucibleMitigation, int>();
         var taken = new HashSet<int>();
         var weaknessPicks = 0;
 
         for (var n = 0; n < slots; n++)
         {
             Cand? best = null;
-            (int, int, int, int, int, int, int) bestKey = default;
+            (int, int, int, int, int, int, int, int) bestKey = default;
             foreach (var c in cands)
             {
                 if (taken.Contains(c.Row))
@@ -225,7 +266,11 @@ internal static class BST_CrucibleNeedFirst
                 var answers = BST_CrucibleAdvisor.Answers(c.Row);
                 var req = answers & model.Required & ~covered;
                 var use = answers & model.Useful & ~covered;
-                var key = (Count(req), Count(use), Priority(req), Priority(use), Points(board, battle, c, weaknessPicks), c.Hp, -c.Row);
+                // Mitigation (a magic wall, a poison, a physical tankbuster) sits after every ability term: it only decides between
+                // familiars that cover the same interrupt / dispel / cleanse needs, then points break the tie as before.
+                var mit = BST_CrucibleMitigation.Answers(c.Row) & model.Mitigation & ~mitCovered;
+                var key = (Count(req), Count(use), Priority(req), Priority(use), BitOperations.PopCount((uint)mit),
+                    Points(board, battle, c, weaknessPicks), c.Hp, -c.Row);
                 if (best is null || key.CompareTo(bestKey) > 0)
                 {
                     best = c;
@@ -240,15 +285,20 @@ internal static class BST_CrucibleNeedFirst
             foreach (var kind in Kinds)
                 if ((now & kind) != 0)
                     coveredBy[kind] = pick.Row;
-            chosen.Add((pick, now, weaknessPicks));
+            var mitNow = BST_CrucibleMitigation.Answers(pick.Row) & model.Mitigation & ~mitCovered;
+            foreach (var kind in BST_CrucibleMitigation.Kinds)
+                if ((mitNow & kind) != 0)
+                    mitCoveredBy[kind] = pick.Row;
+            chosen.Add((pick, now, mitNow, weaknessPicks));
             taken.Add(pick.Row);
             covered |= now;
+            mitCovered |= mitNow;
             if (HitsWeakness(board, battle, pick.Row))
                 weaknessPicks++;
         }
 
         var picks = new List<(CrucibleBeastPick Pick, int Hp)>(chosen.Count);
-        foreach (var (c, now, weak) in chosen)
+        foreach (var (c, now, mitNow, weak) in chosen)
         {
             var why = new List<string>(6);
             foreach (var kind in Kinds)
@@ -258,6 +308,9 @@ internal static class BST_CrucibleNeedFirst
                 var tag = (model.Required & kind) != 0 ? "" : " (useful)";
                 why.Add(AbilityName(c.Row, kind) + tag);
             }
+            foreach (var kind in BST_CrucibleMitigation.Kinds)
+                if ((mitNow & kind) != 0)
+                    why.Add($"{BST_CrucibleMitigation.AnswerName(c.Row, kind)} vs {BST_CrucibleMitigation.Word(kind)}");
             BST_CrucibleAdvisor.Score(board, battle, c.Row, AllAbilities, why, weak);
             if (!c.HpKnown)
                 why.Add("HP assumed full");
@@ -285,7 +338,11 @@ internal static class BST_CrucibleNeedFirst
                 statuses.Add(new(item, 0, WhyUncovered(item.Kind, everyone, slots, pool)));
         }
 
-        return new(picks.ConvertAll(p => p.Pick), statuses);
+        var mitigation = new List<CrucibleMitigationStatus>(model.MitigationItems.Count);
+        foreach (var item in model.MitigationItems)
+            mitigation.Add(new(item, mitCoveredBy.GetValueOrDefault(item.Kind)));
+
+        return new(picks.ConvertAll(p => p.Pick), statuses) { Mitigation = mitigation };
     }
 
     private static string WhyUncovered(CrucibleNeeds kind, List<Cand> everyone, int slots, string pool)

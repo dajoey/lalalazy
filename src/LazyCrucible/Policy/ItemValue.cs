@@ -147,8 +147,50 @@ internal static class ItemValue
             why?.Add(hits > 0 ? $"{axe.ToString().ToLowerInvariant()} autos for {hits} weak fight{(hits == 1 ? "" : "s")} ahead" : "elemental autos");
         }
 
+        v += HandValue(g.Name, why);
+
         v -= HazardCost(g, why);
         return Math.Max(v, 0);
+    }
+
+    /// <summary>
+    ///     Tooltip effects the generated parse does not read, valued by hand from the 7.56 tooltips: Beastly Knife (crit +8%, a 25%
+    ///     chance per crit of a 3% Damage Up stack up to 8: in line with the elemental axes), Hero's Crown's Excellence (most attacks
+    ///     nullified and +10% damage for 9 s after an instinctual combo), and Rapid Recast (half a point per percent; Gold Hairpin's
+    ///     chance of TP back on a combo adds a little).
+    /// </summary>
+    private static int HandValue(string name, List<string>? why)
+    {
+        var v = 0;
+        switch (name)
+        {
+            case "Beastly Knife":
+                v += 18;
+                why?.Add("crit +8%, stacking damage up");
+                break;
+            case "Hero's Crown":
+                v += 12;
+                why?.Add("Excellence: attacks nullified for 9 s after an instinctual combo");
+                break;
+            case "Gold Hairpin":
+                v += 3;
+                why?.Add("TP back on a combo");
+                break;
+        }
+
+        var recast = name switch
+        {
+            "Astral Mantle" => 25,
+            "Astral Band" or "Astral Wristlet" => 15,
+            "Gold Hairpin" => 10,
+            _ => 0,
+        };
+        if (recast > 0)
+        {
+            v += recast / 2;
+            why?.Add($"Rapid Recast +{recast}%");
+        }
+        return v;
     }
 
     private static CrucibleWeakness AxeElement(string name) => name switch
@@ -202,8 +244,17 @@ internal static class ItemValue
                 why?.Add("auto-heals 40% below half HP");
                 return 5 + 45 * fewerHeals / 4;
             case ItemRole.Reraise:
+            {
+                var v = it.Name.StartsWith("G2", StringComparison.Ordinal) ? 70 : 55;
+                if (ctx.Degree == CrucibleDegree.Third)
+                {
+                    // At Third Degree one revive rarely saves the run (single source, so the cut is modest).
+                    why?.Add("reraise (worth less at Third Degree)");
+                    return v * 85 / 100;
+                }
                 why?.Add("reraise");
-                return it.Name.StartsWith("G2", StringComparison.Ordinal) ? 70 : 55;
+                return v;
+            }
             case ItemRole.Rewind:
                 why?.Add("retry a lost battle");
                 return 60;

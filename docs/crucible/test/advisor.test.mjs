@@ -58,10 +58,12 @@ test(`score matrix (${golden.scoreMatrix.length} cells x 3 variants)`, () => {
 });
 
 const normNeed = (n) => ({ kind: n.need.kind, tier: n.need.tier, what: n.need.what, src: n.need.src, row: n.row, whyNot: n.whyNot ?? null });
-const normSel = (sel) => ({ picks: sel.picks.map(norm), needs: sel.needs.map(normNeed) });
+const normMit = (m) => ({ kind: m.need.kind, what: m.need.what, src: m.need.src, row: m.row });
+const normSel = (sel) => ({ picks: sel.picks.map(norm), needs: sel.needs.map(normNeed), mitigation: sel.mitigation.map(normMit) });
 const goldenSel = (sel) => ({
   picks: sel.picks.map(norm),
   needs: sel.needs.map((n) => ({ kind: n.kind, tier: n.tier, what: n.what, src: n.src, row: n.row, whyNot: n.whyNot ?? null })),
+  mitigation: sel.mitigation.map((m) => ({ kind: m.kind, what: m.what, src: m.src, row: m.row })),
 });
 
 test(`needItems (guide counters, tiered) are in the data and cover every fight`, () => {
@@ -76,7 +78,26 @@ test(`needModel: tiered ability needs per fight (${golden.needModels.length} fig
     assert.equal(got.required, m.required, `required ${m.board}:${m.battle}`);
     assert.equal(got.useful, m.useful, `useful ${m.board}:${m.battle}`);
     assert.equal(got.crowdControl, m.crowdControl, `crowdControl ${m.board}:${m.battle}`);
+    assert.deepEqual(got.mitigationItems, m.mitigationItems, `mitigation items ${m.board}:${m.battle}`);
+    assert.equal(got.mitigation, m.mitigation, `mitigation ${m.board}:${m.battle}`);
   }
+});
+
+test('mitigation answers per row (BST_CrucibleMitigation.Answers): Scalekin and drake/pugil magic, coblyn poison+physical, Beastkin and adamantoise physical', () => {
+  assert.equal(adv.mitAnswers(35), 1);
+  assert.equal(adv.mitAnswers(4), 1);
+  assert.equal(adv.mitAnswers(21), 1);
+  assert.equal(adv.mitAnswers(7), 6);
+  assert.equal(adv.mitAnswers(25), 5);
+  assert.equal(adv.mitAnswers(1), 4);
+  assert.equal(adv.mitAnswers(19), 0);
+  assert.equal(adv.mitAnswers(0), 0);
+});
+
+test('Durga (b5:6) with every familiar owned: the drake takes a horn for Atomic Ray (Smoldering Scales vs magic)', () => {
+  const sel = adv.selectCaptured(5, 6, () => true, 3);
+  assert.ok(sel.picks.some((p) => p.row === 35 && p.why.includes('Smoldering Scales vs magic')), sel.picks.map((p) => p.why).join(' | '));
+  assert.deepEqual(sel.mitigation.map((m) => m.row), [35]);
 });
 
 test(`selectCaptured: need-first picks and need status (${golden.needFirst.length} cases)`, () => {

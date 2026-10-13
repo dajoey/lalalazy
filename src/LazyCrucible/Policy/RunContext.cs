@@ -82,6 +82,9 @@ internal sealed class RunContext
     public int PlayerHpPercent { get; init; } = 100;
     public ScoreGoal Goal { get; init; } = ScoreGoal.SurvivalFirst;
 
+    /// <summary> The board's degree as the layout last set it (<see cref="CrucibleDegree"/>: 0 Standard .. 3 Third, unknown until seen). </summary>
+    public int Degree { get; init; } = CrucibleDegree.Unknown;
+
     /// <summary> Familiar row → sum over fights ahead of (1 certain / 0.5 possible) where it is one of the three horn picks. </summary>
     public IReadOnlyDictionary<int, double> HornDemand { get; init; } = new Dictionary<int, double>();
 
@@ -124,7 +127,8 @@ internal sealed class RunContext
         IReadOnlyList<int> rosterRows,
         IReadOnlyDictionary<int, int> hpByRow,
         int playerHpPercent = 100,
-        ScoreGoal goal = ScoreGoal.SurvivalFirst)
+        ScoreGoal goal = ScoreGoal.SurvivalFirst,
+        int degree = CrucibleDegree.Unknown)
     {
         var upcoming = CrucibleBoards.Upcoming(board, lastBattle);
         var demand = new Dictionary<int, double>();
@@ -165,6 +169,7 @@ internal sealed class RunContext
             ThreatLevels = threats,
             NeedsAhead = needs,
             WeaknessAhead = weakness,
+            Degree = degree,
         };
     }
 
