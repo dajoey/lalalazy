@@ -231,7 +231,12 @@ namespace RotationSolver.IPC
 				&& (string.Equals(x.Name, pluginName, StringComparison.OrdinalIgnoreCase)
 					|| string.Equals(x.InternalName, pluginName, StringComparison.OrdinalIgnoreCase)));
 
-		internal static Version Version(string pluginName) => DalamudReflector.TryGetDalamudPlugin(pluginName, out var dalamudPlugin, false, true) ? dalamudPlugin.GetType().Assembly.GetName().Version : new Version(0, 0, 0, 0);
+		// Same installed-plugin list as IsReady, never the typed-cast lookup (it logged an ERR per call for BossMod.Plugin).
+		internal static Version Version(string pluginName)
+			=> Svc.PluginInterface.InstalledPlugins.FirstOrDefault(x => x.IsLoaded
+				&& (string.Equals(x.Name, pluginName, StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(x.InternalName, pluginName, StringComparison.OrdinalIgnoreCase)))?.Version
+				?? new Version(0, 0, 0, 0);
 
 		internal static void DisposeAll(EzIPCDisposalToken[] _disposalTokens)
 		{
@@ -246,6 +251,25 @@ namespace RotationSolver.IPC
 					Svc.Log.Error($"Error while unregistering IPC: {ex}");
 				}
 			}
+		}
+	}
+
+	/// <summary>
+	///     Remembers the last presence answer for a plugin so a check that runs every frame logs the first
+	///     answer and each load/unload after it, never once per frame (the per-call ERR of the old typed-cast
+	///     check came to 11,507 lines in 35 minutes).
+	/// </summary>
+	internal sealed class PresenceLatch
+	{
+		private bool? _last;
+
+		/// <summary>True on the first answer and whenever it differs from the previous one.</summary>
+		internal bool Changed(bool present)
+		{
+			if (_last == present)
+				return false;
+			_last = present;
+			return true;
 		}
 	}
 }

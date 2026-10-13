@@ -1,4 +1,5 @@
 ﻿using ECommons.EzIpcManager;
+using ECommons.Logging;
 
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
 
@@ -9,7 +10,21 @@ internal static class BMRTimeline_IPCSubscriber
 	private static readonly EzIPCDisposalToken[] _disposalTokens =
 		EzIPC.Init(typeof(BMRTimeline_IPCSubscriber), "BossMod", SafeWrapper.AnyException);
 
-	internal static bool IsEnabled => IPCSubscriber_Common.IsReady("BossModReborn");
+	private static readonly PresenceLatch _presence = new();
+
+	// Asked every frame (config window, BossModUpdater): the answer is logged once, then only when it changes.
+	internal static bool IsEnabled
+	{
+		get
+		{
+			var ready = IPCSubscriber_Common.IsReady("BossModReborn");
+			if (_presence.Changed(ready))
+				PluginLog.Information(ready
+					? "[BMR] BossModReborn is loaded: timeline integration available."
+					: "[BMR] BossModReborn is not loaded (no loaded plugin named BossModReborn): timeline integration off.");
+			return ready;
+		}
+	}
 
 	[EzIPC("HasActiveModule", true)]
 	internal static readonly Func<bool>? HasActiveModule;
