@@ -751,13 +751,10 @@ internal static class BST_CrucibleLogic
 
         var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
         var cleave = BST_CrucibleData.CleaveAutoBosses.Contains(s.TargetNameId);
-        // The familiar covers the character with Snarl alone; the Parting Blow that used to follow it is a dormant opt-in
-        // (BstSettings.CrucibleTankbusterParting): measured, it hands the hit back to the character.
+        // The familiar covers the character with Snarl alone (no Parting Blow after it: since the Sep 17 hotfix that hands the hit back).
         var tankbusterSetUp = cfg.CrucibleSnarlParting && tankbuster && s.ReadySnarl && !s.EnemyTargetsPet
-                              && (cfg.CrucibleTankbusterParting
-                                  ? s.TargetCastRemaining > cfg.CrucibleSnarlPartingLead + 1f && s.ReadyParting
-                                  : s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > TankbusterSnarlMinLeadSeconds
-                                    && FamiliarCanTakeTankbuster(s));
+                              && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > TankbusterSnarlMinLeadSeconds
+                              && FamiliarCanTakeTankbuster(s);
 
         if (cfg.CrucibleScoreMode)
         {
@@ -826,14 +823,6 @@ internal static class BST_CrucibleLogic
 
     /// <summary> Final Sting would be wasted: the target dies within 3 s anyway. </summary>
     public static bool FinalStingWasted(in BstState s) => s.TargetTimeToDeath is > 0f and < 3f;
-
-    /// <summary>
-    ///     Snarl -> Parting Blow: a known tankbuster is about to land (within the lead time), the familiar took the
-    ///     aggro with Snarl in the last 45 s (Cover), and Parting Blow is ready. Guides press it 1-2 s before the cast
-    ///     ends: earlier and the hit lands on the character, later and the familiar eats it.
-    /// </summary>
-    public static bool SnarlPartingNow(in BstState s, in BstSettings cfg) =>
-        SnarlPartingWindow(s, cfg) && s.SinceSnarl < 45f;
 
     // ------------------------------------------------------------------ survival (2026-10-03 deaths)
 
@@ -986,14 +975,12 @@ internal static class BST_CrucibleLogic
         return (0, "");
     }
 
-    /// <summary> A familiar already holding the enemy, or a cover Snarl still able to go in (or the dormant Snarl -> Parting dodge), owns a registered tankbuster. </summary>
+    /// <summary> A familiar already holding the enemy, or a cover Snarl still able to go in, owns a registered tankbuster. </summary>
     private static bool TankbusterCoverArmed(in BstState s, in BstSettings cfg) =>
         s.EnemyTargetsPet
         || (cfg.CrucibleSnarlParting && s.HasHostileTarget && FamiliarOut(s)
             && !s.TargetDoNotAttack && !s.ProtectedNearTarget && s.TargetDistance <= 25f
-            && (cfg.CrucibleTankbusterParting
-                ? s.ReadyParting && s.SinceSnarl < 45f
-                : s.ReadySnarl && FamiliarCanTakeTankbuster(s)));
+            && s.ReadySnarl && FamiliarCanTakeTankbuster(s));
 
     /// <summary> A cover Snarl for a registered tankbuster is worth pressing while at least this much time is left before the hit lands. </summary>
     public const float TankbusterSnarlMinLeadSeconds = 0.5f;
@@ -1045,17 +1032,6 @@ internal static class BST_CrucibleLogic
 
     /// <summary> Grim Fate (48730) lands as a five-hit string; the recorded hit sizes are one hit. Every other registered tankbuster is one hit. </summary>
     private static float HitsPerCast(uint castId) => castId == 48730 ? 5f : 1f;
-
-    /// <summary>
-    ///     The Parting Blow window of a known tankbuster is open (the hit lands within the lead time), whether or not Snarl set it up.
-    ///     Logged in the shadow field while the option is off, so a run can be graded (it had never been evaluated: 0 decisions).
-    /// </summary>
-    public static bool SnarlPartingWindow(in BstState s, in BstSettings cfg) =>
-        s.HasHostileTarget && FamiliarOut(s) && s.ReadyParting && !s.TargetDoNotAttack && !s.ProtectedNearTarget
-        && s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId)
-        && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) is > 0.2f and var landsIn
-        && landsIn <= cfg.CrucibleSnarlPartingLead
-        && s.TargetDistance <= 25f;
 
     // ------------------------------------------------------------------ tactics: add packs, windows, Self-destruct
 

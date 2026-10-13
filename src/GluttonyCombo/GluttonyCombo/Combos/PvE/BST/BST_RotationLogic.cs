@@ -191,12 +191,30 @@ internal static class BST_RotationLogic
     public enum DashLanding : byte
     {
         Safe = 0,
-        /// <summary> The landing spot, or the enemy itself, is inside a known danger zone (puddle, telegraph) or a temporary obstacle. </summary>
+        /// <summary> The landing point is inside a known danger zone (puddle, telegraph) or a temporary obstacle. Only the landing point is judged; an enemy centre in a zone is logged (SG| dh=danger-enemy), not held. </summary>
         Danger,
         /// <summary> The enemy is outside the arena bounds or cannot be reached (no line of sight). </summary>
         Unreachable,
         /// <summary> Nothing could answer (boss-mod IPC missing or failing). Blocks only on a Crucible board, where the void is real. </summary>
         Unknown,
+    }
+
+    /// <summary>
+    ///     The order the familiar is carrying out, from the Summon Order status on the familiar (<see cref="BST.PetOrderStatus"/>).
+    ///     <see cref="Unknown"/> is the default: a state built without a read, or a familiar whose statuses could not be read, falls
+    ///     back to how long ago the order was pressed.
+    /// </summary>
+    public enum PetOrder : byte
+    {
+        Unknown = 0,
+        /// <summary> Read, and no order status on the familiar. </summary>
+        None,
+        Trick,
+        /// <summary> Tempered Release (1964). </summary>
+        Release,
+        /// <summary> Parting Blow: the familiar is leaving (1965). </summary>
+        Recall,
+        Snarl,
     }
 
     /// <summary> Everything the engine needs for one tick. The live half fills it from the game. </summary>
@@ -303,6 +321,11 @@ internal static class BST_RotationLogic
         public float SinceCurtainsCast;           // since a Curtains KO cast was last seen on the target (stamped while the castbar runs); float.MaxValue when none recently
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
+
+        // core lane 2026-10-13
+        public PetOrder PetOrder;                 // the order the familiar is carrying out (Summon Order status on it); Unknown when not read
+        public float KnockbackCastRemaining;      // seconds left on the soonest known Crucible knockback cast in the arena (any caster), 0 = none
+        public bool ShieldChargeClipsGcd;         // a weave fits (CanWeave) but not Shield Charge's 1.1 s animation lock: dashing now delays the GCD
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -338,10 +361,8 @@ internal static class BST_RotationLogic
         public bool CrucibleScoreMode;
         public bool CrucibleCycleForDamage;
         public bool CruciblePrepullHorns;
+        /// <summary> Snarl a familiar into a known tankbuster it can survive (the cover Snarl). Config key BST_CrucibleSnarlParting, kept from when a Parting Blow followed the Snarl (Sep 17 hotfix: no longer dodges). </summary>
         public bool CrucibleSnarlParting;
-        public float CrucibleSnarlPartingLead;
-        /// <summary> The Parting Blow step after the tankbuster Snarl. Dormant (false, never set from the user's config): it hands the hit back to the character. </summary>
-        public bool CrucibleTankbusterParting;
         /// <summary> Crucible survival policy: board heal to the entry line, the aimed-hit guard and the panic heal (2026-10-03 deaths). </summary>
         public bool CrucibleSurvival;
         /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
@@ -378,8 +399,6 @@ internal static class BST_RotationLogic
             CrucibleCycleForDamage = false,
             CruciblePrepullHorns = false,
             CrucibleSnarlParting = true,
-            CrucibleSnarlPartingLead = 1.5f,
-            CrucibleTankbusterParting = false,
             CrucibleSurvival = true,
             CruciblePackWindow = false,
         };
@@ -576,22 +595,8 @@ internal static class BST_RotationLogic
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                 shadow = aggro.Reason;
 
-            // Snarl -> Parting Blow (dormant opt-in): the familiar covers the character, then leaves just before the tankbuster lands.
-            // Measured 2026-10-06: the enemy retargets the character 1.25 s after the familiar goes and the hit lands on it in ~92% of
-            // the casts, so by default only the Snarl runs (ChooseAggro) and the window below is just logged.
-            if (familiarOut && s.CanWeave && cfg.CrucibleSnarlParting && cfg.CrucibleTankbusterParting && BST_CrucibleLogic.SnarlPartingNow(s, cfg))
-            {
-                if (cfg.CrucibleAggro == CrucibleAggroMode.On)
-                    return Pick(BST.PartingBlow, "crucible:snarl-parting");
-                if (cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
-                    shadow = "crucible:snarl-parting";
-            }
-            else if (familiarOut && (!cfg.CrucibleSnarlParting || !cfg.CrucibleTankbusterParting) && cfg.CrucibleAggro != CrucibleAggroMode.Off
-                     && shadow.Length == 0 && BST_CrucibleLogic.SnarlPartingWindow(s, cfg))
-            {
-                // Not pressed (option off, or the Parting Blow step is dormant): the open window is logged so the dodge can be graded from a run.
-                shadow = "crucible:snarl-parting-off";
-            }
+            // No Parting Blow follows the tankbuster Snarl: the Sep 17 hotfix removes Cover just before a recall, so the hit goes back to the
+            // character (measured 2026-10-06: ~92% of the casts). The familiar covers the hit with Snarl alone (ChooseAggro).
 
             if (familiarOut)
             {
@@ -738,18 +743,31 @@ internal static class BST_RotationLogic
         }
 
         // ---------------------------------------------------------- 6. instinctual combos
-        var combo = ChooseInstinctual(s, beast, declines);
+        var combo = ChooseInstinctual(s, beast, declines, crucible);
         if (combo.ActionId == BST.Trick && crucible && s.ProtectedNearTarget)
             declines.Add("crucible:trick-protected-near");
+        // The L50 finishers hit everything around the target (Calamity: a line to it), an egg / morpho included.
+        else if (crucible && s.ProtectedNearTarget && combo.Reason.StartsWith("finisher:", System.StringComparison.Ordinal))
+            declines.Add("crucible:finisher-protected-near");
         else if (combo.ActionId != 0)
             return Pick(combo.ActionId, combo.Reason);
 
         // ---------------------------------------------------------- 7. Beast Mode
-        var beastMode = ChooseBeastMode(s, cfg);
+        var beastMode = ChooseBeastMode(s, cfg, declines);
         if (beastMode.ActionId == BST.Seedsower && crucible && s.ProtectedNearTarget)
             declines.Add("crucible:seedsower-protected-near");
         else if (beastMode.ActionId != 0)
             return Pick(beastMode.ActionId, beastMode.Reason);
+
+        // Shield Charge locks the character 1.1 s (core lane 2026-10-13): a window sized for a 0.6 s weave would push the GCD back.
+        if (s.ShieldChargeClipsGcd && s.CanWeave && s.ReadyShieldCharge && s.Level >= LvShieldCharge && s.ShieldChargeCharges > 0
+            && (cfg.UseShieldCharge || cfg.ShieldChargeOvercap))
+        {
+            // Recorded only where a dash was on the cards (a gap to close or a full pool), not on every GCD in melee.
+            if (s.TargetDistance > 3.5f || s.ShieldChargeCharges >= s.ShieldChargeMax)
+                declines.Add("shieldcharge:weave-too-short");
+            s = s with { CanWeave = false };
+        }
 
         // ---------------------------------------------------------- 8. Shield Charge
         // Overcap protection is an option for when the dash is switched off: the rotation then never uses it to
@@ -1001,7 +1019,7 @@ internal static class BST_RotationLogic
         s.Level >= LvBorrow && s.ReadyBorrow && !(s.KinshipHeld && s.KinshipSlot == s.ActiveSlot);
 
     /// <summary> Trick / axe pairing, chain follow-ups, L50 finishers, bare-axe and overcap rules. </summary>
-    public static (uint ActionId, string Reason) ChooseInstinctual(in BstState s, BeastmasterBeast? beast, List<string> declines)
+    public static (uint ActionId, string Reason) ChooseInstinctual(in BstState s, BeastmasterBeast? beast, List<string> declines, bool crucible = false)
     {
         if (s.Level < LvAvalancheAxe)
             return (0, "");
@@ -1013,12 +1031,22 @@ internal static class BST_RotationLogic
         var window = ComboWindowSeconds - 0.5f;
 
         // L50 finisher: Sun/Moon active and TP 250 -> the axe whose finisher is the OPPOSITE type (Universality).
-        if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe && targetInMelee)
+        // Hawkish Talons rushes to the target (Action sheet AffectsPosition); Risen Fall and Calamity do not move the character. The dash
+        // answers to the same landing check as Shield Charge, and where it may not land, Calamity (Gale Axe, a 10 y line) completes the
+        // Universality in its place. On a Crucible board the finishers stay melee-only; elsewhere they reach their real range (25 y).
+        if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe)
         {
-            if (s.SunMoon == BeastmasterAffinity.Moonstalker)
+            var reach = crucible ? 3.5f : FinisherRange;
+            if (s.SunMoon == BeastmasterAffinity.Moonstalker && s.TargetDistance <= reach)
                 return (BST.SpinningAxe, "finisher:risenfall-universality");
-            if (s.SunMoon == BeastmasterAffinity.Sunstrider)
-                return (BST.MistralAxe, "finisher:hawkishtalons-universality");
+            if (s.SunMoon == BeastmasterAffinity.Sunstrider && s.TargetDistance <= reach)
+            {
+                if (DashLandingDecline(s, crucible) is not { } blocked)
+                    return (BST.MistralAxe, "finisher:hawkishtalons-universality");
+                declines.Add(blocked.Replace("shieldcharge:", "finisher:hawkishtalons-"));
+                if (s.TargetDistance <= CalamityRange)
+                    return (BST.GaleAxe, "finisher:calamity-universality");
+            }
         }
 
         // Waiting on the pet's Heart after Trick: an axe now would resolve before the pet's skill.
@@ -1048,6 +1076,11 @@ internal static class BST_RotationLogic
         // Follow-up after the player's axe: Trick continues the chain (familiar TP permitting)...
         if (axeWasLast && familiarOut && s.FamiliarTp >= 100 && s.ReadyTrick && !locked)
         {
+            if (PetBusyDecline(s) is { } busy)
+            {
+                declines.Add(busy);
+                return (0, "");
+            }
             if (s.CanWeave && s.TargetDistance <= 25f)
                 return (BST.Trick, "combo:trick-after-axe");
             declines.Add("combo:trick-after-axe-waiting");
@@ -1068,6 +1101,12 @@ internal static class BST_RotationLogic
         // Start a pair: both gauges ready, not locked, axe recast free.
         if (familiarOut && order != ComboOrder.None && !locked && s.PlayerTp >= 100 && s.FamiliarTp >= 100 && s.ReadyAxe)
         {
+            // Either order ends in a Trick: neither starts while the familiar carries out a release or is leaving.
+            if (PetBusyDecline(s) is { } busy)
+            {
+                declines.Add(busy);
+                return (0, "");
+            }
             if (order == ComboOrder.TrickFirst)
             {
                 if (s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
@@ -1099,13 +1138,20 @@ internal static class BST_RotationLogic
 
         // Bare Trick: familiar TP about to overcap and the player cannot pair soon.
         if (familiarOut && s.Level >= LvTrick && s.FamiliarTp >= 238 && s.PlayerTp < 72 && s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
+        {
+            if (PetBusyDecline(s) is { } busy)
+            {
+                declines.Add(busy);
+                return (0, "");
+            }
             return (BST.Trick, "trick:overcap");
+        }
 
         return (0, "");
     }
 
     /// <summary> Beast Mode variant for the held Kinship (Soul Crush handled as an interrupt earlier). </summary>
-    public static (uint ActionId, string Reason) ChooseBeastMode(in BstState s, in BstSettings cfg)
+    public static (uint ActionId, string Reason) ChooseBeastMode(in BstState s, in BstSettings cfg, List<string>? declines = null)
     {
         if (!s.KinshipHeld || !s.ReadyBeastMode || s.Level < LvBorrow)
             return (0, "");
@@ -1114,6 +1160,18 @@ internal static class BST_RotationLogic
         {
             case BST.Beastskin when cfg.UseBeastskin && s.CanWeave:
                 return (BST.Beastskin, "beastmode:beastskin");
+            // Vileskin is 15 s of knockback / draw-in immunity: in a Crucible fight with a known knockback it waits for that cast and goes
+            // in with 3 s or less left on it, whoever the enemy targets (core lane 2026-10-13). Everywhere else: when the character is targeted.
+            case BST.Vileskin when cfg.UseVileskin
+                                   && cfg.Crucible && s.CrucibleBoard != 0 && BST.CrucibleKnockbacks.BattleHasKnockback(s.CrucibleBoard, s.CrucibleBattle):
+                if (s.KnockbackCastRemaining is > 0f and <= KnockbackVileskinLeadSeconds)
+                {
+                    if (s.CanWeave)
+                        return (BST.Vileskin, "beastmode:vileskin-knockback");
+                    break;
+                }
+                declines?.Add("vileskin:held-for-knockback");
+                break;
             case BST.Vileskin when cfg.UseVileskin && s.CanWeave && s.PlayerTargetedByEnemy:
                 return (BST.Vileskin, "beastmode:vileskin");
             case BST.Scaleskin when cfg.UseScaleskin && s.CanWeave && s.PlayerTargetedByEnemy:
@@ -1128,4 +1186,47 @@ internal static class BST_RotationLogic
 
         return (0, "");
     }
+
+    // ------------------------------------------------------------------ core lane 2026-10-13
+
+    /// <summary> Shield Charge locks the character for 1.1 s (BMR and vbm action data), not the 0.6 s a plain weave check assumes. </summary>
+    public const float ShieldChargeAnimationLock = 1.1f;
+
+    /// <summary> With the familiar's statuses unreadable, a Tempered Release pressed this recently is still being carried out (1964 lasts up to 3.9 s on the worm, p90). </summary>
+    public const float PetBusyAfterTemperedSeconds = 4.5f;
+
+    /// <summary> With the familiar's statuses unreadable, a Parting Blow pressed this recently means the familiar is still leaving. </summary>
+    public const float PetBusyAfterPartingSeconds = 3f;
+
+    /// <summary> An order pressed this recently whose status has not reached the familiar yet (it lands with the effect) is still in flight. </summary>
+    public const float PetOrderInFlightSeconds = 1f;
+
+    /// <summary> Vileskin (15 s of knockback immunity) goes in with this much or less left on a known knockback cast. </summary>
+    public const float KnockbackVileskinLeadSeconds = 3f;
+
+    /// <summary> Range of Brutal Rage, Hawkish Talons and Risen Fall (Action sheet 44930-44932). </summary>
+    public const float FinisherRange = 25f;
+
+    /// <summary> Range of Calamity, a 10 y line (Action sheet 44933). </summary>
+    public const float CalamityRange = 10f;
+
+    /// <summary> Ask where a dash would land this tick: Shield Charge is on the table, or a Sunstrider finisher (Hawkish Talons dashes). </summary>
+    public static bool DashLandingWanted(in BstState s) =>
+        s.HasHostileTarget
+        && ((s.ReadyShieldCharge && s.Level >= LvShieldCharge)
+            || (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe && s.SunMoon == BeastmasterAffinity.Sunstrider));
+
+    /// <summary>
+    ///     Why a Trick must not go to the familiar now, or null when it may: a Tempered Release or Parting Blow order is on it
+    ///     (<c>trick:pet-busy-order</c>); its statuses could not be read and one of those was pressed recently (<c>trick:pet-busy-timer</c>);
+    ///     or one was pressed under <see cref="PetOrderInFlightSeconds"/> ago and its status has not landed yet (<c>trick:pet-order-in-flight</c>).
+    /// </summary>
+    public static string? PetBusyDecline(in BstState s) => s.PetOrder switch
+    {
+        PetOrder.Release or PetOrder.Recall => "trick:pet-busy-order",
+        PetOrder.Unknown => s.SinceTempered < PetBusyAfterTemperedSeconds || s.SincePartingBlow < PetBusyAfterPartingSeconds
+            ? "trick:pet-busy-timer" : null,
+        _ => s.SinceTempered < PetOrderInFlightSeconds || s.SincePartingBlow < PetOrderInFlightSeconds
+            ? "trick:pet-order-in-flight" : null,
+    };
 }

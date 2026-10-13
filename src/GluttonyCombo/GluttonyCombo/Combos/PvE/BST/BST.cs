@@ -1,5 +1,6 @@
 #region Dependencies
 
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
@@ -99,8 +100,6 @@ internal partial class BST : Melee
         CrucibleCycleForDamage = BST_CrucibleCycleForDamage,
         CruciblePrepullHorns = BST_CruciblePrepullHorns,
         CrucibleSnarlParting = BST_CrucibleSnarlParting,
-        CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
-        CrucibleTankbusterParting = false, // dormant: measured to hand the tankbuster back to the character (see BstSettings)
         CrucibleSurvival = BST_CrucibleSurvival,
         CruciblePackWindow = BST_CruciblePackWindow,
     };
@@ -250,6 +249,8 @@ internal partial class BST : Melee
             // summons and familiar commands (all 25-30 y) while closing in - treat an idle GCD out of melee
             // with no animation lock as a free window.
             CanWeave = CanWeave() || (RemainingGCD <= 0f && AnimationLock <= 0.05f && !player.IsCasting && !InMeleeRange()),
+            // Shield Charge locks the character 1.1 s, not the 0.6 s CanWeave() assumes (core lane 2026-10-13).
+            ShieldChargeClipsGcd = CanWeave() && !CanWeave(BST_RotationLogic.ShieldChargeAnimationLock),
             SinceSummon = slot != 0 ? SecondsSince(_familiarArrivedTick) : 0f,
             SinceHornPress = Math.Min(SinceUsed(FirstBattlehorn), Math.Min(SinceUsed(SecondBattlehorn), SinceUsed(ThirdBattlehorn))),
             SinceTrick = SinceUsed(Trick),
@@ -300,6 +301,10 @@ internal partial class BST : Melee
             s.PetObjectBeast = BST_Beasts.RowFromBNpcBase(petObject.BaseId);
             s.PetObjectPresent = slot != 0 || s.SinceHornPress < 4f;
         }
+
+        // The order the familiar is carrying out: the Summon Order status on the familiar (core lane 2026-10-13). Any owner, like the
+        // player statuses below. No familiar object, or not a battle character: Unknown, and the engine falls back to the press timers.
+        s.PetOrder = ReadPetOrder(petObject);
 
         // Player statuses. anyOwner: the Hearts, Wavering Heart and Sun/Moon carry NO source actor in the
         // network log (source E0000000), so the default player-owned filter would never see them.
@@ -364,11 +369,17 @@ internal partial class BST : Melee
         s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
         s.ReadyShieldCharge = ActionReady(ShieldCharge);
-        // Where an auto-fired dash would land: asked only while a dash is actually on the table (one boss-mod IPC call).
-        if (s.ReadyShieldCharge && s.HasHostileTarget && s.Level >= BST_RotationLogic.LvShieldCharge)
+        // Where an auto-fired dash would land: asked only while a dash is actually on the table (one boss-mod IPC call): Shield Charge,
+        // or a Sunstrider finisher (Hawkish Talons rushes to the target).
+        if (BST_RotationLogic.DashLandingWanted(s))
             s.DashLanding = ReadDashLanding();
 
         ReadCrucible(ref s);
+
+        // The soonest known knockback cast in the arena, from any caster (most are invisible helpers), read only in a fight that has one
+        // (core lane 2026-10-13): Vileskin waits for it.
+        s.KnockbackCastRemaining = s.CrucibleBoard != 0 && CrucibleKnockbacks.BattleHasKnockback(s.CrucibleBoard, s.CrucibleBattle)
+            ? ReadKnockbackCast() : 0f;
 
         // Why the gap-close did not fire this tick, mirroring the section-8 gate order, so an SG| range line can
         // name it (2026-10-04: standing-still stalls could not be attributed - charge economy vs hold vs config).
@@ -384,6 +395,37 @@ internal partial class BST : Melee
             null;
 
         return s;
+    }
+
+    /// <summary> The familiar's current order from its Summon Order statuses (recall first, then release, Trick, Snarl). </summary>
+    private static BST_RotationLogic.PetOrder ReadPetOrder(IGameObject? pet)
+    {
+        if (pet is not IBattleChara)
+            return BST_RotationLogic.PetOrder.Unknown;
+        if (HasStatusEffect(PetOrderStatus.Recall, pet, anyOwner: true))
+            return BST_RotationLogic.PetOrder.Recall;
+        if (HasStatusEffect(PetOrderStatus.Release, pet, anyOwner: true))
+            return BST_RotationLogic.PetOrder.Release;
+        if (HasStatusEffect(PetOrderStatus.Trick, pet, anyOwner: true))
+            return BST_RotationLogic.PetOrder.Trick;
+        if (HasStatusEffect(PetOrderStatus.Snarl, pet, anyOwner: true))
+            return BST_RotationLogic.PetOrder.Snarl;
+        return BST_RotationLogic.PetOrder.None;
+    }
+
+    /// <summary> Seconds left on the soonest known Crucible knockback cast by anything in the arena, 0 when none is being cast. </summary>
+    private static float ReadKnockbackCast()
+    {
+        var soonest = 0f;
+        foreach (var obj in Svc.Objects)
+        {
+            if (obj is not IBattleChara caster || !caster.IsCasting || !CrucibleKnockbacks.IsKnockbackCast(caster.CastActionId))
+                continue;
+            var left = caster.TotalCastTime - caster.CurrentCastTime;
+            if (left > 0f && (soonest == 0f || left < soonest))
+                soonest = left;
+        }
+        return soonest;
     }
 
     /// <summary> <c>ActionManager.GetAdjustedActionId</c>, safe when the manager is unavailable. </summary>
