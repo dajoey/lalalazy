@@ -3798,6 +3798,16 @@
     }
    ],
    "counters": [],
+   "mitigate": [
+    {
+     "kind": "physical",
+     "what": "Sweeping Evisceration, a physical hit on the enmity holder",
+     "src": [
+      "YT",
+      "LOG"
+     ]
+    }
+   ],
    "threats": [
     "knockback",
     "roomwide",
@@ -4614,6 +4624,24 @@
     }
    ],
    "counters": [],
+   "mitigate": [
+    {
+     "kind": "poison",
+     "what": "Toxic Vomit and the Toxin, which cannot be cleansed",
+     "src": [
+      "R",
+      "IV"
+     ]
+    },
+    {
+     "kind": "magic",
+     "what": "Toxic Mass puddles and breath, flat magic damage",
+     "src": [
+      "R",
+      "IV"
+     ]
+    }
+   ],
    "threats": [
     "poison",
     "adds",
@@ -5540,6 +5568,18 @@
     }
    ],
    "counters": [],
+   "mitigate": [
+    {
+     "kind": "magic",
+     "what": "Atomic Ray, a room-wide magic hit",
+     "src": [
+      "AS",
+      "R",
+      "IV",
+      "YT"
+     ]
+    }
+   ],
    "threats": [
     "knockback",
     "roomwide",

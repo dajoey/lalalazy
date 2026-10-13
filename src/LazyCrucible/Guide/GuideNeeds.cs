@@ -32,9 +32,21 @@ internal static class GuideNeeds
     /// </summary>
     public static string Log(CrucibleSelection selection) =>
         string.Join(";", selection.Needs.Select(s =>
-            $"{(s.Need.Kind == CrucibleNeeds.Interrupt ? "I" : s.Need.Kind == CrucibleNeeds.Dispel ? "D" : "C")}:"
-            + $"{(s.Need.Tier == CrucibleNeedTier.Required ? "R" : "U")}:"
-            + (s.Covered ? s.Row.ToString() : "miss=" + s.WhyNot)));
+                $"{(s.Need.Kind == CrucibleNeeds.Interrupt ? "I" : s.Need.Kind == CrucibleNeeds.Dispel ? "D" : "C")}:"
+                + $"{(s.Need.Tier == CrucibleNeedTier.Required ? "R" : "U")}:"
+                + (s.Covered ? s.Row.ToString() : "miss=" + s.WhyNot))
+            .Concat(selection.Mitigation.Select(m => MitigationLog(m.Need.Kind, m.Row))));
+
+    /// <summary> One mitigation need as a log entry: <c>M:magic:35</c>, or <c>M:poison:miss</c> when no pick answers it. </summary>
+    private static string MitigationLog(CrucibleMitigation kind, int row) =>
+        $"M:{BST_CrucibleMitigation.Word(kind)}:{(row == 0 ? "miss" : row.ToString())}";
+
+    /// <summary> What the guide's "Calls for" block shows for each mitigation need: the kind, what for, and who answers it with which skill. </summary>
+    public static List<(string Tool, string What, IReadOnlyList<string> Src, int CoveredBy, string Skill)> MitigationRows(CrucibleSelection selection) =>
+        selection.Mitigation
+            .Select(m => ($"mitigation ({BST_CrucibleMitigation.Word(m.Need.Kind)})", m.Need.What, m.Need.Src, m.Row,
+                m.Covered ? BST_CrucibleMitigation.AnswerName(m.Row, m.Need.Kind) : ""))
+            .ToList();
 
     /// <summary>
     ///     The fight's ability needs graded against the rows actually standing on the horn (the <c>HC|</c> line,
@@ -56,6 +68,12 @@ internal static class GuideNeeds
                 continue;
             var cover = rows.FirstOrDefault(r => (BST_CrucibleAdvisor.Answers(r) & kind) != 0);
             parts.Add(Letter(kind) + ":" + (required ? "R" : "U") + ":" + (cover == 0 ? "miss" : cover.ToString()));
+        }
+        foreach (var kind in BST_CrucibleMitigation.Kinds)
+        {
+            if ((model.Mitigation & kind) == 0)
+                continue;
+            parts.Add(MitigationLog(kind, rows.FirstOrDefault(r => (BST_CrucibleMitigation.Answers(r) & kind) != 0)));
         }
         return string.Join(";", parts);
     }

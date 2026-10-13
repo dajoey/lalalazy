@@ -57,6 +57,20 @@ public sealed class GuideCounter
     };
 }
 
+/// <summary>
+///     Damage the fight calls to be blunted: <c>magic</c> (a Scalekin's Scaleskin, drake's Smoldering Scales, pugil's Water Wall),
+///     <c>poison</c> (coblyn's Vulcanize) or <c>physical</c> (a Beastkin's Beastskin, coblyn's Vulcanize, adamantoise's Harden Shell).
+///     The horn picks rank it below every counter (<see cref="CrucibleNeedModel.MitigationItems"/>).
+/// </summary>
+public sealed class GuideMitigation
+{
+    [JsonPropertyName("kind")] public string Kind { get; set; } = "";
+    [JsonPropertyName("what")] public string What { get; set; } = "";
+    [JsonPropertyName("src")] public List<string> Src { get; set; } = [];
+
+    public CrucibleMitigation AsKind => BST_CrucibleMitigation.FromWord(Kind);
+}
+
 /// <summary> Everything the guide knows about one battle. </summary>
 public sealed class GuideFight
 {
@@ -69,6 +83,7 @@ public sealed class GuideFight
     [JsonPropertyName("mechanics")] public List<GuideMechanic> Mechanics { get; set; } = [];
     [JsonPropertyName("hits")] public List<GuideMechanic> Hits { get; set; } = [];
     [JsonPropertyName("counters")] public List<GuideCounter> Counters { get; set; } = [];
+    [JsonPropertyName("mitigate")] public List<GuideMitigation> Mitigate { get; set; } = [];
     [JsonPropertyName("threats")] public List<string> Threats { get; set; } = [];
     [JsonPropertyName("bring")] public List<GuideNote> Bring { get; set; } = [];
     [JsonPropertyName("unknown")] public List<string> Unknown { get; set; } = [];
@@ -134,8 +149,23 @@ internal sealed class CrucibleGuide
         return needs;
     }
 
-    /// <summary> Make this guide's counters part of every horn pick (and clear the cached need models). </summary>
-    public void InstallNeedModel() => CrucibleNeedModel.Extras = NeedsOf;
+    /// <summary> The fight's mitigation lines as needs (ranked below every counter by the horn picks). </summary>
+    public IReadOnlyList<CrucibleMitigationNeed> MitigationOf(int board, int battle)
+    {
+        var needs = new List<CrucibleMitigationNeed>();
+        if (Fight(board, battle) is { } f)
+            foreach (var m in f.Mitigate)
+                if (m.AsKind != CrucibleMitigation.None)
+                    needs.Add(new(m.AsKind, m.What, m.Src));
+        return needs;
+    }
+
+    /// <summary> Make this guide's counters and mitigation lines part of every horn pick (and clear the cached need models). </summary>
+    public void InstallNeedModel()
+    {
+        CrucibleNeedModel.Extras = NeedsOf;
+        CrucibleNeedModel.MitigationExtras = MitigationOf;
+    }
 
     /// <summary> The fight's threats, or none when the fight is missing (used by <see cref="RunContext.Build"/>). </summary>
     public CrucibleThreat ThreatsOf(int board, int battle) => Fight(board, battle)?.ThreatFlags ?? CrucibleThreat.None;
@@ -220,6 +250,13 @@ internal sealed class CrucibleGuide
             }
             if ((panel & ~listed) != CrucibleNeeds.None)
                 problems.Add($"{f.Board}:{f.Battle} panel needs {panel & ~listed} missing from counters");
+            foreach (var m in f.Mitigate)
+            {
+                if (m.AsKind == CrucibleMitigation.None)
+                    problems.Add($"{f.Board}:{f.Battle} unknown mitigate kind '{m.Kind}'");
+                if (m.Src.Count == 0)
+                    problems.Add($"{f.Board}:{f.Battle} mitigate '{m.Kind}' cites no source");
+            }
         }
 
         foreach (var b in BST_CrucibleData.Battles)
@@ -238,6 +275,9 @@ internal sealed class CrucibleGuide
                 yield return s;
         foreach (var c in f.Counters)
             foreach (var s in c.Src)
+                yield return s;
+        foreach (var m in f.Mitigate)
+            foreach (var s in m.Src)
                 yield return s;
         foreach (var b in f.Bring)
             foreach (var s in b.Src)

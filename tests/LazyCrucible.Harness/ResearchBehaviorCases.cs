@@ -123,6 +123,7 @@ internal static class ResearchBehaviorCases
         {
             var fk = $"{f.Board}.{f.Battle}";
             for (var i = 0; i < f.Counters.Count; i++) list.Add(($"{fk}/c{i}", $"{f.Counters[i].Need}: {f.Counters[i].What}"));
+            for (var i = 0; i < f.Mitigate.Count; i++) list.Add(($"{fk}/g{i}", $"mitigate {f.Mitigate[i].Kind}: {f.Mitigate[i].What}"));
             for (var i = 0; i < f.Bring.Count; i++) list.Add(($"{fk}/b{i}", f.Bring[i].Text));
             if (f.KillOrder is { } ko) list.Add(($"{fk}/k0", ko.Text));
             for (var i = 0; i < f.Mechanics.Count; i++) list.Add(($"{fk}/m{i}", $"{f.Mechanics[i].Name} | {f.Mechanics[i].Tell} | {f.Mechanics[i].Do}"));

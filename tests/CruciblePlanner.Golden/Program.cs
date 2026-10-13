@@ -9,7 +9,7 @@ namespace CruciblePlanner.Golden;
 ///     (docs/crucible/advisor.js) can be proven identical. Deterministic: no randomness, no game reads.
 ///     Two parts: the point score (<see cref="BST_CrucibleAdvisor.Score"/>, still the tie-break inside the picker)
 ///     and the need-first horn picks (<see cref="BST_CrucibleNeedFirst"/> over <see cref="CrucibleNeedModel"/>, with the
-///     LazyCrucible guide installed so Required / Useful tiers are the ones the plugin uses).
+///     LazyCrucible guide installed so Required / Useful tiers and the mitigation lines are the ones the plugin uses).
 /// </summary>
 internal static class Program
 {
@@ -17,12 +17,15 @@ internal static class Program
 
     private sealed record NeedOut(int Kind, int Tier, string What, string[] Src, int Row, string? WhyNot);
 
+    private sealed record MitigationOut(int Kind, string What, string[] Src, int Row);
+
     private static PickOut Out(CrucibleBeastPick p) => new(p.Row, p.Score, p.Captured, p.Why);
 
     private static object SelectionOut(CrucibleSelection sel) => new
     {
         picks = sel.Picks.Select(Out).ToList(),
         needs = sel.Needs.Select(n => new NeedOut((int)n.Need.Kind, (int)n.Need.Tier, n.Need.What, [.. n.Need.Src], n.Row, n.WhyNot)).ToList(),
+        mitigation = sel.Mitigation.Select(m => new MitigationOut((int)m.Need.Kind, m.Need.What, [.. m.Need.Src], m.Row)).ToList(),
     };
 
     private static int Main(string[] args)
@@ -108,6 +111,8 @@ internal static class Program
                     required = (int)model.Required,
                     useful = (int)model.Useful,
                     crowdControl = (int)model.CrowdControl,
+                    mitigationItems = model.MitigationItems.Select(i => new { kind = (int)i.Kind, what = i.What, src = i.Src.ToArray() }).ToList(),
+                    mitigation = (int)model.Mitigation,
                 });
             }
 

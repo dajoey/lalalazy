@@ -71,11 +71,86 @@ internal static class NeedFirstCases
             RunCases(guide);
             NewBehaviour(guide);
             BoardRosterCases();
+            MitigationCases(guide);
         }
         finally
         {
             CrucibleNeedModel.Extras = null;
+            CrucibleNeedModel.MitigationExtras = null;
         }
+    }
+
+    /// <summary>
+    ///     The mitigation need (community picks checked against the 7.56 ability text): Durga's Atomic Ray wants a magic answer (drake's
+    ///     Smoldering Scales, pugil's Water Wall, a Scalekin's Scaleskin), Borgny a poison answer (coblyn's Vulcanize) and a magic one,
+    ///     Gargoyle's Sweeping Evisceration a physical one (a Beastkin's Beastskin, coblyn's Vulcanize, adamantoise's Harden Shell). It
+    ///     ranks below every interrupt / dispel / cleanse need, so it never displaces an ability answer, and a fight without it picks
+    ///     exactly as before.
+    /// </summary>
+    private static void MitigationCases(CrucibleGuide guide)
+    {
+        Console.WriteLine("-- mitigation need (below every ability need) --");
+        var allRows = Enumerable.Range(1, BST_Beasts.Count).ToList();
+        var full = new Dictionary<int, int>();
+        CrucibleSelection Sel(int board, int battle, IReadOnlyList<int> rows) => BST_CrucibleNeedFirst.Select(board, battle, rows, full, 3, "in the roster");
+        string Show(CrucibleSelection s) => string.Join(" | ", s.Picks.Select(p => $"{BST_Beasts.All[p.Row].Name} ({p.Why})"));
+
+        var durga = Sel(5, 6, allRows);
+        Check("Durga (Atomic Ray, magic) with every familiar owned: the drake is a horn pick (Smoldering Scales)",
+            durga.Picks.Any(p => p.Row == BST_CrucibleMitigation.DrakeRow && p.Why.Contains("Smoldering Scales")), Show(durga));
+        Check("Durga: the selection reports the magic need covered by the drake",
+            durga.Mitigation.Count == 1 && durga.Mitigation[0].Need.Kind == CrucibleMitigation.Magic && durga.Mitigation[0].Row == BST_CrucibleMitigation.DrakeRow,
+            string.Join(",", durga.Mitigation.Select(m => $"{m.Need.Kind}:{m.Row}")));
+        var durgaNoDrake = Sel(5, 6, [2, 29, 39, 5, 26, 21]);
+        Check("Durga without a drake: a Scalekin (ziz, Scaleskin) takes the third horn over a better-scoring familiar",
+            durgaNoDrake.Picks.Any(p => p.Row == 21 && p.Why.Contains("Scaleskin")), Show(durgaNoDrake));
+
+        var borgny = Sel(4, 0, allRows);
+        Check("Borgny with every familiar owned: the coblyn (Vulcanize, poison) and a magic answer are horn picks, the worm (earth) keeps the third",
+            borgny.Picks.Any(p => p.Row == BST_CrucibleMitigation.CoblynRow)
+            && borgny.Picks.Any(p => (BST_CrucibleMitigation.Answers(p.Row) & CrucibleMitigation.Magic) != 0)
+            && borgny.Picks.Any(p => p.Row == 28), Show(borgny));
+        var borgnyDrake = Sel(4, 0, [28, 6, 23, 36, 35, 7]);
+        Check("Borgny with the earth familiars, a drake and a coblyn owned: the drake and the coblyn are picked",
+            borgnyDrake.Picks.Any(p => p.Row == BST_CrucibleMitigation.DrakeRow) && borgnyDrake.Picks.Any(p => p.Row == BST_CrucibleMitigation.CoblynRow),
+            Show(borgnyDrake));
+
+        var gargoyle = Sel(4, 5, [8, 16, 18, 22, 32, 46, BST_CrucibleMitigation.CoblynRow]);
+        Check("Gargoyle (Sweeping Evisceration, physical) with no Beastkin owned: the coblyn (Vulcanize) is a horn pick",
+            gargoyle.Picks.Any(p => p.Row == BST_CrucibleMitigation.CoblynRow), Show(gargoyle));
+
+        // Never displaces an ability answer, and changes nothing where the guide lists no mitigation.
+        int[][] rosters =
+        [
+            [.. allRows], [.. allRows.Where(r => BST_Beasts.All[r].CaptureLevel <= 30)], [.. allRows.Where(r => BST_Beasts.All[r].CaptureLevel <= 40)],
+            [1, 10, 6, 7, 5, 20], [4, 7, 11, 19, 35, 14, 26, 13, 18, 23],
+        ];
+        var displaced = new List<string>();
+        var changed = new List<string>();
+        foreach (var b in BST_CrucibleData.Battles)
+            foreach (var roster in rosters)
+            {
+                var withMit = Sel(b.Board, b.Battle, roster);
+                CrucibleNeedModel.MitigationExtras = null;
+                var without = Sel(b.Board, b.Battle, roster);
+                guide.InstallNeedModel();
+                var coveredWith = string.Join(",", withMit.Needs.Select(n => n.Covered));
+                var coveredWithout = string.Join(",", without.Needs.Select(n => n.Covered));
+                if (coveredWith != coveredWithout)
+                    displaced.Add($"{b.Board}:{b.Battle}");
+                if (CrucibleNeedModel.For(b.Board, b.Battle).MitigationItems.Count == 0
+                    && !withMit.Picks.Select(p => (p.Row, p.Why)).SequenceEqual(without.Picks.Select(p => (p.Row, p.Why))))
+                    changed.Add($"{b.Board}:{b.Battle}");
+            }
+        Check("mitigation never displaces an ability answer: every interrupt / dispel / cleanse need is covered exactly as without it (45 fights x 5 rosters)",
+            displaced.Count == 0, string.Join(",", displaced.Distinct().Take(5)));
+        Check("a fight with no mitigation line picks exactly as before (45 fights x 5 rosters)", changed.Count == 0, string.Join(",", changed.Distinct().Take(5)));
+
+        CrucibleNeedModel.MitigationExtras = null;
+        var gluttonyView = Sel(5, 6, allRows);
+        Check("without the guide's mitigation lines (GluttonyCombo installs none) Durga picks as before: no drake",
+            gluttonyView.Picks.All(p => p.Row != BST_CrucibleMitigation.DrakeRow) && gluttonyView.Mitigation.Count == 0, Show(gluttonyView));
+        guide.InstallNeedModel();
     }
 
     private static void RunCases(CrucibleGuide guide)

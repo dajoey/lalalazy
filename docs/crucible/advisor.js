@@ -14,9 +14,17 @@ const ALL_ABILITIES = NEEDS.Interrupt | NEEDS.Dispel | NEEDS.Cleanse;
 export const KIN = { None: 0, Beastkin: 1, Vilekin: 2, Cloudkin: 3, Seedkin: 4, Wavekin: 5, Scalekin: 6, Soulkin: 7, Ashkin: 8 };
 export const RELEASE = { Damage: 1, AoE: 2, Exit: 4, Sleep: 8, Knockback: 16, DrawIn: 32, CrowdControl: 64, TargetDebuff: 128, PartyBuff: 256, Mitigation: 512, PetBuff: 1024, PetCast: 2048 };
 export const INT_MIN = -2147483648;
+/** CrucibleMitigation (BST_CrucibleMitigation.cs): damage a fight calls to be blunted. */
+export const MITIGATION = { None: 0, Magic: 1, Poison: 2, Physical: 4 };
+/** Mitigation kinds in report order (BST_CrucibleMitigation.Kinds). */
+export const MIT_KINDS = [MITIGATION.Magic, MITIGATION.Poison, MITIGATION.Physical];
 
 const VULTURE_ROW = 11;
 const BAT_ROW = 19;
+const PUGIL_ROW = 4;
+const COBLYN_ROW = 7;
+const ADAMANTOISE_ROW = 25;
+const DRAKE_ROW = 35;
 const HP_FACTOR_FLOOR = 0.20;
 const CROWD_CONTROL_BITS = 0x7FF & ~(1 << 3);
 const STAT = { Str: 0, Int: 1, PhysRes: 2, MagRes: 3, Con: 4 };
@@ -76,6 +84,29 @@ export function createAdvisor(data) {
     if (beast.kin === KIN.Wavekin || row === VULTURE_ROW) needs |= NEEDS.Dispel;
     if (beast.kin === KIN.Ashkin || row === BAT_ROW) needs |= NEEDS.Cleanse;
     return needs;
+  }
+
+  /** The mitigation kinds a familiar answers (BST_CrucibleMitigation.Answers). */
+  function mitAnswers(row) {
+    const beast = byRow(row);
+    if (!beast) return MITIGATION.None;
+    let m = MITIGATION.None;
+    if (beast.kin === KIN.Scalekin || row === DRAKE_ROW || row === PUGIL_ROW) m |= MITIGATION.Magic;
+    if (row === COBLYN_ROW) m |= MITIGATION.Poison | MITIGATION.Physical;
+    if (beast.kin === KIN.Beastkin || row === ADAMANTOISE_ROW) m |= MITIGATION.Physical;
+    return m;
+  }
+
+  /** The skill that answers a mitigation kind for this familiar (BST_CrucibleMitigation.AnswerName). */
+  function mitName(row, kind) {
+    if (kind === MITIGATION.Magic) return row === DRAKE_ROW ? 'Smoldering Scales' : row === PUGIL_ROW ? 'Water Wall' : 'Scaleskin';
+    if (kind === MITIGATION.Poison) return 'Vulcanize';
+    return row === COBLYN_ROW ? 'Vulcanize' : row === ADAMANTOISE_ROW ? 'Harden Shell' : 'Beastskin';
+  }
+
+  /** The mitigation kind as one word (BST_CrucibleMitigation.Word). */
+  function mitWord(kind) {
+    return kind === MITIGATION.Magic ? 'magic' : kind === MITIGATION.Poison ? 'poison' : 'physical';
   }
 
   function score(board, battle, row, covered, why = null, weaknessPicks = 0) {
@@ -208,7 +239,11 @@ export function createAdvisor(data) {
       any |= i.kind;
       if (i.tier === TIER.Required) required |= i.kind;
     }
-    const model = { board, battle, items, required, useful: any & ~required, crowdControl: cc };
+    // The guide's mitigation lines (CrucibleNeedModel.MitigationItems): ranked below every ability need by the picker.
+    const mitigationItems = guide ? (guide.mitigate || []).map((m) => ({ kind: m.kind, what: m.what, src: m.src })) : [];
+    let mitigation = MITIGATION.None;
+    for (const m of mitigationItems) mitigation |= m.kind;
+    const model = { board, battle, items, required, useful: any & ~required, crowdControl: cc, mitigationItems, mitigation };
     needModels.set(key, model);
     return model;
   }
@@ -257,6 +292,8 @@ export function createAdvisor(data) {
     const chosen = [];
     let covered = NEEDS.None;
     const coveredBy = new Map();
+    let mitCovered = MITIGATION.None;
+    const mitCoveredBy = new Map();
     const taken = new Set();
     let weaknessPicks = 0;
 
@@ -267,25 +304,31 @@ export function createAdvisor(data) {
         const ans = answers(c.row);
         const req = ans & model.required & ~covered;
         const use = ans & model.useful & ~covered;
-        const key = [popCount(req), popCount(use), priority(req), priority(use), points(board, battle, c, weaknessPicks), c.hp, -c.row];
+        // Mitigation sits after every ability term: it only decides between familiars covering the same ability needs.
+        const mit = mitAnswers(c.row) & model.mitigation & ~mitCovered;
+        const key = [popCount(req), popCount(use), priority(req), priority(use), popCount(mit), points(board, battle, c, weaknessPicks), c.hp, -c.row];
         if (best === null || compareKeys(key, bestKey) > 0) { best = c; bestKey = key; }
       }
       if (best === null) break;
 
       const now = answers(best.row) & (model.required | model.useful) & ~covered;
       for (const kind of KINDS) if ((now & kind) !== 0) coveredBy.set(kind, best.row);
-      chosen.push({ c: best, now, weak: weaknessPicks });
+      const mitNow = mitAnswers(best.row) & model.mitigation & ~mitCovered;
+      for (const kind of MIT_KINDS) if ((mitNow & kind) !== 0) mitCoveredBy.set(kind, best.row);
+      chosen.push({ c: best, now, mitNow, weak: weaknessPicks });
       taken.add(best.row);
       covered |= now;
+      mitCovered |= mitNow;
       if (hitsWeakness(board, battle, best.row)) weaknessPicks++;
     }
 
-    const picks = chosen.map(({ c, now, weak }) => {
+    const picks = chosen.map(({ c, now, mitNow, weak }) => {
       const why = [];
       for (const kind of KINDS) {
         if ((now & kind) === 0) continue;
         why.push(abilityName(c.row, kind) + ((model.required & kind) !== 0 ? '' : ' (useful)'));
       }
+      for (const kind of MIT_KINDS) if ((mitNow & kind) !== 0) why.push(`${mitName(c.row, kind)} vs ${mitWord(kind)}`);
       score(board, battle, c.row, ALL_ABILITIES, why, weak);
       if (!c.hpKnown) why.push('HP assumed full');
       else if (c.hp < 100) why.push(`HP ${c.hp}%`);
@@ -298,8 +341,9 @@ export function createAdvisor(data) {
     const needs = model.items.map((item) => (coveredBy.has(item.kind)
       ? { need: item, row: coveredBy.get(item.kind), whyNot: null }
       : { need: item, row: 0, whyNot: whyUncovered(item.kind, everyone, slots, pool) }));
+    const mitigation = model.mitigationItems.map((item) => ({ need: item, row: mitCoveredBy.get(item.kind) ?? 0 }));
 
-    return { picks: picks.map((p) => p.pick), needs };
+    return { picks: picks.map((p) => p.pick), needs, mitigation };
   }
 
   /** The fixed-roster view with every captured familiar at full HP. captured: (row) => boolean. */
@@ -376,5 +420,5 @@ export function createAdvisor(data) {
     return map;
   }
 
-  return { answers, score, hpFactor, effectiveScore, hitsWeakness, hpPercentByRow, needModel, select, selectCaptured, pick, worthCapturing, boardRoster, maxStat };
+  return { answers, mitAnswers, mitName, mitWord, score, hpFactor, effectiveScore, hitsWeakness, hpPercentByRow, needModel, select, selectCaptured, pick, worthCapturing, boardRoster, maxStat };
 }

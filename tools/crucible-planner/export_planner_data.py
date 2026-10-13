@@ -7,7 +7,8 @@ generate the plugin's C# tables, so the web advisor and the in-game advisor read
                   parsed from src/Shared/LalaCrucible/BST_Beasts.cs (kin, release traits, capture level) and
                   needItems: each fight's guide counters with their Required / Useful tier (the tier rule of
                   GuideCounter.Tier in src/LazyCrucible/Guide/CrucibleGuide.cs, applied to CrucibleGuide.json),
-                  the extras LazyCrucible installs into CrucibleNeedModel so the need-first picks agree.
+                  the extras LazyCrucible installs into CrucibleNeedModel so the need-first picks agree, and
+                  each fight's "mitigate" lines (kind 1 magic / 2 poison / 4 physical; CrucibleNeedModel.MitigationExtras).
   boards.json   - board graphs for the map UI from tools/crucible-planner/sheets/crucible_map.json
                   (nodes with map coordinates, edges, per-battle enemy panels with casts and statuses, bonus points).
   version.json  - game version key and export time.
@@ -37,6 +38,8 @@ RELEASE = {"None": 0, "Damage": 1, "AoE": 2, "Exit": 4, "Sleep": 8, "Knockback":
            "TargetDebuff": 128, "PartyBuff": 256, "Mitigation": 512, "PetBuff": 1024, "PetCast": 2048}
 NEEDS = {"Interrupt": 1, "Dispel": 2, "Cleanse": 4}
 GUIDE_NEEDS = {"interrupt": 1, "dispel": 2, "cleanse": 4}
+# CrucibleMitigation (src/Shared/LalaCrucible/BST_CrucibleMitigation.cs): the guide's "mitigate" kinds.
+MITIGATION = {"magic": 1, "poison": 2, "physical": 4}
 TIER_USEFUL, TIER_REQUIRED = 1, 2
 ROLE = {"Enemy": 0, "EliteEnemy": 1, "Boss": 2}
 VULN_NAMES = ["Slow", "Petrification", "Paralysis", "Silence/Interrupt", "Blind", "Poison", "Stun", "Sleep", "Bind", "Heavy", "Doom"]
@@ -85,7 +88,9 @@ def need_items(guide):
             if kind is None:
                 continue
             items.append({"kind": kind, "tier": counter_tier(c), "what": c.get("what", ""), "src": c.get("src", [])})
-        out.append({"board": f["board"], "battle": f["battle"], "items": items})
+        mitigate = [{"kind": MITIGATION[m["kind"]], "what": m.get("what", ""), "src": m.get("src", [])}
+                    for m in f.get("mitigate", []) if m.get("kind") in MITIGATION]
+        out.append({"board": f["board"], "battle": f["battle"], "items": items, "mitigate": mitigate})
     return out
 
 
