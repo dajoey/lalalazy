@@ -576,6 +576,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     FateBossModControl.SetTransient("BossMod.Autorotation.MiscAI.AutoTarget", "Retarget", "NoTarget");
                     FateBossModControl.SetTransient("BossMod.Autorotation.MiscAI.AutoTarget", "FATE", "Enabled");
                     FateBossModControl.SetTransient("BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
+                    // Walk to the target at role range (melee 2.6, everyone else 10, as AutoDuty does).
+                    FateBossModControl.SetTransient("BossMod.Autorotation.MiscAI.StayCloseToTarget", "range", FateBossModPreset.StayCloseRange(Player.ClassJob.Value.Role));
 
                     // Protect against BossMod moving character outside FATE range
                     var dist = Svc.Objects.LocalPlayer != null ? Svc.Objects.LocalPlayer.DistanceTo(fate.Position) : 0f;
@@ -786,22 +788,14 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         var localPlayer = Svc.Objects.LocalPlayer;
         if (localPlayer is null || !localPlayer.Available) return;
 
-        // When BossMod is active with our preset, its NormalMovement strategy already handles
-        // melee positioning and its danger avoidance handle keeping the player safe.
-        // Our stuck detection would fight danger avoidance by navmeshing straight into danger zones,
-        // causing the player to oscillate back and forth between "move to melee" and "dodge danger."
-        try {
-            if (FateBossModControl.IsOwnActive()) {
-                // BossMod is driving movement; clear any active mitigation and bail out.
-                if (_isCombatStuckMitigationActive) {
-                    _isCombatStuckMitigationActive = false;
-                    try { Svc.Navmesh.Stop(); } catch {}
-                }
-                _lastEngagePosition = localPlayer.Position;
-                _lastEngagePositionChangedAt = Environment.TickCount64;
-                return;
-            }
-        } catch {}
+        // With our BossMod preset active, BossMod walks to the target (StayCloseToTarget) and dodges (NormalMovement).
+        // This vnavmesh fallback stays armed as a backstop: it waits longer and counts anywhere inside BossMod's role
+        // range as "at the target" (FateStuckBackstop), so it neither fights a dodge nor drags a ranged job into melee.
+        // It used to bail out entirely here, which left melee jobs standing still once the job rotations were dropped
+        // from the preset.
+        var bossModDriving = false;
+        try { bossModDriving = FateBossModControl.IsOwnActive(); } catch {}
+        float? bossModRange = bossModDriving ? FateBossModPreset.StayCloseRangeYalms(Player.ClassJob.Value.Role) : null;
 
         var now = Environment.TickCount64;
 
@@ -833,7 +827,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         // If we are already close to the target, we don't need to move; reset tracking and clear mitigation
         var distanceToTarget = Vector3.Distance(localPlayer.Position, target!.Position);
         var targetRadius = target!.HitboxRadius;
-        var combatRange = Math.Max(3.0f, targetRadius + 2.0f);
+        var combatRange = FateStuckBackstop.ReachRange(targetRadius, bossModRange);
         if (distanceToTarget <= combatRange) {
             _lastEngagePosition = localPlayer.Position;
             _lastEngagePositionChangedAt = now;
@@ -869,9 +863,9 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         if (distanceMoved > 0.5f) {
             _lastEngagePosition = localPlayer.Position;
             _lastEngagePositionChangedAt = now;
-        } else if (now - _lastEngagePositionChangedAt > 1500) {
-            // We haven't moved more than 0.5 yalms for 1.5 seconds while attempting to reach a target.
-            Log($"Detected player stuck in combat/engage (dist={distanceMoved:F2}, targetDist={distanceToTarget:F2}). Activating vnavmesh pathfinding to target {target.GameObjectId} at {target.Position}.");
+        } else if (FateStuckBackstop.IsStuck(now - _lastEngagePositionChangedAt, bossModDriving)) {
+            // We haven't moved more than 0.5 yalms for 1.5 s (4 s while BossMod drives) while out of reach of the target.
+            Log($"Detected player stuck in combat/engage (dist={distanceMoved:F2}, targetDist={distanceToTarget:F2}, reach={combatRange:F1}, bossmod={(bossModDriving ? "backstop" : "off")}). Activating vnavmesh pathfinding to target {target.GameObjectId} at {target.Position}.");
             _isCombatStuckMitigationActive = true;
             _lastEngagePosition = localPlayer.Position;
             _lastEngagePositionChangedAt = now;

@@ -25,6 +25,7 @@
     <Compile Include="..\..\src\LazyFateAutomation\FateDtrState.cs" Link="FateDtrState.cs" />
     <Compile Include="..\..\src\LazyFateAutomation\FateZoneLogic.cs" Link="FateZoneLogic.cs" />
     <Compile Include="..\..\src\LazyFateAutomation\FateBossModPreset.cs" Link="FateBossModPreset.cs" />
+    <Compile Include="..\..\src\LazyFateAutomation\FateStuckBackstop.cs" Link="FateStuckBackstop.cs" />
     <Compile Include="..\..\src\LazyFateAutomation\Helpers\Utils\FateKinds.cs" Link="FateKinds.cs" />
   </ItemGroup>
   <ItemGroup>

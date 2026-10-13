@@ -15,6 +15,11 @@ namespace LazyFateAutomation;
 ///     - FateUtils: Sync = Enable (level sync to the FATE).
 ///     - NormalMovement: Destination = Pathfind. FateGrind sets a transient Destination = None to stop
 ///       BossMod walking the character out of the FATE ring, and clears it again.
+///     - StayCloseToTarget: range = 2.6 (melee reach). This is what walks the character to the target: NormalMovement
+///       only pathfinds to goal zones, AutoTarget only picks the target, and the job rotations that used to add the
+///       approach goal are gone. FateGrind sets the role range as a transient each FATE (StayCloseRange); the base
+///       value is melee so a failed update never leaves a melee job standing out of reach.
+///       Track/options per BMR MiscAI/StayCloseToTarget.cs (identical at origin/main be8ff771c and tag 7.5.6.34).
 ///     BMR's AddTransientStrategy IPC only applies to a module the preset already contains, so every module
 ///     FateGrind drives must be listed here (the harness cross-checks FateGrind.cs).
 ///
@@ -26,6 +31,23 @@ internal static class FateBossModPreset {
 
     /// <summary>The only module namespace this preset may contain.</summary>
     public const string MiscAiPrefix = "BossMod.Autorotation.MiscAI.";
+
+    /// <summary>StayCloseToTarget range for tanks and melee (ClassJob.Role 1 / 2): AutoDuty's melee default.</summary>
+    public const float MeleeRange = 2.6f;
+
+    /// <summary>StayCloseToTarget range for every other role (ranged, casters, healers): AutoDuty's ranged default.</summary>
+    public const float RangedRange = 10f;
+
+    /// <summary>
+    ///     Move-to-target range in yalms for a ClassJob.Role, the same split AutoDuty uses (BMRoleChecks: Role 1 tank /
+    ///     2 melee -> MaxDistanceToTargetRoleMelee 2.6, everything else -> MaxDistanceToTargetRoleRanged 10), so a
+    ///     ranged job or caster is never pulled into melee.
+    /// </summary>
+    public static float StayCloseRangeYalms(byte classJobRole) => classJobRole is 1 or 2 ? MeleeRange : RangedRange;
+
+    /// <summary>The same range as BMR's StayCloseToTarget option name ("2.6", "10": InvariantCulture, 0.1 steps).</summary>
+    public static string StayCloseRange(byte classJobRole)
+        => MathF.Round(StayCloseRangeYalms(classJobRole), 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Passed to BMR's Presets.Create(json, overwrite: true) once per grind run.</summary>
     public const string Json = """
@@ -41,6 +63,9 @@ internal static class FateBossModPreset {
             ],
             "BossMod.Autorotation.MiscAI.NormalMovement": [
               { "Track": "Destination", "Option": "Pathfind" }
+            ],
+            "BossMod.Autorotation.MiscAI.StayCloseToTarget": [
+              { "Track": "range", "Option": "2.6" }
             ]
           }
         }
