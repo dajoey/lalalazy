@@ -219,6 +219,15 @@ internal static class BST_CrucibleNeedFirst
     private static int Points(int board, int battle, Cand c, int weaknessPicks) =>
         BST_CrucibleAdvisor.EffectiveScore(BST_CrucibleAdvisor.Score(board, battle, c.Row, AllAbilities, null, weaknessPicks), c.Hp);
 
+    /// <summary>
+    ///     The mitigation kinds of <paramref name="open"/> a candidate answers, or none when it is too hurt to field: at or below the
+    ///     advisor's danger line (<see cref="BST_CrucibleAdvisor.DangerHpPercent"/>, 15%: "a familiar loses to a healthy alternative
+    ///     of similar battle fit"). Mitigation ranks above the HP-scaled points, so without the floor a near-dead drake or coblyn
+    ///     would take a horn from a healthy familiar with the same ability coverage and be knocked out before it answered anything.
+    /// </summary>
+    private static CrucibleMitigation MitigationOf(Cand c, CrucibleMitigation open) =>
+        c.Hp > BST_CrucibleAdvisor.DangerHpPercent ? BST_CrucibleMitigation.Answers(c.Row) & open : CrucibleMitigation.None;
+
     private static bool HitsWeakness(int board, int battle, int row)
     {
         var element = BST_CrucibleData.BeastProfiles[row].AutoElement;
@@ -267,8 +276,9 @@ internal static class BST_CrucibleNeedFirst
                 var req = answers & model.Required & ~covered;
                 var use = answers & model.Useful & ~covered;
                 // Mitigation (a magic wall, a poison, a physical tankbuster) sits after every ability term: it only decides between
-                // familiars that cover the same interrupt / dispel / cleanse needs, then points break the tie as before.
-                var mit = BST_CrucibleMitigation.Answers(c.Row) & model.Mitigation & ~mitCovered;
+                // familiars that cover the same interrupt / dispel / cleanse needs, then points break the tie as before. It ranks above
+                // the HP-scaled points, so it only counts for a familiar healthy enough to field (MitigationOf: above the danger line).
+                var mit = MitigationOf(c, model.Mitigation & ~mitCovered);
                 var key = (Count(req), Count(use), Priority(req), Priority(use), BitOperations.PopCount((uint)mit),
                     Points(board, battle, c, weaknessPicks), c.Hp, -c.Row);
                 if (best is null || key.CompareTo(bestKey) > 0)
@@ -285,7 +295,7 @@ internal static class BST_CrucibleNeedFirst
             foreach (var kind in Kinds)
                 if ((now & kind) != 0)
                     coveredBy[kind] = pick.Row;
-            var mitNow = BST_CrucibleMitigation.Answers(pick.Row) & model.Mitigation & ~mitCovered;
+            var mitNow = MitigationOf(pick, model.Mitigation & ~mitCovered);
             foreach (var kind in BST_CrucibleMitigation.Kinds)
                 if ((mitNow & kind) != 0)
                     mitCoveredBy[kind] = pick.Row;

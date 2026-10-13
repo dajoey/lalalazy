@@ -26,6 +26,8 @@ const COBLYN_ROW = 7;
 const ADAMANTOISE_ROW = 25;
 const DRAKE_ROW = 35;
 const HP_FACTOR_FLOOR = 0.20;
+/** BST_CrucibleAdvisor.DangerHpPercent: at or below it a familiar does not count for mitigation (BST_CrucibleNeedFirst.MitigationOf). */
+const DANGER_HP_PERCENT = 15;
 const CROWD_CONTROL_BITS = 0x7FF & ~(1 << 3);
 const STAT = { Str: 0, Int: 1, PhysRes: 2, MagRes: 3, Con: 4 };
 
@@ -177,6 +179,11 @@ export function createAdvisor(data) {
     return Math.floor(battleScore * hpFactor(hpPercent));
   }
 
+  /** The open mitigation kinds a candidate answers; none at or below the danger line (BST_CrucibleNeedFirst.MitigationOf). */
+  function mitigationOf(c, open) {
+    return c.hp > DANGER_HP_PERCENT ? mitAnswers(c.row) & open : MITIGATION.None;
+  }
+
   function hitsWeakness(board, battle, row) {
     const element = profiles[row].autoElement;
     if (element === 0) return false;
@@ -304,8 +311,9 @@ export function createAdvisor(data) {
         const ans = answers(c.row);
         const req = ans & model.required & ~covered;
         const use = ans & model.useful & ~covered;
-        // Mitigation sits after every ability term: it only decides between familiars covering the same ability needs.
-        const mit = mitAnswers(c.row) & model.mitigation & ~mitCovered;
+        // Mitigation sits after every ability term: it only decides between familiars covering the same ability needs, and only
+        // for a familiar above the danger line (it ranks above the HP-scaled points).
+        const mit = mitigationOf(c, model.mitigation & ~mitCovered);
         const key = [popCount(req), popCount(use), priority(req), priority(use), popCount(mit), points(board, battle, c, weaknessPicks), c.hp, -c.row];
         if (best === null || compareKeys(key, bestKey) > 0) { best = c; bestKey = key; }
       }
@@ -313,7 +321,7 @@ export function createAdvisor(data) {
 
       const now = answers(best.row) & (model.required | model.useful) & ~covered;
       for (const kind of KINDS) if ((now & kind) !== 0) coveredBy.set(kind, best.row);
-      const mitNow = mitAnswers(best.row) & model.mitigation & ~mitCovered;
+      const mitNow = mitigationOf(best, model.mitigation & ~mitCovered);
       for (const kind of MIT_KINDS) if ((mitNow & kind) !== 0) mitCoveredBy.set(kind, best.row);
       chosen.push({ c: best, now, mitNow, weak: weaknessPicks });
       taken.add(best.row);

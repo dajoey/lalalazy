@@ -94,6 +94,9 @@ internal static class Program
         var needFirstSlots = new List<object>();
         var needFirstWorth = new List<object>();
         var needFirstBoardRoster = new List<object>();
+        // Mitigation answerers below and at the danger line (15%), just above it, and healthy: the HP floor of the mitigation term.
+        var mitigationHp = new Dictionary<int, int> { [35] = 10, [7] = 15, [4] = 10, [1] = 5, [21] = 16, [25] = 40 };
+        var needFirstMitigationHp = new List<object>();
         var answers = Enumerable.Range(0, BST_Beasts.Count + 2).Select(r => (int)BST_CrucibleAdvisor.Answers(r)).ToArray();
         var hpFactor = new[] { -5, 0, 1, 14, 15, 16, 27, 50, 99, 100, 101 }.Select(h => new { hp = h, f = BST_CrucibleAdvisor.HpFactor(h), eff = BST_CrucibleAdvisor.EffectiveScore(37, h) }).ToList();
         var mixedPets = new List<(int Row, uint Current, uint Max)> { (1, 0, 500), (2, 500, 500), (3, 1, 500), (4, 250, 500), (5, 600, 500), (0, 10, 10), (51, 10, 10), (6, 10, 0), (7, 333, 1000) };
@@ -138,6 +141,9 @@ internal static class Program
                     }
                 }
                 needFirstBoardRoster.Add(new { roster = name, board, rows = BST_CrucibleNeedFirst.BoardRoster(board, Captured).Select(t => new { row = t.Row, battles = t.Battles }).ToList() });
+                foreach (var battle in battles)
+                    if (CrucibleNeedModel.For(board, battle).MitigationItems.Count > 0)
+                        needFirstMitigationHp.Add(new { roster = name, board, battle, selection = SelectionOut(BST_CrucibleNeedFirst.Select(board, battle, rows, mitigationHp, 3, "in the run roster")) });
             }
         }
 
@@ -156,10 +162,12 @@ internal static class Program
             needFirstSlots,
             needFirstWorth,
             needFirstBoardRoster,
+            mitigationHp = mitigationHp.OrderBy(kv => kv.Key).Select(kv => new { row = kv.Key, hp = kv.Value }).ToList(),
+            needFirstMitigationHp,
         };
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         File.WriteAllText(outPath, json + "\n");
-        Console.WriteLine($"{outPath}: {json.Length} chars; scoreMatrix {scoreMatrix.Count}, needModels {needModels.Count}, needFirst {needFirst.Count}, needFirstSlots {needFirstSlots.Count}, needFirstWorth {needFirstWorth.Count}, needFirstBoardRoster {needFirstBoardRoster.Count}");
+        Console.WriteLine($"{outPath}: {json.Length} chars; scoreMatrix {scoreMatrix.Count}, needModels {needModels.Count}, needFirst {needFirst.Count}, needFirstSlots {needFirstSlots.Count}, needFirstWorth {needFirstWorth.Count}, needFirstBoardRoster {needFirstBoardRoster.Count}, needFirstMitigationHp {needFirstMitigationHp.Count}");
         return 0;
     }
 }
