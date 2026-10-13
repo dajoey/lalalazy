@@ -101,6 +101,7 @@ internal static class Program
         TenChargeCases();
         BeastmasterCases();
         CrucibleCases();
+        CrucibleBmrClockCases();
         StallCases();
         LeaseCases();
         FreezeCases();
@@ -820,5 +821,38 @@ internal static class Program
         var boxed = (object)s;
         typeof(BstSnapshot).GetProperty("TrickOutcome")?.SetValue(boxed, outcome);
         return (BstSnapshot)boxed;
+    }
+
+    /// <summary>
+    ///     crux lane 2026-10-13: stock BossMod Reborn's incoming-hit clock on the CR| line. The fields come after dg= and only when BMR
+    ///     answered (a line without BMR keeps its exact shape): bh= seconds to the earliest predicted hit ('-' none), bk= its type
+    ///     (0 none, 1 tankbuster, 2 raidwide, 3 shared), bp= / bf= whether it is on the character / the familiar, mct= BMR's longest
+    ///     allowed cast ('-' none). A new prediction (type or target) is a change worth a line; the countdown alone is not.
+    /// </summary>
+    private static void CrucibleBmrClockCases()
+    {
+        Console.WriteLine("-- BST Crucible collector: BMR hit clock (crux) --");
+        var snap = new CrucibleTelemetryFormat.Snapshot(
+            Board: 4, Battle: 9, Needs: 0, Enemies: 3, HighestEnemyHp: 90,
+            TargetNameId: 14623, TargetHp: 80, CastId: 0, CastRemaining: 0f, Observed: CrucibleTelemetryFormat.Flags.None,
+            PlayerHp: 90, PetHp: 100, SlotPetHp: "100.100.100",
+            DecisionActionId: 44901, DecisionReason: "crucible:bmr-skin", Shadow: "");
+        Check("CR| crux: no BMR answer, no BMR fields", CrucibleTelemetryFormat.BuildLine(1, snap).EndsWith("|dg=x"));
+        var seen = snap with { BmrSeen = true, BmrHitIn = 7.94f, BmrHitType = 2, BmrHitOnPlayer = true, BmrMaxCast = 1.24f };
+        var line = CrucibleTelemetryFormat.BuildLine(1, seen);
+        Check("CR| crux: BMR answering renders bh/bk/bp/bf/mct after dg", line.EndsWith("|dg=x|bh=7.9|bk=2|bp=1|bf=0|mct=1.2"), line);
+        Check("CR| crux: no prediction and no cast limit render as '-'",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { BmrSeen = true }).EndsWith("|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-"));
+        Check("CR| crux: the familiar bit renders", CrucibleTelemetryFormat.BuildLine(1, seen with { BmrHitOnFamiliar = true, BmrHitOnPlayer = false }).Contains("|bp=0|bf=1|"));
+        Check("CR| crux: a long reason with the BMR fields stays in the line budget",
+            CrucibleTelemetryFormat.BuildLine(1, seen with { DecisionReason = new string('x', 200), Shadow = new string('y', 200) }).Length <= CrucibleTelemetryFormat.MaxLineLength);
+        var gate = new CrucibleTelemetryFormat.GateState();
+        Check("CR| crux: first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, 1_000, seen));
+        Check("CR| crux: the countdown alone does not emit", !CrucibleTelemetryFormat.ShouldEmit(ref gate, 2_000, seen with { BmrHitIn = 3.1f, BmrMaxCast = 0.4f }));
+        Check("CR| crux: a prediction moving to the familiar emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, 3_000, seen with { BmrHitOnPlayer = false, BmrHitOnFamiliar = true }));
+        Check("CR| crux: a new prediction type emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, 4_000, seen with { BmrHitOnPlayer = false, BmrHitOnFamiliar = true, BmrHitType = 1 }));
+        Check("CR| crux: flag letters R (release reach on a do-not-attack enemy), B (Blink), V (familiar poisoned) follow the old twelve",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x7FFF }).Contains("|f=DSXNPJCpysciRBV|")
+            && CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = CrucibleTelemetryFormat.Flags.PetPoisoned }).Contains("|f=V|"));
     }
 }

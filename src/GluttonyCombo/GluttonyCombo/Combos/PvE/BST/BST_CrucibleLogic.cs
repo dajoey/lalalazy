@@ -367,6 +367,10 @@ internal static class BST_CrucibleLogic
             declines.Add("crucible:petsave-guard-no-resummon-horn");
         }
 
+        // The familiar took a poisoning hit: it leaves and takes the poison with it (PoisonShedDue; crux lane 2026-10-13).
+        if (PoisonShedDue(s, cfg))
+            return (BST.PartingBlow, "exit:poison-shed");
+
         var hp = s.PetHpPercent;
         if (hp <= 0f || hp > cfg.CruciblePetSwapHp)
             return (0, "");
@@ -702,7 +706,7 @@ internal static class BST_CrucibleLogic
         // A carrier in a counter stance is held on (no GCD goes out), so the GCD sits idle and a weave window never opens:
         // with the GCD ready the Caw goes out anyway (a calm carrier keeps rolling its GCD and weaves in the next window).
         if (beast is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && (s.CanWeave || (s.TargetInStance && s.GcdReady))
-            && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f && !s.ProtectedNearTarget)
+            && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f && !s.ProtectedNearTarget && !s.ReleaseProtectedNear)
             return (BST.TemperedRelease, "crucible:dispel-caw");
 
         if (s.KinshipHeld && s.BeastModeResolved == BST.QuellingWave && s.ReadyBeastMode && s.GcdReady && s.TargetDistance <= 30f)
@@ -719,7 +723,8 @@ internal static class BST_CrucibleLogic
             return (0, "");
         if (s.KinshipHeld && s.BeastModeResolved == BST.ScouringAsh && s.ReadyBeastMode)
             return (BST.ScouringAsh, "crucible:cleanse-scouringash");
-        if (beast is { Row: BST_CrucibleData.BatRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && s.SinceSummon >= 0.8f)
+        if (beast is { Row: BST_CrucibleData.BatRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && s.SinceSummon >= 0.8f
+            && !s.ReleaseProtectedNear)
             return (BST.TemperedRelease, "crucible:cleanse-ultrasonics");
         return (0, "");
     }
@@ -940,7 +945,10 @@ internal static class BST_CrucibleLogic
     ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> (scaled to the board's degree) gets the best available answer: the held
     ///     skin inside <see cref="SkinGuardLeadSeconds"/> of the hit (free, 90 s), else the potion at any point in the cast. A registered
     ///     tankbuster gets the potion only when no Snarl -> Parting cover is armed and HP is at or below <see cref="TankbusterGuardHpPercent"/>
-    ///     (the dodge, not the stock, is the first answer there).</para>
+    ///     (the dodge, not the stock, is the first answer there), and not while Blink is up for a physical one
+    ///     (<see cref="BST_CrucibleData.PhysicalCasts"/>).</para>
+    ///     <para>Stock BMR's hit clock (<see cref="BmrHitOnCharacterSoon"/>): a predicted hit on the character no table knows gets the held
+    ///     skin inside the lead, or the potion at the tankbuster line. Never Snarl from a prediction.</para>
     ///     <para>Panic: in combat at or below <see cref="PanicHealHpPercent"/> with no cast to react to.</para>
     /// </summary>
     public static (uint ActionId, string Reason) TrySurvival(in BstState s, in BstSettings cfg, List<string> declines)
@@ -971,10 +979,24 @@ internal static class BST_CrucibleLogic
                      && !TankbusterCoverArmed(s, cfg)
                      && s.PlayerHpPercent is > 0f and <= TankbusterGuardHpPercent)
             {
-                if (potion != 0)
+                // Blink nullifies most physical hits: the potion is not spent on one it will eat.
+                if (s.PlayerBlink && BST_CrucibleData.PhysicalCasts.Contains(s.TargetCastId))
+                    declines.Add("crucible:raidwide-guard-blink");
+                else if (potion != 0)
                     return (potion, "crucible:raidwide-guard");
-                declines.Add("crucible:raidwide-guard-none");
+                else
+                    declines.Add("crucible:raidwide-guard-none");
             }
+        }
+
+        // Stock BMR's incoming-hit clock (crux lane 2026-10-13): a predicted hit on the character that no table knows gets the held skin
+        // inside the skin lead, and the tankbuster guard's potion at its HP line. Never Snarl: baits and raidwides do not follow enmity.
+        if (BmrHitOnCharacterSoon(s))
+        {
+            if (s.KinshipHeld && s.ReadyBeastMode && s.CanWeave && s.BeastModeResolved is BST.Scaleskin or BST.Beastskin or BST.Vileskin)
+                return (s.BeastModeResolved, "crucible:bmr-skin");
+            if (s.PlayerHpPercent is > 0f and <= TankbusterGuardHpPercent && potion != 0)
+                return (potion, "crucible:bmr-potion");
         }
 
         if (s.InCombat && s.PlayerHpPercent is > 0f and <= PanicHealHpPercent && potion != 0)
@@ -1106,7 +1128,8 @@ internal static class BST_CrucibleLogic
     /// </summary>
     public static TacticResult TryTactic(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, ReleasePlan plan, List<string> declines)
     {
-        var releaseSpendable = s.OneWithNature && s.ReadyTempered && plan == ReleasePlan.Use && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f;
+        var releaseSpendable = s.OneWithNature && s.ReadyTempered && plan == ReleasePlan.Use && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f
+                               && !s.ReleaseProtectedNear;
 
         // ---- Self-destruct burst
         if (s.TargetCastId != 0 && BST_CrucibleData.SelfDestructCasts.Contains(s.TargetCastId)
@@ -1171,9 +1194,10 @@ internal static class BST_CrucibleLogic
 
     /// <summary>
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
-    ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
+    ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion, and so is <see cref="Forbidden"/>
+    ///     (<see cref="ConditionallyForbidden"/>: attackable only some of the time, held back now).
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false, bool Forbidden = false);
 
     /// <summary>
     ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
@@ -1185,7 +1209,7 @@ internal static class BST_CrucibleLogic
     {
         var safe = new List<int>(candidates.Count);
         for (var i = 0; i < candidates.Count; i++)
-            if (!candidates[i].DamageImmune
+            if (!candidates[i].DamageImmune && !candidates[i].Forbidden
                 && !BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
                 safe.Add(i);
 
@@ -1212,7 +1236,7 @@ internal static class BST_CrucibleLogic
     {
         var allowed = new List<int>(candidates.Count);
         for (var i = 0; i < candidates.Count; i++)
-            if (!candidates[i].DamageImmune
+            if (!candidates[i].DamageImmune && !candidates[i].Forbidden
                 && !BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
                 allowed.Add(i);
 
@@ -1380,6 +1404,107 @@ internal static class BST_CrucibleLogic
     /// <summary> This status on this enemy took <see cref="DispelMaxTries"/> dispels and is still there. </summary>
     public static bool DispelFutile(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, uint status) =>
         tries.TryGetValue((enemy, status), out var n) && n >= DispelMaxTries;
+
+    // ------------------------------------------------------------------ crux lane 2026-10-13: BMR hit clock, poison shed, conditional targets
+
+    /// <summary> BMR's party mask: bit 0 is the character. </summary>
+    public static bool BmrHitsPlayer(ulong mask) => (mask & 1ul) != 0;
+
+    /// <summary> Party slots 1-23: BMR seats the player's BST familiar at the first free one (allied NPCs use 24-63). </summary>
+    public const ulong BmrFamiliarBits = 0x00FF_FFFEul;
+
+    /// <summary> BMR's party mask names the familiar. </summary>
+    public static bool BmrHitsFamiliar(ulong mask) => (mask & BmrFamiliarBits) != 0;
+
+    /// <summary> The target's castbar is a cast the hit tables know (a measured heavy cast or a registered tankbuster): their rules own it. </summary>
+    public static bool TableKnowsCast(in BstState s) =>
+        s.TargetCastId != 0 && (BST_CrucibleData.HeavyCast(s.TargetCastId) is not null || BST_CrucibleData.Tankbusters.Contains(s.TargetCastId));
+
+    /// <summary>
+    ///     BMR predicts a hit on the character within this many seconds (the skin lead: a skin lasts 15-30 s) that no table knows (raidwides,
+    ///     baits, the Progenitrix's Meltdown, which has no castbar and only a head marker 7.9 s ahead).
+    /// </summary>
+    public static bool BmrHitOnCharacterSoon(in BstState s) =>
+        s.BmrHitOnPlayer && s.BmrHitIn is > 0f and <= SkinGuardLeadSeconds && !TableKnowsCast(s);
+
+    /// <summary> A predicted hit on the familiar this close is what a familiar-save Parting Blow would have to beat (retreat ~2.3 s). </summary>
+    public const float BmrPetSaveShadowSeconds = 1.5f;
+
+    /// <summary>
+    ///     Logged only (<c>sh=crucible:bmr-petsave-shadow</c>): BMR predicts a hit on the familiar under <see cref="BmrPetSaveShadowSeconds"/>
+    ///     away while it is at or below the swap line, and a Parting Blow with a resummon behind it is available. A run graded on these lines
+    ///     says whether the save is worth turning on.
+    /// </summary>
+    public static bool BmrPetSaveShadow(in BstState s, in BstSettings cfg) =>
+        FamiliarOut(s) && s.BmrHitOnFamiliar && s.BmrHitIn is > 0f and < BmrPetSaveShadowSeconds
+        && s.PetHpPercent is > 0f && s.PetHpPercent <= cfg.CruciblePetSwapHp
+        && s.Level >= LvPartingBlow && s.ReadyParting && ResummonAvailable(s, cfg);
+
+    /// <summary>
+    ///     The familiar carries a poison it sheds by leaving (<see cref="BST_CrucibleData.PoisonShedStatuses"/>), and the hit that put it there
+    ///     is over: a one-hit poison (Deadly Thrust, Cold Caress) at once; a string's poison (Toxic Vomit's Toxicosis, refreshed by each of its
+    ///     four hits on the enmity holder) only once it has gone <see cref="BST_CrucibleData.PoisonStringGapSeconds"/> without a refresh, so no
+    ///     hit of the string is left to land on the character. A ready resummon horn is required (horn conservation), the familiar must not be
+    ///     mid-order, no registered tankbuster it holds may be pending, and a familiar covering a character under half HP keeps the enemy.
+    ///     The minimum stay and the Crucible's no-cycling rule do not apply: this is a save, not a damage cycle.
+    /// </summary>
+    public static bool PoisonShedDue(in BstState s, in BstSettings cfg)
+    {
+        if (!FamiliarOut(s) || s.PetPoisonStatus == 0 || !BST_CrucibleData.PoisonShedStatuses.Contains(s.PetPoisonStatus))
+            return false;
+        if (BST_CrucibleData.PoisonStringStatuses.Contains(s.PetPoisonStatus)
+            && s.PetPoisonRemaining > BST_CrucibleData.PoisonStringFullSeconds - BST_CrucibleData.PoisonStringGapSeconds)
+            return false;
+        var trickPending = s.SinceTrick < PetHeartTimeoutSeconds && s.SincePetHeart > s.SinceTrick;
+        return s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave
+               && !trickPending && s.SinceTempered >= 2f && s.SinceBorrow >= 1f && s.SincePartingBlow >= RecallInFlightSeconds
+               && s.HasHostileTarget && s.TargetDistance <= 25f && !s.TargetDoNotAttack && !s.ProtectedNearTarget
+               && !(s.EnemyCount > 0 && s.HighestEnemyHpPercent <= RoundEndingHp)
+               && !(Covering(s) && s.PlayerHpPercent < 50f)
+               && !RecallWouldHandBackTankbuster(s)
+               && ResummonAvailable(s, cfg);
+    }
+
+    /// <summary>
+    ///     The familiar's own Tempered Release would land on a do-not-attack enemy: its area (<see cref="BST_CrucibleData.ReleaseReaches"/>, from
+    ///     the 7.56 Action sheet) reaches the enemy's hitbox from the release's own source point, the familiar or the target. A release with no
+    ///     area (single target, buffs) reaches nothing beside its target.
+    /// </summary>
+    public static bool ReleaseReachesProtected(BeastmasterBeast? beast, float protectedFromFamiliar, float protectedFromTarget, float protectedHitbox)
+    {
+        if (beast is not { } b || (b.Release & BeastmasterReleaseTraits.AoE) == 0
+            || !BST_CrucibleData.ReleaseReaches.TryGetValue(b.Row, out var reach))
+            return false;
+        var distance = reach.FromFamiliar ? protectedFromFamiliar : protectedFromTarget;
+        return distance <= reach.Radius + protectedHitbox;
+    }
+
+    /// <summary>
+    ///     An enemy that is attackable only some of the time, held back now: the Abaddon while any Morpho lives (it eats them; BMR DrakePiece.cs
+    ///     CalculateModuleAIHints: Abaddon PriorityForbidden while a Morpho is alive; the guide: "Abaddon last, after every Morpho is eaten"), and
+    ///     the big Gigantis gel of the OTHER element than the club's (<paramref name="clubElement"/>, status 2056's param), which is saved for the
+    ///     Smashing Stamp bait while the gel matching the club is killed (BMR GigantisPiece.cs SlimePriority: a lightning club forbids
+    ///     Congealed Kindling, a fire club Congealed Lightning; the guide: "Cyclops, then the gel you are not crushing", "aim the line through a gel
+    ///     of the other element"). Right after the club changes nothing is held back until new gels spawn (<paramref name="gelsSinceClub"/>, BMR's
+    ///     weaponRecentlyChanged); the small gels are never held back.
+    /// </summary>
+    public static bool ConditionallyForbidden(uint nameId, uint baseId, bool morphoAlive, uint clubElement, bool gelsSinceClub)
+    {
+        if (nameId == BST_CrucibleData.AbaddonNameId)
+            return morphoAlive;
+        if (!gelsSinceClub)
+            return false;
+        return (baseId, clubElement) switch
+        {
+            (BST_CrucibleData.CongealedLightningBase, BST_CrucibleData.GigantisClubFire) => true,
+            (BST_CrucibleData.CongealedKindlingBase, BST_CrucibleData.GigantisClubLightning) => true,
+            _ => false,
+        };
+    }
+
+    /// <summary> A cleansable debuff calls for the cleanse, except a poison while the character resists poison (the cleanse would be spent on a debuff that is already cut short or harmless). </summary>
+    public static bool CleanseCounts(uint statusId, bool poisonResistant) =>
+        !(poisonResistant && BST_CrucibleData.PoisonStatuses.Contains(statusId));
 
     // ------------------------------------------------------------------ familiar HP memory (party agent)
 

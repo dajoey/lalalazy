@@ -303,6 +303,19 @@ internal static class BST_RotationLogic
         public float SinceCurtainsCast;           // since a Curtains KO cast was last seen on the target (stamped while the castbar runs); float.MaxValue when none recently
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
+
+        // crux lane 2026-10-13: stock BossMod Reborn's incoming-hit clock (Services/IPC_Subscriber/BossModHints.cs), the familiar's
+        // poison, the active familiar's own release reach around do-not-attack enemies, and the character's Blink.
+        public bool BmrSeen;                      // stock BossMod Reborn answered the hint endpoints this tick (false: every Bmr* field is neutral)
+        public float BmrHitIn;                    // seconds to BMR's earliest predicted hit (Hints.NextDamageIn), float.MaxValue none
+        public int BmrHitType;                    // that prediction's type (Hints.NextDamageType): 0 none, 1 tankbuster, 2 raidwide, 3 shared
+        public bool BmrHitOnPlayer;               // the earliest prediction's party mask (Hints.PredictedDamagePlayers) has bit 0: the character
+        public bool BmrHitOnFamiliar;             // ... has a bit 1-23: BMR seats the BST familiar at the first free party slot from 1
+        public float BmrMaxCast;                  // Hints.MaxCastTime: the longest cast BMR's movement allows now, float.MaxValue none
+        public uint PetPoisonStatus;              // a Crucible poison on the active familiar (BST_CrucibleData.PoisonShedStatuses), 0 none
+        public float PetPoisonRemaining;          // its time left (s)
+        public bool ReleaseProtectedNear;         // a do-not-attack enemy stands inside the active familiar's own release area (its reach, from its own source point)
+        public bool PlayerBlink;                  // Blink (4849) on the character: most physical hits are nullified
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -534,7 +547,7 @@ internal static class BST_RotationLogic
         var familiarOut = FamiliarOut(s);
 
         // Crucible: an AoE release next to an egg / morpho would hit it - Borrow instead.
-        if (crucible && s.ProtectedNearTarget && plan == ReleasePlan.Use && beast is { } aoeBeast
+        if (crucible && (s.ProtectedNearTarget || s.ReleaseProtectedNear) && plan == ReleasePlan.Use && beast is { } aoeBeast
             && (aoeBeast.Release & BeastmasterReleaseTraits.AoE) != 0)
             plan = ReleasePlan.Blocked;
 
@@ -592,6 +605,10 @@ internal static class BST_RotationLogic
                 // Not pressed (option off, or the Parting Blow step is dormant): the open window is logged so the dodge can be graded from a run.
                 shadow = "crucible:snarl-parting-off";
             }
+
+            // Logged only: the familiar save a BMR-predicted hit on a low familiar would call for (crux lane 2026-10-13).
+            if (shadow.Length == 0 && BST_CrucibleLogic.BmrPetSaveShadow(s, cfg))
+                shadow = "crucible:bmr-petsave-shadow";
 
             if (familiarOut)
             {

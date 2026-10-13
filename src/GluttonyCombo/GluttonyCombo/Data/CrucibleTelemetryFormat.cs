@@ -54,9 +54,15 @@ internal static class CrucibleTelemetryFormat
         ChallengeReady = 1 << 10,
         /// <summary> i: the target's cast is interruptible. </summary>
         Interruptible = 1 << 11,
+        /// <summary> R: a do-not-attack enemy is inside the active familiar's own release area (crux lane 2026-10-13). </summary>
+        ReleaseProtectedNear = 1 << 12,
+        /// <summary> B: Blink is up on the character. </summary>
+        PlayerBlink = 1 << 13,
+        /// <summary> V: the familiar carries a poison it sheds by leaving. </summary>
+        PetPoisoned = 1 << 14,
     }
 
-    private const string FlagLetters = "DSXNPJCpysci";
+    private const string FlagLetters = "DSXNPJCpysciRBV";
 
     /// <summary> Panel needs of the matched battle, rendered as letters in <c>nd=</c> (I interrupt, D dispel, C cleanse). </summary>
     internal readonly record struct Snapshot(
@@ -82,11 +88,21 @@ internal static class CrucibleTelemetryFormat
         bool PartyHpVerified = false,
         float TargetEdgeDistance = -1f,
         float MoveSpeed = 0f,
-        int Degree = -1);
+        int Degree = -1,
+        bool BmrSeen = false,
+        float BmrHitIn = float.MaxValue,
+        int BmrHitType = 0,
+        bool BmrHitOnPlayer = false,
+        bool BmrHitOnFamiliar = false,
+        float BmrMaxCast = float.MaxValue);
 
-    internal static (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string) KeyOf(in Snapshot s) =>
+    internal static (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string, byte) KeyOf(in Snapshot s) =>
         (s.Board, s.Battle, s.Needs, s.Enemies, s.HighestEnemyHp / HpBucket, s.TargetNameId, s.TargetHp / HpBucket, s.CastId, s.Observed,
-         s.PlayerHp / HpBucket, s.PetHp / HpBucket, s.SlotPetHp ?? "", s.DecisionActionId, s.DecisionReason ?? "", s.Shadow ?? "");
+         s.PlayerHp / HpBucket, s.PetHp / HpBucket, s.SlotPetHp ?? "", s.DecisionActionId, s.DecisionReason ?? "", s.Shadow ?? "", BmrKind(s));
+
+    /// <summary> BMR's prediction as a change key: answering, type and target (the countdown and the cast limit stay out of it). </summary>
+    private static byte BmrKind(in Snapshot s) =>
+        !s.BmrSeen ? (byte)0 : (byte)(1 | (Math.Clamp(s.BmrHitType, 0, 3) << 1) | (s.BmrHitOnPlayer ? 8 : 0) | (s.BmrHitOnFamiliar ? 16 : 0));
 
     /// <summary> Same contract as <see cref="BeastmasterTelemetryFormat.ShouldEmit"/>: on change, at most every <see cref="MinIntervalMs"/>. </summary>
     internal static bool ShouldEmit(ref GateState state, long nowMs, in Snapshot snapshot)
@@ -109,7 +125,7 @@ internal static class CrucibleTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string) LastKey;
+        public (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string, byte) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -125,6 +141,9 @@ internal static class CrucibleTelemetryFormat
     ///     range and movement on every line, without joining the emit key. <c>dg</c> (1.0.4.288) is the board's difficulty degree
     ///     (0 Standard, 1 First, 2 Second, 3 Third, x while LazyCrucible has not published it), also outside the emit key.
     ///     <c>bt</c> is -1 when no panel enemy is present; <c>c=0:0.0</c> when the target is not casting.
+    ///     While stock BossMod Reborn answers its hint IPC (crux lane 2026-10-13) the line ends <c>|bh=s|bk=type|bp=0/1|bf=0/1|mct=s</c>:
+    ///     seconds to its earliest predicted hit ('-' none), that hit's type (0 none, 1 tankbuster, 2 raidwide, 3 shared), whether it is
+    ///     on the character / the familiar, and the longest cast its movement allows ('-' none). Type and target join the emit key.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
     {
@@ -162,6 +181,24 @@ internal static class CrucibleTelemetryFormat
             sb.Append(Math.Min(99f, s.TargetEdgeDistance).ToString("0.0", inv));
         sb.Append("|mv=").Append(Math.Min(99f, Math.Max(0f, s.MoveSpeed)).ToString("0.0", inv))
           .Append("|dg=").Append(s.Degree is >= 0 and <= 3 ? (char)('0' + s.Degree) : 'x');
+
+        // Stock BMR's incoming-hit clock (crux lane 2026-10-13), only while BMR answers.
+        if (s.BmrSeen)
+        {
+            sb.Append("|bh=");
+            if (s.BmrHitIn < 1000f)
+                sb.Append(Math.Max(0f, s.BmrHitIn).ToString("0.0", inv));
+            else
+                sb.Append('-');
+            sb.Append("|bk=").Append(Math.Clamp(s.BmrHitType, 0, 9).ToString(inv))
+              .Append("|bp=").Append(s.BmrHitOnPlayer ? '1' : '0')
+              .Append("|bf=").Append(s.BmrHitOnFamiliar ? '1' : '0')
+              .Append("|mct=");
+            if (s.BmrMaxCast < 1000f)
+                sb.Append(Math.Max(0f, s.BmrMaxCast).ToString("0.0", inv));
+            else
+                sb.Append('-');
+        }
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;

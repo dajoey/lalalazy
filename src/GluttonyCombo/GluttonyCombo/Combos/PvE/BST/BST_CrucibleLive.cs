@@ -153,7 +153,8 @@ internal partial class BST
                 InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true },
                 t.IsCasting ? t.CastActionId : 0,
                 dispellable,
-                proven));
+                proven,
+                CrucibleForbidden(t)));
         }
 
         return candidates;

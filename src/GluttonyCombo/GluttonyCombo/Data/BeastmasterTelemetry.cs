@@ -200,6 +200,9 @@ internal static class BeastmasterTelemetry
         if (s.ReadySnarl) flags |= CrucibleTelemetryFormat.Flags.SnarlReady;
         if (s.ReadyChallenge) flags |= CrucibleTelemetryFormat.Flags.ChallengeReady;
         if (s.TargetInterruptible) flags |= CrucibleTelemetryFormat.Flags.Interruptible;
+        if (s.ReleaseProtectedNear) flags |= CrucibleTelemetryFormat.Flags.ReleaseProtectedNear;
+        if (s.PlayerBlink) flags |= CrucibleTelemetryFormat.Flags.PlayerBlink;
+        if (s.PetPoisonStatus != 0) flags |= CrucibleTelemetryFormat.Flags.PetPoisoned;
 
         static byte Pct(float v) => (byte)Math.Clamp((int)MathF.Round(v), 0, 100);
 
@@ -226,7 +229,13 @@ internal static class BeastmasterTelemetry
             BST.PartyHpVerified,
             Svc.Targets.Target is { } tgt ? EdgeDistanceTo(tgt) : -1f,
             _moveSpeed,
-            s.CrucibleDegreeKnown ? s.CrucibleDegreeLevel : -1);
+            s.CrucibleDegreeKnown ? s.CrucibleDegreeLevel : -1,
+            s.BmrSeen,
+            s.BmrHitIn,
+            s.BmrHitType,
+            s.BmrHitOnPlayer,
+            s.BmrHitOnFamiliar,
+            s.BmrMaxCast);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()
