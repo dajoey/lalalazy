@@ -565,7 +565,7 @@ internal sealed class BossModIPC(
     }
 
     private readonly IpcEndpointLatch _priorityTargetLatch = new();
-    private long _priorityTargetUiCheckedMs = long.MinValue;
+    private long? _priorityTargetUiCheckedMs; // null = never checked (see IpcEndpointLatch.RecheckDue)
     private bool _priorityTargetUiMissing;
 
     /// <summary>
@@ -613,7 +613,7 @@ internal sealed class BossModIPC(
     public bool IsPriorityTargetEndpointMissing()
     {
         var now = Environment.TickCount64;
-        if (now - _priorityTargetUiCheckedMs < 1000)
+        if (!IpcEndpointLatch.RecheckDue(_priorityTargetUiCheckedMs, now, 1000))
             return _priorityTargetUiMissing;
         _priorityTargetUiCheckedMs = now;
 
