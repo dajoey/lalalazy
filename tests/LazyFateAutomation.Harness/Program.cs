@@ -13,6 +13,9 @@ namespace LazyFateAutomation.Harness;
 ///        so existing installs load with unchanged behavior.
 ///     4. the server info bar (DTR) toggle decision (FateDtrLogic): the click action (stop /
 ///        arm / confirm / none), the 10-second confirm window, and the entry text.
+///     5. the BossMod Reborn preset the grind creates and activates (FateBossModPreset): its own name, only
+///        MiscAI movement/targeting modules (never a job rotation that would run beside Gluttony Combo), and
+///        every module FateGrind sets a transient strategy on.
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -98,6 +101,7 @@ internal static class Program {
         FocusFallbackTests();
         ConfigMigrationTests();
         DtrToggleTests();
+        BossModPresetTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
         if (_fail == 0) Console.WriteLine("OK");
@@ -328,5 +332,54 @@ internal static class Program {
         Check("the entry shows the boss FATE icon while running", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
         Check("the entry shows the same boss FATE icon while stopped - the state lives in the text, no icon pair", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
         Check("the boss glyph carries Dalamud's BitmapFontIcon.FateBoss value 90, not a None cast", (int)FateDtrLogic.IconGlyph == 90);
+    }
+    private static void BossModPresetTests() {
+        Console.WriteLine("-- BossMod Reborn preset: own name, MiscAI modules only, covers every module FateGrind drives --");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(FateBossModPreset.Json);
+        var root = doc.RootElement;
+        var name = root.TryGetProperty("Name", out var n) ? n.GetString() : null;
+        var modules = root.TryGetProperty("Modules", out var m) ? m.EnumerateObject().Select(p => p.Name).ToList() : [];
+
+        Check("preset JSON names the preset FateGrind activates", name == FateBossModPreset.Name, name ?? "<none>");
+        Check("preset has its own name, not the shared \"Gluttony\" preset", !string.Equals(FateBossModPreset.Name, "Gluttony", StringComparison.OrdinalIgnoreCase), FateBossModPreset.Name);
+
+        var notMiscAi = modules.Where(k => !k.StartsWith(FateBossModPreset.MiscAiPrefix, StringComparison.Ordinal)).ToList();
+        Check("preset holds no module outside BossMod.Autorotation.MiscAI (no job rotations)", notMiscAi.Count == 0,
+            $"{notMiscAi.Count} offending: {string.Join(", ", notMiscAi.Take(6))}{(notMiscAi.Count > 6 ? ", ..." : "")}");
+
+        // BMR's AddTransientStrategy only applies to a module the preset already contains
+        // (IPCProvider.cs addTransientStrategy: Modules.Find(m => m.Type == mt) == null -> false).
+        var grindSrc = File.ReadAllText(FindSource("FateGrind.cs"));
+        var driven = Regex.Matches(grindSrc, "\"(BossMod\\.Autorotation\\.[A-Za-z0-9_.]+)\"").Select(x => x.Groups[1].Value).Distinct().ToList();
+        var missing = driven.Where(k => !modules.Contains(k)).ToList();
+        Check("FateGrind drives at least the AutoTarget and NormalMovement modules", driven.Contains("BossMod.Autorotation.MiscAI.AutoTarget") && driven.Contains("BossMod.Autorotation.MiscAI.NormalMovement"), string.Join(", ", driven));
+        Check("every module FateGrind sets a transient strategy on is in the preset", missing.Count == 0, string.Join(", ", missing));
+
+        // The MiscAI settings the grind relied on are kept: FATE mob priority, FATE level sync, pathfinding.
+        string? Option(string module, string track) {
+            if (!root.GetProperty("Modules").TryGetProperty(module, out var arr)) return null;
+            foreach (var e in arr.EnumerateArray())
+                if (e.GetProperty("Track").GetString() == track) return e.GetProperty("Option").GetString();
+            return null;
+        }
+        Check("AutoTarget prioritizes FATE mobs", Option("BossMod.Autorotation.MiscAI.AutoTarget", "FATE") == "Enabled");
+        Check("FateUtils keeps FATE level sync on", Option("BossMod.Autorotation.MiscAI.FateUtils", "Sync") == "Enable");
+        Check("NormalMovement pathfinds (dodging + positioning)", Option("BossMod.Autorotation.MiscAI.NormalMovement", "Destination") == "Pathfind");
+
+        // The grind writes this preset itself (overwrite) and activates it by the same name.
+        Check("FateGrind no longer embeds its own compressed preset", !grindSrc.Contains("_presetCompressed"));
+        Check("FateGrind creates the preset from FateBossModPreset.Json with overwrite", grindSrc.Contains("Create(FateBossModPreset.Json, true)"));
+        Check("FateGrind activates the preset by FateBossModPreset.Name", grindSrc.Contains("SetActive(FateBossModPreset.Name)"));
+    }
+
+    private static string FindSource(string file) {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null) {
+            var p = Path.Combine(dir.FullName, "src", "LazyFateAutomation", file);
+            if (File.Exists(p)) return p;
+            dir = dir.Parent;
+        }
+        throw new FileNotFoundException(file);
     }
 }

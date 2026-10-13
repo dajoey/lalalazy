@@ -10,9 +10,6 @@ using TerritoryIntendedUse = FFXIVClientStructs.FFXIV.Client.Enums.TerritoryInte
 namespace LazyFateAutomation;
 
 internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
-    private const string _presetName = "Gluttony";
-    private const string _presetCompressed = "G7ogABwHbqx4cLjJBi27nFP5nJ/wAWr507EqADWISFffYtGxbDniUSiFUjiEQ5nfm6N1hX2heKFoXV1QrRiH8KaUvlpjAyNyvFHzoGOiLzE2hmS3b8IcQ3qBPEhfUYMmExnXNfE9XsGLjRtvI70UF8M6ANmQNpL5HzS2mIIQQZqXLnDE5+PsCxol8iW7URCF6je1OOTrl8sUQe6U4sFTnlUKX3G9PebRFZG2CKhl9V2vuqWGxZmgeB0vpT8Mhwph2dWJ0G3p5qWAffDRtxATgkm3Wg8lAgXGnVlcqpR9nv0ZMIpgI9TUPgTGt7/pYuO7aKJmBGTmuP0IDwQ0UnmY4YjuuNVHrcR4DqcXhU4fAw5TBcGdWQx2lUXymbyv5ZVXAGLDK572HF6RHlEPFuPKOq8wsNWhBY6jD5a3Ot19EGBzXV4Q59FC4FJ60XIP+ycTx9VWr/we3rgoq4AMP3iZNB37BMEHC7AjIp8wkEo+oJ6eiLf8udXd6jlu7iEtsLkbaLxu+RLnOby0kpupCViHYTf3bJILMpGGZJqIaeDmDzJ+MeQkHMkP6VReklwAJ8aTwUU9ZKHmUbv3";
-    private static readonly string _preset = _presetCompressed.FromBase64();
 
     private int PullSize => Player.ClassJob.Value switch {
         var cj when cj.IsTank => 0, // unlimited
@@ -112,6 +109,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private long _lastEngagePositionChangedAt;
     private bool _isCombatStuckMitigationActive;
     private bool _pausedForDuty;
+    private bool _bossModPresetWritten; // FateBossModPreset written to BossMod this run (once per FateGrind instance)
 
     // Forlorn Maiden (NameId 6737) / the Forlorn (NameId 6738) - rare bonus mobs that spawn mid-FATE
     // (verified against xivapi BNpcName rows 6737/6738, Stormblood patch) and despawn quickly if not
@@ -561,11 +559,19 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
             try {
                 if (Service.BossMod.IsLoaded) {
-                    if (Service.BossMod.GetActive() != _presetName) {
-                        if (Service.BossMod.Get(_presetName) is null) {
-                            Service.BossMod.Create(_preset, true);
-                        }
-                        Service.BossMod.SetActive(_presetName);
+                    // Write the plugin's own MiscAI-only preset once per run (overwrite), so a stale or hand-edited
+                    // copy cannot carry job rotations. Earlier builds activated a preset named "Gluttony" holding 21
+                    // BossMod job rotations, which cast beside Gluttony Combo during FATEs; that preset is left untouched.
+                    if (!_bossModPresetWritten) {
+                        _bossModPresetWritten = true;
+                        var written = Service.BossMod.Create(FateBossModPreset.Json, true);
+                        if (written)
+                            Log($"BossMod preset '{FateBossModPreset.Name}' written (MiscAI movement/targeting modules only).");
+                        else
+                            Warning($"BossMod did not accept preset '{FateBossModPreset.Name}'; BossMod movement and FATE targeting may be unavailable this run.");
+                    }
+                    if (Service.BossMod.GetActive() != FateBossModPreset.Name) {
+                        Service.BossMod.SetActive(FateBossModPreset.Name);
                         try {
                             Service.BossMod.Activate();
                         } catch (Exception ex) {
@@ -573,9 +579,9 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                         }
                     }
                     try {
-                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "Retarget", "NoTarget");
-                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "FATE", "Enabled");
-                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
+                        Svc.BossMod.AddTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.AutoTarget", "Retarget", "NoTarget");
+                        Svc.BossMod.AddTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.AutoTarget", "FATE", "Enabled");
+                        Svc.BossMod.AddTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
                     } catch (Exception ex) {
                         Log($"Failed to call BossMod AddTransientStrategy IPC: {ex.Message}");
                     }
@@ -586,13 +592,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     var safeDist = fate.Radius * 0.8f;
                     if (dist > maxAllowedDist) {
                         try {
-                            Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
+                            Svc.BossMod.AddTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
                         } catch (Exception ex) {
                             Log($"Failed to disable BossMod movement: {ex.Message}");
                         }
                     } else if (dist <= safeDist) {
                         try {
-                            Svc.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                            Svc.BossMod.ClearTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
                         } catch (Exception ex) {
                             Log($"Failed to restore BossMod movement: {ex.Message}");
                         }
@@ -640,7 +646,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         try {
             if (Service.BossMod.IsLoaded) {
-                Service.BossMod.ClearTransientPresetStrategies(_presetName);
+                Service.BossMod.ClearTransientPresetStrategies(FateBossModPreset.Name);
                 Service.BossMod.ClearActive();
                 Service.BossMod.Deactivate();
             }
@@ -668,7 +674,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         try {
             if (Service.BossMod.IsLoaded) {
-                Service.BossMod.ClearTransientPresetStrategies(_presetName);
+                Service.BossMod.ClearTransientPresetStrategies(FateBossModPreset.Name);
             }
         } catch (Exception ex) {
             Log($"Failed to call BossMod ClearTransientPresetStrategies IPC: {ex.Message}");
@@ -828,7 +834,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         // Our stuck detection would fight danger avoidance by navmeshing straight into danger zones,
         // causing the player to oscillate back and forth between "move to melee" and "dodge danger."
         try {
-            if (Service.BossMod.IsLoaded && Service.BossMod.GetActive() == _presetName) {
+            if (Service.BossMod.IsLoaded && Service.BossMod.GetActive() == FateBossModPreset.Name) {
                 // BossMod is driving movement; clear any active mitigation and bail out.
                 if (_isCombatStuckMitigationActive) {
                     _isCombatStuckMitigationActive = false;
@@ -864,7 +870,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 } catch {}
                 try {
                     if (Service.BossMod.IsLoaded) {
-                        Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                        Service.BossMod.ClearTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
                     }
                 } catch {}
             }
@@ -885,7 +891,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 } catch {}
                 try {
                     if (Service.BossMod.IsLoaded) {
-                        Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                        Service.BossMod.ClearTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
                     }
                 } catch {}
             }
@@ -904,7 +910,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 } catch {}
                 try {
                     if (Service.BossMod.IsLoaded) {
-                        Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                        Service.BossMod.ClearTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
                     }
                 } catch {}
                 _lastEngagePosition = localPlayer.Position;
@@ -928,7 +934,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             try {
                 if (Service.BossMod.IsLoaded) {
                     // Disable BossMod's own movement control
-                    Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
+                    Svc.BossMod.AddTransientStrategy(FateBossModPreset.Name, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
                 }
             } catch (Exception ex) {
                 Log($"Failed to disable BossMod movement during stuck mitigation: {ex.Message}");
