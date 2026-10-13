@@ -175,6 +175,7 @@ def board_maps(m):
             "board": b["xbm_content_row"], "name": b["name"], "shortCode": b["cfc_short_code"], "level": b["class_job_level_sync"],
             "itemLevel": b["item_level_sync"], "rankSync": b["synk_rank"], "teamSize": b["team_size_max"],
             "timeLimitMin": b["time_limit_min"], "unlockQuest": b.get("unlock_quest"), "bonusPoints": b.get("bonus_points", {}),
+            "spacePoints": b.get("space_points", {}),
             "nodes": nodes, "edges": b["edges_from_to"], "battles": battles,
         })
     return {"source": m["source"], "boards": out, "vulnerabilityNames": VULN_NAMES}

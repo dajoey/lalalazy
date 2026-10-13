@@ -21,6 +21,13 @@ TT=byid(L('TerritoryType_linked')); IC=byid(L('InstanceContent_linked')); MAP=L(
 ACAT={k:v['Name'] for k,v in byid(L('ActionCategory')).items()}
 SB=byid(L('XBMScoreBonus'))
 
+# Patch 7.57 (official patch notes, live 2026-10-13) changed two score values while these sheets are still the 7.56 dump
+# (version f5af21155b99a524): the Sleepless Survival bonus 375 -> 1,000 and the elite enemy score 625 -> 800. The bonus is
+# patched over the sheet value; the elite score is in no sheet this pipeline reads, so it is set by hand. Drop both overrides
+# once the sheets are re-fetched at 7.57 and carry the new values themselves.
+PATCH_757_BONUS={"Sleepless Survival":1000}
+PATCH_757_SPACE_POINTS={"Elite Enemy":800}
+
 BOARD_NAMES={1:"First Board of the Unbroken",2:"Second Board of the Unbroken",3:"Third Board of the Unbroken",4:"First Master's Board",5:"Second Master's Board"}
 STAGE_EVENT_TYPE={1:"Start",2:"Enemy",3:"Elite Enemy",4:"Boss",5:"Shop",6:"Campsite",7:"Treasure",8:"Random"}
 STAGE_EVENT_ADDON={1:17540,2:17541,3:17542,4:17543,5:17544,6:17545,7:17546,8:17547}
@@ -120,7 +127,8 @@ for bid in range(1,6):
         "synk_rank":c['SynkRank'],"recommended_rank_raw":c['RecommendedRank'],"team_size_max":c['TeamSize'],
         "unlock_quest":{"id":cfc['UnlockCriteria'],"name":QUEST[cfc['UnlockCriteria']]['Name']},
         "xbm_entrance_row":ent[0],
-        "bonus_points":{SB[i]['Name']:p for i,p in enumerate(c['BonusPoints']) if p},
+        "bonus_points":{SB[i]['Name']:PATCH_757_BONUS.get(SB[i]['Name'],p) for i,p in enumerate(c['BonusPoints']) if p},
+        "space_points":PATCH_757_SPACE_POINTS,
         "node_count":len(nodes),"nodes":nodes,"edges_from_to":edges,"battles":battles})
 
 enums={

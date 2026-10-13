@@ -274,6 +274,7 @@ function renderSummary() {
       <div><b>Team size</b>up to ${bm.teamSize}</div>
       <div><b>Unlock</b>${esc(bm.unlockQuest?.name || '—')}</div>
       <div><b>Legendary line</b>≈ ${CONFIG.legendary[state.board].toLocaleString()} <span class="cp-sub">(guides)</span></div>
+      ${bm.spacePoints?.['Elite Enemy'] ? `<div><b>Elite enemy</b>${bm.spacePoints['Elite Enemy'].toLocaleString()} points each <span class="cp-sub">(7.57)</span></div>` : ''}
     </div>
     <div class="cp-picks"><h3>Your team for this board <span class="cp-sub">(${Math.min(team.length, bm.teamSize)} of ${bm.teamSize}, familiars that make a fight's top three, most fights first)</span></h3>${teamHtml}</div>
     <details class="cp-casts"><summary>Score bonuses on this board (${bonuses.length})</summary>
