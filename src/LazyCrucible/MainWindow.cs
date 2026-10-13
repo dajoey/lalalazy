@@ -124,7 +124,7 @@ internal sealed class MainWindow : Window
             cfg.YieldToAutoDuty = yieldAd;
             changed = true;
         }
-        Help("AutoDuty can run whole Crucible boards with its own team (for example a leveling team). While it is running, LazyCrucible stands by on every screen AutoDuty's own Crucible settings hand to AutoDuty (the run roster always; the battlehorns with its Fight picks on; the shop, treasure, spoils and campsite with their own toggles on) and works the rest, so the two never overwrite each other. AutoDuty's settings are only read, never changed.");
+        Help("AutoDuty can run whole Crucible boards with its own team (for example a leveling team). While it is running, LazyCrucible stands by on every screen AutoDuty works: the run roster, the shop, treasure, spoils and the campsite always (AutoDuty closes the ones its toggles turn off), and the battlehorns while AutoDuty's Fight picks is on. With Fight picks off, LazyCrucible picks the battlehorns. The two never overwrite each other. AutoDuty's settings are only read, never changed.");
 
         var announce = cfg.AnnouncePicks;
         if (ImGui.Checkbox("Announce picks in chat", ref announce))

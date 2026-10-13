@@ -115,6 +115,19 @@ internal static class NeedFirstCases
             borgnyDrake.Picks.Any(p => p.Row == BST_CrucibleMitigation.DrakeRow) && borgnyDrake.Picks.Any(p => p.Row == BST_CrucibleMitigation.CoblynRow),
             Show(borgnyDrake));
 
+        // A familiar too hurt to field does not answer mitigation: the floor is the advisor's danger line (DangerHpPercent, 15%).
+        CrucibleSelection SelHp(int board, int battle, IReadOnlyList<int> rows, Dictionary<int, int> hp) =>
+            BST_CrucibleNeedFirst.Select(board, battle, rows, hp, 3, "in the roster");
+        var lowDrake = SelHp(5, 6, [2, 29, 39, 35], new() { [35] = 10 });
+        Check("Durga with the drake at 10% HP: it does not take a horn for mitigation (a healthy familiar with the same coverage wins), and the magic need reads uncovered",
+            lowDrake.Picks.All(p => p.Row != BST_CrucibleMitigation.DrakeRow) && lowDrake.Mitigation.All(m => !m.Covered), Show(lowDrake));
+        var floorCoblyn = SelHp(4, 0, [28, 6, 23, 7], new() { [7] = BST_CrucibleAdvisor.DangerHpPercent });
+        Check("Borgny with the coblyn exactly at the danger line (15%): it does not count for poison",
+            floorCoblyn.Picks.All(p => p.Row != BST_CrucibleMitigation.CoblynRow), Show(floorCoblyn));
+        var hurtDrake = SelHp(5, 6, [2, 29, 39, 35], new() { [35] = 40 });
+        Check("Durga with the drake at 40% HP: above the danger line it still takes a horn for Atomic Ray",
+            hurtDrake.Picks.Any(p => p.Row == BST_CrucibleMitigation.DrakeRow) && hurtDrake.Mitigation.All(m => m.Row == BST_CrucibleMitigation.DrakeRow), Show(hurtDrake));
+
         var gargoyle = Sel(4, 5, [8, 16, 18, 22, 32, 46, BST_CrucibleMitigation.CoblynRow]);
         Check("Gargoyle (Sweeping Evisceration, physical) with no Beastkin owned: the coblyn (Vulcanize) is a horn pick",
             gargoyle.Picks.Any(p => p.Row == BST_CrucibleMitigation.CoblynRow), Show(gargoyle));

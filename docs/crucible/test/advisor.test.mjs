@@ -83,6 +83,14 @@ test(`needModel: tiered ability needs per fight (${golden.needModels.length} fig
   }
 });
 
+test(`mitigation counts only above the danger line (${golden.needFirstMitigationHp.length} cases)`, () => {
+  const hp = new Map(golden.mitigationHp.map(({ row, hp: h }) => [row, h]));
+  for (const c of golden.needFirstMitigationHp) {
+    const got = normSel(adv.select(c.board, c.battle, golden.rosters[c.roster], hp, 3, 'in the run roster'));
+    assert.deepEqual(got, goldenSel(c.selection), `mitigation HP ${c.roster} b${c.board}/${c.battle}`);
+  }
+});
+
 test('mitigation answers per row (BST_CrucibleMitigation.Answers): Scalekin and drake/pugil magic, coblyn poison+physical, Beastkin and adamantoise physical', () => {
   assert.equal(adv.mitAnswers(35), 1);
   assert.equal(adv.mitAnswers(4), 1);
