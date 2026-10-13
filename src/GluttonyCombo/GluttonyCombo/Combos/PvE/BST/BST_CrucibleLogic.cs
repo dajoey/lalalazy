@@ -837,7 +837,7 @@ internal static class BST_CrucibleLogic
     /// <summary> In combat with no cast to react to: the line where a heal is pressed anyway (Burns / cone attrition deaths at 3% HP). </summary>
     public const float PanicHealHpPercent = 25f;
 
-    /// <summary> A registered tankbuster with no Snarl -> Parting cover armed gets the potion at or below this line (per-hit damage unknown for most ids). </summary>
+    /// <summary> A registered tankbuster with no cover Snarl armed gets the potion at or below this line (per-hit damage unknown for most ids). </summary>
     public const float TankbusterGuardHpPercent = 35f;
 
     /// <summary> A held skin (Scaleskin / Beastskin / Vileskin) is offered this close to the hit: potions heal now, skins last. </summary>
@@ -933,7 +933,7 @@ internal static class BST_CrucibleLogic
     ///     <para>Guard: a measured <see cref="BST_CrucibleData.HeavyCast"/> of kind CastOnly / PartyWide — it hits the character whatever the
     ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> (scaled to the board's degree) gets the best available answer: the held
     ///     skin inside <see cref="SkinGuardLeadSeconds"/> of the hit (free, 90 s), else the potion at any point in the cast. A registered
-    ///     tankbuster gets the potion only when no Snarl -> Parting cover is armed and HP is at or below <see cref="TankbusterGuardHpPercent"/>
+    ///     tankbuster gets the potion only when no cover Snarl is armed and HP is at or below <see cref="TankbusterGuardHpPercent"/>
     ///     (the dodge, not the stock, is the first answer there), and not while Blink is up for a physical one
     ///     (<see cref="BST_CrucibleData.PhysicalCasts"/>).</para>
     ///     <para>Stock BMR's hit clock (<see cref="BmrHitOnCharacterSoon"/>): a predicted hit on the character no table knows gets the held
