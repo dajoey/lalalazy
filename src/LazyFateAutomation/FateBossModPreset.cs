@@ -46,3 +46,36 @@ internal static class FateBossModPreset {
         }
         """;
 }
+/// <summary>
+///     Release rule for the plugin's BossMod preset (Dalamud-free; FateBossModControl is the live half). BossMod has one
+///     active preset for everyone: AutoDuty sets its own on duty entry and the player may pick one by hand, so the grind
+///     clears the active preset only when it is still the one the grind set. Names compare exactly, as BMR's do.
+/// </summary>
+internal static class FateBossModRelease {
+    public static bool ShouldClearActive(string? activePreset) => string.Equals(activePreset, FateBossModPreset.Name, StringComparison.Ordinal);
+}
+
+/// <summary>
+///     Per-run memory of BossMod IPC endpoints that failed. An endpoint BMR does not register (IpcNotReadyError) is
+///     reported once and skipped for the rest of the run; any other failure is reported once and the call keeps
+///     being made. Reset at the start of each grind run, so an updated BossMod is tried again.
+/// </summary>
+internal sealed class BossModEndpointLatch {
+    private readonly HashSet<string> _missing = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+
+    /// <summary>False once the endpoint is known to be missing this run.</summary>
+    public bool ShouldCall(string endpoint) => !_missing.Contains(endpoint);
+
+    /// <summary>Records a failed call; true only for the first failure of that endpoint this run (log it then).</summary>
+    public bool ReportFailure(string endpoint, bool endpointMissing) {
+        if (endpointMissing)
+            _missing.Add(endpoint);
+        return _reported.Add(endpoint);
+    }
+
+    public void Reset() {
+        _missing.Clear();
+        _reported.Clear();
+    }
+}

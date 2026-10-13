@@ -16,6 +16,9 @@ namespace LazyFateAutomation.Harness;
 ///     5. the BossMod Reborn preset the grind creates and activates (FateBossModPreset): its own name, only
 ///        MiscAI movement/targeting modules (never a job rotation that would run beside Gluttony Combo), and
 ///        every module FateGrind sets a transient strategy on.
+///     6. releasing that preset: only BMR's stock Presets.GetActive/SetActive/ClearActive are used, the active
+///        preset is cleared only when it is the plugin's own (never AutoDuty's or the player's), and a BMR IPC
+///        endpoint that is not registered is reported once and skipped, never once per loop iteration.
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -102,6 +105,7 @@ internal static class Program {
         ConfigMigrationTests();
         DtrToggleTests();
         BossModPresetTests();
+        BossModReleaseTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
         if (_fail == 0) Console.WriteLine("OK");
@@ -370,7 +374,61 @@ internal static class Program {
         // The grind writes this preset itself (overwrite) and activates it by the same name.
         Check("FateGrind no longer embeds its own compressed preset", !grindSrc.Contains("_presetCompressed"));
         Check("FateGrind creates the preset from FateBossModPreset.Json with overwrite", grindSrc.Contains("Create(FateBossModPreset.Json, true)"));
-        Check("FateGrind activates the preset by FateBossModPreset.Name", grindSrc.Contains("SetActive(FateBossModPreset.Name)"));
+        Check("FateGrind activates the preset by FateBossModPreset.Name (through FateBossModControl)",
+            grindSrc.Contains("FateBossModControl.Activate()")
+            && File.ReadAllText(FindSource("FateBossModControl.cs")).Contains("SetActive(FateBossModPreset.Name)"));
+    }
+
+    private static void BossModReleaseTests() {
+        Console.WriteLine("-- BossMod preset release: stock IPC only, clear only our own preset, missing endpoint reported once --");
+
+        // Only clear our own preset: AutoDuty's presets, the player's presets and "nothing active" are left alone.
+        Check("our own active preset is cleared", FateBossModRelease.ShouldClearActive(FateBossModPreset.Name));
+        Check("AutoDuty's preset is never cleared", !FateBossModRelease.ShouldClearActive("AutoDuty"));
+        Check("AutoDuty Passive is never cleared", !FateBossModRelease.ShouldClearActive("AutoDuty Passive"));
+        Check("the player's old \"Gluttony\" preset is never cleared", !FateBossModRelease.ShouldClearActive("Gluttony"));
+        Check("a player preset with a similar name is never cleared", !FateBossModRelease.ShouldClearActive(FateBossModPreset.Name.ToLowerInvariant()));
+        Check("no active preset (null) -> nothing to clear", !FateBossModRelease.ShouldClearActive(null));
+        Check("empty active name -> nothing to clear", !FateBossModRelease.ShouldClearActive(""));
+
+        // A BMR endpoint that is not registered (IpcNotReadyError) is reported once and then skipped.
+        var latch = new BossModEndpointLatch();
+        var reports = 0;
+        var calls = 0;
+        for (var i = 0; i < 5000; i++) { // 5000 loop iterations against a missing endpoint
+            if (!latch.ShouldCall("Presets.Activate")) continue;
+            calls++;
+            if (latch.ReportFailure("Presets.Activate", endpointMissing: true)) reports++;
+        }
+        Check("missing endpoint: reported once over 5000 loop iterations", reports == 1, reports.ToString());
+        Check("missing endpoint: called once, then skipped", calls == 1, calls.ToString());
+        Check("another endpoint is unaffected", latch.ShouldCall("Presets.ClearActive"));
+
+        // Any other failure is reported once but the endpoint keeps being called (it exists; the failure may pass).
+        var other = 0;
+        for (var i = 0; i < 5000; i++)
+            if (latch.ShouldCall("Presets.SetActive") && latch.ReportFailure("Presets.SetActive", endpointMissing: false)) other++;
+        Check("other failure: reported once over 5000 calls", other == 1, other.ToString());
+        Check("other failure: endpoint is still called", latch.ShouldCall("Presets.SetActive"));
+
+        latch.Reset();
+        Check("a new run calls a previously missing endpoint again", latch.ShouldCall("Presets.Activate"));
+        Check("a new run reports it again, once", latch.ReportFailure("Presets.Activate", true) && !latch.ReportFailure("Presets.Activate", true));
+
+        // Source: no fork-only Presets.Activate/Deactivate, and every ClearActive goes through the guarded release.
+        var srcDir = Path.GetDirectoryName(FindSource("FateGrind.cs"))!;
+        var files = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .ToDictionary(f => Path.GetRelativePath(srcDir, f).Replace('\\', '/'), File.ReadAllText);
+        var forkCalls = files.Where(kv => Regex.IsMatch(kv.Value, @"\bBossMod\.(Activate|Deactivate)\(")).Select(kv => kv.Key).ToList();
+        Check("no call to BMR's non-stock Presets.Activate/Deactivate", forkCalls.Count == 0, string.Join(", ", forkCalls));
+        Check("BossModIPC no longer declares Presets.Activate/Deactivate",
+            !Regex.IsMatch(files["Helpers/IPC/BossModIPC.cs"], @"Func<bool>\s+(Activate|Deactivate)\s*;"));
+        var directClear = files.Where(kv => kv.Key != "FateBossModControl.cs" && kv.Value.Contains(".ClearActive(")).Select(kv => kv.Key).ToList();
+        Check("ClearActive is only called by the guarded release (FateBossModControl)", directClear.Count == 0, string.Join(", ", directClear));
+        var control = files.TryGetValue("FateBossModControl.cs", out var c) ? c : "";
+        Check("the release asks GetActive and the ownership rule before ClearActive",
+            control.Contains("FateBossModRelease.ShouldClearActive(") && control.Contains("GetActive"));
     }
 
     private static string FindSource(string file) {

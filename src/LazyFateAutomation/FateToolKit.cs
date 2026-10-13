@@ -80,13 +80,7 @@ public class FateToolKit : IFateGrindRunState {
             else {
                 PendingStopWhenSafe = false;
                 CurrentState = "Idle";
-                try {
-                    if (Service.BossMod.IsLoaded) {
-                        Service.BossMod.ClearActive();
-                    }
-                } catch (Exception ex) {
-                    Svc.Log.PrintWarning($"Failed to call BossMod ClearActive IPC: {ex.Message}");
-                }
+                FateBossModControl.Release(); // clears BossMod's active preset only if it is the grind's own
                 try { Service.Gluttony?.Release(); } catch (Exception ex) { Svc.Log.PrintWarning($"Failed to release Gluttony Combo: {ex.Message}"); }
                 try { Svc.Navmesh.PathfindCancelAll(); Svc.Navmesh.Stop(); } catch (Exception ex) { Svc.Log.PrintWarning($"Failed to stop vnavmesh: {ex.Message}"); }
                 Service.Automation.Stop();
