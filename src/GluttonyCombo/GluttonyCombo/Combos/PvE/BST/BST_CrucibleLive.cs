@@ -164,13 +164,16 @@ internal partial class BST
     /// <summary>
     ///     Where an auto-fired Shield Charge would land, from the current target (the hard target, or the enemy
     ///     the rotation is aiming at this tick): unreachable without line of sight; otherwise BossMod Reborn's
-    ///     dash-safety answer for the enemy's position and for the landing point at its edge (inside the arena
-    ///     bounds, outside forbidden zones such as puddles and telegraphs and temporary obstacles, dashes not
-    ///     forbidden by the module). BMR gives one bit, so both an out-of-bounds enemy and one in a puddle read
-    ///     <see cref="BST_RotationLogic.DashLanding.Danger"/>; BMR missing or failing reads Unknown.
+    ///     dash-safety answer for the landing point at the enemy's edge (inside the arena bounds, outside
+    ///     forbidden zones such as puddles and telegraphs and temporary obstacles, dashes not forbidden by the
+    ///     module); BMR missing or failing reads Unknown.
+    ///     bst1013: the landing point alone decides (<see cref="BST_DashSafety.Judge"/>), as stock BMR does for its
+    ///     own gap-closers. The enemy-centre answer is still asked, as a diagnostic: <paramref name="enemyCentreOnlyDanger"/>
+    ///     (SG <c>dh=danger-enemy</c>) and, with telemetry on, one <c>DS|</c> line per change.
     /// </summary>
-    internal static BST_RotationLogic.DashLanding ReadDashLanding()
+    internal static BST_RotationLogic.DashLanding ReadDashLanding(out bool enemyCentreOnlyDanger)
     {
+        enemyCentreOnlyDanger = false;
         if (Fn.CurrentTarget is not { } target || Fn.LocalPlayer is not { } player)
             return BST_RotationLogic.DashLanding.Safe;
 
@@ -192,12 +195,39 @@ internal partial class BST
         var bmr = global::GluttonyCombo.Data.Conflicts.ConflictingPluginsChecks.BossModReborn;
         var atEnemy = bmr.IsDashSafe(from, to);
         var atLanding = bmr.IsDashSafe(from, landing);
-        if (atEnemy is null || atLanding is null)
-            return BST_RotationLogic.DashLanding.Unknown;
+        enemyCentreOnlyDanger = BST_DashSafety.EnemyCentreOnlyDanger(atEnemy, atLanding);
+        LogDashDiagnostic(target.NameId, atEnemy, atLanding);
 
-        return atEnemy.Value && atLanding.Value
-            ? BST_RotationLogic.DashLanding.Safe
-            : BST_RotationLogic.DashLanding.Danger;
+        return BST_DashSafety.Judge(atEnemy, atLanding) switch
+        {
+            BST_DashSafety.Landing.Safe => BST_RotationLogic.DashLanding.Safe,
+            BST_DashSafety.Landing.Danger => BST_RotationLogic.DashLanding.Danger,
+            BST_DashSafety.Landing.Unreachable => BST_RotationLogic.DashLanding.Unreachable,
+            _ => BST_RotationLogic.DashLanding.Unknown,
+        };
+    }
+
+    private static string? _dashDiagnosticKey;
+
+    /// <summary>
+    ///     bst1013: with combo telemetry on, one <c>DS|</c> line whenever the target or either BMR answer changes
+    ///     while a dash is on the table, so a later run can grade dashes that land safely next to an enemy whose
+    ///     centre is in a danger zone (the case the old both-points rule held).
+    /// </summary>
+    private static void LogDashDiagnostic(uint targetNameId, bool? atEnemy, bool? atLanding)
+    {
+        if (!global::GluttonyCombo.Services.Service.Configuration.ComboTelemetry)
+        {
+            _dashDiagnosticKey = null;
+            return;
+        }
+
+        var key = BST_DashSafety.DiagnosticKey(targetNameId, atEnemy, atLanding);
+        if (key == _dashDiagnosticKey)
+            return;
+        _dashDiagnosticKey = key;
+        Svc.Log.Information(BST_DashSafety.DiagnosticLine(
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), targetNameId, atEnemy, atLanding));
     }
 
     // ------------------------------------------------------------------ Guard/Challenge telemetry

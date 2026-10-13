@@ -364,24 +364,35 @@ internal partial class BST : Melee
         s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
         s.ReadyShieldCharge = ActionReady(ShieldCharge);
-        // Where an auto-fired dash would land: asked only while a dash is actually on the table (one boss-mod IPC call).
-        if (s.ReadyShieldCharge && s.HasHostileTarget && s.Level >= BST_RotationLogic.LvShieldCharge)
-            s.DashLanding = ReadDashLanding();
+        // Where an auto-fired dash would land: asked only while a dash is actually on the table (boss-mod IPC calls).
+        // bst1013: overcap-only mode puts it on the table only at full charges, where its one dash can fire.
+        var dashEnemyCentreOnlyDanger = false;
+        if (s.ReadyShieldCharge && s.HasHostileTarget && s.Level >= BST_RotationLogic.LvShieldCharge
+            && BST_DashSafety.LandingReadNeeded(BST_UseShieldCharge, BST_ShieldChargeOvercap, s.ShieldChargeCharges, s.ShieldChargeMax))
+            s.DashLanding = ReadDashLanding(out dashEnemyCentreOnlyDanger);
 
         ReadCrucible(ref s);
 
         // Why the gap-close did not fire this tick, mirroring the section-8 gate order, so an SG| range line can
         // name it (2026-10-04: standing-still stalls could not be attributed - charge economy vs hold vs config).
-        s.DashHold =
-            s.Level < BST_RotationLogic.LvShieldCharge ? "lvl" :
-            !BST_UseShieldCharge && !BST_ShieldChargeOvercap ? "off" :
-            !s.ReadyShieldCharge ? (s.ShieldChargeCharges > 0 ? "recast" : "charges") :
-            s.TargetDistance > 20f ? "far" :
-            s.ProtectedNearTarget ? "protected" :
-            s.DashLanding == BST_RotationLogic.DashLanding.Danger ? "danger" :
-            s.DashLanding == BST_RotationLogic.DashLanding.Unreachable ? "unreachable" :
-            s.DashLanding == BST_RotationLogic.DashLanding.Unknown ? "unknown" :
-            null;
+        // bst1013: ladder in BST_DashSafety.HoldLabel (harness-proven): overcap-only mode reads "overcap-only"
+        // (it never gap-closes), and "danger" splits into danger-landing (the hold) / danger-enemy (diagnostic).
+        s.DashHold = BST_DashSafety.HoldLabel(
+            levelOk: s.Level >= BST_RotationLogic.LvShieldCharge,
+            useShieldCharge: BST_UseShieldCharge,
+            overcap: BST_ShieldChargeOvercap,
+            ready: s.ReadyShieldCharge,
+            charges: s.ShieldChargeCharges,
+            targetDistance: s.TargetDistance,
+            protectedNear: s.ProtectedNearTarget,
+            landing: s.DashLanding switch
+            {
+                BST_RotationLogic.DashLanding.Danger => BST_DashSafety.Landing.Danger,
+                BST_RotationLogic.DashLanding.Unreachable => BST_DashSafety.Landing.Unreachable,
+                BST_RotationLogic.DashLanding.Unknown => BST_DashSafety.Landing.Unknown,
+                _ => BST_DashSafety.Landing.Safe,
+            },
+            enemyCentreOnlyDanger: dashEnemyCentreOnlyDanger);
 
         return s;
     }
