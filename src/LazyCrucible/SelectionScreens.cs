@@ -11,8 +11,8 @@ namespace LazyCrucible;
 ///     campsite's rest picker. Each has its own switch. A screen is acted on once per open, one input at a time, and every
 ///     input is checked before it is sent (<see cref="ActuationGuard"/>), confirmed only on the Yes/No prompt that input
 ///     opened (<see cref="PromptGuard"/>), and read back from the screen afterwards; any mismatch, an input the player
-///     made on the same screen, or AutoDuty running with that screen in its own settings stands the automation down for the
-///     rest of that open (<see cref="AutoDutyCrucible.Driven"/>; a screen AutoDuty's settings leave alone is handled as usual). Nothing here
+///     made on the same screen, or AutoDuty running stands the automation down for the rest of that open (AutoDuty acts on every one
+///     of these screens whatever its toggles say: <see cref="AutoDutyCrucible.Driven"/>). Nothing here
 ///     walks, enters, commences, starts a battle, presses Rest, suspends, forfeits, sells or closes a screen.
 ///     Log lines: <c>SL|ms|screen=..|...</c> (decision, input, read-back) through <see cref="CrucibleLog"/>.
 /// </summary>
@@ -166,9 +166,9 @@ internal static unsafe class SelectionScreens
 
         ConsumeExternalEdit(feedOpen ? Feed : campOpen ? Camp : null);
 
-        // Stand by on every screen another driver owns: all of them for an older GluttonyCombo; while AutoDuty runs, only the ones its
-        // own Crucible settings say it drives (AutoDutyCrucible.Driven: Shop with the feed picker, Treasure, Loot, Rest; all of them
-        // while its settings are unreadable). A screen AutoDuty leaves alone is acted on as usual.
+        // Stand by on every screen another driver owns: all of them for an older GluttonyCombo, and all of these while AutoDuty runs
+        // (AutoDutyCrucible.Driven: AutoDuty 0.0.0.382 acts on the shop and its feed picker, treasure, spoils and the campsite whatever
+        // its toggles say; with a toggle off it closes that screen). Only the battlehorns can be LazyCrucible's during an AutoDuty run.
         var driven = yieldReason is null ? CrucibleSurface.None
             : yieldReason == "autoduty_running" ? ExternalDrivers.DrivenSurfaces
             : CrucibleSurface.All;

@@ -25,28 +25,29 @@ public enum CrucibleSurface : ushort
     All = Roster | Horns | Shop | Feed | Treasure | Spoils | Camp,
 }
 
-/// <summary> AutoDuty's own Crucible settings for the profile AutoDuty uses (read from its config file, never written). </summary>
+/// <summary>
+///     AutoDuty's own Crucible settings for the profile AutoDuty uses (read over its IPC or from its config file, never written).
+///     Only <see cref="FightPicks"/> changes what LazyCrucible does; the rest names the setup in the log.
+/// </summary>
 public sealed record AutoDutyCrucibleConfig(
     string Profile,
     string TeamMode,
     string LevelingMode,
     string Degree,
-    bool FightPicks,
-    bool Loot,
-    bool Treasure,
-    bool Shop,
-    bool Rest);
+    bool FightPicks);
 
 /// <summary>
 ///     Working WITH AutoDuty. PURE. AutoDuty picks its own familiars when it is set to; LazyCrucible picks when it is not; when
 ///     AutoDuty picks, the suite makes the best of the team it chose. So LazyCrucible stands by on exactly the surfaces AutoDuty
-///     drives and acts as usual on the rest. What AutoDuty drives comes from its own Crucible settings
-///     (<c>profileData[..].Config.Meta.Crucible</c> in <c>pluginConfigs/AutoDuty/AutoDutyConfigV2.json</c>, read-only; AutoDuty has
-///     no IPC for them), matched to its menu code: the team is built in every team mode, the battlehorns only with Fight picks on
-///     (with it off AutoDuty neither picks nor commences), and the shop (with the feed picker it opens), treasure, spoils and the
-///     campsite each only with their own toggle on. An unreadable config means every surface stands by, as before. The
-///     need-coverage corrections that once wrote on top of AutoDuty's picks are retired: they reached the fight in 0 of 40
-///     AutoDuty-driven fights, because AutoDuty re-asserted its own picks every time.
+///     drives and acts as usual on the rest. Matched to AutoDuty 0.0.0.382's menu code (Managers/Crucible/CrucibleMenus.cs, identical
+///     to 0.0.0.380): it builds the team in every team mode, and it acts on the shop (with the feed picker), treasure, spoils and
+///     the campsite whatever their toggles say: a toggle that is off makes it CLOSE that screen (ItemShop.Close plus Yes on its
+///     prompt, Treasure.Close, Booty.Close, PetParty.RestReturn), so those are always AutoDuty's. Only "Fight picks" off leaves a
+///     screen alone: AutoDuty neither picks the battlehorns nor commences, and LazyCrucible picks them. The active profile's Fight
+///     picks comes over AutoDuty's IPC (<c>AutoDuty.GetConfig</c>, <see cref="FromIpc"/>), its config file being the fallback
+///     (<see cref="Parse"/>). An unknown setting means every surface stands by, as before. The need-coverage corrections that once
+///     wrote on top of AutoDuty's picks are retired: they reached the fight in 0 of 40 AutoDuty-driven fights, because AutoDuty
+///     re-asserted its own picks every time.
 /// </summary>
 internal static class AutoDutyCrucible
 {
@@ -84,7 +85,7 @@ internal static class AutoDutyCrucible
             }
 
             if ((byCid ?? byDefault) is not { } chosen)
-                return new("(defaults)", "Recommended", "", "", true, true, true, true, true);
+                return new("(defaults)", "Recommended", "", "", true);
 
             var crucible = chosen.TryGetProperty("Config", out var cfg) && cfg.ValueKind == JsonValueKind.Object
                            && cfg.TryGetProperty("Meta", out var meta) && meta.ValueKind == JsonValueKind.Object
@@ -96,11 +97,7 @@ internal static class AutoDutyCrucible
                 Enum(crucible, "TeamMode", TeamModes, "Recommended"),
                 Enum(crucible, "LevelingMode", [], ""),
                 Enum(crucible, "Degree", [], ""),
-                Flag(crucible, "FightPicks"),
-                Flag(crucible, "Loot"),
-                Flag(crucible, "Treasure"),
-                Flag(crucible, "Shop"),
-                Flag(crucible, "Rest"));
+                Flag(crucible, "FightPicks"));
         }
         catch (JsonException)
         {
@@ -127,24 +124,35 @@ internal static class AutoDutyCrucible
     private static bool Flag(JsonElement e, string name) =>
         e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.False;
 
-    /// <summary> The surfaces AutoDuty drives while it runs a board with these settings (all of them when the settings are unknown). </summary>
-    public static CrucibleSurface Driven(AutoDutyCrucibleConfig? config)
+    /// <summary> The IPC path of AutoDuty's Fight picks toggle (ConfigurationProfileV2.Meta.Crucible.FightPicks). </summary>
+    public const string FightPicksPath = "Meta.Crucible.FightPicks";
+
+    /// <summary> The IPC path of AutoDuty's team mode (for the log). </summary>
+    public const string TeamModePath = "Meta.Crucible.TeamMode";
+
+    /// <summary>
+    ///     The ACTIVE profile's settings over AutoDuty's IPC. <paramref name="getConfig"/> is <c>AutoDuty.GetConfig</c>: AutoDuty
+    ///     0.0.0.382 <c>IPC/IPCProvider.cs:20</c> <c>[EzIPC] public string GetConfig(string config)</c> (EzIPC prefix = the plugin's
+    ///     internal name, so <c>AutoDuty.GetConfig</c>, a <c>Func&lt;string, string&gt;</c>), which resolves a dotted path against
+    ///     <c>ConfigurationMain.GetCurrentConfig</c> (the profile in use, which the config file's default can differ from) and returns the
+    ///     value's <c>ToString()</c>: "True" / "False" for a toggle, the name for an enum. An unknown path returns "" and writes an error
+    ///     to AutoDuty's log, so only the two known paths are asked, Fight picks first. Null when Fight picks does not read as True or
+    ///     False (an older AutoDuty): the caller then reads the file. The caller catches a missing or mismatched IPC.
+    /// </summary>
+    public static AutoDutyCrucibleConfig? FromIpc(Func<string, string?> getConfig)
     {
-        if (config is null)
-            return CrucibleSurface.All;
-        var driven = CrucibleSurface.Roster; // AutoDuty builds the team in every team mode
-        if (config.FightPicks)
-            driven |= CrucibleSurface.Horns;
-        if (config.Shop)
-            driven |= CrucibleSurface.Shop | CrucibleSurface.Feed;
-        if (config.Treasure)
-            driven |= CrucibleSurface.Treasure;
-        if (config.Loot)
-            driven |= CrucibleSurface.Spoils;
-        if (config.Rest)
-            driven |= CrucibleSurface.Camp;
-        return driven;
+        if (!bool.TryParse(getConfig(FightPicksPath), out var fightPicks))
+            return null;
+        var team = getConfig(TeamModePath);
+        return new("(active)", string.IsNullOrEmpty(team) ? "?" : team, "", "", fightPicks);
     }
+
+    /// <summary>
+    ///     The surfaces AutoDuty drives while it runs a board with these settings: the run roster, the shop and its feed picker,
+    ///     treasure, spoils and the campsite always; the battlehorns with Fight picks on. All of them when the settings are unknown.
+    /// </summary>
+    public static CrucibleSurface Driven(AutoDutyCrucibleConfig? config) =>
+        config is null || config.FightPicks ? CrucibleSurface.All : CrucibleSurface.All & ~CrucibleSurface.Horns;
 
     /// <summary> Whether LazyCrucible stands by on <paramref name="surface"/>: only while AutoDuty runs and drives that surface. </summary>
     public static bool Yields(bool autoDutyDriving, CrucibleSurface driven, CrucibleSurface surface) =>

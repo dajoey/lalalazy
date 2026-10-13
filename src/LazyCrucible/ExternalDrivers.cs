@@ -12,8 +12,8 @@ namespace LazyCrucible;
 ///     <c>AutoDuty.IsStopped</c>, <c>IsLooping</c> and <c>IsNavigating</c>. While it is stepping, AutoDuty owns the
 ///     run. <c>IsStopped</c> alone is not enough: a loop can keep reporting "running" long after its last step
 ///     (live 2026-09-29), so <see cref="AutoDutyWatch"/> also reads the other two and where the player stands.
-///     Which screens AutoDuty owns while it runs comes from its own Crucible settings (<see cref="DrivenSurfaces"/>):
-///     LazyCrucible stands by on those and picks on the rest.
+///     Which screens AutoDuty owns while it runs (<see cref="DrivenSurfaces"/>): all of them, except the battlehorns while its
+///     "Fight picks" is off, read from its active profile over its <c>AutoDuty.GetConfig</c> IPC (its config file as the fallback).
 /// </summary>
 internal static class ExternalDrivers
 {
@@ -49,8 +49,9 @@ internal static class ExternalDrivers
     public static string Detail => $"ad={StateName(Watch.Status)}|nav={Flag(_navigating)}|loop={Flag(_looping)}";
 
     /// <summary>
-    ///     The selection surfaces AutoDuty drives with its own Crucible settings (<see cref="AutoDutyCrucible.Driven"/>; every
-    ///     surface while the settings are unreadable). Meaningful only while <see cref="AutoDutyRunning"/>.
+    ///     The selection surfaces AutoDuty drives with its own Crucible settings (<see cref="AutoDutyCrucible.Driven"/>: all but the
+    ///     battlehorns while Fight picks is off; every surface while the settings are unreadable). Meaningful only while
+    ///     <see cref="AutoDutyRunning"/>.
     /// </summary>
     public static CrucibleSurface DrivenSurfaces
     {
@@ -64,13 +65,17 @@ internal static class ExternalDrivers
     /// <summary> <see cref="DrivenSurfaces"/> for a log field: <c>Roster+Horns</c>, <c>All</c>. </summary>
     public static string DrivenNote => DrivenSurfaces.ToString().Replace(", ", "+");
 
-    // AutoDuty's Crucible settings, read-only from its own config file (AutoDuty has no IPC for them). Re-read when the file
-    // changes or the character does, at most every few seconds; never written.
+    // AutoDuty's Crucible settings, never written. The ACTIVE profile over AutoDuty's IPC (AutoDuty.GetConfig) every 5 s while it
+    // runs; its config file (the profile it would pick for this character) only while the IPC is missing or fails. The file is
+    // re-read only when it or the character changed.
     private static AutoDutyCrucibleConfig? _config;
+    private static AutoDutyCrucibleConfig? _fileConfig;
     private static DateTime _configStamp = DateTime.MinValue;
     private static ulong _configCid;
     private static DateTime _nextConfigCheck = DateTime.MinValue;
     private static string _lastConfigLogged = "";
+    /// <summary> The IPC failed during this AutoDuty run (missing, older AutoDuty, mismatched): off until AutoDuty stops, logged once. </summary>
+    private static bool _configIpcOff;
 
     private static void Poll()
     {
@@ -84,6 +89,8 @@ internal static class ExternalDrivers
         _navigating = _stopped ? null : Ipc("AutoDuty.IsNavigating");
         if (!_stopped)
             RefreshConfig(now);
+        else
+            _configIpcOff = false; // the next AutoDuty run tries its IPC again
 
         var territory = (uint)Svc.ClientState.TerritoryType;
         var board = BST_CrucibleData.BoardOfTerritory(territory);
@@ -108,10 +115,10 @@ internal static class ExternalDrivers
     }
 
     /// <summary>
-    ///     Read AutoDuty's Crucible settings (<c>pluginConfigs/AutoDuty/AutoDutyConfigV2.json</c>, the folder next to this plugin's
-    ///     own config) when the file or the character changed. Opened read-only and shared, so AutoDuty can keep writing it. A missing,
-    ///     locked or half-written file reads as unknown (every surface stands by) and is tried again on the next check; one
-    ///     <c>PS|..|note=autoduty_config</c> line per change of what was read, no error lines.
+    ///     Read AutoDuty's Crucible settings every 5 s while it runs: the active profile over its IPC (<see cref="AutoDutyCrucible.FromIpc"/>),
+    ///     else its config file (<see cref="ReadConfigFile"/>). An IPC that throws or answers something that is not True/False is latched
+    ///     off for the rest of the run with one <c>PS|..|note=autoduty_config|ipc=off</c> line. One <c>PS|..|note=autoduty_config</c>
+    ///     line per change of what was read, no error lines.
     /// </summary>
     private static void RefreshConfig(DateTime now)
     {
@@ -119,6 +126,51 @@ internal static class ExternalDrivers
             return;
         _nextConfigCheck = now.AddSeconds(5);
 
+        AutoDutyCrucibleConfig? read = null;
+        var via = "file";
+        if (!_configIpcOff)
+        {
+            string? why = null;
+            try
+            {
+                var ipc = Svc.PluginInterface.GetIpcSubscriber<string, string>("AutoDuty.GetConfig");
+                read = AutoDutyCrucible.FromIpc(path => ipc.InvokeFunc(path));
+                if (read is null)
+                    why = "answer";
+                else
+                    via = "ipc";
+            }
+            catch (Exception ex)
+            {
+                read = null;
+                why = ex.GetType().Name;
+            }
+            if (why is not null)
+            {
+                _configIpcOff = true;
+                CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=autoduty_config|ipc=off|why={why}|calls=0");
+            }
+        }
+        read ??= ReadConfigFile();
+        _config = read;
+
+        var line = read is null
+            ? "read=0"
+            : $"read=1|via={via}|profile={read.Profile}|team={read.TeamMode}|lvl={read.LevelingMode}|dg={read.Degree}|fp={(read.FightPicks ? 1 : 0)}";
+        if (line == _lastConfigLogged)
+            return;
+        _lastConfigLogged = line;
+        CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=autoduty_config|{line}" +
+                         $"|driven={AutoDutyCrucible.Driven(read).ToString().Replace(", ", "+")}|calls=0");
+    }
+
+    /// <summary>
+    ///     AutoDuty's config file (<c>pluginConfigs/AutoDuty/AutoDutyConfigV2.json</c>, the folder next to this plugin's own config),
+    ///     re-read only when the file or the character changed. Opened read-only and shared, so AutoDuty can keep writing it. A missing,
+    ///     locked or half-written file reads as unknown (every surface stands by) and is tried again on the next check.
+    /// </summary>
+    private static AutoDutyCrucibleConfig? ReadConfigFile()
+    {
         var cid = Player.CID;
         string? path = null;
         var stamp = DateTime.MinValue;
@@ -138,7 +190,7 @@ internal static class ExternalDrivers
         }
 
         if (stamp == _configStamp && cid == _configCid)
-            return;
+            return _fileConfig;
         _configStamp = stamp;
         _configCid = cid;
 
@@ -158,17 +210,8 @@ internal static class ExternalDrivers
             if (read is null)
                 _configStamp = DateTime.MinValue; // half-written or locked: read it again next time
         }
-        _config = read;
-
-        var line = read is null
-            ? $"read=0|file={(stamp == DateTime.MinValue ? "missing" : "unreadable")}"
-            : $"read=1|profile={read.Profile}|team={read.TeamMode}|lvl={read.LevelingMode}|dg={read.Degree}|fp={(read.FightPicks ? 1 : 0)}" +
-              $"|shop={(read.Shop ? 1 : 0)}|tr={(read.Treasure ? 1 : 0)}|loot={(read.Loot ? 1 : 0)}|rest={(read.Rest ? 1 : 0)}";
-        if (line == _lastConfigLogged)
-            return;
-        _lastConfigLogged = line;
-        CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=autoduty_config|{line}" +
-                         $"|driven={AutoDutyCrucible.Driven(read).ToString().Replace(", ", "+")}|calls=0");
+        _fileConfig = read;
+        return read;
     }
 
     /// <summary>
