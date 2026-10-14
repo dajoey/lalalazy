@@ -241,8 +241,8 @@ internal static class OutOfCombatGate
     /// <summary>
     ///     1.0.4.304: the one seam for the controller's controlled-target decisions -
     ///     the lease table's values in, the per-tick answers out. The offline harness
-    ///     executes this with fake lease values, so a wiring change on the per-tick path
-    ///     has to keep these semantics to keep the harness green.
+    ///     executes this with fake lease values: these semantics are pinned there, while
+    ///     the call-site wiring itself is checked by review and in play.
     /// </summary>
     internal static ExternalControlDecision ExternalControlDecisionFor<TKey, TLease>(
         bool settingEnabled,

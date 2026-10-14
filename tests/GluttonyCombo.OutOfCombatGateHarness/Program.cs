@@ -272,6 +272,14 @@ Case("seam: AutoDuty quiet 5 minutes: control is over (the lessee name drives th
 Case("seam: the same quiet lease under the ten-minute window stays control (Lazy Fate Automation)", true, Decision(OpenWorld, ("Lazy Fate Automation", 300)).Active);
 Case("seam: a registered lease counts as a controller through the seam", true, Decision(OpenWorld, ("AutoDuty", 300)).ControllerPresent);
 
+// The setting check moved from the property's early return into the seam argument: with the
+// setting off and a lease still registered, control is over yet the controller is present, so
+// the dummy stays off the target list (the 1.0.4.303 held-lease guarantee).
+var settingOff = OutOfCombatGate.ExternalControlDecisionFor(false, OpenWorld, FakeLeases(("AutoDuty", 5)).Values, l => (l.Name, l.Refreshed));
+Case("seam, setting off, fresh AutoDuty lease: control is over", false, settingOff.Active);
+Case("seam, setting off, fresh AutoDuty lease: the controller is still present", true, settingOff.ControllerPresent);
+Case("seam, setting off, fresh AutoDuty lease: the dummy is still not an attack target", false, settingOff.MayAttackCurrentTarget(StrikingDummy));
+
 // Item 1: the hard-target arms consult the dummy decision through the seam.
 Case("hard-targeted dummy, fresh AutoDuty lease: the hard-target arm does not attack it", false, Decision(OpenWorld, ("AutoDuty", 5)).MayAttackCurrentTarget(StrikingDummy));
 Case("hard-targeted ordinary enemy, fresh AutoDuty lease: the hard-target arm still attacks it", true, Decision(OpenWorld, ("AutoDuty", 5)).MayAttackCurrentTarget(SomeEnemy));

@@ -1,6 +1,6 @@
 ## v1.0.4.304 (2026-10-14) [testing]
 ### Fixed
-- **While another plugin controls the rotation, a training dummy that is the manually chosen target is left alone too.** The Manual and Tank Target modes and the manual area-of-effect aim take their target straight from the target the character has selected, and that path did not go through the enemy filter that 1.0.4.303 added, so a Striking Dummy that was already selected could still be struck while a lease was held. The same dummy check now covers that path: while another plugin is in control or still holds a lease, the dummy is not attacked even as the chosen target; without a lease the player's own choice stands.
+- **While another plugin controls the rotation, a training dummy that is the chosen target is left alone too.** The Manual mode, the manual area-of-effect aim and the Tank Target mode take their target from a selected target - the character's own, or in Tank Target mode the tank's - instead of from the enemy filter that 1.0.4.303 added, so a Striking Dummy that was already selected could still be struck while a lease was held. The same dummy check now covers that path: while another plugin is in control or still holds a lease, the dummy is not attacked even as the chosen target; without a lease the player's own choice stands.
 ### Changed
 - The external-control check reads the lease table directly on every tick instead of building a list for each read (the rotation consults it several times a tick).
 ### Notes

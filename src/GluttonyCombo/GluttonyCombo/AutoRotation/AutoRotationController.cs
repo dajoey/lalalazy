@@ -351,7 +351,8 @@ internal unsafe class AutoRotationController
     ///     Without a registered controller the player's own choice stands.
     /// </summary>
     internal static IBattleChara? ExternalControlHardTargetFilter(IBattleChara? target)
-        => target is not { } t || ExternalControlDecision.MayAttackCurrentTarget(t.NameId) ? target : null;
+        => target is not { } t || !OutOfCombatGate.IsTrainingDummy(t.NameId)
+            || ExternalControlDecision.MayAttackCurrentTarget(t.NameId) ? target : null;
 
     // Fork (1.0.4.303): TerritoryIntendedUse of the current territory (0 city, 2 inn, 13 housing district,
     // 14 housing interior...), cached per territory id so the per-tick control check stays a field read.
