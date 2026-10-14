@@ -317,35 +317,41 @@ internal unsafe class AutoRotationController
     ///     OutOfCombatGate.ExternalControlStalenessWindow, this is false and the
     ///     saved restriction rules again.
     /// </summary>
-    static bool ExternalControlActive
+    static bool ExternalControlActive => ExternalControlDecision.Active;
+
+    /// <summary>
+    ///     Fork (1.0.4.304): the per-tick external-control answer, computed straight
+    ///     over the lease table's values - no per-call list. (The property is read
+    ///     several times per tick and built a List on every read before this; the
+    ///     1.0.4.302 path allocated nothing and that stays true.) The identical
+    ///     semantics live in <see cref="OutOfCombatGate.ExternalControlDecisionFor{TKey, TLease}" />
+    ///     and are executed by the offline harness with fake lease values.
+    /// </summary>
+    static OutOfCombatGate.ExternalControlDecision ExternalControlDecision
     {
         get
         {
-            if (cfg is null || !cfg.AttackOutOfCombatWhileControlled)
-                return false;
+            var registrations = P?.IPC?.Leasing?.Registrations;
+            if (registrations is null || registrations.Count == 0)
+                return default;
 
-            return OutOfCombatGate.ExternalControlActive(
-                true, CurrentTerritoryIntendedUse, ExternalLeaseAges());
+            return OutOfCombatGate.ExternalControlDecisionFor(
+                cfg is not null && cfg.AttackOutOfCombatWhileControlled,
+                CurrentTerritoryIntendedUse,
+                registrations.Values,
+                static lease => (lease.PluginName, lease.LastUpdated));
         }
     }
 
     /// <summary>
-    ///     Fork (1.0.4.303): every registered lease with the time since its last
-    ///     control call, for the per-lessee quiet window
-    ///     (<see cref="OutOfCombatGate.ExternalControlWindowFor" />).
+    ///     Fork (1.0.4.304): the Manual and Tank_Target modes and the manual AoE branch
+    ///     resolve the target straight off the player's hard target, outside the enemy
+    ///     query's filter. While a controller is present a training dummy is not attacked
+    ///     from there either - the 1.0.4.303 dummy guarantee covers the hard-target arms.
+    ///     Without a registered controller the player's own choice stands.
     /// </summary>
-    static IReadOnlyList<OutOfCombatGate.ExternalLease> ExternalLeaseAges()
-    {
-        var registrations = P?.IPC?.Leasing?.Registrations;
-        if (registrations is null || registrations.Count == 0)
-            return Array.Empty<OutOfCombatGate.ExternalLease>();
-
-        var now = DateTime.Now;
-        var ages = new List<OutOfCombatGate.ExternalLease>(registrations.Count);
-        foreach (var lease in registrations.Values)
-            ages.Add(new OutOfCombatGate.ExternalLease(lease.PluginName, now - lease.LastUpdated));
-        return ages;
-    }
+    internal static IBattleChara? ExternalControlHardTargetFilter(IBattleChara? target)
+        => target is not { } t || ExternalControlDecision.MayAttackCurrentTarget(t.NameId) ? target : null;
 
     // Fork (1.0.4.303): TerritoryIntendedUse of the current territory (0 city, 2 inn, 13 housing district,
     // 14 housing interior...), cached per territory id so the per-tick control check stays a field read.
@@ -2164,7 +2170,7 @@ internal unsafe class AutoRotationController
                         DPSRotationMode.Furthest => DPSTargeting.GetFurthestTarget(),
                         _ => SimpleTarget.HardTarget,
                     };
-                    return ResolveStatusImmuneTarget(target);
+                    return ResolveStatusImmuneTarget(ExternalControlHardTargetFilter(target));
                 }
                 else
                 {
@@ -2180,7 +2186,7 @@ internal unsafe class AutoRotationController
                         DPSRotationMode.Furthest => DPSTargeting.GetFurthestTarget(),
                         _ => SimpleTarget.HardTarget,
                     };
-                    return ResolveStatusImmuneTarget(target);
+                    return ResolveStatusImmuneTarget(ExternalControlHardTargetFilter(target));
                 }
             }
             if (rotationMode is HealerRotationMode healermode)
@@ -2321,7 +2327,7 @@ internal unsafe class AutoRotationController
                 return true;
 
             var autoTarget = DPSTargeting.BaseSelection.MaxBy(x => NumberOfEnemiesInRange(OriginalHook(gameAct), x, true));
-            var manualTarget = SimpleTarget.HardTarget;
+            var manualTarget = ExternalControlHardTargetFilter(SimpleTarget.HardTarget);
 
             IBattleChara? target = null;
             // Determine target according to rotation mode and AoE settings
@@ -2763,7 +2769,7 @@ internal unsafe class AutoRotationController
             GetTargetCurrentHP(chara, true) > 0 &&
             chara.IsTargetable &&
             chara.IsHostile() &&
-            (!OutOfCombatGate.IsTrainingDummy(chara.NameId) || OutOfCombatGate.ExternalControlMayTarget(OutOfCombatGate.ExternalControllerPresent(ExternalControlActive, ExternalLeaseSnapshot().leases), chara.NameId)) &&
+            (!OutOfCombatGate.IsTrainingDummy(chara.NameId) || ExternalControlDecision.MayTarget(chara.NameId)) &&
             IsInRange(chara, InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 50f : cfg.DPSSettings.MaxDistance) &&
             GetTargetHeightDifference(chara) <= (InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 100f : cfg.DPSSettings.MaxDistance) &&
             !chara.IsInvincible &&
@@ -2898,7 +2904,7 @@ internal unsafe class AutoRotationController
             if (tank == null)
                 return null;
 
-            return tank.BattleChara.TargetObject as IBattleChara;
+            return ExternalControlHardTargetFilter(tank.BattleChara.TargetObject as IBattleChara);
         }
 
         public static IBattleChara? GetNearestTarget()

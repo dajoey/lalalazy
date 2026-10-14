@@ -164,6 +164,17 @@ internal static class OutOfCombatGate
         => !(externalControlActive && IsTrainingDummy(nameId));
 
     /// <summary>
+    ///     1.0.4.304: whether the rotation may attack the player's current hard target.
+    ///     The Manual and Tank_Target modes and the manual AoE branch resolve the target
+    ///     straight off the hard target, outside the enemy query's filter, so the dummy
+    ///     decision is consulted here too: while a controller is present a training dummy
+    ///     is not attacked even as the chosen target. Without a registered controller the
+    ///     player's own choice stands.
+    /// </summary>
+    internal static bool ExternalControlMayAttackCurrentTarget(bool controllerPresent, uint nameId)
+        => !(controllerPresent && IsTrainingDummy(nameId));
+
+    /// <summary>
     ///     1.0.4.303: whether another plugin is driving the rotation for the purposes of
     ///     the dummy filter: control is active, or a lease is still registered. A held
     ///     lease keeps its option overrides (AutoDuty clears "only attack in combat")
@@ -182,6 +193,67 @@ internal static class OutOfCombatGate
         => settingEnabled
            && TerritoryAllowsExternalControl(territoryIntendedUse)
            && leases.Any(l => ExternalControlFresh(1, l.SinceRefresh, ExternalControlWindowFor(l.Name)));
+
+    /// <summary>
+    ///     1.0.4.304: the per-tick external-control answer the controller derives from
+    ///     the lease table, as one value the offline harness can execute with fake lease
+    ///     data: is control active right now, and is a controller present (active, or
+    ///     any lease still registered - a held lease keeps its option overrides).
+    /// </summary>
+    internal readonly record struct ExternalControlDecision(bool Active, bool ControllerPresent)
+    {
+        /// <summary>The enemy query's dummy filter (1.0.4.303).</summary>
+        internal bool MayTarget(uint nameId) => ExternalControlMayTarget(ControllerPresent, nameId);
+
+        /// <summary>The hard-target arm's dummy filter (1.0.4.304).</summary>
+        internal bool MayAttackCurrentTarget(uint nameId) => ExternalControlMayAttackCurrentTarget(ControllerPresent, nameId);
+    }
+
+    /// <summary>
+    ///     1.0.4.304: the control check straight over the lease table's values - no
+    ///     per-call list. The <see cref="ExternalControlActive(bool, uint, IReadOnlyList{ExternalLease})" />
+    ///     overload above stays as the specification the offline harness asserts this
+    ///     against. Same per-lease rule: a lease counts while its newest control call
+    ///     sits inside its own lessee window, keyed on the lease's own name (AutoDuty's
+    ///     minute, every other lessee's ten).
+    /// </summary>
+    internal static bool ExternalControlActive<TKey, TLease>(
+        bool settingEnabled,
+        uint territoryIntendedUse,
+        Dictionary<TKey, TLease>.ValueCollection leases,
+        Func<TLease, (string? Name, DateTime Refreshed)> lease)
+        where TKey : notnull
+    {
+        if (!settingEnabled || !TerritoryAllowsExternalControl(territoryIntendedUse))
+            return false;
+
+        var now = DateTime.Now;
+        foreach (var value in leases)
+        {
+            var (name, refreshed) = lease(value);
+            if (ExternalControlFresh(1, now - refreshed, ExternalControlWindowFor(name)))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     1.0.4.304: the one seam for the controller's controlled-target decisions -
+    ///     the lease table's values in, the per-tick answers out. The offline harness
+    ///     executes this with fake lease values, so a wiring change on the per-tick path
+    ///     has to keep these semantics to keep the harness green.
+    /// </summary>
+    internal static ExternalControlDecision ExternalControlDecisionFor<TKey, TLease>(
+        bool settingEnabled,
+        uint territoryIntendedUse,
+        Dictionary<TKey, TLease>.ValueCollection leases,
+        Func<TLease, (string? Name, DateTime Refreshed)> lease)
+        where TKey : notnull
+    {
+        var active = ExternalControlActive(settingEnabled, territoryIntendedUse, leases, lease);
+        return new ExternalControlDecision(active, ExternalControllerPresent(active, leases.Count));
+    }
 
     /// <summary>
     ///     1.0.4.291 (external control): whether the external-control override may

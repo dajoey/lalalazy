@@ -223,6 +223,78 @@ var quietLater = Tick(OpenWorld, 600);
 Case("e2e AutoDuty never released and went quiet 10 minutes: no pull, no hard-target write", false, quietLater.mayPress || quietLater.mayWriteTarget);
 
 Console.WriteLine();
+Console.WriteLine("== Group 12: 1.0.4.304 - the hard-target arms take the dummy filter, and the control check runs off the lease table ==");
+Console.WriteLine("   (the Manual and Tank_Target modes and the manual AoE branch resolve the target straight off the player's hard");
+Console.WriteLine("    target, outside the enemy query that 1.0.4.303 filtered, so a dummy that was already the hard target was still");
+Console.WriteLine("    hit while a lease was registered. The cases below execute the controller-side seam the per-tick path now routes");
+Console.WriteLine("    through: the lease table's values in - no per-call list - and the control decision out.)");
+
+// The fake lease table: plain (lessee name, last control call) values through the same seam
+// the controller drives its real lease registrations through. The projection here mirrors the
+// controller's: the lessee name and the last refresh come off the lease value itself.
+Dictionary<Guid, FakeLease> FakeLeases(params (string Name, double QuietSeconds)[] leases)
+{
+    var table = new Dictionary<Guid, FakeLease>();
+    foreach (var l in leases)
+        table[Guid.NewGuid()] = new FakeLease(l.Name, DateTime.Now - TimeSpan.FromSeconds(l.QuietSeconds));
+    return table;
+}
+
+OutOfCombatGate.ExternalControlDecision Decision(uint territory, params (string Name, double QuietSeconds)[] leases) =>
+    OutOfCombatGate.ExternalControlDecisionFor(true, territory, FakeLeases(leases).Values, l => (l.Name, l.Refreshed));
+
+bool ActiveViaLeaseTable(uint territory, params (string Name, double QuietSeconds)[] leases) =>
+    OutOfCombatGate.ExternalControlActive(true, territory, FakeLeases(leases).Values, l => (l.Name, l.Refreshed));
+
+bool ActiveViaSpecList(uint territory, params (string Name, double QuietSeconds)[] leases)
+{
+    var spec = new List<OutOfCombatGate.ExternalLease>();
+    foreach (var l in leases)
+        spec.Add(new OutOfCombatGate.ExternalLease(l.Name, TimeSpan.FromSeconds(l.QuietSeconds)));
+    return OutOfCombatGate.ExternalControlActive(true, territory, spec);
+}
+
+// The lease-table answer equals the list-based specification over the same inputs.
+Case("lease table == spec list: AutoDuty fresh 5 s in the duty", ActiveViaSpecList(Dungeon, ("AutoDuty", 5)), ActiveViaLeaseTable(Dungeon, ("AutoDuty", 5)));
+Case("lease table == spec list: AutoDuty walking 8 s in the open world", ActiveViaSpecList(OpenWorld, ("AutoDuty", 8)), ActiveViaLeaseTable(OpenWorld, ("AutoDuty", 8)));
+Case("lease table == spec list: AutoDuty quiet 5 minutes, control over", ActiveViaSpecList(OpenWorld, ("AutoDuty", 300)), ActiveViaLeaseTable(OpenWorld, ("AutoDuty", 300)));
+Case("lease table == spec list: AutoDuty fresh but the housing district", ActiveViaSpecList(ResidentialArea, ("AutoDuty", 16)), ActiveViaLeaseTable(ResidentialArea, ("AutoDuty", 16)));
+Case("lease table == spec list: quiet AutoDuty beside a fresh Henchman", ActiveViaSpecList(Dungeon, ("AutoDuty", 300), ("Henchman", 10)), ActiveViaLeaseTable(Dungeon, ("AutoDuty", 300), ("Henchman", 10)));
+Case("lease table == spec list: a fresh Lazy Fate Automation lease", ActiveViaSpecList(OpenWorld, ("Lazy Fate Automation", 5)), ActiveViaLeaseTable(OpenWorld, ("Lazy Fate Automation", 5)));
+Case("lease table == spec list: Lazy Fate Automation quiet 30 minutes", ActiveViaSpecList(OpenWorld, ("Lazy Fate Automation", 1800)), ActiveViaLeaseTable(OpenWorld, ("Lazy Fate Automation", 1800)));
+Case("lease table == spec list: no lease at all", ActiveViaSpecList(Dungeon), ActiveViaLeaseTable(Dungeon));
+Case("lease table == spec list: setting off, fresh lease",
+    OutOfCombatGate.ExternalControlActive(false, Dungeon, new[] { new OutOfCombatGate.ExternalLease("AutoDuty", TimeSpan.FromSeconds(5)) }),
+    OutOfCombatGate.ExternalControlActive(false, Dungeon, FakeLeases(("AutoDuty", 5)).Values, l => (l.Name, l.Refreshed)));
+
+// The seam's control answer keeps the per-lessee windows: the lessee name drives them.
+Case("seam: AutoDuty quiet 5 minutes: control is over (the lessee name drives the window)", false, Decision(OpenWorld, ("AutoDuty", 300)).Active);
+Case("seam: the same quiet lease under the ten-minute window stays control (Lazy Fate Automation)", true, Decision(OpenWorld, ("Lazy Fate Automation", 300)).Active);
+Case("seam: a registered lease counts as a controller through the seam", true, Decision(OpenWorld, ("AutoDuty", 300)).ControllerPresent);
+
+// Item 1: the hard-target arms consult the dummy decision through the seam.
+Case("hard-targeted dummy, fresh AutoDuty lease: the hard-target arm does not attack it", false, Decision(OpenWorld, ("AutoDuty", 5)).MayAttackCurrentTarget(StrikingDummy));
+Case("hard-targeted ordinary enemy, fresh AutoDuty lease: the hard-target arm still attacks it", true, Decision(OpenWorld, ("AutoDuty", 5)).MayAttackCurrentTarget(SomeEnemy));
+Case("hard-targeted dummy, AutoDuty quiet 5 minutes, lease still registered: still not attacked", false, Decision(OpenWorld, ("AutoDuty", 300)).MayAttackCurrentTarget(StrikingDummy));
+Case("no lease: the hard-target arm keeps the player's own dummy choice", true, Decision(OpenWorld).MayAttackCurrentTarget(StrikingDummy));
+Case("no lease: the enemy query keeps the dummy too", true, Decision(OpenWorld).MayTarget(StrikingDummy));
+Case("the query's filter and the hard-target arm agree under a registered lease", true, Decision(OpenWorld, ("AutoDuty", 300)).MayTarget(StrikingDummy) == Decision(OpenWorld, ("AutoDuty", 300)).MayAttackCurrentTarget(StrikingDummy));
+
+// End to end: housing district, a registered lease, the dummy as the hard target - no attack, no target write.
+var housingHardDummy = Decision(ResidentialArea, ("AutoDuty", 5));
+var housingAllowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: housingHardDummy.Active);
+var housingPressAtDummy = housingHardDummy.MayAttackCurrentTarget(StrikingDummy)
+    && OutOfCombatGate.MayFire(canTargetHostile: true, canTargetSelf: false, targetArea: false, userAllowsOutOfCombatAttacks: housingAllowed);
+Case("e2e housing, lease registered, dummy hard-targeted: no attack at the dummy", false, housingPressAtDummy);
+Case("e2e housing, lease registered, dummy hard-targeted: no hard-target write", false, OutOfCombatGate.MayWriteTarget(inCombat: false, userAllowsOutOfCombatAttacks: housingAllowed));
+var dutyHardDummy = Decision(Dungeon, ("AutoDuty", 5));
+var dutyAllowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: dutyHardDummy.Active);
+var dutyPressAtDummy = dutyHardDummy.MayAttackCurrentTarget(StrikingDummy)
+    && OutOfCombatGate.MayFire(canTargetHostile: true, canTargetSelf: false, targetArea: false, userAllowsOutOfCombatAttacks: dutyAllowed);
+Case("e2e duty, control active, dummy hard-targeted: no attack even with the out-of-combat doors open", false, dutyPressAtDummy);
+Case("e2e duty, control active, ordinary enemy hard-targeted: the rotation still attacks it", true, Decision(Dungeon, ("AutoDuty", 5)).MayAttackCurrentTarget(SomeEnemy));
+
+Console.WriteLine();
 if (failures == 0)
 {
     Console.WriteLine($"OK ({total}/{total} cases pass)");
@@ -231,3 +303,5 @@ if (failures == 0)
 
 Console.WriteLine($"FAIL ({failures}/{total} cases failed)");
 return 1;
+// The fake lease row the seam cases feed in.
+readonly record struct FakeLease(string Name, DateTime Refreshed);
