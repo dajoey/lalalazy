@@ -879,17 +879,24 @@ internal static class BST_RotationLogic
         return null;
     }
 
-    /// <summary> <see cref="DashHazard"/>, or <c>settling</c> while <see cref="BstState.DashSettleRemaining"/> runs; null when a dash may go. </summary>
-    public static string? DashMechanicHold(in BstState s) =>
-        DashHazard(s) ?? (s.CrucibleBoard != 0 && s.DashSettleRemaining > 0f ? "settling" : null);
+    /// <summary> What feeds <see cref="DashHazardClock"/> each tick: a hazard stands now, or the landing verdict is Danger. One definition for the live half and the tests. </summary>
+    public static bool DashHazardNow(in BstState s) =>
+        s.CrucibleBoard != 0 && (s.DashLanding == DashLanding.Danger || DashHazard(s) is not null);
+
+    /// <summary>
+    ///     <see cref="DashHazard"/>, or <c>settling</c> while <see cref="BstState.DashSettleRemaining"/> runs; null when a dash may go.
+    ///     <paramref name="crucible"/> is the rotation's own flag (the Crucible tactics option on, on a board): off, nothing is held.
+    /// </summary>
+    public static string? DashMechanicHold(in BstState s, bool crucible) =>
+        !crucible ? null : DashHazard(s) ?? (s.DashSettleRemaining > 0f ? "settling" : null);
 
     /// <summary> Why a Shield Charge must not fire at this landing (a decline label), or null when it may. </summary>
-    public static string? DashLandingDecline(in BstState s, bool crucible) => s.DashLanding switch
+    public static string? DashLandingDecline(in BstState s, bool crucible, bool? mechanicGate = null) => s.DashLanding switch
     {
         DashLanding.Danger => "shieldcharge:landing-danger",
         DashLanding.Unreachable => "shieldcharge:landing-unreachable",
         DashLanding.Unknown when crucible => "shieldcharge:landing-unknown",
-        _ => DashMechanicHold(s) is { } mechanic ? "shieldcharge:" + mechanic : null,
+        _ => DashMechanicHold(s, mechanicGate ?? crucible) is { } mechanic ? "shieldcharge:" + mechanic : null,
     };
 
     /// <summary> Smash Axe -> Axeblade Bite (L2) -> Shieldsplitter (L12). </summary>
@@ -1121,7 +1128,7 @@ internal static class BST_RotationLogic
                     s.TargetDistance <= 3.5f ? DashLandingDecline(s, crucible) :
                     crucible || s.TargetDistance > FinisherRange ? "" :            // out of reach: nothing to record (as before)
                     !dashGapClose ? "finisher:hawkishtalons-gap-close-off" :
-                    DashLandingDecline(s, crucible: true);                          // beyond melee the landing must be known safe
+                    DashLandingDecline(s, crucible: true, mechanicGate: crucible);  // beyond melee the landing must be known safe
                 if (hold is null)
                     return (BST.MistralAxe, "finisher:hawkishtalons-universality");
                 if (hold.Length != 0)

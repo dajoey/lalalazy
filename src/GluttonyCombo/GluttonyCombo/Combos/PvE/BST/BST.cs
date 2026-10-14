@@ -390,8 +390,7 @@ internal partial class BST : Melee
 
         // dash-hold lane 2026-10-14: a mechanic about to go off, or only just gone off, holds every auto-fired dash (BST_RotationLogic.DashMechanicHold).
         // The clock sees a Danger landing too, so the tick BMR drops a finished cast's zone is still held for DashSettleSeconds.
-        s.DashSettleRemaining = _dashHazardClock.Tick(Environment.TickCount64 / 1000.0,
-            s.CrucibleBoard != 0 && (s.DashLanding == BST_RotationLogic.DashLanding.Danger || BST_RotationLogic.DashHazard(s) is not null));
+        s.DashSettleRemaining = _dashHazardClock.Tick(Environment.TickCount64 / 1000.0, BST_RotationLogic.DashHazardNow(s));
 
         // Why the gap-close did not fire this tick, mirroring the section-8 gate order, so an SG| range line can
         // name it (2026-10-04: standing-still stalls could not be attributed - charge economy vs hold vs config).
@@ -413,7 +412,7 @@ internal partial class BST : Melee
                 _ => BST_DashSafety.Landing.Safe,
             },
             enemyCentreOnlyDanger: dashEnemyCentreOnlyDanger,
-            mechanicHold: BST_RotationLogic.DashMechanicHold(s));
+            mechanicHold: BST_RotationLogic.DashMechanicHold(s, BST_Crucible && s.CrucibleBoard != 0));
 
         return s;
     }

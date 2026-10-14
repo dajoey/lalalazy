@@ -2695,8 +2695,7 @@ internal static class Program
         var clock = new DashHazardClock();
         BstState Tick(double t, BstState s)
         {
-            var hazard = s.DashLanding == DashLanding.Danger || DashHazard(s) is not null;
-            return s with { DashSettleRemaining = clock.Tick(t, hazard) };
+            return s with { DashSettleRemaining = clock.Tick(t, DashHazardNow(s)) };
         }
 
         // Case A, 19:29:24-26: Thermobaric Charge (49273) ends, BMR's zone and hit prediction vanish with it, the dash fired 11 ms later.
@@ -2760,6 +2759,8 @@ internal static class Program
         Check("control: outside the Crucible a cast does not hold the dash (behaviour unchanged)", Dashes(Decide(outside, on)));
         var knock = Tick(50.0, live with { TargetDistance = 12f, KnockbackCastRemaining = 2.0f, DashLanding = DashLanding.Safe });
         Check("a known knockback cast from any caster, 2 s left: no dash", !Dashes(Decide(knock, on)));
+        var tacticsOff = Decide(live with { TargetDistance = 12f, TargetCastId = 49271, TargetCastRemaining = 0.5f, DashLanding = DashLanding.Safe }, on with { Crucible = false });
+        Check("Crucible tactics option off, on a board, cast about to go off: the dash is not held (option respected)", Dashes(tacticsOff), $"{tacticsOff.ActionId}:{tacticsOff.Reason} [{tacticsOff.Declines}]");
     }
 
     // BST-2 baseline (characterization): today the Parting Blow exit has NO enemy-count test - it fires
