@@ -183,6 +183,7 @@ internal partial class BST : Melee
     #region Live state
 
     private static int _lastSlot;
+    private static BST_RotationLogic.DashHazardClock _dashHazardClock;
     private static long _familiarArrivedTick;
     private static long _petHeartTick;
 
@@ -387,6 +388,11 @@ internal partial class BST : Melee
         s.KnockbackCastRemaining = s.CrucibleBoard != 0 && CrucibleKnockbacks.BattleHasKnockback(s.CrucibleBoard, s.CrucibleBattle)
             ? ReadKnockbackCast() : 0f;
 
+        // dash-hold lane 2026-10-14: a mechanic about to go off, or only just gone off, holds every auto-fired dash (BST_RotationLogic.DashMechanicHold).
+        // The clock sees a Danger landing too, so the tick BMR drops a finished cast's zone is still held for DashSettleSeconds.
+        s.DashSettleRemaining = _dashHazardClock.Tick(Environment.TickCount64 / 1000.0,
+            s.CrucibleBoard != 0 && (s.DashLanding == BST_RotationLogic.DashLanding.Danger || BST_RotationLogic.DashHazard(s) is not null));
+
         // Why the gap-close did not fire this tick, mirroring the section-8 gate order, so an SG| range line can
         // name it (2026-10-04: standing-still stalls could not be attributed - charge economy vs hold vs config).
         // bst1013: ladder in BST_DashSafety.HoldLabel (harness-proven): overcap-only mode reads "overcap-only"
@@ -406,7 +412,8 @@ internal partial class BST : Melee
                 BST_RotationLogic.DashLanding.Unknown => BST_DashSafety.Landing.Unknown,
                 _ => BST_DashSafety.Landing.Safe,
             },
-            enemyCentreOnlyDanger: dashEnemyCentreOnlyDanger);
+            enemyCentreOnlyDanger: dashEnemyCentreOnlyDanger,
+            mechanicHold: BST_RotationLogic.DashMechanicHold(s));
 
         return s;
     }

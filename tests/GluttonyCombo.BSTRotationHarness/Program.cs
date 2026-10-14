@@ -44,6 +44,7 @@ internal static class Program
         ShieldChargeOvercap();
         CrucibleTactics();
         DashLandingSafety();
+        DashHoldsForMechanics(); // dash-hold lane 2026-10-14
         PartingBlowExitBaseline();
         PartingBlowAoeGate();
         FallbackCandidates();
@@ -2675,6 +2676,90 @@ internal static class Program
 
         // a held dash never costs the damage floor: the GCD chain still goes
         Check("dash held for a puddle: the GCD chain still goes", Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Danger }, on).ActionId != 0);
+    }
+
+    // dash-hold lane 2026-10-14: the 2026-10-13 Crucible log (GluttonyCombo 1.0.4.301). Shield Charge fired the tick after a boss cast
+    // ended, because stock BossMod Reborn drops the cast's danger zone and predicted hit as the cast completes, and fired while a cast
+    // BMR had no zone for was running. Every tick below is a real decision line (CR| / SG| / DS| / BT|), times in ms of that log.
+    private static void DashHoldsForMechanics()
+    {
+        Console.WriteLine("-- Shield Charge held around boss mechanics (log replay 2026-10-13) --");
+        var on = BstSettings.Defaults();
+        var protect = on with { UseShieldCharge = false, ShieldChargeOvercap = true };
+        // Board 5 battle 6, familiar and target as in the log; Shield Charge ready.
+        var live = BaseState(50) with { CrucibleBoard = 5, CrucibleBattle = 6, TargetNameId = 14657, PlayerHpPercent = 52f };
+        live.ReadyShieldCharge = true; live.ShieldChargeCharges = 3; live.ShieldChargeMax = 3;
+        bool Dashes(BstDecision d) => d.ActionId == BST.ShieldCharge;
+
+        // A tick the way the live half builds it: the hazard clock is fed every tick, in time order.
+        var clock = new DashHazardClock();
+        BstState Tick(double t, BstState s)
+        {
+            var hazard = s.DashLanding == DashLanding.Danger || DashHazard(s) is not null;
+            return s with { DashSettleRemaining = clock.Tick(t, hazard) };
+        }
+
+        // Case A, 19:29:24-26: Thermobaric Charge (49273) ends, BMR's zone and hit prediction vanish with it, the dash fired 11 ms later.
+        var a1 = Tick(24.470, live with { TargetDistance = 14.3f, TargetCastId = 49273, TargetCastRemaining = 1.5f, BmrSeen = true, BmrHitIn = 3.4f, BmrHitType = 2, BmrHitOnPlayer = true, DashLanding = DashLanding.Safe });
+        var a2 = Tick(24.982, live with { TargetDistance = 16.9f, TargetCastId = 49273, TargetCastRemaining = 0.9f, BmrSeen = true, BmrHitIn = 2.9f, BmrHitType = 2, BmrHitOnPlayer = true, DashLanding = DashLanding.Danger });
+        var a3 = Tick(25.396, live with { TargetDistance = 16.9f, TargetCastId = 0, TargetCastRemaining = 0f, BmrSeen = true, BmrHitIn = float.MaxValue, BmrHitType = 0, BmrHitOnPlayer = false, DashLanding = DashLanding.Safe });
+        var a4 = Tick(26.60, a3 with { });
+        Check("A: cast running, zone says danger: no dash (already held in 1.0.4.301)", !Dashes(Decide(a2, on)));
+        var da3 = Decide(a3, on);
+        Check("A: the tick the cast ended, landing 'safe', 16.9 y out: no dash (1.0.4.301 dashed here)", !Dashes(da3), $"{da3.ActionId}:{da3.Reason} [{da3.Declines}]");
+        Check("A: the hold is named", da3.Declines.Contains("shieldcharge:settling"), da3.Declines.ToString());
+        Check("A: the GCD chain still goes while the dash waits", da3.ActionId != 0);
+        var da4 = Decide(a4, on);
+        Check("A: 1.6 s after the last hazard the dash is allowed again (held for a moment, not for good)", Dashes(da4) && da4.Reason == "shieldcharge:gapclose", $"{da4.ActionId}:{da4.Reason} [{da4.Declines}]");
+
+        // Case A2, 19:28:56-58: danger-landing, then 'safe' 25 ms before the dash.
+        clock.Reset();
+        _ = Tick(56.861, live with { TargetDistance = 10.6f, DashLanding = DashLanding.Danger });
+        var b = Tick(57.606, live with { TargetDistance = 10.6f, DashLanding = DashLanding.Safe });
+        Check("A2: landing flipped to safe 0.7 s after danger: no dash", !Dashes(Decide(b, on)));
+
+        // Case C, 19:29:52.128: a cast with 0.2 s left, BMR has no prediction and no zone (it answered 'safe' all along).
+        clock.Reset();
+        var c = Tick(52.128, live with { TargetDistance = 19.9f, TargetNameId = 14659, TargetCastId = 49271, TargetCastRemaining = 0.2f, BmrSeen = true, BmrHitIn = float.MaxValue, DashLanding = DashLanding.Safe });
+        var dc = Decide(c, on);
+        Check("C: cast 0.2 s from going off, landing 'safe': no dash (1.0.4.301 chose the dash here)", !Dashes(dc), $"{dc.ActionId}:{dc.Reason} [{dc.Declines}]");
+        Check("C: named cast-ending", dc.Declines.Contains("shieldcharge:cast-ending"), dc.Declines.ToString());
+
+        // Case B, 19:29:53.796: the 3 s cast (Spinner-rook Pieces) had just started, 2.7 s left.
+        clock.Reset();
+        var cb = Tick(53.796, live with { TargetDistance = 9.9f, TargetNameId = 14659, TargetCastId = 49271, TargetCastRemaining = 2.7f, BmrSeen = true, BmrHitIn = float.MaxValue, DashLanding = DashLanding.Safe });
+        Check("B: 3 s cast with 2.7 s left, landing 'safe': no dash (1.0.4.301 dashed)", !Dashes(Decide(cb, on)));
+
+        // Every dash path is held, not only the gap-close.
+        clock.Reset();
+        var cast = Tick(10.0, live with { TargetDistance = 2f, TargetCastId = 49271, TargetCastRemaining = 0.5f, DashLanding = DashLanding.Safe });
+        Check("max-charges spend (melee range) held by a cast about to go off", !Dashes(Decide(cast, on)));
+        Check("overcap-only dash held by a cast about to go off", !Dashes(Decide(cast with { TargetDistance = 12f }, protect)));
+        var fin = BaseState(50) with { CrucibleBoard = 5, CrucibleBattle = 6, TargetDistance = 2f, SunOrMoonActive = true, SunMoon = BeastmasterAffinity.Sunstrider, PlayerTp = 300, ReadyAxe = true, DashLanding = DashLanding.Safe };
+        Check("control: the finisher dash with nothing casting goes (Mistral Axe / Hawkish Talons)", Decide(fin, on).ActionId == BST.MistralAxe);
+        var fd = Decide(fin with { TargetCastId = 49271, TargetCastRemaining = 0.5f }, on);
+        Check("Hawkish Talons finisher (a dash) held by a cast about to go off: Calamity completes it instead", fd.ActionId != BST.MistralAxe, $"{fd.ActionId}:{fd.Reason} [{fd.Declines}]");
+
+        // BMR's own prediction, with no cast visible on the target.
+        clock.Reset();
+        var hit = Tick(20.0, live with { TargetDistance = 12f, BmrSeen = true, BmrHitIn = 2.0f, BmrHitType = 2, BmrHitOnPlayer = true, DashLanding = DashLanding.Safe });
+        var dh = Decide(hit, on);
+        Check("BMR predicts a hit on the character in 2 s: no dash", !Dashes(dh) && dh.Declines.Contains("shieldcharge:hit-imminent"), $"{dh.ActionId}:{dh.Reason} [{dh.Declines}]");
+
+        // Controls: nothing changes where nothing is going off.
+        clock.Reset();
+        var calm = Tick(30.0, live with { TargetDistance = 12f, BmrSeen = true, BmrHitIn = float.MaxValue, DashLanding = DashLanding.Safe });
+        Check("control: nothing casting, no prediction, clean landing: dashes", Dashes(Decide(calm, on)));
+        var farCast = Tick(31.0, live with { TargetDistance = 12f, TargetCastId = 49271, TargetCastRemaining = 4.5f, DashLanding = DashLanding.Safe });
+        Check("control: a cast with 4.5 s left is far enough away: dashes", Dashes(Decide(farCast, on)));
+        clock.Reset();
+        var onPet = Tick(40.0, live with { TargetDistance = 12f, BmrSeen = true, BmrHitIn = 1.0f, BmrHitType = 1, BmrHitOnPlayer = false, BmrHitOnFamiliar = true, DashLanding = DashLanding.Safe });
+        Check("control: a predicted hit on the familiar only does not hold the dash", Dashes(Decide(onPet, on)));
+        var outside = BaseState(50) with { TargetDistance = 12f, TargetCastId = 49271, TargetCastRemaining = 0.2f, DashLanding = DashLanding.Safe };
+        outside.ReadyShieldCharge = true; outside.ShieldChargeCharges = 3; outside.ShieldChargeMax = 3;
+        Check("control: outside the Crucible a cast does not hold the dash (behaviour unchanged)", Dashes(Decide(outside, on)));
+        var knock = Tick(50.0, live with { TargetDistance = 12f, KnockbackCastRemaining = 2.0f, DashLanding = DashLanding.Safe });
+        Check("a known knockback cast from any caster, 2 s left: no dash", !Dashes(Decide(knock, on)));
     }
 
     // BST-2 baseline (characterization): today the Parting Blow exit has NO enemy-count test - it fires

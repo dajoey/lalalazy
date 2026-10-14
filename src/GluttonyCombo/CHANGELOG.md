@@ -1,3 +1,11 @@
+## v1.0.4.302 (2026-10-14) [testing]
+### Fixed
+- **Beastmaster, Crucible: Shield Charge, and the Hawkish Talons finisher that dashes, no longer fire into a boss mechanic that is about to go off or has only just gone off.** The dash asked BossMod Reborn one question: is the landing point inside a danger zone. BossMod Reborn drops a cast's zone and its predicted hit on the tick the cast completes, while the effect is still landing, so the answer turned to "safe" and the dash went on the next tick (11 and 25 milliseconds after it in the replayed logs); for some casts (the Spinner-rook Pieces) it has no zone at all and answered "safe" throughout. The dash now also waits while BossMod Reborn predicts a hit on the character within 3.5 seconds, while the target's cast or a known knockback cast from any caster has 3 seconds or less left, and for 1.5 seconds after any of those, or a danger landing, has cleared. Every automatic dash path is covered: the gap-close, the spend at full charges, the overcap-only spend and the Hawkish Talons finisher. The damage chain is never held and the dash only waits, it is not switched off. Outside the Crucible nothing changes.
+### Added
+- Telemetry: the `dh=` field of an `SG|` line can read `hit-imminent`, `cast-ending`, `knockback` or `settling`, and the decision line's decline list names the same hold (for example `shieldcharge:cast-ending`).
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.301 (2026-10-13) [testing]
 ### Fixed
 - **Damage-dealer targeting: the target no longer hops between look-alike enemies about once a second.** In a FATE grind on the Nearest mode, the nearest enemy changes from one press to the next among mobs at almost the same distance, and the one-pick-per-second limit only spaced those hops one second apart. The held enemy is now kept while any press still picks it, and replaced once it has gone 1.5 seconds without being the pick. A dead or untargetable held enemy, the first pick, and boss-mod and Crucible mechanic targets still switch at once, and the one-second limit is unchanged. The enemy an out-of-range press is redirected to follows the same rule.

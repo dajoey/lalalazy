@@ -48,10 +48,13 @@ internal static class BST_DashSafety
     ///     gate; null when it could. <c>overcap-only</c>: the dash is configured never to gap-close.
     ///     <c>danger-landing</c>: BMR rejects the landing point (the hold). <c>danger-enemy</c>: nothing holds the
     ///     dash, but the enemy's centre is in a danger zone (diagnostic; this tick the old rule would have held).
+    ///     <c>hit-imminent</c> / <c>cast-ending</c> / <c>knockback</c> / <c>settling</c> (dash-hold lane 2026-10-14): a mechanic is about to
+    ///     go off or has only just gone off, so the dash waits (<c>BST_RotationLogic.DashMechanicHold</c>, passed in as
+    ///     <paramref name="mechanicHold"/>); ranked after the landing verdicts, before the centre-only diagnostic.
     /// </summary>
     internal static string? HoldLabel(
         bool levelOk, bool useShieldCharge, bool overcap, bool ready, int charges, float targetDistance,
-        bool protectedNear, Landing landing, bool enemyCentreOnlyDanger) =>
+        bool protectedNear, Landing landing, bool enemyCentreOnlyDanger, string? mechanicHold = null) =>
         !levelOk ? "lvl" :
         !useShieldCharge && !overcap ? "off" :
         !useShieldCharge ? "overcap-only" :
@@ -61,6 +64,7 @@ internal static class BST_DashSafety
         landing == Landing.Danger ? "danger-landing" :
         landing == Landing.Unreachable ? "unreachable" :
         landing == Landing.Unknown ? "unknown" :
+        mechanicHold is not null ? mechanicHold :
         enemyCentreOnlyDanger ? "danger-enemy" :
         null;
 

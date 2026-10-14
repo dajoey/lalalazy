@@ -341,6 +341,9 @@ internal static class BST_RotationLogic
         public PetOrder PetOrder;                 // the order the familiar is carrying out (Summon Order status on it); Unknown when not read
         public float KnockbackCastRemaining;      // seconds left on the soonest known Crucible knockback cast in the arena (any caster), 0 = none
         public bool ShieldChargeClipsGcd;         // a weave fits (CanWeave) but not Shield Charge's 1.1 s animation lock: dashing now delays the GCD
+
+        // dash-hold lane 2026-10-14
+        public float DashSettleRemaining;         // seconds of hold left after the last mechanic that held a dash cleared (DashHazardClock); 0 = none
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -827,13 +830,66 @@ internal static class BST_RotationLogic
         return Pick(GcdChain(s), "gcdchain");
     }
 
+    /// <summary>
+    ///     How long after a mechanic cleared a dash stays held. Stock BossMod Reborn drops a cast's danger zone and its predicted hit the
+    ///     tick the cast completes, while the effect (and whatever the mechanic does to position) is still landing: in the 2026-10-13 log the
+    ///     landing verdict flipped from danger to safe 0.4 s, and 0.03 s, before the dash fired.
+    /// </summary>
+    public const float DashSettleSeconds = 1.5f;
+
+    /// <summary> The clock behind <see cref="BstState.DashSettleRemaining"/>: remembers when a dash was last held by a mechanic. </summary>
+    public struct DashHazardClock
+    {
+        private double _lastHazard;
+        private bool _seen;
+
+        public void Reset() { _seen = false; _lastHazard = 0; }
+
+        /// <summary> Feed every tick; returns the settle seconds left (the full <see cref="DashSettleSeconds"/> while the hazard stands). </summary>
+        public float Tick(double nowSeconds, bool hazardNow)
+        {
+            if (hazardNow)
+            {
+                _lastHazard = nowSeconds;
+                _seen = true;
+                return DashSettleSeconds;
+            }
+
+            return _seen ? (float)System.Math.Max(0d, DashSettleSeconds - (nowSeconds - _lastHazard)) : 0f;
+        }
+    }
+
+    /// <summary> A predicted hit on the character this close holds a dash (the dash locks the character 1.1 s and carries it up to 20 y). </summary>
+    public const float DashHitLeadSeconds = 3.5f;
+
+    /// <summary> A cast (the target's, or a known knockback from any caster) with this much or less left holds a dash; covers a 3 s cast whole. </summary>
+    public const float DashCastLeadSeconds = 3f;
+
+    /// <summary> The mechanic that holds a dash right now (without the settle), or null. </summary>
+    public static string? DashHazard(in BstState s)
+    {
+        if (s.CrucibleBoard == 0)
+            return null;
+        if (s.BmrSeen && s.BmrHitOnPlayer && s.BmrHitIn <= DashHitLeadSeconds)
+            return "hit-imminent";
+        if (s.TargetCastId != 0 && s.TargetCastRemaining <= DashCastLeadSeconds)
+            return "cast-ending";
+        if (s.KnockbackCastRemaining > 0f && s.KnockbackCastRemaining <= DashCastLeadSeconds)
+            return "knockback";
+        return null;
+    }
+
+    /// <summary> <see cref="DashHazard"/>, or <c>settling</c> while <see cref="BstState.DashSettleRemaining"/> runs; null when a dash may go. </summary>
+    public static string? DashMechanicHold(in BstState s) =>
+        DashHazard(s) ?? (s.CrucibleBoard != 0 && s.DashSettleRemaining > 0f ? "settling" : null);
+
     /// <summary> Why a Shield Charge must not fire at this landing (a decline label), or null when it may. </summary>
     public static string? DashLandingDecline(in BstState s, bool crucible) => s.DashLanding switch
     {
         DashLanding.Danger => "shieldcharge:landing-danger",
         DashLanding.Unreachable => "shieldcharge:landing-unreachable",
         DashLanding.Unknown when crucible => "shieldcharge:landing-unknown",
-        _ => null,
+        _ => DashMechanicHold(s) is { } mechanic ? "shieldcharge:" + mechanic : null,
     };
 
     /// <summary> Smash Axe -> Axeblade Bite (L2) -> Shieldsplitter (L12). </summary>

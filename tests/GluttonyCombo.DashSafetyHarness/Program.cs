@@ -46,6 +46,15 @@ Check("gap-close: recast", "recast", Gap(L.Danger, ready: false, charges: 1));
 Check("gap-close: charges", "charges", Gap(L.Danger, ready: false, charges: 0));
 Check("gap-close: far", "far", Gap(L.Danger, dist: 25f));
 Check("gap-close: protected", "protected", Gap(L.Danger, prot: true));
+// dash-hold lane 2026-10-14: a mechanic going off (or just gone) names the hold, ranked after the landing verdicts and the range gates.
+string? Mech(string? hold, L landing = L.Safe, bool centreOnly = false, float dist = 10f)
+    => BST_DashSafety.HoldLabel(true, true, false, true, 1, dist, false, landing, centreOnly, hold);
+Check("gap-close: a cast about to go off names cast-ending", "cast-ending", Mech("cast-ending"));
+Check("gap-close: settling after the mechanic named", "settling", Mech("settling"));
+Check("gap-close: a danger landing still reads danger-landing, not the mechanic", "danger-landing", Mech("cast-ending", L.Danger));
+Check("gap-close: far still reads far", "far", Mech("cast-ending", dist: 25f));
+Check("gap-close: the mechanic outranks the centre-only diagnostic", "hit-imminent", Mech("hit-imminent", centreOnly: true));
+Check("gap-close: no mechanic, all clear -> null (unchanged)", (string?)null, Mech(null));
 Check("below the level -> lvl", "lvl", BST_DashSafety.HoldLabel(false, true, false, true, 1, 10f, false, L.Danger, false));
 Check("dash off entirely -> off", "off", BST_DashSafety.HoldLabel(true, false, false, true, 1, 10f, false, L.Danger, false));
 
@@ -85,6 +94,10 @@ Check("wiring: BST.cs gates the landing read", true,
     bst.Contains("BST_DashSafety.LandingReadNeeded(", StringComparison.Ordinal));
 Check("wiring: ReadDashLanding takes its verdict from Judge", true,
     live.Contains("BST_DashSafety.Judge(atEnemy, atLanding)", StringComparison.Ordinal));
+Check("wiring: BST.cs feeds the hazard clock every tick", true,
+    bst.Contains("_dashHazardClock.Tick(", StringComparison.Ordinal));
+Check("wiring: BST.cs passes the mechanic hold into the SG| label", true,
+    bst.Contains("mechanicHold: BST_RotationLogic.DashMechanicHold(s)", StringComparison.Ordinal));
 Check("wiring: no inline both-required verdict left", false,
     live.Contains("atEnemy.Value && atLanding.Value", StringComparison.Ordinal));
 
