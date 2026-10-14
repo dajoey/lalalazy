@@ -2763,7 +2763,7 @@ internal unsafe class AutoRotationController
             GetTargetCurrentHP(chara, true) > 0 &&
             chara.IsTargetable &&
             chara.IsHostile() &&
-            (!OutOfCombatGate.IsTrainingDummy(chara.NameId) || OutOfCombatGate.ExternalControlMayTarget(ExternalControlActive, chara.NameId)) &&
+            (!OutOfCombatGate.IsTrainingDummy(chara.NameId) || OutOfCombatGate.ExternalControlMayTarget(OutOfCombatGate.ExternalControllerPresent(ExternalControlActive, ExternalLeaseSnapshot().leases), chara.NameId)) &&
             IsInRange(chara, InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 50f : cfg.DPSSettings.MaxDistance) &&
             GetTargetHeightDifference(chara) <= (InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 100f : cfg.DPSSettings.MaxDistance) &&
             !chara.IsInvincible &&

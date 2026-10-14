@@ -163,6 +163,9 @@ Case("an ordinary enemy is not a training dummy", false, OutOfCombatGate.IsTrain
 Case("under external control a training dummy is never an attack target", false, OutOfCombatGate.ExternalControlMayTarget(true, StrikingDummy));
 Case("under external control an ordinary enemy stays a target", true, OutOfCombatGate.ExternalControlMayTarget(true, SomeEnemy));
 Case("without external control the dummy is unchanged (the player's own choice)", true, OutOfCombatGate.ExternalControlMayTarget(false, StrikingDummy));
+Case("a registered lease counts as a controller even when control has lapsed", true, OutOfCombatGate.ExternalControllerPresent(false, 1));
+Case("no lease and no control: no controller", false, OutOfCombatGate.ExternalControllerPresent(false, 0));
+Case("lease registered, control lapsed: dummy is still not an attack target", false, OutOfCombatGate.ExternalControlMayTarget(OutOfCombatGate.ExternalControllerPresent(false, 1), StrikingDummy));
 
 Case("housing district (13): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(ResidentialArea));
 Case("housing interior (14): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(HousingInstances));
@@ -200,7 +203,7 @@ Console.WriteLine("== Group 11: end-to-end replay of the incident through the sa
 (bool active, bool dummyTargetable, bool mayPress, bool mayWriteTarget) Tick(uint territory, double autoDutyQuietSeconds)
 {
     var active = Active(territory, Lease("AutoDuty", autoDutyQuietSeconds));
-    var dummyTargetable = OutOfCombatGate.ExternalControlMayTarget(active, StrikingDummy);
+    var dummyTargetable = OutOfCombatGate.ExternalControlMayTarget(OutOfCombatGate.ExternalControllerPresent(active, 1), StrikingDummy);
     var allowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: active);
     var mayPress = OutOfCombatGate.MayFire(canTargetHostile: true, canTargetSelf: false, targetArea: false, userAllowsOutOfCombatAttacks: allowed);
     var mayWrite = OutOfCombatGate.MayWriteTarget(inCombat: false, userAllowsOutOfCombatAttacks: allowed);
@@ -213,6 +216,7 @@ var afterDuty = Tick(OpenWorld, 8);
 Case("e2e 16:05:37 duty over, still walking: control active, dummy still never targetable", false, afterDuty.dummyTargetable);
 var inHousing = Tick(ResidentialArea, 16);
 Case("e2e 16:05:50 in the housing district: control released", false, inHousing.active);
+Case("e2e 16:05:50 in the housing district, lease still registered: dummy is not targetable", false, inHousing.dummyTargetable);
 Case("e2e 16:05:50 in the housing district: no out-of-combat pull", false, inHousing.mayPress);
 Case("e2e 16:05:50 in the housing district: no hard-target write", false, inHousing.mayWriteTarget);
 var quietLater = Tick(OpenWorld, 600);

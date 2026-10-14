@@ -164,6 +164,16 @@ internal static class OutOfCombatGate
         => !(externalControlActive && IsTrainingDummy(nameId));
 
     /// <summary>
+    ///     1.0.4.303: whether another plugin is driving the rotation for the purposes of
+    ///     the dummy filter: control is active, or a lease is still registered. A held
+    ///     lease keeps its option overrides (AutoDuty clears "only attack in combat")
+    ///     whatever its age or territory, so the dummy stays off the target list until
+    ///     the lease is gone.
+    /// </summary>
+    internal static bool ExternalControllerPresent(bool controlActive, int leaseCount)
+        => controlActive || leaseCount > 0;
+
+    /// <summary>
     ///     1.0.4.303: the one answer to "is another plugin in control right now":
     ///     the user's setting is on, the territory takes external control, and at
     ///     least one lease made a control call inside its own lessee window.
