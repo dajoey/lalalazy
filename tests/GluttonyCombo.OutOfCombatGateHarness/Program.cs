@@ -145,6 +145,80 @@ Case("under control: incoming-damage detection STILL combat-only", false, OutOfC
 Case("under control: reflect-penalty self-select STILL combat-only", false, OutOfCombatGate.MayWriteTarget(false));
 
 Console.WriteLine();
+Console.WriteLine("== Group 10: external control never attacks a training dummy and never outlives its controller ==");
+Console.WriteLine("   (AutoDuty left the duty for the housing district while its lease stayed registered: control lasted the whole");
+Console.WriteLine("    10-minute staleness window, the Striking Dummy (NameId 541) was a valid enemy, and the first hit put the");
+Console.WriteLine("    player in combat - after which every out-of-combat gate is moot and the rotation hits the dummy until it resets)");
+
+// TerritoryIntendedUse values (ECommons TerritoryIntendedUseEnum).
+const uint CityArea = 0, OpenWorld = 1, Inn = 2, Dungeon = 3, Trial = 10, ResidentialArea = 13, HousingInstances = 14, Eureka = 41;
+const uint StrikingDummy = 541, SomeEnemy = 14605;
+
+OutOfCombatGate.ExternalLease Lease(string name, double quietSeconds) => new(name, TimeSpan.FromSeconds(quietSeconds));
+bool Active(uint territory, params OutOfCombatGate.ExternalLease[] leases) =>
+    OutOfCombatGate.ExternalControlActive(true, territory, leases);
+
+Case("Striking Dummy (NameId 541) is a training dummy", true, OutOfCombatGate.IsTrainingDummy(StrikingDummy));
+Case("an ordinary enemy is not a training dummy", false, OutOfCombatGate.IsTrainingDummy(SomeEnemy));
+Case("under external control a training dummy is never an attack target", false, OutOfCombatGate.ExternalControlMayTarget(true, StrikingDummy));
+Case("under external control an ordinary enemy stays a target", true, OutOfCombatGate.ExternalControlMayTarget(true, SomeEnemy));
+Case("without external control the dummy is unchanged (the player's own choice)", true, OutOfCombatGate.ExternalControlMayTarget(false, StrikingDummy));
+
+Case("housing district (13): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(ResidentialArea));
+Case("housing interior (14): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(HousingInstances));
+Case("city (0): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(CityArea));
+Case("inn (2): external control does not apply", false, OutOfCombatGate.TerritoryAllowsExternalControl(Inn));
+Case("open world (1): external control applies (FATE lessees)", true, OutOfCombatGate.TerritoryAllowsExternalControl(OpenWorld));
+Case("dungeon (3): external control applies", true, OutOfCombatGate.TerritoryAllowsExternalControl(Dungeon));
+Case("trial (10): external control applies", true, OutOfCombatGate.TerritoryAllowsExternalControl(Trial));
+Case("Eureka (41): external control applies", true, OutOfCombatGate.TerritoryAllowsExternalControl(Eureka));
+
+Case("AutoDuty re-asserts every 5 s: its quiet window is a minute, not ten",
+    true, OutOfCombatGate.ExternalControlWindowFor("AutoDuty") <= TimeSpan.FromMinutes(1));
+Case("another lessee keeps the 10-minute window (Lazy Fate Automation refreshes per FATE)",
+    true, OutOfCombatGate.ExternalControlWindowFor("Lazy Fate Automation") == OutOfCombatGate.ExternalControlStalenessWindow);
+Case("an unnamed lease keeps the 10-minute window",
+    true, OutOfCombatGate.ExternalControlWindowFor(null) == OutOfCombatGate.ExternalControlStalenessWindow);
+
+Case("AutoDuty in a duty, refreshed 5 s ago: control active", true, Active(Dungeon, Lease("AutoDuty", 5)));
+Case("AutoDuty in the open world, quiet 8 s: control still active (walking to the next duty)", true, Active(OpenWorld, Lease("AutoDuty", 8)));
+Case("AutoDuty lease registered but quiet 5 minutes: control is over", false, Active(OpenWorld, Lease("AutoDuty", 300)));
+Case("AutoDuty lease still fresh but the player is in a housing district: control is over", false, Active(ResidentialArea, Lease("AutoDuty", 16)));
+Case("AutoDuty lease still fresh but the player is in a city: control is over", false, Active(CityArea, Lease("AutoDuty", 5)));
+Case("Lazy Fate Automation quiet 5 minutes in the open world: control stays", true, Active(OpenWorld, Lease("Lazy Fate Automation", 300)));
+Case("quiet AutoDuty lease beside a fresh Henchman lease: control stays", true, Active(Dungeon, Lease("AutoDuty", 300), Lease("Henchman", 10)));
+Case("no leases: no control", false, Active(Dungeon));
+Case("setting off: no control however fresh the lease",
+    false, OutOfCombatGate.ExternalControlActive(false, Dungeon, new[] { Lease("AutoDuty", 1) }));
+
+Console.WriteLine();
+Console.WriteLine("== Group 11: end-to-end replay of the incident through the same gate calls the controller makes ==");
+// One tick = (territory, leases, enemy NameId in reach). The controller asks the gate the same four
+// questions in this order: is control active here, may this enemy be targeted, may the rotation
+// pull (hostile-only press), may it write the hard target. The leases carry InCombatOnly=false
+// (AutoDuty sets it), PreferNonCombat is off, and the player is out of combat.
+(bool active, bool dummyTargetable, bool mayPress, bool mayWriteTarget) Tick(uint territory, double autoDutyQuietSeconds)
+{
+    var active = Active(territory, Lease("AutoDuty", autoDutyQuietSeconds));
+    var dummyTargetable = OutOfCombatGate.ExternalControlMayTarget(active, StrikingDummy);
+    var allowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: active);
+    var mayPress = OutOfCombatGate.MayFire(canTargetHostile: true, canTargetSelf: false, targetArea: false, userAllowsOutOfCombatAttacks: allowed);
+    var mayWrite = OutOfCombatGate.MayWriteTarget(inCombat: false, userAllowsOutOfCombatAttacks: allowed);
+    return (active, dummyTargetable, mayPress, mayWrite);
+}
+
+var inDuty = Tick(Dungeon, 4);
+Case("e2e 15:49 in the duty: control active, rotation may pull", true, inDuty.active && inDuty.mayPress && inDuty.mayWriteTarget);
+var afterDuty = Tick(OpenWorld, 8);
+Case("e2e 16:05:37 duty over, still walking: control active, dummy still never targetable", false, afterDuty.dummyTargetable);
+var inHousing = Tick(ResidentialArea, 16);
+Case("e2e 16:05:50 in the housing district: control released", false, inHousing.active);
+Case("e2e 16:05:50 in the housing district: no out-of-combat pull", false, inHousing.mayPress);
+Case("e2e 16:05:50 in the housing district: no hard-target write", false, inHousing.mayWriteTarget);
+var quietLater = Tick(OpenWorld, 600);
+Case("e2e AutoDuty never released and went quiet 10 minutes: no pull, no hard-target write", false, quietLater.mayPress || quietLater.mayWriteTarget);
+
+Console.WriteLine();
 if (failures == 0)
 {
     Console.WriteLine($"OK ({total}/{total} cases pass)");

@@ -6,6 +6,8 @@
 // the hard-target writes.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GluttonyCombo.AutoRotation;
 
@@ -119,6 +121,57 @@ internal static class OutOfCombatGate
     /// </summary>
     internal static bool ExternalControlFresh(int leaseCount, TimeSpan sinceNewestControlRefresh, TimeSpan stalenessWindow)
         => leaseCount > 0 && sinceNewestControlRefresh <= stalenessWindow;
+
+    /// <summary>One registered lease as the control check sees it: who holds it and how long since its last control call.</summary>
+    internal readonly record struct ExternalLease(string? Name, TimeSpan SinceRefresh);
+
+    /// <summary>
+    ///     1.0.4.303: how long this lessee may sit without a control call before it
+    ///     stops counting as control. AutoDuty re-asserts the rotation state every
+    ///     5 s while it runs a duty and goes silent between duties (retainers, the
+    ///     housing trip) without releasing its lease, so it gets a minute instead of
+    ///     the ten that the other lessees need (Lazy Fate Automation refreshes per
+    ///     FATE transition).
+    /// </summary>
+    internal static TimeSpan ExternalControlWindowFor(string? lesseeName)
+        => lesseeName == "AutoDuty" ? TimeSpan.FromMinutes(1) : ExternalControlStalenessWindow;
+
+    /// <summary>
+    ///     1.0.4.303: territories where nothing is ever pulled for a duty or a FATE
+    ///     (TerritoryIntendedUse: 0 city, 2 inn, 13 housing district, 14 housing
+    ///     interior). External control does not apply there, whatever lease is held:
+    ///     the housing districts hold the training dummies and a lessee that walks
+    ///     through (AutoDuty on its retainer trip) has no business attacking in them.
+    /// </summary>
+    internal static bool TerritoryAllowsExternalControl(uint territoryIntendedUse)
+        => territoryIntendedUse is not (0 or 2 or 13 or 14);
+
+    /// <summary>The Striking Dummy (BNpcName 541, the housing-district and city practice dummy).</summary>
+    internal const uint StrikingDummyNameId = 541;
+
+    /// <summary>1.0.4.303: whether this enemy is a training dummy (the fork already treats NameId 541 as the dummy elsewhere).</summary>
+    internal static bool IsTrainingDummy(uint nameId) => nameId == StrikingDummyNameId;
+
+    /// <summary>
+    ///     1.0.4.303: whether the rotation may pick this enemy while the answer to
+    ///     "is another plugin in control" is <paramref name="externalControlActive" />.
+    ///     A lessee never starts a fight with a training dummy: it cannot die, so the
+    ///     first hit holds the player in combat until it resets, and once in combat
+    ///     every out-of-combat gate above is moot. Without external control the
+    ///     dummy stays what the player chose it to be.
+    /// </summary>
+    internal static bool ExternalControlMayTarget(bool externalControlActive, uint nameId)
+        => !(externalControlActive && IsTrainingDummy(nameId));
+
+    /// <summary>
+    ///     1.0.4.303: the one answer to "is another plugin in control right now":
+    ///     the user's setting is on, the territory takes external control, and at
+    ///     least one lease made a control call inside its own lessee window.
+    /// </summary>
+    internal static bool ExternalControlActive(bool settingEnabled, uint territoryIntendedUse, IReadOnlyList<ExternalLease> leases)
+        => settingEnabled
+           && TerritoryAllowsExternalControl(territoryIntendedUse)
+           && leases.Any(l => ExternalControlFresh(1, l.SinceRefresh, ExternalControlWindowFor(l.Name)));
 
     /// <summary>
     ///     1.0.4.291 (external control): whether the external-control override may

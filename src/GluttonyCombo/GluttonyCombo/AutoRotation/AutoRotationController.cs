@@ -324,10 +324,46 @@ internal unsafe class AutoRotationController
             if (cfg is null || !cfg.AttackOutOfCombatWhileControlled)
                 return false;
 
-            var (leases, newestRefresh, _) = ExternalLeaseSnapshot();
-            return OutOfCombatGate.ExternalControlFresh(
-                leases, DateTime.Now - newestRefresh,
-                OutOfCombatGate.ExternalControlStalenessWindow);
+            return OutOfCombatGate.ExternalControlActive(
+                true, CurrentTerritoryIntendedUse, ExternalLeaseAges());
+        }
+    }
+
+    /// <summary>
+    ///     Fork (1.0.4.303): every registered lease with the time since its last
+    ///     control call, for the per-lessee quiet window
+    ///     (<see cref="OutOfCombatGate.ExternalControlWindowFor" />).
+    /// </summary>
+    static IReadOnlyList<OutOfCombatGate.ExternalLease> ExternalLeaseAges()
+    {
+        var registrations = P?.IPC?.Leasing?.Registrations;
+        if (registrations is null || registrations.Count == 0)
+            return Array.Empty<OutOfCombatGate.ExternalLease>();
+
+        var now = DateTime.Now;
+        var ages = new List<OutOfCombatGate.ExternalLease>(registrations.Count);
+        foreach (var lease in registrations.Values)
+            ages.Add(new OutOfCombatGate.ExternalLease(lease.PluginName, now - lease.LastUpdated));
+        return ages;
+    }
+
+    // Fork (1.0.4.303): TerritoryIntendedUse of the current territory (0 city, 2 inn, 13 housing district,
+    // 14 housing interior...), cached per territory id so the per-tick control check stays a field read.
+    static uint _intendedUseTerritory = uint.MaxValue;
+    static uint _intendedUse = uint.MaxValue;
+
+    static uint CurrentTerritoryIntendedUse
+    {
+        get
+        {
+            var territory = Svc.ClientState.TerritoryType;
+            if (territory != _intendedUseTerritory)
+            {
+                _intendedUse = (uint)ExcelTerritoryHelper.GetTerritoryIntendedUse(territory);
+                _intendedUseTerritory = territory;
+            }
+
+            return _intendedUse;
         }
     }
 
@@ -342,12 +378,10 @@ internal unsafe class AutoRotationController
             if (cfg is null || !cfg.AttackOutOfCombatWhileControlled)
                 return null;
 
-            var (leases, newestRefresh, newestName) = ExternalLeaseSnapshot();
-            if (!OutOfCombatGate.ExternalControlFresh(
-                    leases, DateTime.Now - newestRefresh,
-                    OutOfCombatGate.ExternalControlStalenessWindow))
+            if (!ExternalControlActive)
                 return null;
 
+            var (_, _, newestName) = ExternalLeaseSnapshot();
             return $"External control active: {newestName ?? "another plugin"} - attacking out of combat";
         }
     }
@@ -379,7 +413,7 @@ internal unsafe class AutoRotationController
         else
         {
             Svc.Log.Information(
-                $"External control ended ({_externalControlLogName ?? "lease"} released): saved out-of-combat restriction restored");
+                $"External control ended ({_externalControlLogName ?? "lease"} released, went quiet, or the territory does not take it): saved out-of-combat restriction restored");
         }
     }
 
@@ -2729,6 +2763,7 @@ internal unsafe class AutoRotationController
             GetTargetCurrentHP(chara, true) > 0 &&
             chara.IsTargetable &&
             chara.IsHostile() &&
+            OutOfCombatGate.ExternalControlMayTarget(ExternalControlActive, chara.NameId) &&
             IsInRange(chara, InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 50f : cfg.DPSSettings.MaxDistance) &&
             GetTargetHeightDifference(chara) <= (InBossEncounter() && cfg.DPSSettings.IgnoreRangeInBoss ? 100f : cfg.DPSSettings.MaxDistance) &&
             !chara.IsInvincible &&
