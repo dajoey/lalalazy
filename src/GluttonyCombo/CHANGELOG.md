@@ -1,3 +1,11 @@
+## v1.0.4.304 (2026-10-14) [testing]
+### Fixed
+- **While another plugin controls the rotation, a training dummy that is the manually chosen target is left alone too.** The Manual and Tank Target modes and the manual area-of-effect aim take their target straight from the target the character has selected, and that path did not go through the enemy filter that 1.0.4.303 added, so a Striking Dummy that was already selected could still be struck while a lease was held. The same dummy check now covers that path: while another plugin is in control or still holds a lease, the dummy is not attacked even as the chosen target; without a lease the player's own choice stands.
+### Changed
+- The external-control check reads the lease table directly on every tick instead of building a list for each read (the rotation consults it several times a tick).
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.303 (2026-10-14) [testing]
 ### Fixed
 - **Another plugin driving the rotation (AutoDuty and the like) no longer attacks a training dummy, and no longer keeps control after it has stopped.** A training dummy never dies, so a first hit pulled out of combat held the character in combat with it, and the rotation then went on hitting it even after external control had ended. Now, while another plugin controls the rotation or still holds a lease on it, the Striking Dummy is not picked as an enemy at all. External control also does not apply in cities, inns and housing districts or their interiors, so a plugin that walks through one cannot start a fight there. AutoDuty re-asserts the rotation every 5 seconds during a run and goes silent between runs without releasing it, so it now counts as in control for one minute after its last call instead of ten; other plugins keep the ten-minute window. Every job is covered: the checks sit in the shared auto-rotation gate, not in any job's combo.
