@@ -111,8 +111,8 @@ internal static partial class BST_CrucibleData
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,
             "Flauros Piece, hit id 49189. Cast line names the holder 6 of 6; 1,378 on the character, 1,752 on the familiar (2 hits)."),
-        new(49254, "Mangling Fang", 5, 5, 4.7f, 0.4f, CrucibleHitKind.Tankbuster, 678, 0, 2, 2, false,
-            "Drake Piece. Cast line names the holder 2 of 2; only two casts logged."),
+        new(49254, "Mangling Fang", 5, 5, 4.7f, 0.4f, CrucibleHitKind.Tankbuster, 678, 691, 2, 2, false,
+            "Drake Piece. Cast line names the holder 2 of 2; only two casts logged. 2026-10-15 re-derivation (ffxivdb 09-24..10-15, R4 row 5.5-06): the largest familiar hit is Damselfly 691 (Uragnite 545), so the cover gate uses 691."),
 
         // ---- Not a Snarl rule ------------------------------------------------------------------------------------------------------
         new(48690, "Rotten Stench", 4, 3, 5.7f, -0.5f, CrucibleHitKind.PartyWide, 773, 534, 13, 8, false,

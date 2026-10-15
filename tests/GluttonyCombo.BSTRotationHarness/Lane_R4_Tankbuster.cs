@@ -157,5 +157,15 @@ internal static partial class Program
         Check("r4-tankbuster: 5.5-06 Mangling Fang, a 900 HP familiar at Standard (691 x 1.25 = 864): Snarl covers it",
             Decide(At(fang, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster",
             Decide(At(fang, CrucibleDegree.Standard), on).Reason);
+
+        Check("r4-tankbuster: 5.5-06 Mangling Fang, an 800 HP familiar at Standard (under 864): no cover",
+            Decide(At(fang with { PetHp = 800f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(fang with { PetHp = 800f }, CrucibleDegree.Standard), on).Reason);
+        Check("r4-tankbuster: 5.5-06 Mangling Fang, First Degree (691 x 2.0 x 1.25 = 1728), a 1,800 HP familiar: cover",
+            Decide(At(fang with { PetHp = 1800f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(fang with { PetHp = 1800f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 5.5-06 Mangling Fang, First Degree, a 1,700 HP familiar (under 1728): no cover",
+            Decide(At(fang with { PetHp = 1700f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(fang with { PetHp = 1700f }, CrucibleDegree.First), on).Reason);
     }
 }
