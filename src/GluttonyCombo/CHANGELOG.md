@@ -1,3 +1,10 @@
+## v1.0.4.305 (2026-10-15) [testing]
+### Fixed
+- **Beastmaster in the Crucible of the Unbroken, Abaddon Piece: the rotation no longer stands idle while a Morpho is alive.** The Abaddon was held back from the start of the fight until every Morpho was gone, and the Morphos themselves are never attacked, so for as long as a Morpho lived (over a minute in a recorded fight) the Abaddon was the only enemy and nothing was left that the rotation was allowed to hit: no damage and no aggro while the Morphos confused the character. Intended behaviour in this piece: the Drake and the Barbmoles are killed first, as before; once the Abaddon is the only enemy left it is attacked and chipped down to 35% of its health, and held there while any Morpho is alive, so it is never killed ahead of the Morphos it feeds on; once the last Morpho is gone it is attacked to the end. Eggs and Morphos as targets are still never attacked, and the Gigantis gel rule is unchanged.
+### Notes
+- The Abaddon's Regen (Rehabilitation, one minute, renewed each time it eats a Morpho) is deliberately not dispelled: in every recorded Abaddon fight Quelling Wave did not remove it (15 casts, the buff always ran its full minute), so the rotation does not spend casts on it. The Drake's Blaze Spikes are still dispelled.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.304 (2026-10-14) [testing]
 ### Fixed
 - **While another plugin controls the rotation, a training dummy that is the chosen target is left alone too.** The Manual mode, the manual area-of-effect aim and the Tank Target mode take their target from a selected target - the character's own, or in Tank Target mode the tank's - instead of from the enemy filter that 1.0.4.303 added, so a Striking Dummy that was already selected could still be struck while a lease was held. The same dummy check now covers that path: while another plugin is in control or still holds a lease, the dummy is not attacked even as the chosen target; without a lease the player's own choice stands.
