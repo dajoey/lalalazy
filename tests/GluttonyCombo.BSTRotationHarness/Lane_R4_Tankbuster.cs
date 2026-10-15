@@ -59,5 +59,15 @@ internal static partial class Program
         Check("r4-tankbuster: 2.5-04 100-tonze Slash, degree unread (614 x 2.0 = 1228), a 1,300 HP familiar: cover",
             Decide(tonze with { PetHp = 1300f, PetHpPercent = 80f }, on).Reason == "aggro:snarl-tankbuster",
             Decide(tonze with { PetHp = 1300f, PetHpPercent = 80f }, on).Reason);
+
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, a 700 HP familiar at Standard (under 768): no cover",
+            Decide(tonze with { PetHp = 700f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(tonze with { PetHp = 700f, PetHpPercent = 80f }, on).Reason);
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, First Degree, a 1,500 HP familiar (under 1535): no cover",
+            Decide(At(tonze with { PetHp = 1500f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(tonze with { PetHp = 1500f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, degree unread, a 1,200 HP familiar (under 1228): no cover",
+            Decide(tonze with { PetHp = 1200f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(tonze with { PetHp = 1200f, PetHpPercent = 80f }, on).Reason);
     }
 }
