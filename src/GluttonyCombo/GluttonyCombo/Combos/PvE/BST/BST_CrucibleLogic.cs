@@ -745,8 +745,59 @@ internal static class BST_CrucibleLogic
             && AnswerSlot(s, BeastmasterKinType.Wavekin) == 0)
             declines.Add("crucible:answer-dispel-cannot-rearm");
 
+        // The widest limit, said out loud (r4-reaction lv-15a / lv-15b): the thing is live, nothing holds its answer and no horn carries a familiar
+        // that could give it. The recorded misses were exactly this (4.1 and 4.8 with the horns bat / diremite / sabotender) and the log was silent.
+        foreach (var kind in AnswerKinds)
+            if (NoAnswererOnHorns(s, kind, beast))
+                declines.Add($"crucible:answer-{AnswerName(kind)}-no-horn");
+
         return (0, "");
     }
+
+    /// <summary>
+    ///     The fight calls for <paramref name="kind"/>, the thing is live, the answer is not held, the familiar out is not an answerer
+    ///     (the Soulkin / vulture / Wavekin / bat / Ashkin out is covered by the "cannot re-arm" declines) and no horn carries one.
+    /// </summary>
+    public static bool NoAnswererOnHorns(in BstState s, CrucibleNeeds kind, BeastmasterBeast? active)
+    {
+        if ((s.CrucibleNeeds & kind) == 0)
+            return false;
+        switch (kind)
+        {
+            case CrucibleNeeds.Interrupt:
+                return s.HasHostileTarget && !s.TargetDoNotAttack && s.TargetInterruptible && HeldKin(s) != BeastmasterKinType.Soulkin
+                       && active is not { Kin: BeastmasterKinType.Soulkin } && AnswerSlot(s, BeastmasterKinType.Soulkin) == 0;
+            case CrucibleNeeds.Dispel:
+                return s.HasHostileTarget && !s.TargetDoNotAttack && (s.TargetHasDispellableBuff || s.EnemyHasDispellableBuff)
+                       && HeldKin(s) != BeastmasterKinType.Wavekin && active is not { Row: VultureRow } && active is not { Kin: BeastmasterKinType.Wavekin }
+                       && AnswerSlot(s, BeastmasterKinType.None, VultureRow) == 0 && AnswerSlot(s, BeastmasterKinType.Wavekin) == 0;
+            default:
+                return s.PlayerHasCleansableDebuff && HeldKin(s) != BeastmasterKinType.Ashkin
+                       && active is not { Row: BST_CrucibleData.BatRow } && active is not { Kin: BeastmasterKinType.Ashkin }
+                       && AnswerSlot(s, BeastmasterKinType.None, BST_CrucibleData.BatRow) == 0 && AnswerSlot(s, BeastmasterKinType.Ashkin) == 0;
+        }
+    }
+
+    /// <summary>
+    ///     Soul Crush is held and the target is casting something interruptible, but the press cannot go out this tick: the reason, or an
+    ///     empty string when nothing blocks it (the press fires) or the situation is not one (r4-reaction lv-15a: the log never said why a held
+    ///     Soul Crush was not used). Order: the kinship's recast, the melee reach (<see cref="InterruptReach"/>), the weave window.
+    /// </summary>
+    public static string InterruptBlockReason(in BstState s, in BstSettings cfg)
+    {
+        if (!cfg.UseSoulCrush || !s.KinshipHeld || s.BeastModeResolved != BST.SoulCrush || !s.TargetInterruptible)
+            return "";
+        if (!s.ReadyBeastMode)
+            return "crucible:interrupt-soulcrush-not-ready";
+        if (s.TargetDistance > InterruptReach)
+            return "crucible:interrupt-out-of-range";
+        if (!s.CanWeave)
+            return "crucible:interrupt-waiting-weave";
+        return "";
+    }
+
+    /// <summary> Soul Crush is a melee ability (action range -1 in the 7.56 sheet): the press goes out inside this reach, the same 3.5 y the axes use. </summary>
+    public const float InterruptReach = 3.5f;
 
     /// <summary> Dispel an enemy buff: the vulture's Bloodcurdling Caw, else Quelling Wave (a GCD spell, allowed mid-combo). </summary>
     public static (uint ActionId, string Reason) TryDispel(in BstState s, BeastmasterBeast? beast, List<string> declines)

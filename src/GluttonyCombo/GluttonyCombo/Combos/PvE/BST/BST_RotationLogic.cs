@@ -687,8 +687,10 @@ internal static class BST_RotationLogic
 
         // ---------------------------------------------------------- 2. interrupt
         if (cfg.UseSoulCrush && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode
-            && s.TargetInterruptible && s.CanWeave && s.TargetDistance <= 3.5f)
+            && s.TargetInterruptible && s.CanWeave && s.TargetDistance <= BST_CrucibleLogic.InterruptReach)
             return Pick(BST.SoulCrush, "beastmode:soulcrush-interrupt");
+        if (crucible && BST_CrucibleLogic.InterruptBlockReason(s, cfg) is { Length: > 0 } interruptBlocked)
+            declines.Add(interruptBlocked);
 
         // ---------------------------------------------------------- 2b. Crucible tactics (Self-destruct burst, add-pack and shell windows)
         var holdRelease = false;

@@ -57,7 +57,7 @@ internal static partial class BST_CrucibleData
     /// <summary> Blink (Tome of the Impervious): "impervious to most physical attacks; each nullified attack reduces one stack". </summary>
     public const uint BlinkStatus = 4849;
 
-    /// <summary> Paralysis: "deadened nerves are sometimes preventing the execution of actions" (15 s on a familiar from Thunderbolt, 9 recorded adds). </summary>
+    /// <summary> Paralysis: "deadened nerves are sometimes preventing the execution of actions" (15 to 24 s; 19 adds on familiars in the recorded runs, Thunderbolt and Lauda). </summary>
     public const uint ParalysisStatus = 5388;
 
     /// <summary> Poison resistance on the character: Poison Resistance Up (4961, the coblyn's Vulcanize) and Spirit of the Breathtaker (2322, Potion of Breathtaking Swiftness). </summary>
