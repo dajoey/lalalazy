@@ -17,7 +17,8 @@ namespace GluttonyCombo.Combos.PvE;
 ///               restores it. A familiar that is knocked out is gone for the run. A familiar leaves by a horn
 ///               blown over it (1 s cast, HP kept) before it gets low; Parting Blow is the fallback, because the
 ///               familiar keeps taking hits while it performs the blow (one died at 38% that way).</item>
-///         <item>Horns are not blown out of combat (crash reports and blocked summons on the board).</item>
+///         <item>Horns out of combat were linked to client crashes by other automation, and summons are blocked on the board; the pre-pull horn and Borrow
+///               (<c>CruciblePrepullHorns</c>) are on by default since round 4 (the recorded graded runs used them) and can be unticked.</item>
 ///         <item>Every enemy panel says which casts are interruptible, which buffs dispellable, which debuffs
 ///               cleansable; the Kinship that answers the fight is borrowed from the familiar that has it.</item>
 ///         <item>Some enemies counter attackers (spikes stances), are invulnerable for a phase, or must not be
@@ -129,9 +130,10 @@ internal static class BST_CrucibleLogic
 
     /// <summary>
     ///     The Kinship this battle's panel calls for, in order interrupt (Soulkin) &gt; dispel (Wavekin, unless a
-    ///     vulture is on a horn) &gt; cleanse (Ashkin, unless a bat is on a horn), skipping needs no assigned beast answers.
+    ///     vulture is on a horn) &gt; cleanse (Ashkin, unless a bat is on a horn), skipping needs no assigned beast answers;
+    ///     then, in a <see cref="BST_CrucibleData.BeastskinBattles"/> fight with no answer to press, Beastkin (Beastskin, the physical cut).
     /// </summary>
-    public static BeastmasterKinType WantedKin(in BstState s)
+    public static BeastmasterKinType WantedKin(in BstState s, bool beastskin = true)
     {
         if ((s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0 && SlotWithKin(s, BeastmasterKinType.Soulkin) != 0)
             return BeastmasterKinType.Soulkin;
@@ -141,6 +143,10 @@ internal static class BST_CrucibleLogic
         if ((s.CrucibleNeeds & CrucibleNeeds.Cleanse) != 0 && SlotWithKin(s, BeastmasterKinType.None, BST_CrucibleData.BatRow) == 0
             && SlotWithKin(s, BeastmasterKinType.Ashkin) != 0)
             return BeastmasterKinType.Ashkin;
+        // No answer to press: a physical wall (the Gargoyle) is met with Beastskin, which is armed before the pull (4.5, Beastkin Borrow).
+        if (beastskin && BST_CrucibleData.BeastskinBattles.Contains((s.CrucibleBoard, s.CrucibleBattle))
+            && SlotWithKin(s, BeastmasterKinType.Beastkin) != 0)
+            return BeastmasterKinType.Beastkin;
         return BeastmasterKinType.None;
     }
 
@@ -151,8 +157,8 @@ internal static class BST_CrucibleLogic
     ///     borrowed only while an interruptible cast is live (that is the re-arm; otherwise
     ///     <see cref="HoldOwnForInterrupt"/> keeps the ammo).
     /// </summary>
-    public static bool ShouldBorrowForFight(in BstState s, BeastmasterBeast? beast) =>
-        beast is { } b && b.Kin != BeastmasterKinType.None && WantedKin(s) == b.Kin && HeldKin(s) != b.Kin
+    public static bool ShouldBorrowForFight(in BstState s, BeastmasterBeast? beast, bool beastskin = true) =>
+        beast is { } b && b.Kin != BeastmasterKinType.None && WantedKin(s, beastskin) == b.Kin && HeldKin(s) != b.Kin
         && s.OneWithNature && BorrowAllowed(s)
         && (b.Kin != BeastmasterKinType.Soulkin || s.TargetInterruptible);
 
@@ -160,12 +166,12 @@ internal static class BST_CrucibleLogic
     ///     Out of combat (only with "horns out of combat" allowed): summon the horn with the wanted kin, Borrow, and let
     ///     the between-pulls refresh swap to another horn.
     /// </summary>
-    public static (uint ActionId, string Reason) PrepareKinship(in BstState s, List<string> declines)
+    public static (uint ActionId, string Reason) PrepareKinship(in BstState s, List<string> declines, bool beastskin = true)
     {
-        if (s.Level < LvBorrow || s.CrucibleNeeds == CrucibleNeeds.None)
+        if (s.Level < LvBorrow)
             return (0, "");
 
-        var kin = WantedKin(s);
+        var kin = WantedKin(s, beastskin);
         if (kin == BeastmasterKinType.None || HeldKin(s) == kin)
             return (0, "");
 
@@ -1096,10 +1102,11 @@ internal static class BST_CrucibleLogic
     ///         <item>Self-destruct (4.7, 48766): ON. A 20 s deadline; in 2 of 2 runs the telemetry stops 3 s before it ends with the Golem at 9% / 12%.
     ///         The release goes first; once it is spent, a Parting Blow brings the next horn's familiar and its own release when the cast has
     ///         time left, a ready horn waits, and the Golem will not die first anyway. The fight ends here, so the 90 s horn lock is no price.</item>
-    ///         <item>Add packs and the Ymir's shell break: the release is held until the window opens (the option, off): in the recorded runs the release had
+    ///         <item>Add packs and the Ymir's shell break: the release is held until the window opens (the option, on by default since round 4): in the recorded runs the release had
     ///         already gone off before 85-97% of the pack spikes, and pack clear times with and without an AoE press do not separate (3.1: 12 s with, 15 s
-    ///         without; 3.6: 22 s with, 18 s without), so no run shows it pays. While off, the window is logged in the shadow field.</item>
-    ///         <item>Parting Blow on the pack (the option, off): behind the same gates as a cycle exit (stay time, resummon, reserve).</item>
+    ///         without; 3.6: 22 s with, 18 s without), so those runs did not show it pays; round 4 turned it on because the cross-checked dossier rows name the AoE
+    ///         release and Parting Blow as the answer to each pack. While unticked, the window is logged in the shadow field.</item>
+    ///         <item>Parting Blow on the pack (the same option): behind the same gates as a cycle exit (stay time, resummon, reserve).</item>
     ///     </list>
     /// </summary>
     public static TacticResult TryTactic(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, ReleasePlan plan, List<string> declines)

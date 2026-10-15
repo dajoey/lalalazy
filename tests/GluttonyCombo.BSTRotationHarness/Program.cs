@@ -1287,6 +1287,7 @@ internal static partial class Program
         Console.WriteLine("-- crucible rules --");
         var cfg = BstSettings.Defaults();
         ShippedDefaults(cfg);
+        cfg = OptionsOff(cfg); // r4-options: the cases below were written with the pack window, pre-pull horn and cycle exit Off; the shipped default is On since round 4 (Lane_R4_Options.cs)
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
         // The log-only modes still exist as options; they were the harness default until 2026-10-05, the plugin ships On / on.
         var shadowCfg = cfg with { CrucibleAggro = CrucibleAggroMode.Shadow, CrucibleSnarlParting = false };
@@ -2450,6 +2451,7 @@ internal static partial class Program
     {
         Console.WriteLine("-- master board fights (measured) --");
         var cfg = BstSettings.Defaults();
+        cfg = OptionsOff(cfg); // r4-options: the cases below were written with the pack window, pre-pull horn and cycle exit Off; the shipped default is On since round 4 (Lane_R4_Options.cs)
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
         var cycle = cfg with { CrucibleCycleForDamage = true };
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
@@ -2536,6 +2538,7 @@ internal static partial class Program
     {
         Console.WriteLine("-- crucible tactics: pack AoE, windows, Ymir --");
         var cfg = BstSettings.Defaults();
+        cfg = OptionsOff(cfg); // r4-options: the cases below were written with the pack window, pre-pull horn and cycle exit Off; the shipped default is On since round 4 (Lane_R4_Options.cs)
         var on = cfg with { CruciblePackWindow = true };
         // L30, board / battle given, the active familiar `beast` with its One with Nature unspent, two healthy ready horns behind it.
         BstState Tactic(int board, int battle, int beast) => CrucibleState() with
@@ -2546,8 +2549,9 @@ internal static partial class Program
         };
 
         Check("option defaults off", !cfg.CruciblePackWindow);
+        // r4-options 5.6-08: the list now holds thirteen (board 5 battle 6 added); the title below predates it.
         Check("pack battles are the twelve fights whose guide answer is an AoE on an add pack (1.0 1.4 1.5 2.2 2.4 3.1 3.6 4.0 4.8 5.4 5.5 5.9)",
-            BST_CrucibleData.PackBattles.Count == 12 && new[] { (1, 0), (1, 4), (1, 5), (2, 2), (2, 4), (3, 1), (3, 6), (4, 0), (4, 8), (5, 4), (5, 5), (5, 9) }.All(BST_CrucibleData.PackBattles.Contains));
+            BST_CrucibleData.PackBattles.Count == 13 && new[] { (1, 0), (1, 4), (1, 5), (2, 2), (2, 4), (3, 1), (3, 6), (4, 0), (4, 8), (5, 4), (5, 5), (5, 6), (5, 9) }.All(BST_CrucibleData.PackBattles.Contains));
         Check("a release binds when its trait says crowd control (ziz, buffalo, coeurl, chimera) or it is the slime (Bind+ on the Ymir 6 times); Cu Sith and raptor do not",
             new[] { 21, 26, 33, 38, 17 }.All(r => BST_CrucibleData.ReleaseBinds(BST_Beasts.All[r])) && !BST_CrucibleData.ReleaseBinds(BST_Beasts.All[1]) && !BST_CrucibleData.ReleaseBinds(BST_Beasts.All[34]));
 
@@ -2914,6 +2918,7 @@ internal static partial class Program
     {
         Console.WriteLine("-- tankbuster: no Parting Blow after the Snarl; cover only what a familiar survives (2026-10-06 loop) --");
         var cfg = BstSettings.Defaults();
+        cfg = OptionsOff(cfg); // r4-options: the cases below were written with the pack window, pre-pull horn and cycle exit Off; the shipped default is On since round 4 (Lane_R4_Options.cs)
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
         const uint evisceration = 48717, darkness = 48669, toxicVomit = 48809, erraticBlaster = 49188, obliterate = 50649;
 
@@ -3286,6 +3291,7 @@ internal static partial class Program
     {
         Console.WriteLine("-- core lane 2026-10-13: busy familiar, Snarl cover only, L50 finishers, knockback Vileskin, Shield Charge lock, short fights --");
         var cfg = BstSettings.Defaults();
+        cfg = OptionsOff(cfg); // r4-options: the cases below were written with the pack window, pre-pull horn and cycle exit Off; the shipped default is On since round 4 (Lane_R4_Options.cs)
         string D(BstDecision d) => $"{d.ActionId}/{d.Reason} [{d.Declines}] sh={d.Shadow}";
 
         // ---------------------------------------------------------- 1. Trick into a familiar busy with an order (U1+U2)

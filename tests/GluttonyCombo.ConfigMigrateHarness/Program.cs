@@ -23,6 +23,7 @@ internal static class Program
         MigrationV8();
         MigrationV9();
         MigrationV10();
+        MigrationV11();
         LegacyShadowRoundTrip();
         ResolverTruthTable();
 
@@ -188,6 +189,74 @@ internal static class Program
     // 79,000 of the 260,000 damage the character and familiars took. A default flip alone never reaches a config
     // that stored the old default.
     // =============================================================================
+    // =============================================================================
+    // v10 -> v11: the three Crucible options that shipped Off (round 4, tasks-20261015-crucible-r4-fix-options-pack-window-01).
+    // =============================================================================
+    private static void MigrationV11()
+    {
+        Section("v10 -> v11 (Crucible pack window, pre-pull horn, cycle exit: stored Off -> On)");
+
+        var stored = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true, CrucibleCycleForDamage: 0, CruciblePrepullHorns: 0, CruciblePackWindow: 0));
+        Check("r4-options: rot-24 a config that stored the old default (Off, Off, Off) gets all three switched On once",
+            stored.Changed && stored.State is { CrucibleCycleForDamage: 1, CruciblePrepullHorns: 1, CruciblePackWindow: 1 },
+            $"changed={stored.Changed} cycle={stored.State.CrucibleCycleForDamage} prepull={stored.State.CruciblePrepullHorns} pack={stored.State.CruciblePackWindow}");
+        Check("r4-options: rot-24 ...the schema version is the current one (11)", stored.State.Version == ConfigMigration.CurrentVersion && ConfigMigration.CurrentVersion == 11,
+            stored.State.Version.ToString());
+        Check("r4-options: rot-24 ...one note names the three options and says how to turn them off",
+            stored.Notes.Count == 1 && stored.Notes[0].Contains("Beastmaster", StringComparison.Ordinal) && stored.Notes[0].Contains("Untick", StringComparison.Ordinal)
+            && stored.Notes[0].Contains("Parting Blow the pack", StringComparison.Ordinal) && stored.Notes[0].Contains("Allow Battlehorns out of combat", StringComparison.Ordinal)
+            && stored.Notes[0].Contains("Cycle familiars", StringComparison.Ordinal),
+            stored.Notes.Count > 0 ? stored.Notes[^1] : "(none)");
+
+        var mixed = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true, CrucibleCycleForDamage: 1, CruciblePrepullHorns: 0, CruciblePackWindow: 1));
+        Check("r4-options: rot-24 a stored On stays On and only the stored Off moves (cycle On, pre-pull Off, pack On -> all On, one option named)",
+            mixed.State is { CrucibleCycleForDamage: 1, CruciblePrepullHorns: 1, CruciblePackWindow: 1 }
+            && mixed.Notes.Count == 1 && mixed.Notes[0].Contains("Allow Battlehorns out of combat", StringComparison.Ordinal)
+            && !mixed.Notes[0].Contains("Cycle familiars", StringComparison.Ordinal) && !mixed.Notes[0].Contains("Parting Blow the pack", StringComparison.Ordinal),
+            mixed.Notes.Count > 0 ? mixed.Notes[^1] : "(none)");
+
+        var allOn = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true, CrucibleCycleForDamage: 1, CruciblePrepullHorns: 1, CruciblePackWindow: 1));
+        Check("r4-options: rot-24 a config that already had all three On is version-bumped with nothing to say",
+            allOn.Changed && allOn.State.Version == ConfigMigration.CurrentVersion && allOn.Notes.Count == 0);
+
+        var absent = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true));
+        Check("r4-options: rot-24 absent keys stay absent (a fresh install takes the option's own default; never written back)",
+            absent.State is { CrucibleCycleForDamage: -1, CruciblePrepullHorns: -1, CruciblePackWindow: -1 } && absent.Notes.Count == 0);
+
+        var optedOut = ConfigMigration.Migrate(new State(ConfigMigration.CurrentVersion, TankbustersBeyondParty: true, CrucibleCycleForDamage: 0, CruciblePrepullHorns: 0, CruciblePackWindow: 0));
+        Check("r4-options: rot-24 a user who unticks the options after the update is NOT overridden, and that is no change",
+            optedOut.State is { CrucibleCycleForDamage: 0, CruciblePrepullHorns: 0, CruciblePackWindow: 0 } && !optedOut.Changed);
+
+        var again = ConfigMigration.Migrate(stored.State);
+        Check("r4-options: rot-24 idempotent: running the ladder over its own output changes nothing", !again.Changed && again.State == stored.State);
+
+        // The adapters: the values are read from and written to the bool store the options live in; a key that was absent is not created.
+        var bools = new Dictionary<string, bool> { ["BST_CruciblePackWindow"] = false, ["BST_CrucibleCycleForDamage"] = false, ["BST_CruciblePrepullHorns"] = false };
+        ConfigMigration.Write(stored.State, new HealerSettings(), customBools: bools);
+        Check("r4-options: rot-24 Write puts the three migrated values in the bool store",
+            bools["BST_CruciblePackWindow"] && bools["BST_CrucibleCycleForDamage"] && bools["BST_CruciblePrepullHorns"]);
+        var emptyStore = new Dictionary<string, bool>();
+        ConfigMigration.Write(absent.State, new HealerSettings(), customBools: emptyStore);
+        Check("r4-options: rot-24 Write creates no key for an absent option", emptyStore.Count == 0);
+        var read = ConfigMigration.Read(10, new HealerSettings(), -1, -1, 0, 1, 0);
+        Check("r4-options: rot-24 Read carries the stored values into the ladder state (cycle, pre-pull, pack)",
+            read is { CrucibleCycleForDamage: 0, CruciblePrepullHorns: 1, CruciblePackWindow: 0 });
+
+        // The wiring in GluttonyCombo.cs reads the same three keys the options are stored under.
+        var wiring = File.ReadAllText(Path.Combine(RepoRoot(), "src", "GluttonyCombo", "GluttonyCombo", "GluttonyCombo.cs"));
+        Check("r4-options: rot-24 the startup wiring reads BST_CrucibleCycleForDamage, BST_CruciblePrepullHorns and BST_CruciblePackWindow from the bool store",
+            new[] { "BST_CrucibleCycleForDamage", "BST_CruciblePrepullHorns", "BST_CruciblePackWindow" }
+                .All(k => wiring.Contains($"CustomBoolValues.TryGetValue(\"{k}\"", StringComparison.Ordinal)));
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "tools", "check-preset-ids.py")))
+            dir = dir.Parent;
+        return dir?.FullName ?? "";
+    }
+
     private static void MigrationV10()
     {
         Section("v9 -> v10 (Crucible Snarl -> Parting Blow stored Off -> On)");
@@ -195,7 +264,7 @@ internal static class Program
         var stored = ConfigMigration.Migrate(new State(9, TankbustersBeyondParty: true, CrucibleAggro: 2, CrucibleSnarlParting: 0));
         Check("stored Off is turned ON once", stored.Changed && stored.State.CrucibleSnarlParting == 1,
             $"changed={stored.Changed} value={stored.State.CrucibleSnarlParting}");
-        Check("...the schema version is 10", stored.State.Version == 10 && ConfigMigration.CurrentVersion == 10, stored.State.Version.ToString());
+        Check("...the schema version is the current one (11 since round 4; the v10 step ran)", stored.State.Version == ConfigMigration.CurrentVersion && ConfigMigration.CurrentVersion >= 10, stored.State.Version.ToString());
         Check("...the note names the setting and how to undo it",
             stored.Notes.Any(n => n.Contains("Snarl -> Parting Blow", StringComparison.Ordinal) && n.Contains("Beastmaster", StringComparison.Ordinal)),
             stored.Notes.Count > 0 ? stored.Notes[^1] : "(none)");
@@ -208,7 +277,7 @@ internal static class Program
         Check("stored On stays On with nothing to say", already.State.CrucibleSnarlParting == 1
               && !already.Notes.Any(n => n.Contains("Parting Blow", StringComparison.Ordinal)));
 
-        var afterOptOut = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true, CrucibleSnarlParting: 0));
+        var afterOptOut = ConfigMigration.Migrate(new State(ConfigMigration.CurrentVersion, TankbustersBeyondParty: true, CrucibleSnarlParting: 0));
         Check("a user who turns it back off after the update is NOT overridden", afterOptOut.State.CrucibleSnarlParting == 0 && !afterOptOut.Changed);
 
         var again = ConfigMigration.Migrate(stored.State);

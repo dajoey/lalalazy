@@ -30,7 +30,7 @@ internal static class ConfigMigration
     ///     Must match <see cref="Configuration.Version" />'s initialiser, so a fresh install
     ///     starts at the top of the ladder and skips every step.
     /// </remarks>
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     /// <summary>Configuration values the ladder can move, in and out.</summary>
     /// <param name="Version">The config's schema version.</param>
@@ -53,13 +53,28 @@ internal static class ConfigMigration
     ///     Beastmaster Crucible "Snarl -&gt; Parting Blow" tankbuster dodge as stored in CustomBoolValues (0 off, 1 on).
     ///     -1 when the key is absent (fresh install or BST options never touched); the ladder never writes that back.
     /// </param>
+    /// <param name="CrucibleCycleForDamage">
+    ///     Beastmaster Crucible "cycle familiars with Parting Blow for damage" as stored in CustomBoolValues (0 off, 1 on). -1 when the key is
+    ///     absent; the ladder never writes that back.
+    /// </param>
+    /// <param name="CruciblePrepullHorns">
+    ///     Beastmaster Crucible "allow Battlehorns out of combat" (pre-pull horn and Borrow) as stored in CustomBoolValues (0 off, 1 on).
+    ///     -1 when the key is absent; the ladder never writes that back.
+    /// </param>
+    /// <param name="CruciblePackWindow">
+    ///     Beastmaster Crucible "hold the release for the add pack, then Parting Blow it" as stored in CustomBoolValues (0 off, 1 on).
+    ///     -1 when the key is absent; the ladder never writes that back.
+    /// </param>
     public readonly record struct State(
         int Version,
         bool TankbustersBeyondParty,
         bool? AutoRezRequireSwiftGlobal = null,
         PerJobRequireSwift RequireSwift = default,
         int CrucibleAggro = -1,
-        int CrucibleSnarlParting = -1);
+        int CrucibleSnarlParting = -1,
+        int CrucibleCycleForDamage = -1,
+        int CruciblePrepullHorns = -1,
+        int CruciblePackWindow = -1);
 
     /// <summary>
     ///     The seven per-job "Require Swiftcast/Dualcast before auto-rezzing" flags.
@@ -98,6 +113,9 @@ internal static class ConfigMigration
         var carriedGlobal = state.AutoRezRequireSwiftGlobal;
         var crucibleAggro = state.CrucibleAggro;
         var crucibleSnarlParting = state.CrucibleSnarlParting;
+        var crucibleCycleForDamage = state.CrucibleCycleForDamage;
+        var cruciblePrepullHorns = state.CruciblePrepullHorns;
+        var cruciblePackWindow = state.CruciblePackWindow;
 
         // A config from the future is left completely alone - downgrading a user's settings is
         // worse than running an old build against a new config.
@@ -202,16 +220,51 @@ internal static class ConfigMigration
             }
         }
 
+        // ---- v11: turn the three Crucible options that shipped Off (pack window, pre-pull horn, cycle exit) On for a config that STORED the old
+        // default. The dossier reactions they hold (AoE the add pack and Parting Blow it, a horn and Borrow before the pull, a familiar cycled out
+        // for damage) were built and left off, so a fresh install declined every one of them; the default flip alone never reaches a config that
+        // saved false - Newtonsoft restores the stored value over it. An option nobody turned on cannot have been switched off on purpose, so a
+        // stored 0 becomes 1 and a stored 1 stays. An absent key (fresh install) takes the option's own default (now On) and is not written here.
+        // Runs once; a user who turns an option back off after this update is never overridden.
+        if (version < 11)
+        {
+            var seeded = new List<string>();
+            if (cruciblePackWindow == 0)
+            {
+                cruciblePackWindow = 1;
+                seeded.Add("\"Hold Tempered Release for the add pack or the Ymir's shell break, then Parting Blow the pack\"");
+            }
+            if (cruciblePrepullHorns == 0)
+            {
+                cruciblePrepullHorns = 1;
+                seeded.Add("\"Allow Battlehorns out of combat in the Crucible\"");
+            }
+            if (crucibleCycleForDamage == 0)
+            {
+                crucibleCycleForDamage = 1;
+                seeded.Add("\"Cycle familiars with Parting Blow for damage in the Crucible\"");
+            }
+            if (seeded.Count > 0)
+                notes.Add(
+                    "Beastmaster > Crucible of the Unbroken: " + string.Join(", ", seeded) + (seeded.Count == 1 ? " has" : " have") +
+                    " been turned ON by this update, so the rotation now AoEs add packs with the familiar's release and Parting Blow, blows a horn " +
+                    "and Borrows before the pull, and cycles a healthy familiar out for damage. Untick any of them in the Beastmaster options to go back.");
+        }
+
         version = CurrentVersion;
         var changed = version != state.Version ||
                       tankbustersBeyondParty != state.TankbustersBeyondParty ||
                       requireSwift != state.RequireSwift ||
                       carriedGlobal != state.AutoRezRequireSwiftGlobal ||
                       crucibleAggro != state.CrucibleAggro ||
-                      crucibleSnarlParting != state.CrucibleSnarlParting;
+                      crucibleSnarlParting != state.CrucibleSnarlParting ||
+                      crucibleCycleForDamage != state.CrucibleCycleForDamage ||
+                      cruciblePrepullHorns != state.CruciblePrepullHorns ||
+                      cruciblePackWindow != state.CruciblePackWindow;
 
         return new Result(
-            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift, crucibleAggro, crucibleSnarlParting),
+            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift, crucibleAggro, crucibleSnarlParting,
+                crucibleCycleForDamage, cruciblePrepullHorns, cruciblePackWindow),
             changed,
             notes);
     }
@@ -224,7 +277,8 @@ internal static class ConfigMigration
     // in the abstract and mis-wired in GluttonyCombo.cs is still a broken migration.
 
     /// <summary>Reads the migratable values out of a just-loaded configuration.</summary>
-    public static State Read(int version, HealerSettings healer, int crucibleAggro = -1, int crucibleSnarlParting = -1) => new(
+    public static State Read(int version, HealerSettings healer, int crucibleAggro = -1, int crucibleSnarlParting = -1,
+        int crucibleCycleForDamage = -1, int cruciblePrepullHorns = -1, int cruciblePackWindow = -1) => new(
         version,
         healer.TankbustersBeyondParty,
         healer.AutoRezRequireSwiftLegacy,
@@ -237,7 +291,10 @@ internal static class ConfigMigration
             healer.AutoRezRequireSwiftBLU,
             healer.AutoRezRequireSwiftRDM),
         crucibleAggro,
-        crucibleSnarlParting);
+        crucibleSnarlParting,
+        crucibleCycleForDamage,
+        cruciblePrepullHorns,
+        cruciblePackWindow);
 
     /// <summary>Writes a migrated <see cref="State" /> back onto the live settings object.</summary>
     public static void Write(State state, HealerSettings healer, Dictionary<string, int>? customInts = null, Dictionary<string, bool>? customBools = null)
@@ -255,6 +312,12 @@ internal static class ConfigMigration
             customInts["BST_CrucibleAggro"] = state.CrucibleAggro;
         if (customBools is not null && state.CrucibleSnarlParting >= 0)
             customBools["BST_CrucibleSnarlParting"] = state.CrucibleSnarlParting == 1;
+        if (customBools is not null && state.CrucibleCycleForDamage >= 0)
+            customBools["BST_CrucibleCycleForDamage"] = state.CrucibleCycleForDamage == 1;
+        if (customBools is not null && state.CruciblePrepullHorns >= 0)
+            customBools["BST_CruciblePrepullHorns"] = state.CruciblePrepullHorns == 1;
+        if (customBools is not null && state.CruciblePackWindow >= 0)
+            customBools["BST_CruciblePackWindow"] = state.CruciblePackWindow == 1;
     }
 
     #endregion

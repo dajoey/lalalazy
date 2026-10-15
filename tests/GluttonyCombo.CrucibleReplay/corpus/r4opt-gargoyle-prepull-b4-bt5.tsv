@@ -1,0 +1,54 @@
+#source=ffxivdb
+#from=2026-10-14T20:28:22Z
+#to=2026-10-14T20:28:40Z
+#lead_s=3
+#build=1.0.4.302
+#piece=board 4 battle 5 (Gargoyle)
+#tags=prepull,beastskin
+#note=4.5: pre-pull summon on the Gargoyle; nd= empty (no fight need)
+#expect.head=10
+2026-10-14T20:28:25.802Z	DS|1792009705802|t=14608|enemy=1|landing=1|v=safe
+2026-10-14T20:28:25.803Z	CR|1792009705803|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=c|hp=100|pet=0|sl=94.44.0|dec=44894:prepull:summon-slot3|sh=|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:25.803Z	BT|1792009705803|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44894:prepull:summon-slot3|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:26.630Z	CR|1792009706630|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=c|hp=100|pet=0|sl=94.44.0|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0|d=3.0|mv=4.7|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:26.630Z	BT|1792009706630|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:26.912Z	BT|1792009706912|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:gcdchain|fd=summon:waiting-weave|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:26.912Z	CR|1792009706912|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=yc|hp=100|pet=0|sl=94.44.0|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0|d=2.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:27.237Z	BT|1792009707237|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:gcdchain|fd=familiar:summon-in-flight|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:27.271Z	CR|1792009707270|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.0|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0|d=2.4|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:27.487Z	BT|1792009707487|000000030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4601,4614
+2026-10-14T20:28:27.521Z	CR|1792009707520|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0|d=2.1|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:27.779Z	BT|1792009707779|000000030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4601,4614
+2026-10-14T20:28:27.812Z	CR|1792009707812|b=4|bt=5|nd=|ne=1|hi=100|t=14608:100|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44893:shieldcharge:max-charges|sh=|ttd=0|in=0|vul=0|xp=0|d=1.9|mv=0.9|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:28.037Z	BT|1792009708037|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44893:shieldcharge:max-charges|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4601,4614
+2026-10-14T20:28:28.071Z	CR|1792009708070|b=4|bt=5|nd=|ne=1|hi=100|t=14608:99|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44893:shieldcharge:max-charges|sh=|ttd=0|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:28.296Z	BT|1792009708296|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44890:own:tempered|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4601,4614
+2026-10-14T20:28:28.321Z	CR|1792009708321|b=4|bt=5|nd=|ne=1|hi=100|t=14608:99|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44890:own:tempered|sh=|ttd=0|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:28.546Z	BT|1792009708546|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44895:own:borrow-while-tempered-recasts|fd=exit:pet-busy|sl=19.8.22|lv=50|tk=-|4601,4614
+2026-10-14T20:28:28.579Z	CR|1792009708579|b=4|bt=5|nd=|ne=1|hi=99|t=14608:99|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44895:own:borrow-while-tempered-recasts|sh=|ttd=0|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:28.804Z	BT|1792009708804|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:pet-busy+shieldcharge:weave-too-short|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:28.837Z	CR|1792009708837|b=4|bt=5|nd=|ne=1|hi=99|t=14608:99|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:29.606Z	BT|1792009709606|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:30.213Z	CR|1792009710213|b=4|bt=5|nd=|ne=1|hi=99|t=14608:99|c=0:0.0|f=ysc|hp=100|pet=100|sl=94.44.100|dec=44893:shieldcharge:max-charges|sh=|ttd=436|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:30.213Z	BT|1792009710213|000c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44893:shieldcharge:max-charges|fd=exit:pet-busy|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:30.471Z	CR|1792009710471|b=4|bt=5|nd=|ne=1|hi=99|t=14608:98|c=0:0.0|f=ysc|hp=98|pet=100|sl=94.44.100|dec=44893:shieldcharge:max-charges|sh=|ttd=234|in=0|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:30.471Z	BT|1792009710471|0d0c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44893:shieldcharge:max-charges|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:30.888Z	BT|1792009710888|0d0c00030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:30.888Z	CR|1792009710888|b=4|bt=5|nd=|ne=1|hi=98|t=14608:98|c=0:0.0|f=ysc|hp=98|pet=100|sl=94.44.100|dec=44885:gcdchain|sh=|ttd=255|in=10|vul=0|xp=0|d=1.9|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:31.138Z	BT|1792009711138|0d1800030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:32.613Z	BT|1792009712613|0d1800030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:32.772Z	CR|1792009712772|b=4|bt=5|nd=|ne=1|hi=97|t=14608:97|c=0:0.0|f=ysc|hp=95|pet=100|sl=94.44.100|dec=44879:gcdchain|sh=|ttd=189|in=28|vul=0|xp=0|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:32.872Z	BT|1792009712872|1c1800030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:33.514Z	CR|1792009713514|b=4|bt=5|nd=|ne=1|hi=96|t=14608:96|c=0:0.0|f=ysc|hp=94|pet=100|sl=94.44.100|dec=44879:gcdchain|sh=|ttd=135|in=28|vul=0|xp=0|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:33.990Z	BT|1792009713990|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:34.406Z	BT|1792009714406|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:35.016Z	BT|1792009715016|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:35.181Z	CR|1792009715181|b=4|bt=5|nd=|ne=1|hi=95|t=14608:95|c=0:0.0|f=ysc|hp=94|pet=100|sl=94.44.100|dec=44883:gcdchain|sh=|ttd=141|in=37|vul=0|xp=0|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:35.273Z	BT|1792009715273|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:35.790Z	CR|1792009715790|b=4|bt=5|nd=|ne=1|hi=95|t=14608:95|c=48719:5.7|f=ysc|hp=91|pet=100|sl=94.44.100|dec=44883:gcdchain|sh=|ttd=132|in=54|vul=0|xp=0|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T20:28:35.848Z	DS|1792009715848|t=14608|enemy=0|landing=0|v=danger
+2026-10-14T20:28:36.456Z	BT|1792009716456|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+shieldcharge:weave-too-short|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:36.839Z	BT|1792009716839|1c2400030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:37.098Z	BT|1792009717098|1c3000030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:37.448Z	BT|1792009717448|1c3000030000000000|3|0|0|0|pet=1073791138:Sabotender:18937|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+shieldcharge:landing-danger|sl=19.8.22|lv=50|tk=-|4614
+2026-10-14T20:28:38.541Z	CR|1792009718541|b=4|bt=5|nd=|ne=1|hi=95|t=14608:95|c=48719:2.9|f=ysc|hp=87|pet=100|sl=94.44.100|dec=44883:gcdchain|sh=|ttd=228|in=61|vul=0|xp=0|d=8.1|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
