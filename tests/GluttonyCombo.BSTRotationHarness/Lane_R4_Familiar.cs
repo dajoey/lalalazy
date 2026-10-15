@@ -48,5 +48,16 @@ internal static partial class Program
         var crucible = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
         Check("r4-familiar: rot-31 the collector reads FamiliarDown (pet buddy at 0 HP) and ReadyReviveHorn",
             crucible.Contains("FamiliarDown", StringComparison.Ordinal) && crucible.Contains("ReadyReviveHorn", StringComparison.Ordinal));
+
+        // ---------------- 1.4-01: the banemite piece (1.4) shrugs poison off, so poison familiars score down there
+        // The guide (S17) lists Ice familiars for 1.4 and never a poison one; the panel's Vulnerable bits have no
+        // resist side, so the resist is hand-authored knowledge (ResistedStatuses).
+        var whyWespe = new List<string>();
+        var wespe = BST_CrucibleAdvisor.Score(1, 4, 10, CrucibleNeeds.None, whyWespe);
+        Check("r4-familiar: 1.4-01 the wespe (row 10, poisons) is scored down on 1.4 with a why entry", whyWespe.Contains("poison resisted"), $"{wespe} [{string.Join(",", whyWespe)}]");
+        var whyZiz = new List<string>();
+        var ziz = BST_CrucibleAdvisor.Score(1, 4, 21, CrucibleNeeds.None, whyZiz);
+        Check("r4-familiar: 1.4-01 the Ziz (row 21, ice, no poison) takes no penalty on 1.4 and outscores the wespe",
+            !whyZiz.Contains("poison resisted") && ziz > wespe, $"ziz={ziz} wespe={wespe} [{string.Join(",", whyZiz)}]");
     }
 }
