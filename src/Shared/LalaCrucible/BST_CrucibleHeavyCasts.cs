@@ -64,6 +64,7 @@ internal static partial class BST_CrucibleData
         (5, 1), (5, 3), (5, 5), (5, 6),
         (3, 2),   // r4-third2: Third Board battle 2 (Ymir / Sahagin), 51 recorded runs: the Dreadwash row below
         (2, 1),
+        (2, 5),
     ];
 
     /// <summary> Whether a battle of the two Master's Boards was actually fought in the recorded runs. </summary>
@@ -99,6 +100,8 @@ internal static partial class BST_CrucibleData
         // ---- Second Board, single-target casts that follow the enmity holder ----------------------------------------------------
         new(48138, "Deadly Hold", 2, 1, 5.0f, 0f, CrucibleHitKind.Tankbuster, 206, 227, 52, 24, false,
             "Battle-1 manticore trash (R4 row 2.1-02). Cast 5.0 s (7.56 sheet, crucible-bindings C2); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 52 rows, 24 with damage; character max 206 (20 hits), familiars Diremite 227, Colibri 226, Treant 206, Puk 189."),
+        new(48204, "100-tonze Slash", 2, 5, 9.0f, 0f, CrucibleHitKind.Tankbuster, 549, 614, 31, 16, false,
+            "The tablitaur pair, battle 5 (R4 row 2.5-04). Cast 9.0 s (crucible-bindings C2: the Elder's TB-icon line at the player, tether 260 from the Younger); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 31 rows, 16 with damage; character max 549 (5 hits), familiars Drake 614, Bat 588, Colibri 552, Gigantoad 521, Puk 520, Antling 505, Vulture 349, Uragnite 250."),
 
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,
