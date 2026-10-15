@@ -209,5 +209,19 @@ internal static partial class Program
         Check("r4-tankbuster: 2.6-06 Void Fire III, survival off: nothing pressed",
             Decide(fire, on with { CrucibleSurvival = false }).Reason != "crucible:raidwide-guard",
             Decide(fire, on with { CrucibleSurvival = false }).Reason);
+
+        // ---- 4.4-07 Cauterize 48704 (First Master's battle 4, the Ice Dragon): the HELPER's 1.0 s range-46 width-23 rect
+        // with the 30 y pull-in (BMR IceDragonPiece.cs Cauterize component); distinct from Borgny's Touchdown casts and
+        // from the dragon's own 10 s single-target Cauterize 48700. The Vileskin lane keeps the skin for it.
+        Check("r4-tankbuster: 4.4-07 Cauterize 48704 is a knockback cast and battle 4.4 has one",
+            BST.CrucibleKnockbacks.IsKnockbackCast(48704) && BST.CrucibleKnockbacks.BattleHasKnockback(4, 4)
+            && BST_CrucibleData.KnockbackBattles.Contains((4, 4)));
+        var dragon = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 4, KinshipHeld = true, ReadyBeastMode = true, BeastModeResolved = BST.Vileskin,
+            PlayerTargetedByEnemy = true, ReadyParting = false, KnockbackCastRemaining = 1f,
+        };
+        Check("r4-tankbuster: 4.4-07 Cauterize, 1.0 s left (the whole cast sits inside the 2.5 s lead): Vileskin",
+            Decide(dragon, on) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin-knockback" }, Decide(dragon, on).Reason);
     }
 }
