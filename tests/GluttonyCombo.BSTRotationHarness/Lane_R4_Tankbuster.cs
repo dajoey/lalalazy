@@ -185,5 +185,9 @@ internal static partial class Program
         Check("r4-tankbuster: 2.0-07 Goblin Rush, degree unread (906 x 2.0 = 1812), a 1,900 HP familiar: cover",
             Decide(rush with { PetHp = 1900f }, on).Reason == "aggro:snarl-tankbuster",
             Decide(rush with { PetHp = 1900f }, on).Reason);
+
+        Check("r4-tankbuster: 2.0-07 Goblin Rush, a 1,100 HP familiar at Standard (under 1133): no cover",
+            Decide(At(rush with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(rush with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason);
     }
 }

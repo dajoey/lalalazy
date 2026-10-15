@@ -296,6 +296,7 @@ internal static partial class BST_CrucibleData
     [
         46935, 46934, 46872, 46906, 46920,        // First Board: Cold Caress, Blood Sword, Skullsplinter, Deadly Thrust, Straight Punch
         48138, 48204, 48247,                      // Second Board: Deadly Hold, 100-tonze Slash, Void Paralyze
+        48517,                                    // Second Board: Goblin Rush (guide 5.0 s cast, Loosefrox Inkyjots; 0 recorded rows - never cast in the logs)
         48620, 48471, 48489, 50465, 48563,        // Third Board: Thunderbolt, Crushing Blade, Caustic Vomit, Flying Frenzy, Song of Torment
         48485,                                    // Third Board battle 2: Dreadwash (follows the enmity holder in 64 of 64 completed casts; HeavyCasts row)
         48809, 48822, 48689, 48730,               // First Master's (measured): Toxic Vomit, Salivous Snap, Final Sting, Grim Fate (five-hit string)
@@ -315,6 +316,7 @@ internal static partial class BST_CrucibleData
     public static readonly Dictionary<uint, (int BasisOnCharacter, int EstimatedFamiliarHit, string Evidence)> EstimatedTankbusterHits = new()
     {
         [48471] = (455, 751, "Crushing Blade: 88 of 88 recorded hits on the character, max 455; never hit a familiar (ffxivdb 09-24..10-15). Estimate 455 x 1.65 = 751."),
+        [48517] = (549, 906, "Goblin Rush: 0 recorded casts (Chewchum Popoto died first in every logged pull); the basis is the stand-in from the same board's measured tankbusters (100-tonze Slash 549). Estimate 549 x 1.65 = 906. Guide: 5.0 s cast, Loosefrox Inkyjots."),
     };
 
     /// <summary>

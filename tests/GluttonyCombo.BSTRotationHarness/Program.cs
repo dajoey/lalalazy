@@ -2492,8 +2492,8 @@ internal static partial class Program
             BST_CrucibleData.Tankbusters.All(id => boards123.Contains(id) || BST_CrucibleData.GuideBoundTankbusters.Contains(id)
                 || BST_CrucibleData.HeavyCast(id) is { Kind: CrucibleHitKind.Tankbuster }),
             string.Join(",", BST_CrucibleData.Tankbusters.Where(id => !boards123.Contains(id) && !BST_CrucibleData.GuideBoundTankbusters.Contains(id) && BST_CrucibleData.HeavyCast(id) is not { Kind: CrucibleHitKind.Tankbuster })));
-        Check("the two guide-only Second Master's ids are in Tankbusters and have no measured row",
-            BST_CrucibleData.GuideBoundTankbusters.SetEquals(new uint[] { 49205, 49470 })
+        Check("the guide-only ids never seen cast are in Tankbusters and have no measured row (49205, 49470 Second Master's; 48517 Goblin Rush, R4 row 2.0-07)",
+            BST_CrucibleData.GuideBoundTankbusters.SetEquals(new uint[] { 49205, 49470, 48517 })
             && BST_CrucibleData.GuideBoundTankbusters.All(id => BST_CrucibleData.Tankbusters.Contains(id) && BST_CrucibleData.HeavyCast(id) is null));
         Check("every measured Tankbuster row is in the Tankbusters set; no area / party-wide / cast-only row is",
             BST_CrucibleData.HeavyCasts.All(h => (h.Kind == CrucibleHitKind.Tankbuster) == BST_CrucibleData.Tankbusters.Contains(h.CastId)));

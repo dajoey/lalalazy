@@ -72,10 +72,11 @@ internal static partial class BST_CrucibleData
     public static bool IsMeasuredBattle(int board, int battle) => MeasuredBattles.Contains((board, battle));
 
     /// <summary>
-    ///     Second Master's Tankbusters no recorded run ever saw cast (49205 Void Thunder III, 49470 Thunderbolt): kept from the guides and
-    ///     BossmodReborn, NOT measured. Every other Master's Board entry in <see cref="Tankbusters"/> has a row in <see cref="HeavyCasts"/>.
+    ///     Tankbusters no recorded run ever saw cast (49205 Void Thunder III and 49470 Thunderbolt on the Second Master's Board, 48517 Goblin Rush on
+    ///     the Second Board — R4 row 2.0-07): kept from the guides and BossmodReborn, NOT measured. Every other Master's Board entry in
+    ///     <see cref="Tankbusters"/> has a row in <see cref="HeavyCasts"/>.
     /// </summary>
-    public static readonly HashSet<uint> GuideBoundTankbusters = [49205, 49470];
+    public static readonly HashSet<uint> GuideBoundTankbusters = [49205, 49470, 48517];
 
     public static readonly CrucibleHeavyCast[] HeavyCasts =
     [
