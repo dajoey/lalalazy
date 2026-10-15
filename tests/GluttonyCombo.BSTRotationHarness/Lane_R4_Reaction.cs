@@ -87,8 +87,8 @@ internal static partial class Program
             Decide(para with { CrucibleBoard = 0, CrucibleBattle = 0 }, cfg).Reason != "crucible:petsave-paralysis");
 
         // ---- lv-15a interrupt coverage. Log 2026-09-17..10-14: 438 interruptible cast starts, 52 with a Soul Crush effect, 274 of the other 386 completed.
-        // The press itself fires (5 `soulcrush-interrupt` in the CR window, within 0.3 to 2.2 s of the cast start); the recorded misses are Natural Nurture
-        // (4.8) with the horns bat / diremite / sabotender (no Soulkin anywhere: 261 of 277 interruptible ticks, Soul Crush never held), and "why" was never logged.
+        // The press itself fires (5 `soulcrush-interrupt` in the CR window; in the 3 casts of 5.10 it went out 0.3 to 1.8 s after the cast started); the recorded misses are Natural Nurture
+        // (4.8) with the horns bat / diremite / sabotender (no Soulkin anywhere: on 261 of its 277 interruptible ticks the BT line says Soul Crush was not held, the other 16 have no BT line), and "why" was never logged.
         // The rule is unchanged; every way the interrupt can be blocked now says so in the decline log.
         var live50 = CrucibleState(50) with { SinceSummon = 12f, ReadyParting = false, SinceHornPress = 30f, GcdReady = false, CanWeave = true };
         var rupture = live50 with
@@ -155,7 +155,7 @@ internal static partial class Program
         }
 
         // ---- 1.3-04 Arcane Blast (46899, Piscodemon): dispel Clear Mind first, else mitigate. Log: the blast hit the character for 85 to 166 (n 8) and the familiars for
-        // 80 to 153, the largest 166 against about 2,400 HP. The dispel route is the Wavekin's / vulture's (a pugil's One with Nature goes to Borrow -> Quelling Wave, which
+        // 80 to 153, the largest 166 (the character's max HP on Board 1 is not in the logs; the Master's Boards show 4,060). The dispel route is the Wavekin's / vulture's (a pugil's One with Nature goes to Borrow -> Quelling Wave, which
         // takes the buff off; the pugil's own Water Wall is the same One with Nature, so it can never be the answer while the dispel route is open). What the plugin
         // already does when no dispel can go out is its survival answers: the potion at the panic line.
         var blast = live50 with
