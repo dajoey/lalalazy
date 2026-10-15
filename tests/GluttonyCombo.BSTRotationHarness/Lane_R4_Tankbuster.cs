@@ -43,5 +43,21 @@ internal static partial class Program
         Check("r4-tankbuster: 2.1-02 Deadly Hold, degree unread, a 400 HP familiar (under 454): no cover",
             Decide(hold with { PetHp = 400f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
             Decide(hold with { PetHp = 400f, PetHpPercent = 80f }, on).Reason);
+
+        // ---- 2.5-04 100-tonze Slash 48204 (Second Board battle 5, the tablitaur pair): measured 549 on the character,
+        // 614 on a familiar (Drake). Registered (Board 1-3 id) with no measured row, so the cover never arms.
+        var tonze = CrucibleState() with
+        {
+            CrucibleBoard = 2, CrucibleBattle = 5, TargetCastId = 48204, TargetCastRemaining = 5f,
+            ReadySnarl = true, PetHp = 3492f, PetHpPercent = 100f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, a 3,492 HP familiar at Standard (614 x 1.25 = 768): Snarl covers it",
+            Decide(tonze, on).Reason == "aggro:snarl-tankbuster", Decide(tonze, on).Reason);
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, First Degree (614 x 2.0 x 1.25 = 1535), a 1,600 HP familiar: cover",
+            Decide(At(tonze with { PetHp = 1600f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(tonze with { PetHp = 1600f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 2.5-04 100-tonze Slash, degree unread (614 x 2.0 = 1228), a 1,300 HP familiar: cover",
+            Decide(tonze with { PetHp = 1300f, PetHpPercent = 80f }, on).Reason == "aggro:snarl-tankbuster",
+            Decide(tonze with { PetHp = 1300f, PetHpPercent = 80f }, on).Reason);
     }
 }
