@@ -61,6 +61,7 @@ internal static partial class Program
         R4OptionsLane20261015(); // R4 options lane 2026-10-15 (titles prefixed "r4-options:")
         R4ReactionLane20261015(); // R4 reaction lane 2026-10-15 (titles prefixed "r4-reaction:")
         R4SnarlLane20261015(); // R4 snarl lane 2026-10-15 (titles prefixed "r4-snarl:")
+        R4Target1Lane20261015(); // R4 targeting lane (Board 2 + First Master's) 2026-10-15 (titles prefixed "r4-target1:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
