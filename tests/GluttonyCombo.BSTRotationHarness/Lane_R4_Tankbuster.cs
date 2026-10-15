@@ -86,5 +86,18 @@ internal static partial class Program
         Check("r4-tankbuster: 3.1-08a Crushing Blade, degree unread (751 x 2.0 = 1502), a 1,600 HP familiar: cover",
             Decide(blade with { PetHp = 1600f, PetHpPercent = 80f }, on).Reason == "aggro:snarl-tankbuster",
             Decide(blade with { PetHp = 1600f, PetHpPercent = 80f }, on).Reason);
+
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, a 900 HP familiar at Standard (under 939): no cover",
+            Decide(blade with { PetHp = 900f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(blade with { PetHp = 900f, PetHpPercent = 80f }, on).Reason);
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, First Degree, an 1,800 HP familiar (under 1878): no cover",
+            Decide(At(blade with { PetHp = 1800f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(blade with { PetHp = 1800f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, degree unread, a 1,400 HP familiar (under 1502): no cover",
+            Decide(blade with { PetHp = 1400f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(blade with { PetHp = 1400f, PetHpPercent = 80f }, on).Reason);
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, the character under the measured 455 but a 900 HP familiar: still no cover (the estimate never takes the death-cover)",
+            Decide(blade with { PetHp = 900f, PetHpPercent = 80f, PlayerHp = 400f, PlayerHpPercent = 9f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(blade with { PetHp = 900f, PetHpPercent = 80f, PlayerHp = 400f, PlayerHpPercent = 9f }, on).Reason);
     }
 }
