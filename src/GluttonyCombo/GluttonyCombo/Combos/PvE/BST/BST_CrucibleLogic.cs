@@ -1274,7 +1274,9 @@ internal static class BST_CrucibleLogic
     ///     familiar the logs measured for the cast (<see cref="CrucibleHeavyCast.MaxOnFamiliar"/>), scaled to the board's degree
     ///     (<see cref="CrucibleDegree.FamiliarHitScale"/>: the recorded numbers are Standard, First Degree hits a familiar about twice as hard) and
     ///     with the margin the degree allows (<see cref="CrucibleDegree.CoverMargin"/>: 1.25 where Standard / First is known, 2.0 otherwise). A cast
-    ///     with no measured hit on a familiar is never covered (the character takes it, as before the Snarl step existed). First Degree Sweeping
+    ///     with no measured hit on a familiar is covered only through a documented conservative estimate
+    ///     (<see cref="BST_CrucibleData.EstimatedTankbusterHits"/>) behind the same hard familiar-HP gate — never the death-cover, because no log
+    ///     says a familiar took the cast. First Degree Sweeping
     ///     Evisceration put 3,300-3,900 on a 3,492 HP familiar and knocked it out in 11 of 15 casts, where at Standard the same cast did 1,224-2,616
     ///     and the Snarl alone was safe. A character already under the cast's measured hit on a character (scaled the same way,
     ///     <see cref="CrucibleDegree.CharacterHitScale"/>) is covered whatever the familiar's HP (the alternative is the death).
@@ -1284,6 +1286,9 @@ internal static class BST_CrucibleLogic
         if (s.PetHp <= 0f)
             return false;
         var heavy = BST_CrucibleData.HeavyCast(s.TargetCastId);
+        if (heavy is not { MaxOnFamiliar: > 0 } && BST_CrucibleData.EstimatedTankbusterHits.TryGetValue(s.TargetCastId, out var est))
+            return s.PetHp >= est.EstimatedFamiliarHit * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel)
+                * CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
         if (heavy is { MaxOnCharacter: > 0 } row
             && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter * CrucibleDegree.CharacterHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel))
             return true;

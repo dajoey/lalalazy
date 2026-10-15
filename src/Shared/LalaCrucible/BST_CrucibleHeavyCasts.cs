@@ -65,6 +65,7 @@ internal static partial class BST_CrucibleData
         (3, 2),   // r4-third2: Third Board battle 2 (Ymir / Sahagin), 51 recorded runs: the Dreadwash row below
         (2, 1),
         (2, 5),
+        (3, 1),
     ];
 
     /// <summary> Whether a battle of the two Master's Boards was actually fought in the recorded runs. </summary>
@@ -102,6 +103,10 @@ internal static partial class BST_CrucibleData
             "Battle-1 manticore trash (R4 row 2.1-02). Cast 5.0 s (7.56 sheet, crucible-bindings C2); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 52 rows, 24 with damage; character max 206 (20 hits), familiars Diremite 227, Colibri 226, Treant 206, Puk 189."),
         new(48204, "100-tonze Slash", 2, 5, 9.0f, 0f, CrucibleHitKind.Tankbuster, 549, 614, 31, 16, false,
             "The tablitaur pair, battle 5 (R4 row 2.5-04). Cast 9.0 s (crucible-bindings C2: the Elder's TB-icon line at the player, tether 260 from the Younger); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 31 rows, 16 with damage; character max 549 (5 hits), familiars Drake 614, Bat 588, Colibri 552, Gigantoad 521, Puk 520, Antling 505, Vulture 349, Uragnite 250."),
+
+        // ---- Third Board, single-target casts that follow the enmity holder -----------------------------------------------------
+        new(48471, "Crushing Blade", 3, 1, 5.0f, 0f, CrucibleHitKind.Tankbuster, 455, 0, 177, 88, false,
+            "Cavalier Piece, battle 1 (R4 row 3.1-08a). Cast 5.0 s (7.56 sheet, crucible-bindings); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 177 rows, 88 with damage, all 88 on the character, max 455; never hit a familiar, so the cover gate uses EstimatedTankbusterHits[48471] (455 x 1.65 = 751). The cast is also the battle's 15 y knockback (CrucibleKnockbacks)."),
 
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,

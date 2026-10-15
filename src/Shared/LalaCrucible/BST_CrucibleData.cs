@@ -305,6 +305,19 @@ internal static partial class BST_CrucibleData
     ];
 
     /// <summary>
+    ///     Registered tankbusters the logs measured on the character but never on a familiar (R4 rows 3.1-08a, 2.0-07): the
+    ///     cover's familiar-HP gate uses a documented conservative estimate, the basis hit (the cast's own largest measured hit
+    ///     on the character, or where the cast itself was never seen the largest measured character hit of the same board's
+    ///     tankbusters as a stand-in) times the worst measured familiar-to-character ratio among the measured Tankbuster rows
+    ///     (Sweeping Evisceration 2021/1225 = 1.65). The estimate never takes the death-cover: no log says a familiar took the
+    ///     cast, so nothing says a dying familiar would survive it.
+    /// </summary>
+    public static readonly Dictionary<uint, (int BasisOnCharacter, int EstimatedFamiliarHit, string Evidence)> EstimatedTankbusterHits = new()
+    {
+        [48471] = (455, 751, "Crushing Blade: 88 of 88 recorded hits on the character, max 455; never hit a familiar (ffxivdb 09-24..10-15). Estimate 455 x 1.65 = 751."),
+    };
+
+    /// <summary>
     ///     Seconds from the moment the plugin's castbar remaining reaches 0 to the hit landing (negative = the hit lands first). Measured
     ///     for the Master's Board casts in <see cref="HeavyCasts"/>; 0 for every other id (no measurement: Boards 1-3 and the guide-only
     ///     Master's ids).
