@@ -333,6 +333,13 @@ internal static partial class BST_CrucibleData
     public static readonly Dictionary<uint, uint> ReviveItemRows = new() { [96] = BlessedHornAction };
 
     /// <summary>
+    ///     BNpcName -> status bits an enemy resists, beyond what its Vulnerable bits say (same bit order; bit 5 =
+    ///     poison). No sheet carries enemy resists, so this is hand-authored knowledge from the guides: the banemite
+    ///     piece (1.4) shrugs poison off, and S17 lists only Ice familiars for that fight.
+    /// </summary>
+    public static readonly Dictionary<uint, ushort> ResistedStatuses = new() { [14536] = 1 << 5 };
+
+    /// <summary>
     ///     XBMItem sheet row -> heal potion action, for the live HUD stock walk: the Crucible item HUD carries these
     ///     rows in its slots (76-79 = G1-G4 Beast Potion, the same numbering the game's shop and AutoDuty's item engine
     ///     use). Grounded in the captured XBMContentsMainHUD values (XB| lines): slot base 9 + i*5, held byte at +1,

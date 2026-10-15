@@ -103,6 +103,15 @@ internal static class BST_CrucibleAdvisor
 
             if (cc < 3 && (profile.Inflicts & e.Vulnerable & CrowdControlBits) != 0)
                 cc++;
+
+            // A status the enemy resists (no sheet says so; hand-authored in ResistedStatuses) is worth nothing: the
+            // banemite piece (1.4) shrugs poison off, so a poison familiar loses the main enemy's weight there.
+            if (e.Sub == 0 && BST_CrucibleData.ResistedStatuses.TryGetValue(e.NameId, out var resists)
+                && (profile.Inflicts & resists) != 0)
+            {
+                score -= 3;
+                why?.Add((resists & (1 << 5)) != 0 ? "poison resisted" : "status resisted");
+            }
         }
 
         score += (int)Math.Round(weaknessScore);

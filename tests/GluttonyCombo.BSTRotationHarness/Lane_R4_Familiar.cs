@@ -59,5 +59,18 @@ internal static partial class Program
         var ziz = BST_CrucibleAdvisor.Score(1, 4, 21, CrucibleNeeds.None, whyZiz);
         Check("r4-familiar: 1.4-01 the Ziz (row 21, ice, no poison) takes no penalty on 1.4 and outscores the wespe",
             !whyZiz.Contains("poison resisted") && ziz > wespe, $"ziz={ziz} wespe={wespe} [{string.Join(",", whyZiz)}]");
+        Check("r4-familiar: 1.4-01 the resist map names the banemite piece (14536) and only the poison bit",
+            BST_CrucibleData.ResistedStatuses.ContainsKey(14536u) && BST_CrucibleData.ResistedStatuses[14536u] == (1 << 5));
+        Check("r4-familiar: 1.4-01 the Flying Trap (row 20, ice but poisons) still clears the floor on 1.4 (its ice keeps it in the guide's list)",
+            BST_CrucibleAdvisor.Score(1, 4, 20, CrucibleNeeds.None) > 0);
+        Check("r4-familiar: 1.4-01 no penalty on a battle with no resist row (1.1)",
+            !ScoreWhy(1, 1, 10).Contains("poison resisted"));
+    }
+
+    private static List<string> ScoreWhy(int board, int battle, int row)
+    {
+        var why = new List<string>();
+        BST_CrucibleAdvisor.Score(board, battle, row, CrucibleNeeds.None, why);
+        return why;
     }
 }
