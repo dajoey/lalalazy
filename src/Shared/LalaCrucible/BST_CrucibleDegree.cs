@@ -42,20 +42,28 @@ internal static class CrucibleDegree
 
     /// <summary>
     ///     How much harder a hit on the CHARACTER lands than the recorded one (recorded at Standard). The guard lines compare the
-    ///     character's HP to a recorded largest hit, so the cheap side of the error is the larger scale: Second and Third are unmeasured and
-    ///     take the First figure (they hit at least that hard). Unknown reads as the recorded value (1.0), as before the degree was read.
+    ///     character's HP to a recorded largest hit, so the cheap side of the error is the larger scale. Unknown reads as the recorded value
+    ///     (1.0), as before the degree was read. First is measured (1.55-1.72 over four casts, 1.75 here). Second is measured on one fight
+    ///     (encounter 2286, 2026-10-05): the Auto-attack c660 on the character averaged 37.5 (n=13) against 15.2 at Standard, 2.47x; the
+    ///     figure is 2.5. The guides say +84% for Second and +126% for Third (a step of 2.26 / 1.84 = 1.23). Third has no run: it is the
+    ///     measured Second figure times the guides' step, 2.47 x 1.23 = 3.03, rounded up to 3.1; the first real Third Degree run corrects it.
+    ///     A higher scale arms the raidwide guard and the cover Snarl at a higher HP: more potions and Snarls, fewer deaths.
     /// </summary>
     public static float CharacterHitScale(bool known, int degree) =>
-        !known ? 1f : degree switch { Standard => 1f, First or Second or Third => 1.75f, _ => 1f };
+        !known ? 1f : degree switch { Standard => 1f, First => 1.75f, Second => 2.5f, Third => 3.1f, _ => 1f };
 
-    /// <summary> The same for a hit on a FAMILIAR. </summary>
+    /// <summary>
+    ///     The same for a hit on a FAMILIAR. First: measured 1.5-2.0 (Grim Fate 1.98x), 2.0 here. Neither Second nor Third has a familiar hit
+    ///     to measure against (one Skullsplinter at Second, no Standard one on a familiar), so each keeps First's familiar-to-character ratio
+    ///     (2.0 / 1.75 = 1.14): 2.5 x 1.14 = 2.86 -> 2.9 at Second, 3.1 x 1.14 = 3.54 -> 3.6 at Third.
+    /// </summary>
     public static float FamiliarHitScale(bool known, int degree) =>
-        !known ? 1f : degree switch { Standard => 1f, First or Second or Third => 2f, _ => 1f };
+        !known ? 1f : degree switch { Standard => 1f, First => 2f, Second => 2.9f, Third => 3.6f, _ => 1f };
 
     /// <summary>
     ///     How many times the scaled recorded hit a familiar has to be able to hold before a cover Snarl goes in. Where the degree is
-    ///     measured (Standard, First) the scale already carries the harder hits and the margin is the ordinary 1.25; Second, Third and an
-    ///     unread degree keep the 2.0 that 1.0.4.287 shipped.
+    ///     measured (Standard, First) the scale already carries the harder hits and the margin is the ordinary 1.25; Second (one fight),
+    ///     Third (no run) and an unread degree keep the 2.0 that 1.0.4.287 shipped, so the scale times the margin never falls as the degree rises.
     /// </summary>
     public static float CoverMargin(bool known, int degree) => known && degree is Standard or First ? 1.25f : 2f;
 }
