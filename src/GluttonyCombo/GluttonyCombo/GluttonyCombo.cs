@@ -652,7 +652,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                     config.Version,
                     config.RotationConfig.HealerSettings,
                     Configuration.CustomIntValues.TryGetValue("BST_CrucibleAggro", out var crucibleAggro) ? crucibleAggro : -1,
-                    Configuration.CustomBoolValues.TryGetValue("BST_CrucibleSnarlParting", out var snarlParting) ? (snarlParting ? 1 : 0) : -1));
+                    Configuration.CustomBoolValues.TryGetValue("BST_CrucibleSnarlParting", out var snarlParting) ? (snarlParting ? 1 : 0) : -1,
+                    Configuration.CustomBoolValues.TryGetValue("BST_CrucibleCycleForDamage", out var cycleForDamage) ? (cycleForDamage ? 1 : 0) : -1,
+                    Configuration.CustomBoolValues.TryGetValue("BST_CruciblePrepullHorns", out var prepullHorns) ? (prepullHorns ? 1 : 0) : -1,
+                    Configuration.CustomBoolValues.TryGetValue("BST_CruciblePackWindow", out var packWindow) ? (packWindow ? 1 : 0) : -1));
 
             if (!result.Changed)
                 return;

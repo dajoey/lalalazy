@@ -389,7 +389,7 @@ internal static class BST_RotationLogic
         public bool CrucibleSnarlParting;
         /// <summary> Crucible survival policy: board heal to the entry line, the aimed-hit guard and the panic heal (2026-10-03 deaths). </summary>
         public bool CrucibleSurvival;
-        /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
+        /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default on since round 4; off: only logged in <c>sh=</c>). </summary>
         public bool CruciblePackWindow;
 
         public static BstSettings Defaults(bool aoe = false) => new()
@@ -420,11 +420,11 @@ internal static class BST_RotationLogic
             CrucibleAggro = CrucibleAggroMode.On,
             CrucibleAllowDisplacing = true,
             CrucibleScoreMode = false,
-            CrucibleCycleForDamage = false,
-            CruciblePrepullHorns = false,
+            CrucibleCycleForDamage = true,
+            CruciblePrepullHorns = true,
             CrucibleSnarlParting = true,
             CrucibleSurvival = true,
-            CruciblePackWindow = false,
+            CruciblePackWindow = true,
         };
     }
 
@@ -545,7 +545,7 @@ internal static class BST_RotationLogic
             {
                 if (crucible)
                 {
-                    var prep = BST_CrucibleLogic.PrepareKinship(s, declines);
+                    var prep = BST_CrucibleLogic.PrepareKinship(s, declines, cfg.UseBeastskin);
                     if (prep.ActionId != 0)
                         return Pick(prep.ActionId, prep.Reason);
                 }
@@ -713,7 +713,7 @@ internal static class BST_RotationLogic
         if (familiarOut && s.OneWithNature && s.Level >= LvTemperedRelease && s.CanWeave && s.SinceSummon >= 0.8f)
         {
             // Crucible: this familiar's Kinship answers the fight's panel (interrupt / dispel / cleanse) - Borrow it.
-            if (crucible && BST_CrucibleLogic.ShouldBorrowForFight(s, beast))
+            if (crucible && BST_CrucibleLogic.ShouldBorrowForFight(s, beast, cfg.UseBeastskin))
                 return Pick(BST.Borrow, $"crucible:borrow-{beast!.Value.Kin.ToString().ToLowerInvariant()}");
 
             // Crucible: the Soulkin's One with Nature is the once-per-summon re-arm of Soul Crush — hold it while no

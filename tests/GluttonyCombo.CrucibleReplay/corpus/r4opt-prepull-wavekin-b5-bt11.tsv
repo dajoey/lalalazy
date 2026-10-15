@@ -1,0 +1,47 @@
+#source=ffxivdb
+#from=2026-10-13T23:40:44Z
+#to=2026-10-13T23:41:02Z
+#lead_s=3
+#build=1.0.4.301
+#piece=board 5 battle 11
+#tags=prepull
+#note=lv-13: recorded with the pre-pull option on: crucible:prepull-borrow-wavekin
+#expect.head=11
+2026-10-13T23:40:48.354Z	DS|1791934848354|t=14674|enemy=1|landing=1|v=safe
+2026-10-13T23:40:48.354Z	CR|1791934848353|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:100|c=0:0.0|f=c|hp=100|pet=0|sl=93.100.97|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=14.6|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:49.030Z	CR|1791934849030|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:100|c=0:0.0|f=sc|hp=100|pet=100|sl=93.100.97|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=14.6|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:49.030Z	BT|1791934849030|000000030000000000|3|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:49.288Z	BT|1791934849288|000000030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:49.288Z	CR|1791934849288|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:100|c=0:0.0|f=sc|hp=100|pet=97|sl=93.100.97|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=14.6|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:49.546Z	BT|1791934849546|000000030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=crucible:prepull-borrow-waiting|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:51.444Z	CR|1791934851444|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:100|c=0:0.0|f=sc|hp=100|pet=97|sl=93.100.97|dec=44895:crucible:prepull-borrow-wavekin|sh=|ttd=0|in=0|vul=0|xp=1|d=14.6|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:51.444Z	BT|1791934851444|000000030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44895:crucible:prepull-borrow-wavekin|fd=|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:54.644Z	CR|1791934854644|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:86|c=0:0.0|f=sc|hp=100|pet=97|sl=93.100.97|dec=44895:crucible:prepull-borrow-wavekin|sh=|ttd=34|in=0|vul=0|xp=1|d=14.6|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:55.530Z	BT|1791934855530|000000030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:55.530Z	CR|1791934855530|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:86|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44879:gcdchain|sh=|ttd=35|in=0|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:55.789Z	CR|1791934855789|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:82|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44879:gcdchain|sh=|ttd=27|in=0|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:56.572Z	CR|1791934856572|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:82|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44895:crucible:borrow-wavekin|sh=|ttd=27|in=2|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:56.572Z	BT|1791934856572|000000030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44895:crucible:borrow-wavekin|fd=exit:min-stay|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:56.824Z	CR|1791934856824|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:61|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44895:crucible:borrow-wavekin|sh=|ttd=9|in=2|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:56.824Z	BT|1791934856824|000c00030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44895:crucible:borrow-wavekin|fd=exit:min-stay|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:57.317Z	BT|1791934857317|000c00030000000000|3|0|0|0|pet=1073759970:Uragnite:18942|bm=44886|av=44884|dec=44890:own:tempered|fd=exit:min-stay|sl=33.40.27|lv=50|tk=-|4601
+2026-10-13T23:40:57.317Z	CR|1791934857317|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:61|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44890:own:tempered|sh=|ttd=9|in=2|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:57.571Z	BT|1791934857571|000c00030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44883:gcdchain|fd=exit:min-stay|sl=33.40.27|lv=50|tk=-|4648,4614
+2026-10-13T23:40:57.571Z	CR|1791934857571|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:61|c=0:0.0|f=ysc|hp=100|pet=97|sl=93.100.97|dec=44883:gcdchain|sh=|ttd=9|in=2|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:57.829Z	CR|1791934857829|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:61|c=0:0.0|f=ysc|hp=99|pet=97|sl=93.100.97|dec=44883:gcdchain|sh=|ttd=9|in=4|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:58.087Z	CR|1791934858087|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:57|c=0:0.0|f=ysc|hp=99|pet=97|sl=93.100.97|dec=44883:gcdchain|sh=|ttd=8|in=4|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:58.334Z	BT|1791934858334|000c00030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44883:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4648,4614
+2026-10-13T23:40:58.933Z	BT|1791934858933|000c00030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44883:gcdchain|fd=exit:min-stay|sl=33.40.27|lv=50|tk=-|4648,4614
+2026-10-13T23:40:59.022Z	CR|1791934859022|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:57|c=0:0.0|f=ysc|hp=99|pet=97|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=8|in=7|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:59.191Z	BT|1791934859191|0d0c00030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44891:exit:partingblow|fd=|sl=33.40.27|lv=50|tk=-|4648,4614
+2026-10-13T23:40:59.281Z	CR|1791934859281|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:32|c=0:0.0|f=ysc|hp=99|pet=97|sl=93.100.97|dec=44891:exit:partingblow|sh=|ttd=3|in=7|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:59.622Z	BT|1791934859622|0d0c00030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44885:gcdchain|fd=exit:partingblow-recast|sl=33.40.27|lv=50|tk=-|4648,4614
+2026-10-13T23:40:59.622Z	CR|1791934859622|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:32|c=0:0.0|f=ysc|hp=98|pet=97|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=3|in=12|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:59.880Z	CR|1791934859880|b=5|bt=11|nd=D|ne=6|hi=100|t=14674:0|c=0:0.0|f=ysc|hp=98|pet=97|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=0|in=12|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:40:59.880Z	BT|1791934859880|0d2400030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=33.40.27|lv=50|tk=-|4648
+2026-10-13T23:41:00.327Z	CR|1791934860326|b=5|bt=11|nd=D|ne=4|hi=100|t=0:0|c=0:0.0|f=sc|hp=97|pet=97|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=0|in=15|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:41:00.336Z	BT|1791934860336|0d2400030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn+shieldcharge:weave-too-short|sl=33.40.27|lv=50|tk=-|4648
+2026-10-13T23:41:00.583Z	CR|1791934860583|b=5|bt=-1|nd=|ne=0|hi=0|t=0:0|c=0:0.0|f=sc|hp=97|pet=97|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=0|in=18|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:41:00.592Z	BT|1791934860592|0d2400030000005300|3|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44885:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4648
+2026-10-13T23:41:01.801Z	CR|1791934861801|b=5|bt=-1|nd=|ne=0|hi=0|t=0:0|c=0:0.0|f=c|hp=97|pet=0|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=0|in=18|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:41:01.801Z	BT|1791934861801|0d2400000000005300|0|0|0|83|pet=1073759970:Uragnite:18942|bm=44900|av=44884|dec=44885:gcdchain|fd=summon:waiting-weave|sl=33.40.27|lv=50|tk=-|4606

@@ -13,12 +13,19 @@ internal static partial class BST_CrucibleData
     ///     Battles whose guide answer is "AoE the add pack": (board, battle). The pack is on the field when
     ///     <see cref="PackMinEnemies"/> hostile enemies are up (every logged pack peaked at 3 or more; the boss alone is 1).
     ///     1.0 / 1.4 / 1.5 Pas de Seul, Banemite and the Ogre's wisps; 2.2 / 2.4 Ahriman and zombies; 3.1 / 3.6 Bone Bishops and
-    ///     the siren wave; 4.0 Wriggling Phlegm; 4.8 the treant waves; 5.4 / 5.5 / 5.9 Atomos wave, Barbmoles, the Sphinx's riddle adds.
+    ///     the siren wave; 4.0 Wriggling Phlegm; 4.8 the treant waves; 5.4 / 5.5 / 5.6 / 5.9 Atomos wave, Barbmoles, the rooks (Summon 49269,
+    ///     3 or more up in 228 recorded ticks), the Sphinx's riddle adds.
     /// </summary>
     public static readonly HashSet<(int Board, int Battle)> PackBattles =
     [
-        (1, 0), (1, 4), (1, 5), (2, 2), (2, 4), (3, 1), (3, 6), (4, 0), (4, 8), (5, 4), (5, 5), (5, 9),
+        (1, 0), (1, 4), (1, 5), (2, 2), (2, 4), (3, 1), (3, 6), (4, 0), (4, 8), (5, 4), (5, 5), (5, 6), (5, 9),
     ];
+
+    /// <summary>
+    ///     Battles whose panel has no ability need but whose damage is physical, so the guide answer is a Beastkin's Beastskin (-25% physical
+    ///     taken) armed before the pull: 4.5 Gargoyle (14608: no weakness, Magic Res 5 makes Quelling Wave useless, 42 hits on the character).
+    /// </summary>
+    public static readonly HashSet<(int Board, int Battle)> BeastskinBattles = [(4, 5)];
 
     /// <summary> Hostile enemies up at which an add pack counts as on the field (logs: every pack peaked at 3+, the boss alone is 1). </summary>
     public const int PackMinEnemies = 3;

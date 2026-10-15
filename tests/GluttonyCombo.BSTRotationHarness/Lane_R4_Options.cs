@@ -11,11 +11,14 @@ namespace GluttonyCombo.BSTRotationHarness;
 /// </summary>
 internal static partial class Program
 {
+    /// <summary> The pre-round-4 defaults of the three options: the cases written for the options Off keep running under exactly those settings. </summary>
+    private static BstSettings OptionsOff(BstSettings c) => c with { CruciblePackWindow = false, CrucibleCycleForDamage = false, CruciblePrepullHorns = false };
+
     private static void R4OptionsLane20261015()
     {
         Console.WriteLine("-- r4-options: pack window, pre-pull horn and cycle exit on by default; (5,6) pack; Beastskin pre-pull --");
         var shipped = BstSettings.Defaults();
-        var off = shipped with { CruciblePackWindow = false, CrucibleCycleForDamage = false, CruciblePrepullHorns = false };
+        var off = OptionsOff(shipped);
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
 
         // L30, board / battle given, the active familiar `beast` with its One with Nature unspent, two healthy ready horns behind it.
@@ -91,8 +94,8 @@ internal static partial class Program
             Check($"r4-options: {id} {piece}: ... with the option unticked nothing is pressed and the open window is logged",
                 Decide(Spent(Wave(board, battle, 34, pack)), off) is { Shadow: "crucible:pack-parting-off" } o && o.ActionId != BST.PartingBlow);
             Check($"r4-options: {id} {piece}: ... never next to a protected egg or morpho, and never on a lone target",
-                Decide(Spent(Wave(board, battle, 34, pack)) with { ProtectedNearTarget = true }, shipped).ActionId != BST.PartingBlow
-                && Decide(Spent(Wave(board, battle, 34, 1)), shipped).ActionId != BST.PartingBlow);
+                Decide(Spent(Wave(board, battle, 34, pack)) with { ProtectedNearTarget = true }, shipped).Reason != "crucible:pack-parting"
+                && Decide(Spent(Wave(board, battle, 34, 1)), shipped).Reason != "crucible:pack-parting");
         }
         Check("r4-options: 5.5-09 Barbmoles: with the shipped settings the Morpho case still holds the AoE (no release next to a protected enemy)",
             Decide(Wave(5, 5, 34, 4) with { ProtectedNearTarget = true }, shipped).ActionId != BST.TemperedRelease);

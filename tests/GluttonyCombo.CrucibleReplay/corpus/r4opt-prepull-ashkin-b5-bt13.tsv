@@ -1,0 +1,40 @@
+#source=ffxivdb
+#from=2026-10-15T01:07:55Z
+#to=2026-10-15T01:08:12Z
+#lead_s=3
+#build=1.0.4.304
+#piece=board 5 battle 13
+#tags=prepull
+#note=lv-13: recorded with the pre-pull option on: crucible:prepull-borrow-ashkin
+#expect.head=4
+2026-10-15T01:08:00.339Z	BT|1792026480339|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|
+2026-10-15T01:08:00.339Z	CR|1792026480339|b=5|bt=13|nd=C|ne=1|hi=100|t=0:0|c=0:0.0|f=c|hp=100|pet=0|sl=100.100.95|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:00.566Z	DS|1792026480566|t=14688|enemy=1|landing=1|v=safe
+2026-10-15T01:08:00.589Z	BT|1792026480589|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44894:crucible:prepull-ashkin-slot3|fd=|sl=20.21.40|lv=50|tk=-|
+2026-10-15T01:08:00.589Z	CR|1792026480589|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:100|c=0:0.0|f=c|hp=100|pet=0|sl=100.100.95|dec=44894:crucible:prepull-ashkin-slot3|sh=|ttd=0|in=0|vul=0|xp=1|d=18.6|mv=6.9|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:01.174Z	CR|1792026481174|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:100|c=0:0.0|f=c|hp=100|pet=0|sl=100.100.95|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=15.5|mv=0.3|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:01.174Z	BT|1792026481174|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|
+2026-10-15T01:08:01.770Z	BT|1792026481770|000000030000000000|3|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:01.770Z	CR|1792026481770|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:100|c=0:0.0|f=sc|hp=100|pet=100|sl=100.100.95|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=15.5|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:02.026Z	CR|1792026482026|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:100|c=0:0.0|f=sc|hp=100|pet=95|sl=100.100.95|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=15.5|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:02.026Z	BT|1792026482026|000000030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:02.276Z	BT|1792026482276|000000030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=crucible:prepull-borrow-waiting|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:04.206Z	CR|1792026484206|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:100|c=0:0.0|f=sc|hp=100|pet=95|sl=100.100.95|dec=44895:crucible:prepull-borrow-ashkin|sh=|ttd=0|in=0|vul=0|xp=1|d=15.5|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:04.206Z	BT|1792026484206|000000030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44895:crucible:prepull-borrow-ashkin|fd=|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:06.372Z	BT|1792026486372|000c00030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44895:crucible:prepull-borrow-ashkin|fd=|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:06.381Z	CR|1792026486381|b=5|bt=13|nd=C|ne=1|hi=100|t=14688:99|c=0:0.0|f=sc|hp=100|pet=95|sl=100.100.95|dec=44895:crucible:prepull-borrow-ashkin|sh=|ttd=657|in=0|vul=0|xp=1|d=15.5|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:07.257Z	BT|1792026487257|000c00030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:07.257Z	CR|1792026487257|b=5|bt=13|nd=C|ne=1|hi=99|t=14688:99|c=0:0.0|f=ysc|hp=100|pet=95|sl=100.100.95|dec=44879:gcdchain|sh=|ttd=990|in=0|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:08.335Z	BT|1792026488335|000c00030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44895:crucible:borrow-ashkin|fd=exit:min-stay|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:08.335Z	CR|1792026488335|b=5|bt=13|nd=C|ne=1|hi=99|t=14688:99|c=0:0.0|f=ysc|hp=100|pet=95|sl=100.100.95|dec=44895:crucible:borrow-ashkin|sh=|ttd=565|in=3|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:09.035Z	BT|1792026489035|000c00030000000000|3|0|0|0|pet=1073800628:Ghost:18955|bm=44886|av=44884|dec=44890:own:tempered|fd=exit:min-stay|sl=20.21.40|lv=50|tk=-|4601
+2026-10-15T01:08:09.035Z	CR|1792026489035|b=5|bt=13|nd=C|ne=1|hi=99|t=14688:99|c=0:0.0|f=ysc|hp=100|pet=95|sl=100.100.95|dec=44890:own:tempered|sh=|ttd=441|in=3|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:09.301Z	BT|1792026489301|001800030000008300|3|0|0|131|pet=1073800628:Ghost:18955|bm=44903|av=44884|dec=44883:gcdchain|fd=exit:min-stay|sl=20.21.40|lv=50|tk=-|4651,4614
+2026-10-15T01:08:09.301Z	CR|1792026489301|b=5|bt=13|nd=C|ne=1|hi=99|t=14688:98|c=0:0.0|f=ysc|hp=100|pet=95|sl=100.100.95|dec=44883:gcdchain|sh=|ttd=368|in=3|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:10.353Z	BT|1792026490353|001800030000008300|3|0|0|131|pet=1073800628:Ghost:18955|bm=44903|av=44884|dec=44883:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|4651,4614
+2026-10-15T01:08:10.820Z	CR|1792026490820|b=5|bt=13|nd=C|ne=1|hi=98|t=14688:98|c=0:0.0|f=ysc|hp=99|pet=95|sl=100.100.95|dec=44883:gcdchain|sh=|ttd=340|in=3|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:10.962Z	BT|1792026490962|001800030000008300|3|0|0|131|pet=1073800628:Ghost:18955|bm=44903|av=44884|dec=44883:gcdchain|fd=exit:min-stay|sl=20.21.40|lv=50|tk=-|4651,4614
+2026-10-15T01:08:11.087Z	CR|1792026491087|b=5|bt=13|nd=C|ne=1|hi=98|t=14688:97|c=0:0.0|f=ysc|hp=99|pet=95|sl=100.100.95|dec=44885:gcdchain|sh=|ttd=185|in=7|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:11.213Z	BT|1792026491213|0d1800030000008300|3|0|0|131|pet=1073800628:Ghost:18955|bm=44903|av=44884|dec=44885:gcdchain|fd=exit:min-stay|sl=20.21.40|lv=50|tk=-|4651,4614
+2026-10-15T01:08:11.781Z	CR|1792026491781|b=5|bt=13|nd=C|ne=1|hi=97|t=14688:97|c=0:0.0|f=ysc|hp=99|pet=95|sl=100.100.95|dec=44891:exit:partingblow|sh=|ttd=183|in=7|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T01:08:11.781Z	BT|1792026491781|0d1800030000008300|3|0|0|131|pet=1073800628:Ghost:18955|bm=44903|av=44884|dec=44891:exit:partingblow|fd=|sl=20.21.40|lv=50|tk=-|4651,4614

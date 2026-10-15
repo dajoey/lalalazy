@@ -304,7 +304,7 @@
     <value>Hold {0} for the add pack or the Ymir's shell break, then {1} the pack</value>
   </data>
   <data name="CruciblePackWindowDesc" xml:space="preserve">
-    <value>Off by default. In the fights where the guide answers an add pack with an AoE release (Bone Bishops, zombies, wisps, Ahriman, siren wave) or a stun at the Ymir once its shell breaks, the familiar's Tempered Release waits up to 30 s for the pack (3 or more enemies) or the broken shell, and Parting Blow follows once the pack is out and horns are spare. While off, the window is only logged (sh= in the Crucible log) so a run can show whether it pays.</value>
+    <value>On by default. In the fights where the guide answers an add pack with an AoE release (Bone Bishops, zombies, wisps, Ahriman, siren wave, rooks) or a stun at the Ymir once its shell breaks, the familiar's Tempered Release waits up to 30 s for the pack (3 or more enemies) or the broken shell, and Parting Blow follows once the pack is out and horns are spare. Your attacks continue while it waits. Untick to spend the release at once as before; the window is then only logged (sh= in the Crucible log).</value>
   </data>
   <data name="CrucibleHornWarningPicks0And1" xml:space="preserve">
     <value>Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}.</value>
@@ -313,12 +313,12 @@
     <value>Cycle familiars with {0} for damage in the Crucible</value>
   </data>
   <data name="CrucibleCycleForDamageDesc" xml:space="preserve">
-    <value>Off by default: in the Crucible a familiar leaves only when its HP calls for it, because every exit locks a horn for 90 seconds and the roster is finite per node. On: the normal Parting Blow cycling applies (never as a round ends).</value>
+    <value>On by default: the normal Parting Blow cycling applies in the Crucible (never as a round ends, never without a healthy familiar and a spare horn behind it). Untick it and a familiar leaves only when its HP calls for it, because every exit locks a horn for 90 seconds and the roster is finite per node.</value>
   </data>
   <data name="CruciblePrepullHorns" xml:space="preserve">
     <value>Allow Battlehorns out of combat in the Crucible</value>
   </data>
   <data name="CruciblePrepullHornsDesc" xml:space="preserve">
-    <value>Off by default: other automation linked out-of-combat horn presses on a board to client crashes, and summons are blocked on the board. On: pre-pull summon, pre-pull Borrow for the fight's Kinship, and the between-pulls refresh apply.</value>
+    <value>On by default: pre-pull summon, pre-pull Borrow for the fight's Kinship (including Beastskin before the Gargoyle), and the between-pulls refresh apply. Untick it if a horn press out of combat on a board ever crashes your client (other automation was linked to such crashes, and summons are blocked on the board): no horn is then blown out of combat.</value>
   </data>
 </root>

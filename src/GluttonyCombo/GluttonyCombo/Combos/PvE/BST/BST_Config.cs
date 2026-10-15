@@ -49,9 +49,9 @@ internal partial class BST
             // Key kept from the Snarl -> Parting Blow days: it gates the cover Snarl now (saved configs keep their value).
             BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", true),
             BST_CrucibleSurvival = new("BST_CrucibleSurvival", true),
-            BST_CruciblePackWindow = new("BST_CruciblePackWindow", false),
-            BST_CrucibleCycleForDamage = new("BST_CrucibleCycleForDamage", false),
-            BST_CruciblePrepullHorns = new("BST_CruciblePrepullHorns", false);
+            BST_CruciblePackWindow = new("BST_CruciblePackWindow", true),
+            BST_CrucibleCycleForDamage = new("BST_CrucibleCycleForDamage", true),
+            BST_CruciblePrepullHorns = new("BST_CruciblePrepullHorns", true);
 
         internal static void Draw(Preset preset)
         {
