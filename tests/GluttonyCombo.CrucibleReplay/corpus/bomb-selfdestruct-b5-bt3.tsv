@@ -1,0 +1,84 @@
+#source=archive:plugin-lines-20260924-20260930.tsv
+#piece=board 5 battle 3 (Bomb Piece 14640, Self-destruct 49211)
+#tags=selfdestruct,sv07b,recall
+#note=the bomb piece casts Self-destruct 49211 (8 s room-wide) at 01:21:59.355Z and again 01:22:01.675Z; the familiar (Damselfly 26, pet 100-79) eats the blast with no recall, dec=gcdchain throughout
+#from=2026-09-30 01:21:50+00
+#to=2026-09-30 01:22:10+00
+#lead_s=3
+#build=1.0.4.245
+#expect.head=38
+2026-09-30T01:21:47.182Z	BT|1790731307182|38549c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:47.352Z	CR|1790731307352|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=48|pet=100|sl=100.0.100|dec=44883:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:47.440Z	BT|1790731307440|45549c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:47.609Z	CR|1790731307609|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=48|pet=100|sl=100.0.100|dec=44885:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:47.985Z	CR|1790731307985|b=5|bt=3|nd=|ne=3|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=48|pet=100|sl=100.0.100|dec=44885:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:49.179Z	BT|1790731309179|45549c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:49.239Z	CR|1790731309238|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=48|pet=100|sl=100.0.100|dec=44885:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:49.497Z	CR|1790731309497|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=0:0.0|f=ysc|hp=48|pet=100|sl=100.0.100|dec=44885:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:49.755Z	CR|1790731309755|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=0:0.0|f=ysc|hp=43|pet=100|sl=100.0.100|dec=44885:gcdchain|sh=|ttd=0|in=25|vul=0|xp=0
+2026-09-30T01:21:49.784Z	BT|1790731309784|45549c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:50.741Z	BT|1790731310741|45549c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:50.916Z	CR|1790731310916|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=43|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=29|vul=0|xp=0
+2026-09-30T01:21:50.998Z	BT|1790731310998|54609c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:52.043Z	CR|1790731312043|b=5|bt=3|nd=|ne=3|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=41|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=40|vul=0|xp=0
+2026-09-30T01:21:52.624Z	BT|1790731312624|54609c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:52.812Z	CR|1790731312812|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=ysc|hp=41|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=36|vul=0|xp=0
+2026-09-30T01:21:53.072Z	CR|1790731313072|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=0:0.0|f=ysc|hp=41|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=36|vul=0|xp=0
+2026-09-30T01:21:53.233Z	BT|1790731313233|54609c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:53.331Z	CR|1790731313331|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=49210:4.7|f=ysc|hp=41|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=36|vul=0|xp=0
+2026-09-30T01:21:55.880Z	CR|1790731315880|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=49210:2.1|f=ysc|hp=39|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=32|vul=0|xp=0
+2026-09-30T01:21:55.880Z	BT|1790731315880|546c9c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:56.133Z	CR|1790731316133|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=49210:1.8|f=yc|hp=39|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=42|vul=0|xp=0
+2026-09-30T01:21:56.133Z	BT|1790731316133|546c9c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:56.629Z	BT|1790731316629|546c9c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:56.663Z	CR|1790731316663|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=49210:1.3|f=pc|hp=39|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=42|vul=0|xp=0
+2026-09-30T01:21:58.239Z	CR|1790731318239|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=0:0.0|f=pc|hp=39|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=0|in=42|vul=0|xp=0
+2026-09-30T01:21:58.426Z	BT|1790731318426|546c9c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:58.516Z	CR|1790731318516|b=5|bt=3|nd=|ne=4|hi=100|t=14640:43|c=0:0.0|f=pc|hp=39|pet=100|sl=100.0.100|dec=44879:gcdchain|sh=|ttd=4|in=42|vul=0|xp=0
+2026-09-30T01:21:58.838Z	CR|1790731318838|b=5|bt=3|nd=|ne=4|hi=100|t=14640:43|c=0:0.0|f=pc|hp=39|pet=89|sl=100.0.89|dec=44879:gcdchain|sh=|ttd=4|in=42|vul=0|xp=0
+2026-09-30T01:21:58.909Z	BT|1790731318909|54789c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:59.094Z	CR|1790731319094|b=5|bt=3|nd=|ne=4|hi=100|t=14640:33|c=0:0.0|f=pc|hp=39|pet=89|sl=100.0.89|dec=44879:gcdchain|sh=|ttd=3|in=42|vul=0|xp=0
+2026-09-30T01:21:59.355Z	CR|1790731319355|b=5|bt=3|nd=|ne=4|hi=100|t=14640:33|c=49211:7.7|f=pc|hp=39|pet=89|sl=100.0.89|dec=44879:gcdchain|sh=|ttd=3|in=42|vul=0|xp=0
+2026-09-30T01:21:59.608Z	CR|1790731319608|b=5|bt=3|nd=|ne=4|hi=100|t=14640:20|c=49211:7.4|f=pc|hp=39|pet=89|sl=100.0.89|dec=44879:gcdchain|sh=|ttd=2|in=20|vul=0|xp=0
+2026-09-30T01:21:59.638Z	BT|1790731319638|54789c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:21:59.859Z	CR|1790731319859|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=89|sl=100.0.89|dec=44883:gcdchain|sh=|ttd=0|in=20|vul=0|xp=0
+2026-09-30T01:21:59.893Z	BT|1790731319893|54789c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:00.343Z	CR|1790731320343|b=5|bt=3|nd=|ne=3|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=89|sl=100.0.89|dec=44883:gcdchain|sh=|ttd=0|in=20|vul=0|xp=0
+2026-09-30T01:22:00.600Z	CR|1790731320600|b=5|bt=3|nd=|ne=3|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=84|sl=100.0.84|dec=44883:gcdchain|sh=|ttd=0|in=20|vul=0|xp=0
+2026-09-30T01:22:01.422Z	CR|1790731321422|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=84|sl=100.0.84|dec=44883:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:01.513Z	BT|1790731321513|54789c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:01.675Z	CR|1790731321675|b=5|bt=3|nd=|ne=4|hi=100|t=14640:100|c=49211:5.4|f=yc|hp=39|pet=84|sl=100.0.84|dec=44883:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:01.939Z	BT|1790731321939|54849c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:02.198Z	BT|1790731322198|54849c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:02.951Z	BT|1790731322951|54849c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:03.113Z	CR|1790731323113|b=5|bt=3|nd=|ne=4|hi=100|t=14640:32|c=49211:3.9|f=yc|hp=39|pet=84|sl=100.0.84|dec=44885:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:03.203Z	BT|1790731323203|61849c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:03.875Z	CR|1790731323874|b=5|bt=3|nd=|ne=4|hi=100|t=14640:23|c=49211:3.2|f=yc|hp=39|pet=84|sl=100.0.84|dec=44885:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:04.830Z	BT|1790731324830|61849c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:04.891Z	CR|1790731324891|b=5|bt=3|nd=|ne=4|hi=100|t=14640:23|c=49211:2.2|f=yc|hp=39|pet=79|sl=100.0.79|dec=44885:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:05.082Z	BT|1790731325082|61909c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:05.142Z	CR|1790731325142|b=5|bt=3|nd=|ne=4|hi=100|t=14640:14|c=49211:1.9|f=yc|hp=39|pet=79|sl=100.0.79|dec=44885:gcdchain|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:05.445Z	BT|1790731325445|61909c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:05.566Z	CR|1790731325566|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=79|sl=100.0.79|dec=47093:combo:trick-first|sh=|ttd=0|in=10|vul=0|xp=0
+2026-09-30T01:22:05.702Z	BT|1790731325702|70909c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=47093:combo:trick-first|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:06.174Z	BT|1790731326174|70909c030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:06.174Z	CR|1790731326174|b=5|bt=3|nd=|ne=4|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=79|sl=100.0.79|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:06.426Z	BT|1790731326426|700090030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:06.426Z	CR|1790731326426|b=5|bt=3|nd=|ne=3|hi=100|t=14641:100|c=0:0.0|f=yc|hp=39|pet=79|sl=100.0.79|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:06.678Z	CR|1790731326678|b=5|bt=3|nd=|ne=3|hi=100|t=14641:61|c=0:0.0|f=yc|hp=39|pet=79|sl=100.0.79|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:07.297Z	BT|1790731327297|700090030000000004|3|0|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:07.297Z	CR|1790731327297|b=5|bt=3|nd=|ne=3|hi=100|t=14641:61|c=49213:1.2|f=yc|hp=39|pet=79|sl=100.0.79|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:07.793Z	BT|1790731327793|700090030101000004|3|1|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=20.27.44|lv=50|4595,4614
+2026-09-30T01:22:07.874Z	CR|1790731327874|b=5|bt=3|nd=|ne=3|hi=100|t=14641:61|c=49213:0.6|f=pc|hp=39|pet=79|sl=100.0.79|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:08.045Z	BT|1790731328045|700c90030101000004|3|1|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn+combo:axe-waiting-gcd|sl=20.27.44|lv=50|4595,4614
+2026-09-30T01:22:08.126Z	CR|1790731328126|b=5|bt=3|nd=|ne=3|hi=100|t=14641:56|c=49213:0.4|f=pc|hp=39|pet=67|sl=100.0.67|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:08.532Z	CR|1790731328532|b=5|bt=3|nd=|ne=3|hi=100|t=14641:56|c=49213:0.0|f=pc|hp=39|pet=67|sl=100.0.67|dec=44884:combo:axe-clockwise-after-trick|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:08.532Z	BT|1790731328532|700c90030101000004|3|1|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44884:combo:axe-clockwise-after-trick|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4595,4614
+2026-09-30T01:22:08.786Z	BT|1790731328786|000c90030101000004|3|1|0|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4595,4614
+2026-09-30T01:22:08.786Z	CR|1790731328786|b=5|bt=3|nd=|ne=3|hi=100|t=14641:27|c=0:0.0|f=pc|hp=39|pet=67|sl=100.0.67|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:09.129Z	BT|1790731329129|000c90030702010008|3|2|1|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4643,4614
+2026-09-30T01:22:09.129Z	CR|1790731329129|b=5|bt=3|nd=|ne=3|hi=100|t=14641:32|c=0:0.0|f=pc|hp=39|pet=67|sl=100.0.67|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:09.389Z	CR|1790731329389|b=5|bt=3|nd=|ne=3|hi=100|t=14641:24|c=0:0.0|f=pc|hp=39|pet=67|sl=100.0.67|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
+2026-09-30T01:22:09.389Z	BT|1790731329389|000c90030702010008|3|2|1|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn+combo:wavering-heart|sl=20.27.44|lv=50|4643,4614
+2026-09-30T01:22:09.642Z	BT|1790731329642|000c90030702010008|3|2|1|0|pet=1073819417:Damselfly:18959|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn+combo:wavering-heart|sl=20.27.44|lv=50|4643,4614
+2026-09-30T01:22:09.642Z	CR|1790731329642|b=5|bt=3|nd=|ne=3|hi=100|t=14641:17|c=0:0.0|f=pc|hp=39|pet=63|sl=100.0.63|dec=44883:gcdchain|sh=|ttd=1|in=0|vul=0|xp=0

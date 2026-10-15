@@ -82,6 +82,8 @@ internal static partial class Program
         Check("r4-familiar: sv-07b the cast set covers the bomb (49211) and the grenade (48792, sheet only, never seen cast) beside the Golem heart",
             BST_CrucibleData.SelfDestructCasts.Contains(48766u) && BST_CrucibleData.SelfDestructCasts.Contains(49211u)
             && BST_CrucibleData.SelfDestructCasts.Contains(48792u));
+        Check("r4-familiar: sv-07b ... and the Golem heart (48766) still bursts exactly as before",
+            Decide(bomb with { TargetCastId = 48766 }, cfg).Reason == "crucible:burst-tempered", D(Decide(bomb with { TargetCastId = 48766 }, cfg)));
     }
 
     private static List<string> ScoreWhy(int board, int battle, int row)

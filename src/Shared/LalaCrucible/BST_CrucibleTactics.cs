@@ -38,11 +38,14 @@ internal static partial class BST_CrucibleData
     public const float WindowHoldSeconds = 30f;
 
     /// <summary>
-    ///     Self-destruct (Golem Piece, 4.7): the 20 s arena-wide cast. Both recorded runs (2026-09-28, 10-01) saw it begin at +172 s and
-    ///     +177 s into the battle with the Golem at 85% and 90%; in both the telemetry stops 16-17 s into the cast, 2.9 s and 3.4 s before
-    ///     it ends, with the highest enemy at 9% and 12%. The cast is a deadline the normal rotation did not meet in 2 of 2 runs.
+    ///     Self-destruct casts the rotation bursts (the release goes first, then a Parting Blow recall while the cast is young):
+    ///     the Golem Piece (4.7) heart's 20 s arena-wide cast - both recorded runs (2026-09-28, 10-01) saw it begin at +172 s and
+    ///     +177 s with the Golem at 85% and 90%, and the telemetry stopped 3 s before it ended with the Golem at 9% / 12% - and
+    ///     the Bomb Piece (5.3) 49211, an 8 s room-wide blast a familiar cannot step out of (2026-09-30 01:21:59Z: the bomb casts
+    ///     with 7.7 s left and the Damselfly eats it at 79%, dec=gcdchain throughout). 48792 (the 4.9 grenade pack) is in the sheet
+    ///     but never seen cast; it is covered anyway.
     /// </summary>
-    public static readonly HashSet<uint> SelfDestructCasts = [48766];
+    public static readonly HashSet<uint> SelfDestructCasts = [48766, 49211, 48792];
 
     /// <summary> Seconds of a Self-destruct cast that must remain for a Parting Blow, a resummon and the new familiar's release to fit (a chosen bound, not a measured one). </summary>
     public const float BurstPartingMinCastLeft = 7f;
