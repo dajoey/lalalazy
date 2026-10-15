@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Crucible decision replay (2026-10-15): feeds recorded CR| / BT| / DS| telemetry windows from ffxivdb through the REAL
+       BST_RotationLogic.Decide and prints the replayed decision beside the recorded one. Plain console app, no Dalamud.
+       Compiles the same three real files as GluttonyCombo.BSTRotationHarness (unchanged), from SrcRoot:
+         dotnet build tests\GluttonyCombo.CrucibleReplay -c Release
+         dotnet tests\GluttonyCombo.CrucibleReplay\bin\Release\net10.0\GluttonyCombo.CrucibleReplay.dll - see README for the arguments
+       Replay a window on the source revision it was recorded on: check that revision out in a second worktree and pass
+         -p:SrcRoot=C:\wt-304\src\ -p:SrcLabel=304     (SrcLabel names the revision in the output and picks the #expect.<label> header). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.CrucibleReplay</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591;CS0649;CS0169</NoWarn>
+    <SrcRoot Condition="'$(SrcRoot)' == ''">$(MSBuildThisFileDirectory)..\..\src\</SrcRoot>
+    <SrcLabel Condition="'$(SrcLabel)' == ''">head</SrcLabel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SrcLabel</_Parameter1>
+      <_Parameter2>$(SrcLabel)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SrcRoot</_Parameter1>
+      <_Parameter2>$(SrcRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SrcRoot)Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Using Include="Lalalazy.Crucible" />
+    <Compile Include="$(SrcRoot)GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_RotationLogic.cs" Link="BST_RotationLogic.cs" />
+    <Compile Include="$(SrcRoot)GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Helper.cs" Link="BST_Helper.cs" />
+    <Compile Include="$(SrcRoot)GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleLogic.cs" Link="BST_CrucibleLogic.cs" />
+  </ItemGroup>
+</Project>

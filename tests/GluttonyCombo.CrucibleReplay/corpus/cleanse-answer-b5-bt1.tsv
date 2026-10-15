@@ -1,0 +1,60 @@
+#source=ffxivdb
+#from=2026-10-15 00:52:40+00
+#to=2026-10-15 00:52:52+00
+#lead_s=3
+#build=1.0.4.304
+#piece=board 5 battle 1 (target 14631)
+#tags=cleanse,answer-swap
+#expect.head=20
+#expect.304=20
+2026-10-15T00:52:37.344Z	CR|1792025557344|b=5|bt=1|nd=C|ne=1|hi=10|t=0:0|c=0:0.0|f=c|hp=86|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=|mv=6.9|dg=x|bh=5.3|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:37.595Z	CR|1792025557595|b=5|bt=1|nd=C|ne=1|hi=10|t=14631:10|c=49188:3.3|f=yc|hp=86|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=9.2|mv=0.0|dg=x|bh=5.0|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:37.628Z	BT|1792025557628|7f0c90010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=combo:awaiting-pet-heart|sl=28.6.19|lv=50|tk=pending|4614
+2026-10-15T00:52:37.937Z	BT|1792025557937|7f0c90010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:38.237Z	BT|1792025558237|7f0c90010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:39.063Z	BT|1792025559063|7f0c90010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:39.196Z	CR|1792025559196|b=5|bt=1|nd=C|ne=1|hi=10|t=14631:8|c=49188:1.7|f=yc|hp=86|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=2.3|mv=1.0|dg=x|bh=3.4|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:39.314Z	BT|1792025559314|8c1890010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:39.446Z	CR|1792025559446|b=5|bt=1|nd=C|ne=1|hi=10|t=14631:8|c=49188:1.5|f=yc|hp=86|pet=98|sl=98.53.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=3.2|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:39.763Z	CR|1792025559763|b=5|bt=1|nd=C|ne=1|hi=10|t=14631:10|c=49188:1.1|f=yc|hp=86|pet=98|sl=98.53.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=2.9|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:40.014Z	CR|1792025560014|b=5|bt=1|nd=C|ne=1|hi=8|t=14631:8|c=49188:0.9|f=yc|hp=86|pet=98|sl=98.53.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=2.6|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:40.272Z	CR|1792025560272|b=5|bt=1|nd=C|ne=1|hi=8|t=14631:8|c=0:0.0|f=yc|hp=86|pet=98|sl=98.53.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=2.4|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:52:40.956Z	BT|1792025560956|8c1890010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:41.189Z	CR|1792025561189|b=5|bt=1|nd=C|ne=1|hi=8|t=14631:8|c=0:0.0|f=yc|hp=85|pet=98|sl=98.53.100|dec=44885:gcdchain|sh=|ttd=0|in=9|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:41.532Z	BT|1792025561532|8c1890010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:41.640Z	CR|1792025561640|b=5|bt=1|nd=C|ne=1|hi=8|t=14631:8|c=0:0.0|f=yc|hp=85|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=14|in=9|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:41.786Z	BT|1792025561786|9b1890010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=timeout|4614
+2026-10-15T00:52:41.893Z	CR|1792025561893|b=5|bt=1|nd=C|ne=1|hi=8|t=14631:6|c=0:0.0|f=Cyc|hp=65|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=7|in=9|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:42.043Z	BT|1792025562043|9b1890010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4614
+2026-10-15T00:52:42.295Z	BT|1792025562295|9b2490010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4614
+2026-10-15T00:52:42.315Z	CR|1792025562315|b=5|bt=1|nd=C|ne=1|hi=6|t=14631:2|c=0:0.0|f=Cyc|hp=65|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=1|in=134|vul=0|xp=1|d=2.3|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:43.374Z	CR|1792025563374|b=5|bt=1|nd=C|ne=1|hi=6|t=14631:6|c=0:0.0|f=Cyc|hp=65|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=8|in=134|vul=0|xp=1|d=1.7|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:43.400Z	BT|1792025563400|9b2490010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:answer-cleanse-horn-not-ready|sl=28.6.19|lv=50|tk=-|4614
+2026-10-15T00:52:43.624Z	CR|1792025563624|b=5|bt=1|nd=C|ne=1|hi=6|t=14631:2|c=0:0.0|f=Cyc|hp=65|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=2|in=134|vul=0|xp=1|d=1.5|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:43.875Z	CR|1792025563875|b=5|bt=1|nd=C|ne=1|hi=6|t=14631:5|c=0:0.0|f=Cyc|hp=64|pet=98|sl=98.53.100|dec=44879:gcdchain|sh=|ttd=7|in=134|vul=0|xp=1|d=1.3|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:44.000Z	BT|1792025564000|9b2490010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4614
+2026-10-15T00:52:44.133Z	CR|1792025564133|b=5|bt=1|nd=C|ne=1|hi=6|t=14631:5|c=0:0.0|f=Cyc|hp=64|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=6|in=142|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:44.251Z	BT|1792025564251|9b2490010000000000|1|0|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4614
+2026-10-15T00:52:44.384Z	CR|1792025564384|b=5|bt=1|nd=C|ne=1|hi=2|t=14631:1|c=0:0.0|f=Cyc|hp=64|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=1|in=142|vul=0|xp=1|d=0.8|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:44.502Z	BT|1792025564502|9b2490010404000000|1|4|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4598,4614
+2026-10-15T00:52:44.836Z	DS|1792025564836|t=14631|enemy=1|landing=1|v=safe
+2026-10-15T00:52:45.244Z	BT|1792025565244|9b3090010404000000|1|4|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:answer-cleanse-horn-not-ready+crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4598,4614
+2026-10-15T00:52:45.469Z	CR|1792025565469|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:1|c=0:0.0|f=Cyc|hp=64|pet=98|sl=98.53.100|dec=44894:crucible:answer-cleanse-slot3|sh=|ttd=1|in=142|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:45.494Z	BT|1792025565494|9b3090010404000000|1|4|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44894:crucible:answer-cleanse-slot3|fd=|sl=28.6.19|lv=50|tk=-|4598,4614
+2026-10-15T00:52:45.728Z	CR|1792025565728|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:1|c=0:0.0|f=Cpc|hp=64|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=1|in=142|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:45.745Z	BT|1792025565745|9b3090010404000000|1|4|0|0|pet=1073798179:Worm:18943|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:answer-cleanse-horn-not-ready|sl=28.6.19|lv=50|tk=-|4598,4614
+2026-10-15T00:52:46.128Z	BT|1792025566128|9b3090030404000000|3|4|0|0|pet=none|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:answer-cleanse-cannot-rearm|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:46.128Z	CR|1792025566128|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:1|c=0:0.0|f=Cc|hp=64|pet=100|sl=100.53.100|dec=44883:gcdchain|sh=|ttd=1|in=142|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:46.379Z	BT|1792025566379|9b3090030404000000|3|4|0|0|pet=1073798292:Bat:18934|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:46.595Z	CR|1792025566595|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:1|c=0:0.0|f=Cyc|hp=64|pet=100|sl=100.53.100|dec=44883:gcdchain|sh=|ttd=1|in=142|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:46.637Z	BT|1792025566637|9b3090030404000000|3|4|0|0|pet=1073798292:Bat:18934|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:46.854Z	CR|1792025566854|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:0|c=0:0.0|f=Cyc|hp=62|pet=100|sl=100.53.100|dec=44885:gcdchain|sh=|ttd=0|in=150|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:46.895Z	BT|1792025566895|a83090030404000000|3|4|0|0|pet=1073798292:Bat:18934|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:47.104Z	CR|1792025567104|b=5|bt=1|nd=C|ne=1|hi=1|t=14631:0|c=0:0.0|f=Cyc|hp=62|pet=100|sl=100.53.100|dec=44890:crucible:cleanse-ultrasonics|sh=|ttd=0|in=150|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:47.146Z	BT|1792025567146|a83090030404000000|3|4|0|0|pet=1073798292:Bat:18934|bm=44886|av=44884|dec=44890:crucible:cleanse-ultrasonics|fd=|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:47.354Z	CR|1792025567354|b=5|bt=-1|nd=|ne=0|hi=0|t=0:0|c=0:0.0|f=|hp=62|pet=100|sl=100.53.100|dec=46961:crucible:board-heal|sh=|ttd=0|in=150|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:47.396Z	BT|1792025567396|a83090030404000000|3|4|0|0|pet=1073798292:Bat:18934|bm=44886|av=44884|dec=44885:ooc:gcdchain|fd=|sl=28.6.19|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:47.604Z	CR|1792025567604|b=5|bt=-1|nd=|ne=0|hi=0|t=0:0|c=0:0.0|f=|hp=62|pet=100|sl=100.53.100|dec=44885:ooc:gcdchain|sh=|ttd=0|in=150|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:50.325Z	BT|1792025570325|a83090000404000000|0|4|0|0|pet=none|bm=44886|av=44884|dec=44885:ooc:gcdchain|fd=|sl=0.0.0|lv=50|tk=-|4598,4601,4614
+2026-10-15T00:52:50.325Z	CR|1792025570325|b=5|bt=-1|nd=|ne=0|hi=0|t=0:0|c=0:0.0|f=|hp=62|pet=0|sl=0.0.0|dec=44885:ooc:gcdchain|sh=|ttd=0|in=150|vul=0|xp=1|d=|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:52:51.200Z	BT|1792025571200|a83090000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44885:ooc:gcdchain|fd=|sl=0.0.0|lv=50|tk=-|4601,4614
