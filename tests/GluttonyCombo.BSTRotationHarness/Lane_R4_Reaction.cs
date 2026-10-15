@@ -60,5 +60,30 @@ internal static partial class Program
         {
             CrucibleNeedModel.Extras = null;
         }
+
+        // ---- 3.0-04b Thunderbolt (48620): Paralysis (5388) on the familiar, 15 s, "sometimes preventing the execution of actions". The pet swap keyed
+        // on HP only (grep 5388 at the pin: 0 hits), so a paralysed full-HP familiar stayed out for the whole 15 s. Rule: a healthy ready horn replaces it
+        // while more than a few seconds are left, outside the swap grace, not while covering, and only with a reserve horn left for a real familiar save.
+        var para = CrucibleState() with { PetParalysisRemaining = 12f, SinceSummon = 20f, SinceHornPress = 30f, EnemyTargetsPlayer = true };
+        var swappedOut = Decide(para, cfg);
+        Check("r4-reaction: 3.0-04b a paralysed full-HP familiar (12 s left), two healthy horns ready: a healthy horn is blown in over it",
+            swappedOut.ActionId is BST.SecondBattlehorn or BST.ThirdBattlehorn && swappedOut.Reason == "crucible:petsave-paralysis", $"{swappedOut.ActionId}:{swappedOut.Reason} [{swappedOut.Declines}]");
+        Check("r4-reaction: 3.0-04b control: not paralysed, nothing changes (no swap for a healthy familiar)",
+            Decide(para with { PetParalysisRemaining = 0f }, cfg).Reason != "crucible:petsave-paralysis");
+        Check("r4-reaction: 3.0-04b 4 s of Paralysis left is not worth a swap",
+            Decide(para with { PetParalysisRemaining = 4f }, cfg).Reason != "crucible:petsave-paralysis");
+        Check("r4-reaction: 3.0-04b a familiar summoned 3 s ago is not swapped again (swap grace)",
+            Decide(para with { SinceSummon = 3f }, cfg).Reason != "crucible:petsave-paralysis");
+        Check("r4-reaction: 3.0-04b a covering familiar (Snarl 10 s ago, the enemy on it) stays out",
+            Decide(para with { SinceSnarl = 10f, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, cfg).Reason != "crucible:petsave-paralysis");
+        var moving = Decide(para with { IsMoving = true }, cfg);
+        Check("r4-reaction: 3.0-04b moving: no swap, and the log says why",
+            moving.Reason != "crucible:petsave-paralysis" && moving.Declines.Contains("crucible:petsave-paralysis-moving"), $"{moving.Reason} [{moving.Declines}]");
+        Check("r4-reaction: 3.0-04b the other horns' familiars are hurt: no swap",
+            Decide(para with { Slot2PetHp = 30f, Slot3PetHp = 30f }, cfg).Reason != "crucible:petsave-paralysis");
+        Check("r4-reaction: 3.0-04b only one spare horn ready: it stays in reserve for a real familiar save",
+            Decide(para with { ReadyHorn3 = false }, cfg).Reason != "crucible:petsave-paralysis");
+        Check("r4-reaction: 3.0-04b outside the Crucible nothing changes",
+            Decide(para with { CrucibleBoard = 0, CrucibleBattle = 0 }, cfg).Reason != "crucible:petsave-paralysis");
     }
 }
