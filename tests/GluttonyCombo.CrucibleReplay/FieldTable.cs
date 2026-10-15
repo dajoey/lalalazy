@@ -153,6 +153,7 @@ internal static class FieldTable
         R("ReleaseProtectedNear", PGate + "R", FalseFirst),
         R("PlayerBlink", PGate + "B", FalseFirst),
         M("PetPoisonCastId", "log the shed cast id (`ppc=`) in CR|", C(0u)),
+        M("PetParalysisRemaining", "log the familiar's Paralysis seconds left in CR| (r4-reaction 3.0-04b; the replay-input fields are another task's)", C(0f, 12f)),
         M("BattleHasKnockback", "static data of (board, battle): readable from BST_CrucibleData in a later step, or log `kb=0/1`", FalseFirst),
 
         M("PetOrder", "log the familiar's Summon Order (`po=`) in CR|", C(BST_RotationLogic.PetOrder.Unknown, BST_RotationLogic.PetOrder.None, BST_RotationLogic.PetOrder.Trick, BST_RotationLogic.PetOrder.Release)),

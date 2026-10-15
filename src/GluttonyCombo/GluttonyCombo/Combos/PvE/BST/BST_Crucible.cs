@@ -579,6 +579,8 @@ internal partial class BST
             // A poison the familiar sheds by leaving (a string's Toxicosis wins: its refresh gates the shed).
             foreach (var status in pet.StatusList)
             {
+                if (status.StatusId == BST_CrucibleData.ParalysisStatus)
+                    s.PetParalysisRemaining = status.RemainingTime;
                 if (!BST_CrucibleData.PoisonShedStatuses.Contains(status.StatusId))
                     continue;
                 s.PetPoisonStatus = status.StatusId;

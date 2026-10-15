@@ -377,6 +377,11 @@ internal static class BST_CrucibleLogic
         if (PoisonShedDue(s, cfg))
             return (BST.PartingBlow, "exit:poison-shed");
 
+        // The familiar is paralysed (r4-reaction 3.0-04b): a healthy ready horn replaces it, whatever its HP.
+        var paralysis = TryParalysisSwap(s, cfg, declines);
+        if (paralysis.ActionId != 0)
+            return paralysis;
+
         var hp = s.PetHpPercent;
         if (hp <= 0f || hp > cfg.CruciblePetSwapHp)
             return (0, "");
@@ -497,6 +502,46 @@ internal static class BST_CrucibleLogic
                 healthy++;
         }
         return healthy >= need;
+    }
+
+    /// <summary> A paralysed familiar with less than this many seconds of Paralysis left is left alone: the swap costs a 1 s cast and a horn lockout. </summary>
+    public const float ParalysisSwapMinSeconds = 6f;
+
+    /// <summary>
+    ///     Paralysis (5388, 15 s, from Thunderbolt) makes the familiar's actions fail now and then, and the status only leaves the field with
+    ///     the familiar. The HP-keyed swap never saw it (a paralysed familiar at 100% stayed out for the whole 15 s). A healthy ready horn
+    ///     (above the swap line, <see cref="PickHorn"/>'s choice) is blown in over it while at least <see cref="ParalysisSwapMinSeconds"/> are left,
+    ///     with the same gates as the HP swap: out of the 8 s swap grace, not covering, not moving, between GCDs, the last horn settled. A swap is a
+    ///     discretionary exit, so it keeps a reserve horn for a real familiar save (<see cref="CycleExitKeepsReserve"/>). No hold: the press is one
+    ///     ability weave and a 1 s cast; every gate declines with a named reason.
+    /// </summary>
+    public static (uint ActionId, string Reason) TryParalysisSwap(in BstState s, in BstSettings cfg, List<string> declines)
+    {
+        if (s.PetParalysisRemaining < ParalysisSwapMinSeconds)
+            return (0, "");
+
+        var slot = PickHorn(s, cfg, s.ActiveSlot);
+        if (slot == 0 || SlotPetHp(s, slot) <= cfg.CruciblePetSwapHp)
+        {
+            declines.Add("crucible:petsave-paralysis-no-horn");
+            return (0, "");
+        }
+
+        if (s.SinceSummon < SwapGraceSeconds)
+            declines.Add("crucible:petsave-paralysis-grace");
+        else if (Covering(s))
+            declines.Add("crucible:petsave-paralysis-covering");
+        else if (s.IsMoving || s.PlayerIsCasting)
+            declines.Add("crucible:petsave-paralysis-moving");
+        else if (!(s.CanWeave || !s.GcdReady))
+            declines.Add("crucible:petsave-paralysis-waiting-gcd");
+        else if (s.SinceHornPress <= SummonSettleSeconds)
+            declines.Add("crucible:petsave-horn-pending");
+        else if (!CycleExitKeepsReserve(s, cfg))
+            declines.Add("crucible:petsave-paralysis-keep-reserve");
+        else
+            return (HornAction(slot), "crucible:petsave-paralysis");
+        return (0, "");
     }
 
     /// <summary> A ready horn whose familiar is healthier than the one out: above the swap line and 10+ points up (critical: any gain). </summary>
