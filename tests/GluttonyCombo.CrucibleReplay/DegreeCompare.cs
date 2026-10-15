@@ -10,7 +10,7 @@ namespace GluttonyCombo.CrucibleReplay;
 ///     PetHp are gap fields), so the comparison completes them two ways:
 ///     the realistic case (the character's max HP about 4,060 and a 3,492 HP Diremite, scaled by the logged percentages, every other gap field at
 ///     its baseline), and the sampled completions (a grid of HP candidates plus <see cref="Replayer.Samples"/> random completions of every gap
-///     field, the same draws for both degrees). A tick where the two degrees decide differently on the realistic completion is a claim about the
+///     field, the same draws for both degrees). A tick where the two degrees press a different action on the realistic completion is a claim about the
 ///     code; one that differs only on a sampled completion shows the scale can matter there, not that it did.
 /// </summary>
 internal static class DegreeCompare
@@ -23,10 +23,18 @@ internal static class DegreeCompare
     internal sealed class Result
     {
         public int Ticks, Known, Realistic, Sampled, DegreeMatchesRecorded, StandardMatchesRecorded, SecondVsFirst, ThirdVsSecond;
+        /// <summary> Ticks where the decisions differ on the realistic completion WITH a heal potion held (the stock is not logged, so the baseline holds none and the raidwide guard can only decline). </summary>
+        public int WithPotion, WithPotionReasonOnly;
+        public List<Diff> WithPotionDiffering = new();
         /// <summary> What the scale change does to these recorded states: "decision at First -> decision at Second" (and Second -> Third), by count. </summary>
         public Dictionary<string, int> WhatIf = new();
         public List<Diff> Differing = new();
+        /// <summary> Target cast id of the ticks that differ only on a sampled completion, with the number of ticks: the mechanics the scale could matter for. </summary>
+        public Dictionary<uint, int> SampledCasts = new();
     }
+
+    /// <summary> The two decisions press different actions. The same action under another rule name (panic heal against raidwide guard) is not a behavioural difference. </summary>
+    private static bool Presses(Outcome a, Outcome b) => a.Id != b.Id;
 
     private static BstState Complete(BstState s, int degree) =>
         s with { CrucibleDegreeKnown = true, CrucibleDegreeLevel = degree };
@@ -46,7 +54,7 @@ internal static class DegreeCompare
             var real = baseline with { PlayerHp = baseline.PlayerHpPercent / 100f * CharacterMaxHp, PetHp = baseline.PetHpPercent / 100f * FamiliarMaxHp };
             var atDegree = Replayer.Decide(Complete(real, dg), cfg);
             var atStandard = Replayer.Decide(Complete(real, CrucibleDegree.Standard), cfg);
-            var realisticDiffers = atDegree != atStandard;
+            var realisticDiffers = Presses(atDegree, atStandard);
             if (realisticDiffers)
             {
                 res.Realistic++;
@@ -56,12 +64,23 @@ internal static class DegreeCompare
                 res.Differing.Add(new Diff(t.Tick.Cr.Ms, t.Tick.Cr.CastId, recorded.ToString(), atDegree.ToString(), atStandard.ToString(), real.PlayerHp, real.PetHp));
             }
 
+            var potion = real with { ReadyHealPotion = BST_CrucibleData.HealPotionActions[0] };
+            var potDegree = Replayer.Decide(Complete(potion, dg), cfg);
+            var potStandard = Replayer.Decide(Complete(potion, CrucibleDegree.Standard), cfg);
+            if (!Presses(potDegree, potStandard) && potDegree != potStandard)
+                res.WithPotionReasonOnly++;
+            if (Presses(potDegree, potStandard))
+            {
+                res.WithPotion++;
+                res.WithPotionDiffering.Add(new Diff(t.Tick.Cr.Ms, t.Tick.Cr.CastId, new Outcome(t.Tick.Cr.DecId, t.Tick.Cr.DecReason).ToString(), potDegree.ToString(), potStandard.ToString(), potion.PlayerHp, potion.PetHp));
+            }
+
             // what the Second / Third scales would do on this recorded state (the same completion, the degree forced)
             var d1 = Replayer.Decide(Complete(real, CrucibleDegree.First), cfg);
             var d2 = Replayer.Decide(Complete(real, CrucibleDegree.Second), cfg);
             var d3 = Replayer.Decide(Complete(real, CrucibleDegree.Third), cfg);
-            if (d2 != d1) { res.SecondVsFirst++; res.WhatIf[$"First {d1.Reason} -> Second {d2.Reason}"] = res.WhatIf.GetValueOrDefault($"First {d1.Reason} -> Second {d2.Reason}") + 1; }
-            if (d3 != d2) { res.ThirdVsSecond++; res.WhatIf[$"Second {d2.Reason} -> Third {d3.Reason}"] = res.WhatIf.GetValueOrDefault($"Second {d2.Reason} -> Third {d3.Reason}") + 1; }
+            if (Presses(d2, d1)) { res.SecondVsFirst++; res.WhatIf[$"First {d1.Reason} -> Second {d2.Reason}"] = res.WhatIf.GetValueOrDefault($"First {d1.Reason} -> Second {d2.Reason}") + 1; }
+            if (Presses(d3, d2)) { res.ThirdVsSecond++; res.WhatIf[$"Second {d2.Reason} -> Third {d3.Reason}"] = res.WhatIf.GetValueOrDefault($"Second {d2.Reason} -> Third {d3.Reason}") + 1; }
 
             var sampledDiffers = realisticDiffers;
             if (!sampledDiffers)
@@ -69,7 +88,7 @@ internal static class DegreeCompare
                     foreach (var f in new[] { 10f, 20f, 40f, FamiliarMaxHp / 100f })
                     {
                         var s = baseline with { PlayerHp = baseline.PlayerHpPercent * p, PetHp = baseline.PetHpPercent * f };
-                        if (Replayer.Decide(Complete(s, dg), cfg) != Replayer.Decide(Complete(s, CrucibleDegree.Standard), cfg))
+                        if (Presses(Replayer.Decide(Complete(s, dg), cfg), Replayer.Decide(Complete(s, CrucibleDegree.Standard), cfg)))
                             sampledDiffers = true;
                     }
             if (!sampledDiffers)
@@ -85,12 +104,16 @@ internal static class DegreeCompare
                         FieldTable.StateFields().First(x => x.Name == row.Name).SetValue(box, cands[rng.Next(cands.Length)]);
                     }
                     var s = (BstState)box;
-                    if (Replayer.Decide(Complete(s, dg), cfg) != Replayer.Decide(Complete(s, CrucibleDegree.Standard), cfg))
+                    if (Presses(Replayer.Decide(Complete(s, dg), cfg), Replayer.Decide(Complete(s, CrucibleDegree.Standard), cfg)))
                         sampledDiffers = true;
                 }
             }
             if (sampledDiffers)
+            {
                 res.Sampled++;
+                if (!realisticDiffers)
+                    res.SampledCasts[t.Tick.Cr.CastId] = res.SampledCasts.GetValueOrDefault(t.Tick.Cr.CastId) + 1;
+            }
         }
         return res;
     }

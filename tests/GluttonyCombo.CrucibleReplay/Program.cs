@@ -97,8 +97,12 @@ internal static class Program
             if (dgc.Known != 0)
             {
                 degreeCompares.Add((w.Name, dgc));
-                Console.WriteLine($"    degree {w.Name}: dg= read on {dgc.Known} of {dgc.Ticks} ticks | decision differs from the degree forced to Standard on {dgc.Realistic} ticks " +
-                                  $"(realistic HP) and on {dgc.Sampled} ticks (any sampled completion)");
+                Console.WriteLine($"    degree {w.Name}: dg= read on {dgc.Known} of {dgc.Ticks} ticks | a different action than with the degree forced to Standard on {dgc.Realistic} ticks " +
+                                  $"(realistic HP), on {dgc.WithPotion} ticks with a heal potion held (+{dgc.WithPotionReasonOnly} where the same potion is pressed under another rule name) and on {dgc.Sampled} ticks (any sampled completion)");
+                foreach (var d in dgc.WithPotionDiffering.Take(2))
+                    Console.WriteLine($"      potion held, cast {d.CastId} {d.Ms} HP {d.PlayerHp:0}/{d.PetHp:0}: recorded {d.Recorded} | dg= {d.AtDegree} | Standard {d.AtStandard}");
+                if (dgc.SampledCasts.Count != 0)
+                    Console.WriteLine("      sampled-only ticks by target cast id: " + string.Join(", ", dgc.SampledCasts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} x{kv.Value}")));
                 foreach (var d in dgc.Differing.Take(3))
                     Console.WriteLine($"      {d.Ms} cast {d.CastId} HP {d.PlayerHp:0}/{d.PetHp:0}: recorded {d.Recorded} | dg= {d.AtDegree} | Standard {d.AtStandard}");
             }
@@ -123,14 +127,14 @@ internal static class Program
         if (degreeCompares.Count != 0)
         {
             var known = degreeCompares.Sum(x => x.Result.Known);
-            Console.WriteLine($"degree: {degreeCompares.Count} windows carry a dg= letter on {known} ticks | decision differs from the degree forced to Standard on " +
+            Console.WriteLine($"degree: {degreeCompares.Count} windows carry a dg= letter on {known} ticks | a different action than with the degree forced to Standard on " +
                               $"{degreeCompares.Sum(x => x.Result.Realistic)} ticks (realistic HP; the dg= decision equals the recorded one on {degreeCompares.Sum(x => x.Result.DegreeMatchesRecorded)}, " +
-                              $"the Standard one on {degreeCompares.Sum(x => x.Result.StandardMatchesRecorded)}) and on {degreeCompares.Sum(x => x.Result.Sampled)} ticks on any sampled completion");
+                              $"the Standard one on {degreeCompares.Sum(x => x.Result.StandardMatchesRecorded)}), on {degreeCompares.Sum(x => x.Result.WithPotion)} ticks with a heal potion held and on {degreeCompares.Sum(x => x.Result.Sampled)} ticks on any sampled completion");
         }
         if (degreeCompares.Count != 0)
         {
             var what = degreeCompares.SelectMany(x => x.Result.WhatIf).GroupBy(kv => kv.Key).OrderByDescending(g => g.Sum(kv => kv.Value)).ToList();
-            Console.WriteLine($"degree what-if (the same recorded states with the degree forced; realistic HP): Second differs from First on {degreeCompares.Sum(x => x.Result.SecondVsFirst)} ticks, " +
+            Console.WriteLine($"degree what-if (the same recorded states with the degree forced; realistic HP; a different action pressed): Second differs from First on {degreeCompares.Sum(x => x.Result.SecondVsFirst)} ticks, " +
                               $"Third differs from Second on {degreeCompares.Sum(x => x.Result.ThirdVsSecond)} ticks" + (what.Count == 0 ? "" : ": " + string.Join("; ", what.Take(6).Select(g => $"{g.Sum(kv => kv.Value)}x {g.Key}"))));
         }
         Console.WriteLine("gap fields that change a decision on their own, by ticks (what to log first):");
