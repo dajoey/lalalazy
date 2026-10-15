@@ -261,8 +261,8 @@ internal static class BeastmasterTelemetry
             s.CanWeave,
             s.InCombat,
             s.PlayerIsCasting,
-            BST_Crucible.MorphoAlive,
-            BST_Crucible.OtherEnemiesUp);
+            BST.MorphoAlive,
+            BST.OtherEnemiesUp);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()
