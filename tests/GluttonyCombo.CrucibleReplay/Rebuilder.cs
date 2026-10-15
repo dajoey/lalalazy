@@ -103,6 +103,51 @@ internal sealed class Rebuilder
         s.ReleaseProtectedNear = cr.Has('R');
         s.PlayerBlink = cr.Has('B');
         s.PetPoisonStatus = cr.Has('V') ? 5140u : 0u;
+
+        if (cr.NewFields)
+        {
+            // replay-input tail (2026-10-15): the decision inputs the old-format lines could not give
+            s.TargetInvulnerable = cr.Has('I');
+            s.ReadyHorn1 = (cr.ReadyBits & 0x001) != 0;
+            s.ReadyHorn2 = (cr.ReadyBits & 0x002) != 0;
+            s.ReadyHorn3 = (cr.ReadyBits & 0x004) != 0;
+            s.ReadyTrick = (cr.ReadyBits & 0x008) != 0;
+            s.ReadyTempered = (cr.ReadyBits & 0x010) != 0;
+            s.ReadyBorrow = (cr.ReadyBits & 0x020) != 0;
+            s.ReadyParting = (cr.ReadyBits & 0x040) != 0;
+            s.ReadyAxe = (cr.ReadyBits & 0x080) != 0;
+            s.ReadyRally = (cr.ReadyBits & 0x100) != 0;
+            s.ReadyCheer = (cr.ReadyBits & 0x200) != 0;
+            s.ReadyBeastMode = (cr.ReadyBits & 0x400) != 0;
+            s.ReadyShieldCharge = (cr.ReadyBits & 0x800) != 0;
+            s.ReadyHealPotion = cr.HealPotion;
+            s.PlayerHp = cr.PlayerHpCur;
+            s.GcdReady = cr.GcdReady;
+            s.CanWeave = cr.CanWeave;
+            s.PlayerIsCasting = cr.PlayerIsCasting;
+        }
+        else
+        {
+            // old-format line: the replay-input fields stay gaps, probed exactly as before the tail existed
+            gaps.Add(nameof(BstState.TargetInvulnerable));
+            gaps.Add(nameof(BstState.ReadyHorn1));
+            gaps.Add(nameof(BstState.ReadyHorn2));
+            gaps.Add(nameof(BstState.ReadyHorn3));
+            gaps.Add(nameof(BstState.ReadyTrick));
+            gaps.Add(nameof(BstState.ReadyTempered));
+            gaps.Add(nameof(BstState.ReadyBorrow));
+            gaps.Add(nameof(BstState.ReadyParting));
+            gaps.Add(nameof(BstState.ReadyAxe));
+            gaps.Add(nameof(BstState.ReadyRally));
+            gaps.Add(nameof(BstState.ReadyCheer));
+            gaps.Add(nameof(BstState.ReadyBeastMode));
+            gaps.Add(nameof(BstState.ReadyShieldCharge));
+            gaps.Add(nameof(BstState.ReadyHealPotion));
+            gaps.Add(nameof(BstState.PlayerHp));
+            gaps.Add(nameof(BstState.GcdReady));
+            gaps.Add(nameof(BstState.CanWeave));
+            gaps.Add(nameof(BstState.PlayerIsCasting));
+        }
         if (cr.BmrSeen)
         {
             s.BmrSeen = true;
@@ -119,11 +164,16 @@ internal sealed class Rebuilder
         }
         s.CrucibleDegreeLevel = Math.Max(0, cr.Degree);
 
-        // InCombat: positive evidence of a fight, else unknown
-        var fighting = cr.PlayerHp is > 0 and < 100 || (s.HasHostileTarget && cr.TargetHp < 100) || cr.Intake > 0 || cr.Has('y') || cr.Has('p');
-        s.InCombat = fighting;
-        if (!fighting)
-            gaps.Add(nameof(BstState.InCombat));
+        // InCombat: ic= on a new-format line; positive evidence of a fight on an old one, else unknown
+        if (cr.NewFields)
+            s.InCombat = cr.InCombat;
+        else
+        {
+            var fighting = cr.PlayerHp is > 0 and < 100 || (s.HasHostileTarget && cr.TargetHp < 100) || cr.Intake > 0 || cr.Has('y') || cr.Has('p');
+            s.InCombat = fighting;
+            if (!fighting)
+                gaps.Add(nameof(BstState.InCombat));
+        }
 
         // ---- DS-sourced
         s.DashLanding = ds is null ? DashLanding.Safe : ds.Verdict switch

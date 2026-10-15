@@ -37,6 +37,11 @@ internal sealed class TickResult
     public bool StrictlyRebuilt;
     public bool Matches => Replayed == Recorded;
     public bool IdDiffers => Matches && Replayed.Id != Recorded.Id;
+
+    // the collector's own pure rule, replayed for the Abaddon target when mo=/ou= are logged (2026-10-15)
+    public bool RuleApplicable;
+    public bool RuleRecordedForbidden;
+    public bool RuleReplayedForbidden;
     /// <summary> Gap fields whose single change alone reaches the recorded decision. </summary>
     public List<string> ReachedVia = new();
     public string Cause = "";
@@ -128,6 +133,19 @@ internal static class Replayer
         r.Class = r.Matches
             ? r.Stable ? TickClass.Reproduced : TickClass.ReproducedGap
             : r.Alternatives.Contains(r.Recorded) ? TickClass.GapDiffers : TickClass.Unreached;
+
+        // The collector's own pure rule (BST_CrucibleLogic.ConditionallyForbidden), replayed from its logged inputs
+        // for the Abaddon target: the recorded f=X was stamped by the live collector from this same rule, so a window
+        // recorded on a build carrying the fix should agree, and a disagreement names a rebuilt-input or rule drift.
+        // Called by parameter name: the signature grew optional parameters across revisions (hpPercent, othersUp).
+        if (t.Cr.NewFields && t.Cr.TargetNameId == BST_CrucibleData.AbaddonNameId)
+        {
+            r.RuleApplicable = true;
+            r.RuleRecordedForbidden = t.Cr.Has('X');
+            r.RuleReplayedForbidden = BST_CrucibleLogic.ConditionallyForbidden(
+                nameId: (uint)t.Cr.TargetNameId, baseId: 0, morphoAlive: t.Cr.MorphoAlive, clubElement: 0,
+                gelsSinceClub: false, hpPercent: t.Cr.TargetHp, othersUp: t.Cr.OtherEnemiesUp);
+        }
         return r;
     }
 }

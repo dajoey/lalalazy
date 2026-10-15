@@ -59,6 +59,11 @@ internal sealed class LogWindow
 
     internal static float F(string? s, float or) => float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : or;
     internal static int I(string? s, int or) => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : or;
+
+    /// <summary> rd= readiness letters, mirroring the formatter's private CrucibleTelemetryFormat.ReadyLetters:
+    ///     bit i of ReadyBits = horns 1-3, Trick, Tempered, Borrow, Parting Blow, axe, Rally, Cheer,
+    ///     Beast Mode, Shield Charge. </summary>
+    internal const string RdLetters = "123tmbparcBs";
 }
 
 /// <summary> CR| line, format in src/GluttonyCombo/GluttonyCombo/Data/CrucibleTelemetryFormat.cs. </summary>
@@ -80,6 +85,14 @@ internal sealed class CrLine
     public float BmrHitIn = float.MaxValue, BmrMaxCast = float.MaxValue;
     public int BmrType;
     public bool BmrOnPlayer, BmrOnFamiliar;
+
+    // replay-input tail (2026-10-15): f=I, rd=, hpot=, hpa=, gcd=, weave=, ic=, cast=, mo=, ou=. NewFields is false
+    // on lines from builds before the tail, and the whole set then stays unknown (the rebuilder keeps its gaps).
+    public bool NewFields;
+    public uint ReadyBits;
+    public uint HealPotion;
+    public int PlayerHpCur, PlayerHpMax;
+    public bool GcdReady, CanWeave, InCombat, PlayerIsCasting, MorphoAlive, OtherEnemiesUp;
 
     public bool Has(char flag) => Flags.Contains(flag);
 
@@ -125,6 +138,28 @@ internal sealed class CrLine
         c.MoveSpeed = LogWindow.F(f.GetValueOrDefault("mv"), 0f);
         var dg = f.GetValueOrDefault("dg");
         c.Degree = dg is { Length: 1 } && char.IsDigit(dg[0]) ? dg[0] - '0' : -1;
+
+        // replay-input tail (2026-10-15): any of the new keys marks a new-format line. rd= maps its readiness
+        // letters by bit; RdLetters mirrors CrucibleTelemetryFormat.ReadyLetters (private there) - keep in step.
+        c.NewFields = f.ContainsKey("rd") || f.ContainsKey("hpot") || f.ContainsKey("hpa") || f.ContainsKey("gcd")
+            || f.ContainsKey("weave") || f.ContainsKey("ic") || f.ContainsKey("cast") || f.ContainsKey("mo") || f.ContainsKey("ou");
+        if (c.NewFields)
+        {
+            var rd = f.GetValueOrDefault("rd") ?? "";
+            for (var i = 0; i < LogWindow.RdLetters.Length; i++)
+                if (rd.Contains(LogWindow.RdLetters[i]))
+                    c.ReadyBits |= 1u << i;
+            c.HealPotion = (uint)LogWindow.I(f.GetValueOrDefault("hpot"), 0);
+            var hpa = (f.GetValueOrDefault("hpa") ?? "0/0").Split('/');
+            c.PlayerHpCur = LogWindow.I(hpa[0], 0);
+            c.PlayerHpMax = hpa.Length > 1 ? LogWindow.I(hpa[1], 0) : 0;
+            c.GcdReady = f.GetValueOrDefault("gcd") == "1";
+            c.CanWeave = f.GetValueOrDefault("weave") == "1";
+            c.InCombat = f.GetValueOrDefault("ic") == "1";
+            c.PlayerIsCasting = f.GetValueOrDefault("cast") == "1";
+            c.MorphoAlive = f.GetValueOrDefault("mo") == "1";
+            c.OtherEnemiesUp = f.GetValueOrDefault("ou") == "1";
+        }
         if (f.ContainsKey("bh"))
         {
             c.BmrSeen = true;

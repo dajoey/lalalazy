@@ -92,6 +92,15 @@ internal static class Program
                               $"[gap {rep.Count(TickClass.GapDiffers)}, unreached {rep.Count(TickClass.Unreached)}] | decisive {rep.Decisive.Count(t => t.Matches)}/{rep.Decisive.Count()} | all-fields-rebuilt {rep.Strict} | {verdict}");
             if (ticks.Count != rep.Reproduced)
                 Console.WriteLine($"    why it differs: {string.Join("; ", causes)}");
+            var ruleTicks = ticks.Where(t => t.RuleApplicable).ToList();
+            if (ruleTicks.Count != 0)
+            {
+                var mism = ruleTicks.Count(t => t.RuleRecordedForbidden != t.RuleReplayedForbidden);
+                Console.WriteLine($"    collector rule ConditionallyForbidden (Abaddon): {ruleTicks.Count} tick(s) replayed from mo=/ou=, {mism} differ from the recorded f=X");
+                if (verbose)
+                    foreach (var t in ruleTicks.Where(t => t.RuleRecordedForbidden != t.RuleReplayedForbidden))
+                        Console.WriteLine($"      {t.Tick.Cr.Ms} mo={t.Tick.Cr.MorphoAlive} ou={t.Tick.Cr.OtherEnemiesUp} hp={t.Tick.Cr.TargetHp} recorded f={(t.RuleRecordedForbidden ? "X" : "-")} rule says {(t.RuleReplayedForbidden ? "forbidden" : "attackable")}");
+            }
             if (freeze)
                 Freeze(path, expectKey, rep.Reproduced);
             if (verbose || (expect is not null && expect != rep.Reproduced))
@@ -110,6 +119,9 @@ internal static class Program
                           $"all decision-critical fields rebuilt {strict} ({100.0 * strict / Math.Max(1, total):0.0}%) | not replayable (some critical field missing) {total - strict} ({100.0 * (total - strict) / Math.Max(1, total):0.0}%)");
         var dec = reports.SelectMany(r => r.Decisive).ToList();
         Console.WriteLine($"decisive ticks (recorded decision is a rule, not the gcdchain floor): {dec.Count}, reproduced {dec.Count(t => t.Matches)} ({100.0 * dec.Count(t => t.Matches) / Math.Max(1, dec.Count):0.0}%), reproduced and insensitive to every gap field {dec.Count(t => t.Class == TickClass.Reproduced)}");
+        var ruleAll = reports.SelectMany(r => r.Ticks).Where(t => t.RuleApplicable).ToList();
+        if (ruleAll.Count != 0)
+            Console.WriteLine($"collector rule ConditionallyForbidden (Abaddon): {ruleAll.Count} tick(s) replayed from mo=/ou=, {ruleAll.Count(t => t.RuleRecordedForbidden != t.RuleReplayedForbidden)} differ from the recorded f=X");
         Console.WriteLine("gap fields that change a decision on their own, by ticks (what to log first):");
         foreach (var g in reports.SelectMany(r => r.Ticks).SelectMany(t => t.Sensitive).GroupBy(x => x).OrderByDescending(g => g.Count()).Take(12))
             Console.WriteLine($"  {g.Key,-28} {g.Count(),4} ticks   {FieldTable.ByName[g.Key].Proposal}");

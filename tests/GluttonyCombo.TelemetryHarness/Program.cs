@@ -399,7 +399,7 @@ internal static class Program
 
         var line = CrucibleTelemetryFormat.BuildLine(1_788_904_962_577, snap);
         Check("CR| exact line shape",
-            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0|dg=x",
+            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0|dg=x|rd=|hpot=0|hpa=0/0|gcd=0|weave=0|ic=0|cast=0|mo=0|ou=0",
             line);
         Check("CR| trend fields render", CrucibleTelemetryFormat.BuildLine(1, snap with { TimeToDeath = 12.4f, IntakePerSecond = 350, VulnerabilityRemaining = 8.6f, PartyHpVerified = true })
             .Contains("|ttd=12|in=350|vul=9|xp=1|"));
@@ -413,7 +413,7 @@ internal static class Program
         // The idle-time fields (1.0.4.266): the edge distance to the target and the character's own speed name
         // why the rotation was not attacking, on the lines that are already emitted for other changes.
         Check("CR| edge distance to the target renders",
-            CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 1.94f }).EndsWith("|xp=0|d=1.9|mv=0.0|dg=x"));
+            CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 1.94f }).Contains("|d=1.9|mv=0.0|dg=x|"));
         Check("CR| own movement speed renders",
             CrucibleTelemetryFormat.BuildLine(1, snap with { MoveSpeed = 6.16f }).Contains("|d=|mv=6.2"));
         Check("CR| an out-of-range edge distance is clamped, never negative",
@@ -421,9 +421,76 @@ internal static class Program
 
         // The board's degree (1.0.4.288): dg= names it on every line (0 Standard .. 3 Third, x when the plugin has not seen it set), so a run
         // can be graded against the hit sizes its degree puts on the character and the familiars.
-        Check("CR| dg= renders each degree", new[] { 0, 1, 2, 3 }.All(d => CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = d }).EndsWith($"|mv=0.0|dg={d}")));
-        Check("CR| dg= is x when the degree is unread (the default)", CrucibleTelemetryFormat.BuildLine(1, snap).EndsWith("|dg=x")
-            && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = -1 }).EndsWith("|dg=x") && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = 9 }).EndsWith("|dg=x"));
+        Check("CR| dg= renders each degree", new[] { 0, 1, 2, 3 }.All(d => CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = d }).Contains($"|mv=0.0|dg={d}|")));
+        Check("CR| dg= is x when the degree is unread (the default)", CrucibleTelemetryFormat.BuildLine(1, snap).Contains("|dg=x|")
+            && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = -1 }).Contains("|dg=x|") && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = 9 }).Contains("|dg=x|"));
+
+        // --- replay-input fields (2026-10-15): the decision inputs the Crucible replay harness could not rebuild ---
+        // Flag letter I (TargetInvulnerable, the top gap field) rides f=; every other input is a new key=value tail that
+        // never joins the emit key. The snapshot fields are set through reflection so the red proof is a runtime FAIL
+        // against the pre-field formatter, not a build error (the BST-1 tk= pattern).
+        Check("CR| I flag letter renders",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x8000 }).Contains("|f=I|"),
+            CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x8000 }));
+        Check("CR| rd= renders the readiness bitmap",
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(snap, "ReadyBits", (ushort)0x48D)).Contains("|rd=13taB|"),
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(snap, "ReadyBits", (ushort)0x48D)));
+        Check("CR| hpot= renders the heal potion the engine would press",
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(snap, "HealPotion", 44902u)).Contains("|hpot=44902|"),
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(snap, "HealPotion", 44902u)));
+        Check("CR| hpa= renders the absolute HP cur/max",
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(WithNew(snap, "PlayerHpCur", 7120), "PlayerHpMax", 39400)).Contains("|hpa=7120/39400|"),
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(WithNew(snap, "PlayerHpCur", 7120), "PlayerHpMax", 39400)));
+        var combat = WithNew(WithNew(WithNew(WithNew(snap, "GcdReady", true), "CanWeave", true), "InCombat", true), "PlayerIsCasting", true);
+        Check("CR| gcd=/weave=/ic=/cast= render the GCD and combat booleans",
+            CrucibleTelemetryFormat.BuildLine(1, combat).Contains("|gcd=1|weave=1|ic=1|cast=1|"),
+            CrucibleTelemetryFormat.BuildLine(1, combat));
+        Check("CR| mo=/ou= render the ConditionallyForbidden inputs",
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(WithNew(snap, "MorphoAlive", true), "OtherEnemiesUp", true)).EndsWith("|mo=1|ou=1", StringComparison.Ordinal),
+            CrucibleTelemetryFormat.BuildLine(1, WithNew(WithNew(snap, "MorphoAlive", true), "OtherEnemiesUp", true)));
+
+        var worst = snap with
+        {
+            Observed = (CrucibleTelemetryFormat.Flags)0xFFFF,
+            DecisionReason = new string('x', 200), Shadow = new string('y', 200),
+            TargetEdgeDistance = 9.9f, MoveSpeed = 9.9f, Degree = 3,
+            BmrSeen = true, BmrHitIn = 9.9f, BmrHitType = 9, BmrHitOnPlayer = true, BmrHitOnFamiliar = true, BmrMaxCast = 9.9f,
+        };
+        worst = WithNew(worst, "ReadyBits", (ushort)0x0FFF);
+        worst = WithNew(worst, "HealPotion", 44902u);
+        worst = WithNew(worst, "PlayerHpCur", 99999);
+        worst = WithNew(worst, "PlayerHpMax", 99999);
+        worst = WithNew(worst, "GcdReady", true);
+        worst = WithNew(worst, "CanWeave", true);
+        worst = WithNew(worst, "InCombat", true);
+        worst = WithNew(worst, "PlayerIsCasting", true);
+        worst = WithNew(worst, "MorphoAlive", true);
+        worst = WithNew(worst, "OtherEnemiesUp", true);
+        var worstLine = CrucibleTelemetryFormat.BuildLine(1, worst);
+        Check("CR| the longest line carrying every new field stays within the budget",
+            worstLine.Length <= CrucibleTelemetryFormat.MaxLineLength, $"len={worstLine.Length} {worstLine}");
+        Check("CR| the new fields survive the longest line uncut (truncation must never eat a replay input)",
+            worstLine.EndsWith("|gcd=1|weave=1|ic=1|cast=1|mo=1|ou=1", StringComparison.Ordinal), worstLine);
+
+        var rGate = new CrucibleTelemetryFormat.GateState();
+        Check("CR| replay fields: first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref rGate, 1_000, worst));
+        Check("CR| a readiness change alone never emits (rd= stays outside the emit key)",
+            !CrucibleTelemetryFormat.ShouldEmit(ref rGate, 2_000, WithNew(worst, "ReadyBits", (ushort)0x48D)));
+        Check("CR| the heal potion id alone never emits",
+            !CrucibleTelemetryFormat.ShouldEmit(ref rGate, 3_000, WithNew(worst, "HealPotion", 44901u)));
+        Check("CR| hpa= alone never emits",
+            !CrucibleTelemetryFormat.ShouldEmit(ref rGate, 4_000, WithNew(WithNew(worst, "PlayerHpCur", 7100), "PlayerHpMax", 39400)));
+        Check("CR| mo=/ou= alone never emit (the collector's rule context is not a change)",
+            !CrucibleTelemetryFormat.ShouldEmit(ref rGate, 5_000, WithNew(WithNew(worst, "MorphoAlive", false), "OtherEnemiesUp", false)));
+        Check("CR| gcd=/weave=/ic=/cast= alone never emit",
+            !CrucibleTelemetryFormat.ShouldEmit(ref rGate, 6_000,
+                WithNew(WithNew(WithNew(WithNew(worst, "GcdReady", false), "CanWeave", false), "InCombat", false), "PlayerIsCasting", false)));
+        Check("CR| the live sampler wires the replay inputs from ReadState and the collector statics (no new game reads)",
+            RepoFile("Data", "BeastmasterTelemetry.cs").Contains("s.TargetInvulnerable", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST_Crucible.MorphoAlive", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST_Crucible.OtherEnemiesUp", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("s.ReadyHorn1", StringComparison.Ordinal),
+            "SampleCrucible must feed f=I, rd=, mo= and ou= from state the tick already read");
         var moving = new CrucibleTelemetryFormat.GateState();
         Check("CR| speed gate: first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref moving, 1_000, snap));
         Check("CR| d= and mv= never join the emit key (speed alone must not flood lines)",
@@ -589,6 +656,17 @@ internal static class Program
     }
 
     /// <summary>
+    /// <summary> Sets one of the replay-input snapshot fields (rd= / hpot= / hpa= / gcd= / weave= /
+    ///     ic= / cast= / mo= / ou=) through reflection, so the red proof is a runtime FAIL against
+    ///     the pre-field formatter, not a build error (the BST-1 tk= pattern). A typo'd name makes
+    ///     the checks fail post-fix too, so the reflection cannot mask a defect. </summary>
+    private static CrucibleTelemetryFormat.Snapshot WithNew(CrucibleTelemetryFormat.Snapshot s, string field, object value)
+    {
+        var boxed = (object)s;
+        typeof(CrucibleTelemetryFormat.Snapshot).GetProperty(field)?.SetValue(boxed, value);
+        return (CrucibleTelemetryFormat.Snapshot)boxed;
+    }
+
     ///     Invokes the pure <see cref="ComboTelemetryFormat.BuildLine"/> WITH the NIN-1
     ///     Ten-charge field, or returns null before that field lands in the formatter.
     ///     Reflection keeps this compiling against the pre-field source, so the red proof
@@ -914,12 +992,12 @@ internal static class Program
             TargetNameId: 14623, TargetHp: 80, CastId: 0, CastRemaining: 0f, Observed: CrucibleTelemetryFormat.Flags.None,
             PlayerHp: 90, PetHp: 100, SlotPetHp: "100.100.100",
             DecisionActionId: 44901, DecisionReason: "crucible:bmr-skin", Shadow: "");
-        Check("CR| crux: no BMR answer, no BMR fields", CrucibleTelemetryFormat.BuildLine(1, snap).EndsWith("|dg=x"));
+        Check("CR| crux: no BMR answer, no BMR fields", CrucibleTelemetryFormat.BuildLine(1, snap).EndsWith("|dg=x|rd=|hpot=0|hpa=0/0|gcd=0|weave=0|ic=0|cast=0|mo=0|ou=0", StringComparison.Ordinal));
         var seen = snap with { BmrSeen = true, BmrHitIn = 7.94f, BmrHitType = 2, BmrHitOnPlayer = true, BmrMaxCast = 1.24f };
         var line = CrucibleTelemetryFormat.BuildLine(1, seen);
-        Check("CR| crux: BMR answering renders bh/bk/bp/bf/mct after dg", line.EndsWith("|dg=x|bh=7.9|bk=2|bp=1|bf=0|mct=1.2"), line);
+        Check("CR| crux: BMR answering renders bh/bk/bp/bf/mct after dg", line.Contains("|dg=x|bh=7.9|bk=2|bp=1|bf=0|mct=1.2|rd=|"), line);
         Check("CR| crux: no prediction and no cast limit render as '-'",
-            CrucibleTelemetryFormat.BuildLine(1, snap with { BmrSeen = true }).EndsWith("|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-"));
+            CrucibleTelemetryFormat.BuildLine(1, snap with { BmrSeen = true }).Contains("|bh=-|bk=0|bp=0|bf=0|mct=-|rd=|"));
         Check("CR| crux: the familiar bit renders", CrucibleTelemetryFormat.BuildLine(1, seen with { BmrHitOnFamiliar = true, BmrHitOnPlayer = false }).Contains("|bp=0|bf=1|"));
         Check("CR| crux: a long reason with the BMR fields stays in the line budget",
             CrucibleTelemetryFormat.BuildLine(1, seen with { DecisionReason = new string('x', 200), Shadow = new string('y', 200) }).Length <= CrucibleTelemetryFormat.MaxLineLength);

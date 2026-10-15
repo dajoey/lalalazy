@@ -60,9 +60,16 @@ internal static class CrucibleTelemetryFormat
         PlayerBlink = 1 << 13,
         /// <summary> V: the familiar carries a poison it sheds by leaving. </summary>
         PetPoisoned = 1 << 14,
+        /// <summary> I: the target is in a damage-immune phase (e.g. Burning Ward). </summary>
+        TargetInvulnerable = 1 << 15,
     }
 
-    private const string FlagLetters = "DSXNPJCpysciRBV";
+    private const string FlagLetters = "DSXNPJCpysciRBVI";
+
+    /// <summary> Readiness letters for <c>rd=</c>: bit i of <see cref="Snapshot.ReadyBits"/> renders ReadyLetters[i] -
+    ///     horns 1-3, Trick, Tempered, Borrow, Parting Blow, axe, Rally, Cheer, Beast Mode, Shield Charge. The replay's
+    ///     LogWindow (tests/GluttonyCombo.CrucibleReplay) mirrors this string; keep the two in step. </summary>
+    private const string ReadyLetters = "123tmbparcBs";
 
     /// <summary> Panel needs of the matched battle, rendered as letters in <c>nd=</c> (I interrupt, D dispel, C cleanse). </summary>
     internal readonly record struct Snapshot(
@@ -94,7 +101,17 @@ internal static class CrucibleTelemetryFormat
         int BmrHitType = 0,
         bool BmrHitOnPlayer = false,
         bool BmrHitOnFamiliar = false,
-        float BmrMaxCast = float.MaxValue);
+        float BmrMaxCast = float.MaxValue,
+        ushort ReadyBits = 0,
+        uint HealPotion = 0,
+        int PlayerHpCur = 0,
+        int PlayerHpMax = 0,
+        bool GcdReady = false,
+        bool CanWeave = false,
+        bool InCombat = false,
+        bool PlayerIsCasting = false,
+        bool MorphoAlive = false,
+        bool OtherEnemiesUp = false);
 
     internal static (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string, byte) KeyOf(in Snapshot s) =>
         (s.Board, s.Battle, s.Needs, s.Enemies, s.HighestEnemyHp / HpBucket, s.TargetNameId, s.TargetHp / HpBucket, s.CastId, s.Observed,
@@ -141,9 +158,13 @@ internal static class CrucibleTelemetryFormat
     ///     range and movement on every line, without joining the emit key. <c>dg</c> (1.0.4.288) is the board's difficulty degree
     ///     (0 Standard, 1 First, 2 Second, 3 Third, x while LazyCrucible has not published it), also outside the emit key.
     ///     <c>bt</c> is -1 when no panel enemy is present; <c>c=0:0.0</c> when the target is not casting.
-    ///     While stock BossMod Reborn answers its hint IPC (crux lane 2026-10-13) the line ends <c>|bh=s|bk=type|bp=0/1|bf=0/1|mct=s</c>:
+    ///     While stock BossMod Reborn answers its hint IPC (crux lane 2026-10-13) the line also carries <c>bh=s|bk=type|bp=0/1|bf=0/1|mct=s</c>:
     ///     seconds to its earliest predicted hit ('-' none), that hit's type (0 none, 1 tankbuster, 2 raidwide, 3 shared), whether it is
     ///     on the character / the familiar, and the longest cast its movement allows ('-' none). Type and target join the emit key.
+    ///     The replay-input tail (2026-10-15) always ends the line, outside the emit key: <c>rd=</c> readiness letters
+    ///     (horns 1-3, Trick, Tempered, Borrow, Parting Blow, axe, Rally, Cheer, Beast Mode, Shield Charge), <c>hpot=</c> the
+    ///     heal potion the engine would press, <c>hpa=cur/max</c> absolute HP, <c>gcd=/weave=/ic=/cast=</c> 0/1, and
+    ///     <c>mo=/ou=</c>, the inputs of <c>BST_CrucibleLogic.ConditionallyForbidden</c>, so the collector's own rule is replayable.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
     {
@@ -199,6 +220,23 @@ internal static class CrucibleTelemetryFormat
             else
                 sb.Append('-');
         }
+
+        // Replay-input fields (2026-10-15): the decision inputs the replay harness could not rebuild, appended outside
+        // the emit key so lines per second do not rise. Truncation at MaxLineLength can never reach them (budget check).
+        sb.Append("|rd=");
+        for (var i = 0; i < ReadyLetters.Length; i++)
+            if ((s.ReadyBits & (1 << i)) != 0)
+                sb.Append(ReadyLetters[i]);
+
+        sb.Append("|hpot=").Append(s.HealPotion.ToString(inv))
+          .Append("|hpa=").Append(Math.Max(0, s.PlayerHpCur).ToString(inv))
+          .Append('/').Append(Math.Max(0, s.PlayerHpMax).ToString(inv))
+          .Append("|gcd=").Append(s.GcdReady ? '1' : '0')
+          .Append("|weave=").Append(s.CanWeave ? '1' : '0')
+          .Append("|ic=").Append(s.InCombat ? '1' : '0')
+          .Append("|cast=").Append(s.PlayerIsCasting ? '1' : '0')
+          .Append("|mo=").Append(s.MorphoAlive ? '1' : '0')
+          .Append("|ou=").Append(s.OtherEnemiesUp ? '1' : '0');
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;

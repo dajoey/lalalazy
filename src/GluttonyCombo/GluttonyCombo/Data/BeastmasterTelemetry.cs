@@ -208,6 +208,18 @@ internal static class BeastmasterTelemetry
         if (s.ReleaseProtectedNear) flags |= CrucibleTelemetryFormat.Flags.ReleaseProtectedNear;
         if (s.PlayerBlink) flags |= CrucibleTelemetryFormat.Flags.PlayerBlink;
         if (s.PetPoisonStatus != 0) flags |= CrucibleTelemetryFormat.Flags.PetPoisoned;
+        if (s.TargetInvulnerable) flags |= CrucibleTelemetryFormat.Flags.TargetInvulnerable;
+
+        // rd= readiness bitmap (bit i of ReadyBits = the format's ReadyLetters[i]): the replay's top gap fields
+        // (ReadyHorn1-3, ReadyAxe, ReadyBeastMode, ReadyTempered), all already read by BST.ReadState.
+        var readyBits = (ushort)((s.ReadyHorn1 ? 1 << 0 : 0) | (s.ReadyHorn2 ? 1 << 1 : 0) | (s.ReadyHorn3 ? 1 << 2 : 0)
+            | (s.ReadyTrick ? 1 << 3 : 0) | (s.ReadyTempered ? 1 << 4 : 0) | (s.ReadyBorrow ? 1 << 5 : 0)
+            | (s.ReadyParting ? 1 << 6 : 0) | (s.ReadyAxe ? 1 << 7 : 0) | (s.ReadyRally ? 1 << 8 : 0)
+            | (s.ReadyCheer ? 1 << 9 : 0) | (s.ReadyBeastMode ? 1 << 10 : 0) | (s.ReadyShieldCharge ? 1 << 11 : 0));
+
+        // hpa= cur/max: the absolute HP pair the tick's ReadCrucible already computed its percent from; the max is
+        // taken from the same player object this sampler reads, so no new game read is added.
+        var player = Player.Object;
 
         static byte Pct(float v) => (byte)Math.Clamp((int)MathF.Round(v), 0, 100);
 
@@ -240,7 +252,17 @@ internal static class BeastmasterTelemetry
             s.BmrHitType,
             s.BmrHitOnPlayer,
             s.BmrHitOnFamiliar,
-            s.BmrMaxCast);
+            s.BmrMaxCast,
+            readyBits,
+            s.ReadyHealPotion,
+            player is null ? 0 : (int)player.CurrentHp,
+            player is null ? 0 : (int)player.MaxHp,
+            s.GcdReady,
+            s.CanWeave,
+            s.InCombat,
+            s.PlayerIsCasting,
+            BST_Crucible.MorphoAlive,
+            BST_Crucible.OtherEnemiesUp);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()

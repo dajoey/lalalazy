@@ -246,3 +246,8 @@ Ranked by how many corpus ticks the field alone changes the decision (the table 
 8. The recorded configuration (`BstSettings`) once per session, not per line.
 
 All of these fit the existing `CR|` grammar (new `key=value` fields at the end; the emit key does not need them).
+
+2026-10-15: items 1-4 and item 7's `mo=`/`ou=` landed (task tasks-20261015-crucible-telemetry-replay-inputs-01):
+`f=I`, `rd=`, `hpot=`, `hpa=cur/max`, `gcd=`, `weave=`, `ic=`, `cast=`, `mo=`, `ou=` now ride the `CR|` tail outside
+the emit key; the rebuilder and field table consume them (old-format lines keep their gaps), and the runner replays
+`ConditionallyForbidden` for the Abaddon target from `mo=`/`ou=` beside the recorded `f=X`.
