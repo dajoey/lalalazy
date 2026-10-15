@@ -46,5 +46,15 @@ internal static class ItemValueCases
             Value(G1Reraiser, third) < Value(G1Reraiser, standard) && Value(G2Reraiser, third) < Value(G2Reraiser, standard)
             && Value(G1Reraiser, plain) == Value(G1Reraiser, standard) && Value(G2Reraiser, third) >= 50 && Value(G1Reraiser, third) >= ItemValue.Worthwhile,
             $"G1 {Value(G1Reraiser, standard)} -> {Value(G1Reraiser, third)}, G2 {Value(G2Reraiser, standard)} -> {Value(G2Reraiser, third)}");
+
+        // r4-familiar lv-10 (row closed as designed, no code change): the held Blessed Horn (XBMItem row 96,
+        // Role Revive) keeps its revival value against the Worthwhile floor 12, and more when a needed familiar
+        // is down. Nothing in the run sells or discards it: the shop never sells and the discard prompts are
+        // refused (pinned by the actuation allow-list refusals in PolicyCases.Guard).
+        var hornPlain = Value(96, plain);
+        var hornNeeded = ItemValue.Of(96, new RunContext { Board = 1, HornDemand = new Dictionary<int, double> { [18] = 2 } }, Inventory.Empty, [new FamiliarState(18, 0, HpPercent: 0, 0, 3, [])]);
+        Check("r4-familiar: lv-10 the held Blessed Horn keeps its revive value (18 plain, 45 with a needed familiar down, floor 12): never worthless",
+            CrucibleItems.Get(96).Role == ItemRole.Revive && hornPlain == 18 && hornNeeded == 45,
+            $"plain {hornPlain}, needed familiar down {hornNeeded}");
     }
 }

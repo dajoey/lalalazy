@@ -8,8 +8,8 @@ namespace GluttonyCombo.BSTRotationHarness;
 ///     "r4-familiar:" and name the gap id. Rows: rot-31 (a KO'd familiar is revived with the held Blessed
 ///     Horn through the item HUD), 1.4-01 (the banemite piece resists poison, so poison familiars score
 ///     down there), sv-07b (the Bomb Piece's Self-destruct bursts like the Golem's). The LazyCrucible cases
-///     for lv-10 (the held Blessed Horn's value, closed as designed) and lv-12 (fed familiars never rest)
-///     live in tests/LazyCrucible.Harness/PolicyCases.cs with the same title prefix. The Soulkin borrow
+///     with the same title prefix live in that harness: lv-12's camp and feed checks in PolicyCases.cs,
+///     lv-10's value pin (the held Blessed Horn, closed as designed) in ItemValueCases.cs. The Soulkin borrow
 ///     timing row is deliberately-unchanged (the prepull borrow is declined on purpose,
 ///     crucible:prepull-borrow-waiting-cast; see the task page) and has no case.
 /// </summary>
