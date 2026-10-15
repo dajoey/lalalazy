@@ -116,18 +116,35 @@ internal static partial class Program
         Check("r4-tankbuster: 3.1-09 Blizzard, the kupocaster (same cast, Second Master's 5.11): Snarl covers it",
             Decide(bishop with { CrucibleBoard = 5, CrucibleBattle = 11, TargetNameId = 14679 }, on).Reason == "aggro:snarl-panel-burst",
             Decide(bishop with { CrucibleBoard = 5, CrucibleBattle = 11, TargetNameId = 14679 }, on).Reason);
+
         var punch = CrucibleState() with
         {
             CrucibleBoard = 5, CrucibleBattle = 13, TargetNameId = 14691, ReadySnarl = true,
             PetHp = 1200f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
         };
+
+
         Check("r4-tankbuster: 3.1-09 Straight Punch, Hapalit on the character, a 1,200 HP familiar at Standard (909 x 1.25 = 1136): Snarl covers it",
-            Decide(punch, on).Reason == "aggro:snarl-panel-burst", Decide(punch, on).Reason);
+            Decide(At(punch, CrucibleDegree.Standard), on).Reason == "aggro:snarl-panel-burst",
+            Decide(At(punch, CrucibleDegree.Standard), on).Reason);
         Check("r4-tankbuster: 3.1-09 Straight Punch, First Degree (909 x 2.0 x 1.25 = 2273), a 2,400 HP familiar: cover",
             Decide(At(punch with { PetHp = 2400f }, CrucibleDegree.First), on).Reason == "aggro:snarl-panel-burst",
             Decide(At(punch with { PetHp = 2400f }, CrucibleDegree.First), on).Reason);
         Check("r4-tankbuster: 3.1-09 Straight Punch, degree unread (909 x 2.0 = 1818), a 1,900 HP familiar: cover",
             Decide(punch with { PetHp = 1900f }, on).Reason == "aggro:snarl-panel-burst",
             Decide(punch with { PetHp = 1900f }, on).Reason);
+
+        Check("r4-tankbuster: 3.1-09 Blizzard, a 40 percent familiar (under the cleave settle bar): no panel-burst cover",
+            Decide(bishop with { PetHp = 3492f, PetHpPercent = 40f }, on).Reason != "aggro:snarl-panel-burst",
+            Decide(bishop with { PetHp = 3492f, PetHpPercent = 40f }, on).Reason);
+        Check("r4-tankbuster: 3.1-09 Straight Punch, a 1,100 HP familiar at Standard (under 1136): no cover",
+            Decide(At(punch with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-panel-burst",
+            Decide(At(punch with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason);
+        Check("r4-tankbuster: 3.1-09 Straight Punch, First Degree, a 2,200 HP familiar (under 2273): no cover",
+            Decide(At(punch with { PetHp = 2200f }, CrucibleDegree.First), on).Reason != "aggro:snarl-panel-burst",
+            Decide(At(punch with { PetHp = 2200f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 3.1-09 a manticore (not a panel-burst caster) on the character: no panel-burst cover",
+            Decide(bishop with { TargetNameId = 14566 }, on).Reason != "aggro:snarl-panel-burst",
+            Decide(bishop with { TargetNameId = 14566 }, on).Reason);
     }
 }
