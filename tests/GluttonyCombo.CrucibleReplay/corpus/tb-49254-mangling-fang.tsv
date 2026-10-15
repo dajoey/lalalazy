@@ -1,0 +1,47 @@
+#source=ffxivdb
+#from=2026-10-15 00:54:32+00
+#to=2026-10-15 00:54:40+00
+#lead_s=3
+#build=1.0.4.304
+#piece=Mangling Fang 49254 (board 5 battle 5, R4 row 5.5-06)
+#tags=tankbuster,cover
+#note=both recorded casts, familiar at 100 percent; the 691 cover arms on the fix
+#expect.head=6
+2026-10-15T00:54:29.499Z	BT|1792025669499|54606c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:30.092Z	BT|1792025670092|54606c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:30.185Z	CR|1792025670184|b=5|bt=5|nd=D|ne=1|hi=30|t=14651:29|c=0:0.0|f=ysc|hp=77|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=27|in=30|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:54:30.343Z	BT|1792025670343|54606c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:30.435Z	CR|1792025670435|b=5|bt=5|nd=D|ne=1|hi=30|t=14651:29|c=0:0.0|f=ysc|hp=77|pet=100|sl=100.95.100|dec=44883:gcdchain|sh=|ttd=28|in=27|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:54:30.710Z	BT|1792025670710|546c6c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:30.843Z	CR|1792025670843|b=5|bt=5|nd=D|ne=1|hi=29|t=14651:29|c=0:0.0|f=ysc|hp=76|pet=100|sl=100.95.100|dec=44883:gcdchain|sh=|ttd=31|in=37|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:54:31.964Z	BT|1792025671964|546c6c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:32.558Z	BT|1792025672558|546c6c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:32.669Z	CR|1792025672669|b=5|bt=5|nd=D|ne=1|hi=28|t=14651:27|c=0:0.0|f=ysc|hp=76|pet=100|sl=100.95.100|dec=44885:gcdchain|sh=|ttd=25|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:54:32.808Z	BT|1792025672808|616c6c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:33.726Z	BT|1792025673726|61786c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:34.249Z	CR|1792025674249|b=5|bt=5|nd=D|ne=1|hi=25|t=14651:24|c=49254:4.7|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44885:gcdchain|sh=|ttd=26|in=37|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=6.4|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:34.431Z	BT|1792025674431|61786c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44885:gcdchain|fd=|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:34.896Z	CR|1792025674896|b=5|bt=5|nd=D|ne=1|hi=24|t=14651:24|c=49254:4.0|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44885:gcdchain|sh=|ttd=26|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=5.8|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:35.034Z	BT|1792025675034|61786c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:35.152Z	CR|1792025675152|b=5|bt=5|nd=D|ne=1|hi=24|t=14651:22|c=49254:3.8|f=ysc|hp=75|pet=100|sl=100.95.100|dec=47093:combo:trick-first|sh=|ttd=16|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=5.5|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:35.289Z	BT|1792025675289|70786c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=47093:combo:trick-first|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=-|4606,4614
+2026-10-15T00:54:35.724Z	BT|1792025675724|70786c010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=47093:combo:trick-first|fd=crucible:exit-keep-reserve-horn|sl=44.40.27|lv=50|tk=pending|4606,4614
+2026-10-15T00:54:35.741Z	CR|1792025675741|b=5|bt=5|nd=D|ne=1|hi=24|t=14651:22|c=49254:3.2|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=16|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=4.9|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:35.974Z	BT|1792025675974|700078010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=44.40.27|lv=50|tk=pending|4606,4614
+2026-10-15T00:54:35.991Z	CR|1792025675991|b=5|bt=5|nd=D|ne=1|hi=22|t=14651:18|c=49254:2.9|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=9|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=4.7|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:36.791Z	BT|1792025676791|700c78010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=44.40.27|lv=50|tk=pending|4606,4614
+2026-10-15T00:54:37.042Z	BT|1792025677042|700c78010000005304|1|0|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=44.40.27|lv=50|tk=pending|4606,4614
+2026-10-15T00:54:37.276Z	CR|1792025677276|b=5|bt=5|nd=D|ne=1|hi=17|t=14651:17|c=49254:1.7|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=9|in=28|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=3.4|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:37.293Z	BT|1792025677293|700c78010101005304|1|1|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=44.40.27|lv=50|tk=heart|4606,4595,4614
+2026-10-15T00:54:37.526Z	CR|1792025677526|b=5|bt=5|nd=D|ne=1|hi=17|t=14651:14|c=49254:1.4|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=6|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=3.1|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:37.559Z	BT|1792025677559|000c78010101005304|1|1|0|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=|sl=44.40.27|lv=50|tk=heart|4606,4595,4614
+2026-10-15T00:54:37.834Z	BT|1792025677834|000c78010702015308|1|2|1|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=combo:wavering-heart|sl=44.40.27|lv=50|tk=heart|4606,4643,4614
+2026-10-15T00:54:37.834Z	CR|1792025677834|b=5|bt=5|nd=D|ne=1|hi=15|t=14651:15|c=49254:1.1|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=7|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=2.8|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:38.084Z	CR|1792025678084|b=5|bt=5|nd=D|ne=1|hi=14|t=14651:14|c=49254:0.8|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44879:gcdchain|sh=|ttd=6|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=2.6|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:38.084Z	BT|1792025678084|000c78010702015308|1|2|1|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=44.40.27|lv=50|tk=heart|4606,4643,4614
+2026-10-15T00:54:38.343Z	BT|1792025678343|000c78010702015308|1|2|1|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=44.40.27|lv=50|tk=heart|4606,4643,4614
+2026-10-15T00:54:38.343Z	CR|1792025678343|b=5|bt=5|nd=D|ne=1|hi=14|t=14651:13|c=49254:0.6|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44883:gcdchain|sh=|ttd=6|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=2.3|bk=1|bp=1|bf=0|mct=-
+2026-10-15T00:54:39.186Z	CR|1792025679186|b=5|bt=5|nd=D|ne=1|hi=13|t=14651:13|c=0:0.0|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44883:gcdchain|sh=|ttd=6|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-15T00:54:39.620Z	BT|1792025679620|000c78010702015308|1|2|1|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart+shieldcharge:weave-too-short|sl=44.40.27|lv=50|tk=heart|4606,4643,4614
+2026-10-15T00:54:39.877Z	BT|1792025679877|001878010702015308|1|2|1|83|pet=1073798426:Damselfly:18959|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart+shieldcharge:weave-too-short|sl=44.40.27|lv=50|tk=heart|4606,4643,4614
+2026-10-15T00:54:39.994Z	CR|1792025679994|b=5|bt=5|nd=D|ne=1|hi=13|t=14651:9|c=0:0.0|f=ysc|hp=75|pet=100|sl=100.95.100|dec=44883:gcdchain|sh=|ttd=3|in=18|vul=0|xp=1|d=1.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-

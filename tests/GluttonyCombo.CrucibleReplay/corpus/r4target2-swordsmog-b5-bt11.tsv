@@ -5,7 +5,7 @@
 #build=1.0.4.301
 #piece=moogle finale (board 5, battle 11)
 #tags=kill-order,swordsmog
-#expect.head=201
+#expect.head=178
 2026-10-13T23:41:27.034Z	BT|1791934887034|385400010000005300|1|0|0|83|pet=1073759971:Coeurl:18948|bm=44900|av=44884|dec=44883:gcdchain|fd=|sl=33.40.27|lv=50|tk=-|4606,4614
 2026-10-13T23:41:27.647Z	BT|1791934887647|385400010000005300|1|0|0|83|pet=1073759971:Coeurl:18948|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=33.40.27|lv=50|tk=-|4606,4614
 2026-10-13T23:41:27.737Z	CR|1791934887737|b=5|bt=11|nd=D|ne=2|hi=100|t=14675:23|c=0:0.0|f=ysc|hp=91|pet=93|sl=93.100.97|dec=44885:gcdchain|sh=|ttd=2|in=30|vul=0|xp=1|d=2.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-

@@ -1,0 +1,40 @@
+#source=ffxivdb
+#from=2026-10-14 21:01:00+00
+#to=2026-10-14 21:01:06+00
+#lead_s=3
+#build=1.0.4.302
+#piece=Fivefold Fallout 48724 (board 4 battle 5, R4 row 4.5)
+#tags=tankbuster,cover
+#note=castbar ticks with the familiar at 100 percent; the cover arms on the fix
+#expect.head=6
+2026-10-14T21:00:57.920Z	BT|1792011657920|700c90030202000004|3|2|0|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=combo:axe-waiting-gcd|sl=19.8.2|lv=50|tk=heart|4596
+2026-10-14T21:00:58.046Z	CR|1792011658046|b=4|bt=5|nd=|ne=1|hi=62|t=14608:62|c=0:0.0|f=ysc|hp=43|pet=100|sl=8.14.100|dec=44887:combo:axe-clockwise-after-trick|sh=|ttd=84|in=27|vul=0|xp=1|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:00:58.170Z	BT|1792011658170|700c90030202000004|3|2|0|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44887:combo:axe-clockwise-after-trick|fd=|sl=19.8.2|lv=50|tk=heart|4596
+2026-10-14T21:00:58.304Z	CR|1792011658304|b=4|bt=5|nd=|ne=1|hi=62|t=14608:61|c=0:0.0|f=ysc|hp=43|pet=100|sl=8.14.100|dec=44883:gcdchain|sh=|ttd=79|in=27|vul=0|xp=1|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:00:58.428Z	BT|1792011658428|001890030202000004|3|2|0|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.2|lv=50|tk=heart|4596
+2026-10-14T21:00:58.912Z	BT|1792011658912|001890030703010008|3|3|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.2|lv=50|tk=heart|4643
+2026-10-14T21:00:59.164Z	BT|1792011659164|0d1890030703010008|3|3|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn+combo:wavering-heart|sl=19.8.2|lv=50|tk=heart|4643
+2026-10-14T21:00:59.196Z	CR|1792011659196|b=4|bt=5|nd=|ne=1|hi=61|t=14608:60|c=0:0.0|f=ysc|hp=41|pet=100|sl=8.14.100|dec=44885:gcdchain|sh=|ttd=60|in=41|vul=0|xp=1|d=0.0|mv=5.9|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:00:59.421Z	BT|1792011659421|0d1890030703010008|3|3|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn+combo:wavering-heart|sl=19.8.2|lv=50|tk=heart|4643
+2026-10-14T21:01:00.063Z	CR|1792011660063|b=4|bt=5|nd=|ne=1|hi=60|t=14608:60|c=0:0.0|f=ysc|hp=38|pet=100|sl=8.14.100|dec=44885:gcdchain|sh=|ttd=75|in=41|vul=0|xp=1|d=0.0|mv=5.8|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:00.096Z	BT|1792011660096|0d1890030703010008|3|3|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=46751:aggro:snarl-player-low|fd=|sl=19.8.2|lv=50|tk=heart|4643
+2026-10-14T21:01:00.355Z	BT|1792011660355|0d1890030703010008|3|3|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44885:gcdchain|fd=combo:wavering-heart|sl=19.8.2|lv=50|tk=heart|4643
+2026-10-14T21:01:00.413Z	CR|1792011660413|b=4|bt=5|nd=|ne=1|hi=60|t=14608:59|c=0:0.0|f=ysc|hp=38|pet=100|sl=8.14.100|dec=44885:gcdchain|sh=|ttd=71|in=58|vul=0|xp=1|d=0.0|mv=5.8|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:00.863Z	CR|1792011660863|b=4|bt=5|nd=|ne=1|hi=60|t=14608:59|c=0:0.0|f=ysc|hp=48|pet=100|sl=8.14.100|dec=44885:gcdchain|sh=|ttd=73|in=48|vul=0|xp=1|d=0.0|mv=5.8|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:01.121Z	BT|1792011661121|0d1890030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44885:gcdchain|fd=combo:wavering-heart|sl=19.8.2|lv=50|tk=heart|4600
+2026-10-14T21:01:01.121Z	CR|1792011661121|b=4|bt=5|nd=|ne=1|hi=58|t=14608:58|c=0:0.0|f=ysc|hp=48|pet=100|sl=8.14.100|dec=44885:gcdchain|sh=|ttd=59|in=48|vul=0|xp=1|d=0.0|mv=6.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:01.213Z	DS|1792011661213|t=14608|enemy=1|landing=0|v=danger
+2026-10-14T21:01:01.379Z	BT|1792011661379|0d2490030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=19.8.2|lv=50|tk=heart|4600
+2026-10-14T21:01:01.438Z	CR|1792011661438|b=4|bt=5|nd=|ne=1|hi=58|t=14608:58|c=0:0.0|f=ysc|hp=48|pet=100|sl=8.14.100|dec=44879:gcdchain|sh=|ttd=82|in=48|vul=0|xp=1|d=0.0|mv=5.9|dg=1|bh=-|bk=0|bp=0|bf=0|mct=2.5
+2026-10-14T21:01:01.631Z	BT|1792011661631|1c2490030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:01.664Z	DS|1792011661664|t=14608|enemy=1|landing=1|v=safe
+2026-10-14T21:01:02.238Z	CR|1792011662238|b=4|bt=5|nd=|ne=1|hi=57|t=14608:57|c=48724:2.7|f=ysc|hp=46|pet=100|sl=8.14.100|dec=44879:gcdchain|sh=|ttd=64|in=65|vul=0|xp=1|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:03.039Z	BT|1792011663039|1c2490030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:03.681Z	BT|1792011663681|1c2490030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:03.747Z	CR|1792011663747|b=4|bt=5|nd=|ne=1|hi=57|t=14608:57|c=48724:1.2|f=ysc|hp=46|pet=100|sl=8.14.100|dec=44883:gcdchain|sh=|ttd=62|in=65|vul=0|xp=1|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:03.938Z	BT|1792011663938|1c2490030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:04.289Z	BT|1792011664289|1c3090030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:04.739Z	CR|1792011664738|b=4|bt=5|nd=|ne=1|hi=56|t=14608:56|c=0:0.0|f=ysc|hp=46|pet=100|sl=8.14.100|dec=44883:gcdchain|sh=|ttd=72|in=65|vul=0|xp=1|d=0.0|mv=0.0|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:05.414Z	BT|1792011665414|1c3090030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=19.8.2|lv=50|tk=-|4600
+2026-10-14T21:01:05.764Z	CR|1792011665764|b=4|bt=5|nd=|ne=1|hi=56|t=14608:56|c=0:0.0|f=ysc|hp=38|pet=100|sl=8.14.100|dec=44883:gcdchain|sh=|ttd=92|in=65|vul=0|xp=1|d=7.1|mv=63.2|dg=1|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-14T21:01:05.989Z	BT|1792011665989|1c3090030606010008|3|6|1|0|pet=1073792111:Squirrel:18917|bm=44886|av=44884|dec=46751:aggro:snarl-player-low|fd=|sl=19.8.2|lv=50|tk=-|4600

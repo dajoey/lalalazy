@@ -1,0 +1,2 @@
+-- window tb-48138-deadly-hold: archive (plugin-lines-20260924-20260930.tsv; the pre-CR-build era lines exist only in the xb-captures archive,
+-- not in ffxivdb). Re-pull with fetch_window.py --from-tsv <archive> --from <the window's #from> --to <the window's #to>.

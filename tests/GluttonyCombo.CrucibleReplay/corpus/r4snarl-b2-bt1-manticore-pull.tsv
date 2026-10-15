@@ -6,7 +6,7 @@
 #piece=board 2 battle 1 (manticore)
 #tags=snarl-pull
 #note=rot-14: fight start, pet 100%, enemy 100%, Snarl ready; degree unread
-#expect.head=45
+#expect.head=41
 2026-09-25T01:47:00.767Z	CR|1790300820767|b=2|bt=1|nd=|ne=1|hi=100|t=0:0|c=0:0.0|f=c|hp=100|pet=0|sl=0.0.0|dec=44879:ooc:gcdchain|sh=|ttd=0|in=0|vul=0|xp=0
 2026-09-25T01:47:00.767Z	BT|1790300820767|000000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:ooc:gcdchain|fd=|sl=39.37.19|lv=40|
 2026-09-25T01:47:02.531Z	CR|1790300822531|b=2|bt=1|nd=|ne=1|hi=100|t=14545:100|c=0:0.0|f=c|hp=100|pet=0|sl=0.0.0|dec=44881:prepull:summon-slot1|sh=|ttd=0|in=0|vul=0|xp=0

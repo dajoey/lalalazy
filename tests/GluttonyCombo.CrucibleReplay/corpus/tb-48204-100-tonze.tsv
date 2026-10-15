@@ -1,0 +1,56 @@
+#source=archive:plugin-lines-20260924-20260930.tsv
+#from=2026-09-25 01:54:36+00
+#to=2026-09-25 01:54:48+00
+#lead_s=3
+#build=1.0.4.233
+#piece=100-tonze Slash 48204 (board 2 battle 5, R4 row 2.5-04)
+#tags=tankbuster,cover
+#note=full 9 s cast with the familiar at 99-100 percent; the cover arms on the fix
+#expect.head=18
+2026-09-25T01:54:33.018Z	BT|1790301273018|389078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:33.158Z	CR|1790301273158|b=2|bt=5|nd=ID|ne=2|hi=37|t=14556:29|c=0:0.0|f=ysc|hp=30|pet=99|sl=100.99.100|dec=44883:gcdchain|sh=aggro:snarl-player-low|ttd=172|in=22|vul=0|xp=1
+2026-09-25T01:54:33.269Z	BT|1790301273269|389078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:34.067Z	CR|1790301274067|b=2|bt=5|nd=ID|ne=2|hi=37|t=14556:28|c=0:0.0|f=ysc|hp=29|pet=99|sl=100.99.100|dec=44883:gcdchain|sh=aggro:snarl-player-low|ttd=66|in=22|vul=0|xp=1
+2026-09-25T01:54:34.959Z	BT|1790301274959|389078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:35.560Z	BT|1790301275560|389078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:35.680Z	CR|1790301275680|b=2|bt=5|nd=ID|ne=2|hi=37|t=14556:25|c=0:0.0|f=ysc|hp=29|pet=99|sl=100.99.100|dec=44885:gcdchain|sh=aggro:snarl-player-low|ttd=26|in=25|vul=0|xp=1
+2026-09-25T01:54:35.811Z	BT|1790301275811|459c78020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:35.932Z	CR|1790301275932|b=2|bt=5|nd=ID|ne=2|hi=37|t=14556:23|c=0:0.0|f=ysc|hp=29|pet=99|sl=100.99.100|dec=44885:gcdchain|sh=aggro:snarl-player-low|ttd=18|in=25|vul=0|xp=1
+2026-09-25T01:54:36.265Z	CR|1790301276265|b=2|bt=5|nd=ID|ne=2|hi=37|t=14556:25|c=0:0.0|f=ysc|hp=29|pet=99|sl=100.99.100|dec=44885:gcdchain|sh=aggro:snarl-player-low|ttd=26|in=25|vul=0|xp=1
+2026-09-25T01:54:36.517Z	CR|1790301276517|b=2|bt=5|nd=ID|ne=2|hi=37|t=14555:37|c=0:0.0|f=ysc|hp=27|pet=99|sl=100.99.100|dec=44885:gcdchain|sh=aggro:snarl-player-low|ttd=0|in=25|vul=0|xp=1
+2026-09-25T01:54:37.484Z	BT|1790301277484|459c78020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:38.065Z	BT|1790301278065|459c78020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:38.296Z	CR|1790301278296|b=2|bt=5|nd=ID|ne=2|hi=37|t=14555:35|c=48204:8.7|f=ysc|hp=25|pet=99|sl=100.99.100|dec=44879:gcdchain|sh=aggro:snarl-player-low|ttd=0|in=20|vul=0|xp=1
+2026-09-25T01:54:38.316Z	BT|1790301278316|549c78020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:38.549Z	CR|1790301278549|b=2|bt=5|nd=ID|ne=2|hi=37|t=14555:33|c=48204:8.4|f=ysc|hp=25|pet=99|sl=100.99.100|dec=44879:gcdchain|sh=aggro:snarl-player-low|ttd=0|in=20|vul=0|xp=1
+2026-09-25T01:54:38.834Z	BT|1790301278834|54a878020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:38.936Z	CR|1790301278936|b=2|bt=5|nd=ID|ne=2|hi=33|t=14555:33|c=48204:8.1|f=ysc|hp=25|pet=99|sl=100.99.100|dec=44879:gcdchain|sh=aggro:snarl-player-low|ttd=0|in=20|vul=0|xp=1
+2026-09-25T01:54:39.567Z	BT|1790301279567|54a878020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:40.130Z	CR|1790301280130|b=2|bt=5|nd=ID|ne=2|hi=33|t=14555:33|c=48204:6.9|f=ysc|hp=53|pet=99|sl=100.99.100|dec=44879:gcdchain|sh=|ttd=0|in=20|vul=0|xp=1
+2026-09-25T01:54:40.386Z	CR|1790301280386|b=2|bt=5|nd=ID|ne=2|hi=33|t=14555:33|c=48204:6.6|f=ysc|hp=53|pet=100|sl=100.100.100|dec=44879:gcdchain|sh=|ttd=30|in=20|vul=0|xp=1
+2026-09-25T01:54:40.679Z	BT|1790301280679|54a878020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:40.781Z	CR|1790301280781|b=2|bt=5|nd=ID|ne=2|hi=33|t=14555:31|c=48204:6.2|f=ysc|hp=53|pet=100|sl=100.100.100|dec=44883:gcdchain|sh=|ttd=22|in=20|vul=0|xp=1
+2026-09-25T01:54:40.933Z	BT|1790301280933|54a878020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:41.034Z	CR|1790301281034|b=2|bt=5|nd=ID|ne=2|hi=31|t=14556:23|c=48203:4.2|f=ysci|hp=53|pet=100|sl=100.100.100|dec=44883:gcdchain|sh=|ttd=0|in=20|vul=0|xp=1
+2026-09-25T01:54:41.853Z	BT|1790301281853|54b478020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:42.258Z	CR|1790301282258|b=2|bt=5|nd=ID|ne=2|hi=31|t=14556:23|c=48203:2.9|f=yci|hp=53|pet=100|sl=100.100.100|dec=44883:gcdchain|sh=|ttd=0|in=8|vul=0|xp=1
+2026-09-25T01:54:42.289Z	BT|1790301282289|54b478020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:43.187Z	BT|1790301283187|54b478020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:43.308Z	CR|1790301283308|b=2|bt=5|nd=ID|ne=2|hi=30|t=14556:18|c=48203:1.9|f=yci|hp=53|pet=100|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=0|in=8|vul=0|xp=1
+2026-09-25T01:54:43.440Z	BT|1790301283440|61b478020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:43.561Z	CR|1790301283561|b=2|bt=5|nd=ID|ne=2|hi=30|t=14556:18|c=48203:1.6|f=pci|hp=53|pet=100|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=0|in=8|vul=0|xp=1
+2026-09-25T01:54:43.884Z	CR|1790301283884|b=2|bt=5|nd=ID|ne=2|hi=30|t=14555:30|c=48204:3.1|f=yc|hp=53|pet=100|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=0|in=5|vul=0|xp=1
+2026-09-25T01:54:44.872Z	BT|1790301284872|61c078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:45.024Z	CR|1790301285024|b=2|bt=5|nd=ID|ne=2|hi=30|t=14555:29|c=48204:2.0|f=yc|hp=53|pet=100|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=0|in=5|vul=0|xp=1
+2026-09-25T01:54:45.127Z	BT|1790301285127|61c078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=39.37.19|lv=40|
+2026-09-25T01:54:45.550Z	CR|1790301285550|b=2|bt=5|nd=ID|ne=2|hi=29|t=14555:29|c=48204:1.4|f=yc|hp=53|pet=100|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=0|in=5|vul=0|xp=1
+2026-09-25T01:54:45.681Z	BT|1790301285681|61c078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:45.802Z	CR|1790301285802|b=2|bt=5|nd=ID|ne=2|hi=29|t=14555:26|c=48204:1.2|f=yc|hp=53|pet=100|sl=100.100.100|dec=47093:combo:trick-first|sh=|ttd=0|in=5|vul=0|xp=1
+2026-09-25T01:54:45.933Z	BT|1790301285933|70c078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=47093:combo:trick-first|fd=exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:46.245Z	CR|1790301286245|b=2|bt=5|nd=ID|ne=2|hi=29|t=14555:29|c=48204:0.7|f=Dyc|hp=53|pet=100|sl=100.100.100|dec=47093:combo:trick-first|sh=|ttd=0|in=5|vul=0|xp=1
+2026-09-25T01:54:46.265Z	BT|1790301286265|70c078020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=47093:combo:trick-first|fd=crucible:dispel-unavailable+exit:no-other-horn-ready|sl=39.37.19|lv=40|
+2026-09-25T01:54:46.499Z	CR|1790301286499|b=2|bt=5|nd=ID|ne=2|hi=26|t=14556:17|c=0:0.0|f=pc|hp=53|pet=100|sl=100.100.100|dec=44879:gcdchain|sh=|ttd=0|in=3|vul=0|xp=1
+2026-09-25T01:54:46.519Z	BT|1790301286519|7000c0020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=39.37.19|lv=40|
+2026-09-25T01:54:47.566Z	BT|1790301287566|7000c0020000000000|2|0|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=39.37.19|lv=40|
+2026-09-25T01:54:47.803Z	CR|1790301287803|b=2|bt=5|nd=ID|ne=2|hi=21|t=14556:17|c=0:0.0|f=pc|hp=53|pet=100|sl=100.100.100|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-09-25T01:54:47.823Z	BT|1790301287823|7000c0020202000000|2|2|0|0|pet=1073854608:Antling:18952|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:axe-waiting-gcd|sl=39.37.19|lv=40|4596
