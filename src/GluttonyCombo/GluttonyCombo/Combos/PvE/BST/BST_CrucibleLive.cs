@@ -88,6 +88,9 @@ internal partial class BST
         if (enemy.IsCasting && BST_CrucibleData.KillTheCaster.Contains(enemy.CastActionId))
             return true;
 
+        if (RechargeStacksOf(enemy) > 0)
+            return true;
+
         return DispelArmed && CarriesDispellableBuff(enemy)
             && (DispelByCawOnly ? CawCanDispel(enemy) : Fn.GetTargetDistance(enemy) <= DispelReach);
     }
@@ -126,6 +129,16 @@ internal partial class BST
         return result;
     }
 
+    /// <summary> Recharge stacks on the enemy (a stack every 2 s on the one gorging; the status's Param low byte, and a status that reads 0 counts as one). </summary>
+    private static int RechargeStacksOf(IBattleChara enemy)
+    {
+        foreach (var status in enemy.StatusList)
+            if (status.StatusId == BST_CrucibleData.RechargeStatus)
+                return Math.Max(1, status.Param & 0xFF);
+
+        return 0;
+    }
+
     private static List<BST_CrucibleLogic.TargetCandidate> CrucibleCandidates(List<IBattleChara> targets)
     {
         var candidates = new List<BST_CrucibleLogic.TargetCandidate>(targets.Count);
@@ -154,7 +167,8 @@ internal partial class BST
                 t.IsCasting ? t.CastActionId : 0,
                 dispellable,
                 proven,
-                CrucibleForbidden(t)));
+                CrucibleForbidden(t),
+                RechargeStacksOf(t)));
         }
 
         return candidates;

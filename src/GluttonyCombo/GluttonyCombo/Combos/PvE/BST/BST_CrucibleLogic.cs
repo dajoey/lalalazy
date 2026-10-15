@@ -1425,19 +1425,34 @@ internal static class BST_CrucibleLogic
     public const float PairHoldMaxSeconds = 6f;
 
     /// <summary> The target is the lower of a final-blow pair, in the kill zone, with the partner alive and more than <see cref="PairFinalGap"/> above it. </summary>
-    public static bool PairFinalBlowRisk(in BST_RotationLogic.BstState s) => false;
+    public static bool PairFinalBlowRisk(in BST_RotationLogic.BstState s) =>
+        s.HasHostileTarget && s.PairPartnerSeen && BST_CrucibleData.FinalBlowPartner(s.TargetNameId) != 0
+        && s.TargetHpPercent <= PairKillZoneHp && s.PairPartnerHpPercent - s.TargetHpPercent > PairFinalGap;
 
     /// <summary> <see cref="PairFinalBlowRisk"/> and the hold has not yet run <see cref="PairHoldMaxSeconds"/>: decline the press. </summary>
-    public static bool PairFinalBlowHold(in BST_RotationLogic.BstState s) => false;
+    public static bool PairFinalBlowHold(in BST_RotationLogic.BstState s) =>
+        PairFinalBlowRisk(s) && s.PairGuardSeconds < PairHoldMaxSeconds;
 
     /// <summary> <see cref="PairFinalBlowRisk"/> for longer than <see cref="PairHoldMaxSeconds"/>: the hold released and says so. </summary>
-    public static bool PairFinalBlowTimedOut(in BST_RotationLogic.BstState s) => false;
+    public static bool PairFinalBlowTimedOut(in BST_RotationLogic.BstState s) =>
+        PairFinalBlowRisk(s) && s.PairGuardSeconds >= PairHoldMaxSeconds;
 
     /// <summary>
     ///     The guard's clock, one call per tick: while <paramref name="risk"/> holds without a break, the seconds since it began
     ///     (<paramref name="sinceMs"/> keeps the start, 0 when it is not running); a tick without the risk stops and clears it.
     /// </summary>
-    public static float TrackPairGuard(bool risk, ref long sinceMs, long nowMs) => 0f;
+    public static float TrackPairGuard(bool risk, ref long sinceMs, long nowMs)
+    {
+        if (!risk)
+        {
+            sinceMs = 0;
+            return 0f;
+        }
+
+        if (sinceMs == 0)
+            sinceMs = nowMs;
+        return (nowMs - sinceMs) / 1000f;
+    }
 
     /// <summary>
     ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos or damage-immune enemies;
@@ -1445,7 +1460,9 @@ internal static class BST_CrucibleLogic
     ///     the most dangerous documented tier (<see cref="BST_CrucibleData.PriorityAddOrder"/>) until it is dead, so a
     ///     wave is cleared in the guides' kill order instead of nearest-first (live 2026-09-26: the siren wave's
     ///     shamblings were attacked ~5 s before the crawling piece whose touch breaks Unbeastable); of a pair that must
-    ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart. With
+    ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart (the Second Board brothers: more than
+    ///     <see cref="PairFinalGap"/> once the lower is in the <see cref="PairKillZoneHp"/> kill zone). An enemy gorging on Recharge comes
+    ///     before the kill order. With
     ///     <paramref name="interruptArmed"/> (Soul Crush held and ready) an enemy casting something interruptible comes before
     ///     all of that: the cast is gone in seconds and the order resumes when it ends; a caster of a
     ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next, then (with <paramref name="dispelArmed"/>) the enemies
@@ -1478,6 +1495,14 @@ internal static class BST_CrucibleLogic
         if (killers.Count > 0)
             return killers;
 
+        // An enemy gorging on aether (Recharge: a stack every 2 s, the permanent Damage Up on the fifth, 8 to 10 s from the first stack):
+        // it dies before the Damage Up lands, the one with the most stacks first. A time-boxed race, so it comes before the kill order.
+        var topStacks = 0;
+        foreach (var i in allowed)
+            topStacks = Math.Max(topStacks, candidates[i].RechargeStacks);
+        if (topStacks > 0)
+            return allowed.FindAll(i => candidates[i].RechargeStacks == topStacks);
+
         // The dispel is armed (Quelling Wave held, or the vulture ready) and an enemy carries a dispellable buff: that enemy
         // before the kill order, stances included (the spikes are exactly what the dispel removes). The buff is gone in one
         // cast and the order resumes the moment it is, or when the dispel proves futile (the carrier then stops counting).
@@ -1493,7 +1518,8 @@ internal static class BST_CrucibleLogic
                 return carriers;
         }
 
-        var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
+        var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId)
+                                            || BST_CrucibleData.FastKillAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)
         {
             // Documented kill orders: of the members of one order that are up, only the first tier present stays
@@ -1525,7 +1551,10 @@ internal static class BST_CrucibleLogic
                 continue;
             var hpA = candidates[allowed[ia]].HpPercent;
             var hpB = candidates[allowed[ib]].HpPercent;
-            if (Math.Abs(hpA - hpB) > PairHpGap)
+            // Second Board elite brothers: once the lower one is in the kill zone the first kill waits until the other is within PairFinalGap
+            // (the recorded fights lost the first brother with the other 7 to 13 points up: the survivor gains a permanent Damage Up).
+            var margin = BST_CrucibleData.FinalBlowPartner(a) == b && Math.Min(hpA, hpB) <= PairKillZoneHp ? PairFinalGap : PairHpGap;
+            if (Math.Abs(hpA - hpB) > margin)
                 allowed.RemoveAt(hpA < hpB ? ia : ib);
         }
 

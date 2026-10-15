@@ -270,7 +270,7 @@ internal static partial class BST_CrucibleData
     ///     exactly): they join it for targeting. Seedling Piece 14600 (First Master's, the Morbol fight): "kill them, the poison is not
     ///     worth leaving up".
     /// </summary>
-    public static readonly HashSet<uint> FastKillAdds = [];
+    public static readonly HashSet<uint> FastKillAdds = [14600];
 
     /// <summary>
     ///     Hard hits on the character (or the highest-enmity target) that a familiar with enough HP can take under Snarl: castbar
@@ -405,10 +405,11 @@ internal static partial class BST_CrucibleData
 
     /// <summary>
     ///     Casts whose caster is killed while it casts, because the guide's answer to them is "kill it before the cast ends": the Bone Bishop's
-    ///     Soul Douse (50693: "kill the casting Bishop within 5 s") and the Deepeye's Oogle (49214: "kill the Deepeye during the cast").
+    ///     Soul Douse (50693: "kill the casting Bishop within 5 s"), the Deepeye's Oogle (49214: "kill the Deepeye during the cast") and the
+    ///     Devilet's Void Fire III (48222: a 10 s room-wide cast, "open on the Devilet so it never casts"; 13 casts in the one recorded run).
     ///     A candidate casting one of these is the target before any other (an armed interrupt still comes first).
     /// </summary>
-    public static readonly HashSet<uint> KillTheCaster = [50693, 49214];
+    public static readonly HashSet<uint> KillTheCaster = [50693, 49214, 48222];
 
     private static Dictionary<uint, (int Wave, int Tier)[]>? _priorityAddRanks;
 

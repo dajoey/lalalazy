@@ -41,6 +41,7 @@ internal partial class BST
     private static int _lastLivePetRow;
     private static bool _shellWasUp;
     private static long _shellBrokeTick;
+    private static long _pairGuardSince;
 
     /// <summary> Heal-potion actions whose press did not land (a stale-stock race), and the tick they are refused until. </summary>
     private static readonly Dictionary<uint, long> RefusedHealPotions = [];
@@ -426,6 +427,7 @@ internal partial class BST
             _lastLivePetRow = 0;
             _shellWasUp = false;
             _shellBrokeTick = 0;
+            _pairGuardSince = 0;
             _needleId = 0;
             _needleTurnTick = 0;
             _hourglassId = 0;
@@ -467,10 +469,20 @@ internal partial class BST
         ProtectedScratch.Clear();
         IGameObject? needle = null;
         ulong hourglassId = 0;
+        var pairPartner = target is null ? 0u : BST_CrucibleData.FinalBlowPartner(target.NameId);
+        var pairPartnerSeen = false;
+        var pairPartnerHp = 0f;
         foreach (var obj in Svc.Objects)
         {
             if (needle is null && obj.BaseId == BST_CrucibleLogic.NeedleBaseId)
                 needle = obj;
+
+            // The target's brother, alive even when it cannot be targeted now (the Tablitaur pair goes untargetable in turn).
+            if (pairPartner != 0 && obj is IBattleNpc mate && mate.NameId == pairPartner && !mate.IsDead && mate.CurrentHp > 0 && mate.IsHostile())
+            {
+                pairPartnerSeen = true;
+                pairPartnerHp = mate.MaxHp == 0 ? 0f : 100f * mate.CurrentHp / mate.MaxHp;
+            }
 
             if (obj is not IBattleNpc npc || npc.IsDead || !npc.IsTargetable || npc.CurrentHp == 0 || !npc.IsHostile())
                 continue;
@@ -711,6 +723,10 @@ internal partial class BST
                     _parryTargetId = 0;
             }
         }
+
+        s.PairPartnerSeen = pairPartnerSeen;
+        s.PairPartnerHpPercent = pairPartnerHp;
+        s.PairGuardSeconds = BST_CrucibleLogic.TrackPairGuard(BST_CrucibleLogic.PairFinalBlowRisk(s), ref _pairGuardSince, now);
 
         TrackDispels(target, now);
 

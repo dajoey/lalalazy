@@ -676,7 +676,12 @@ internal static class BST_RotationLogic
             // Directional parry facing player: holding prevents spamming 0-damage frontal attacks.
             var parryFacingPlayer = ParryFacingPlayer(s);
             var needleHold = BST_CrucibleLogic.HourglassNeedleHold(s);
-            if (s.HasHostileTarget && (s.TargetDoNotAttack || needleHold || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
+            // The lower of the Second Board brothers, in the kill zone, with the other alive but out of reach: the first kill waits for the
+            // partner, for at most PairHoldMaxSeconds; the release says so in the decision.
+            var pairHold = BST_CrucibleLogic.PairFinalBlowHold(s);
+            if (BST_CrucibleLogic.PairFinalBlowTimedOut(s))
+                declines.Add("crucible:pair-final-blow-timeout");
+            if (s.HasHostileTarget && (s.TargetDoNotAttack || needleHold || pairHold || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
             {
                 var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer
                                   && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
@@ -691,6 +696,7 @@ internal static class BST_RotationLogic
                         : needleHold ? "crucible:hold-hourglass-needle"
                         : s.TargetInStance ? "crucible:hold-stance"
                         : s.TargetInvulnerable ? "crucible:hold-invulnerable"
+                        : pairHold ? "crucible:hold-pair-final-blow"
                         : "crucible:hold-parry");
                 }
                 declines.Add("crucible:stance-break-no-familiar");
