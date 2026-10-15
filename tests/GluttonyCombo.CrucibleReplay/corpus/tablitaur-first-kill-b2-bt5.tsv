@@ -6,7 +6,7 @@
 #piece=Second Board elite: Elder + Younger Tablitaur (board 2 battle 5, targets 14555/14556)
 #tags=pair,final-blow,kill-together
 #note=the Younger dies at 1 percent with the Elder at 13 (02:16:39Z), Disorienting Groan chain follows (48214 at 02:16:44Z)
-#expect.head=31
+#expect.head=32
 2026-09-25T02:16:17.561Z	BT|1790302577561|749c90000000005308|0|0|0|83|pet=none|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:summon-moving|sl=33.32.31|lv=40|4606
 2026-09-25T02:16:21.875Z	BT|1790302581875|819c90000000005308|0|0|0|83|pet=none|bm=44900|av=44884|dec=44883:gcdchain|fd=crucible:summon-moving|sl=33.32.31|lv=40|4606
 2026-09-25T02:16:21.884Z	CR|1790302581884|b=2|bt=5|nd=ID|ne=1|hi=27|t=14556:24|c=0:0.0|f=yc|hp=51|pet=0|sl=97.97.51|dec=44883:gcdchain|sh=|ttd=63|in=0|vul=0|xp=0

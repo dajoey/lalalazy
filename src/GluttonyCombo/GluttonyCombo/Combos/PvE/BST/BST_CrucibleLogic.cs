@@ -1421,8 +1421,13 @@ internal static class BST_CrucibleLogic
     /// <summary> In the kill zone the lower member is left alone while the other is more than this many HP % above it. </summary>
     public const float PairFinalGap = 4f;
 
-    /// <summary> The final-blow hold ends after this long (seconds) with the partner still out of reach; the fight never waits longer. </summary>
-    public const float PairHoldMaxSeconds = 6f;
+    /// <summary>
+    ///     The final-blow hold ends after this long (seconds) with the partner still out of reach; the fight never waits longer. Short on purpose:
+    ///     a contestable hold second counts twice against the Standard bar's 5 percent allowance, and in the six recorded fights the brother was out of
+    ///     reach for 17 to 21 s while the other sat in the kill zone, so 6 s per episode would have spent up to 7.8 s of a 127 s fight (6.1 percent)
+    ///     where 3 s spends at most 4.8 s (3.8 percent). The retarget to the healthier brother is the protection; this only skips the lethal press.
+    /// </summary>
+    public const float PairHoldMaxSeconds = 3f;
 
     /// <summary> The target is the lower of a final-blow pair, in the kill zone, with the partner alive and more than <see cref="PairFinalGap"/> above it. </summary>
     public static bool PairFinalBlowRisk(in BST_RotationLogic.BstState s) =>
