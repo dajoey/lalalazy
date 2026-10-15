@@ -1479,7 +1479,9 @@ internal static class BST_CrucibleLogic
     ///     of the other element"). Right after the club changes nothing is held back until new gels spawn (<paramref name="gelsSinceClub"/>, BMR's
     ///     weaponRecentlyChanged); the small gels are never held back.
     /// </summary>
-    public static bool ConditionallyForbidden(uint nameId, uint baseId, bool morphoAlive, uint clubElement, bool gelsSinceClub)
+    public const float AbaddonHeldFloorPercent = 35f;
+
+    public static bool ConditionallyForbidden(uint nameId, uint baseId, bool morphoAlive, uint clubElement, bool gelsSinceClub, float hpPercent = 0f)
     {
         if (nameId == BST_CrucibleData.AbaddonNameId)
             return morphoAlive;

@@ -54,6 +54,7 @@ internal static class Program
         OptionalRecallHeldForTankbuster();
         CruxLane();
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
+        AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -3122,6 +3123,68 @@ internal static class Program
     }
 
     // ================================================================== core lane 2026-10-13 (every title starts "core:")
+
+    /// <summary>
+    ///     The Abaddon piece (board 5, battle 5), replayed from the 2026-10-14 20:54:57 to 20:56:20 ET window: 83 seconds of
+    ///     <c>crucible:hold-do-not-attack</c> on the Abaddon (NameId 14655, 98-100% HP) with a Morpho alive and nothing else to hit
+    ///     (CR| ne=1). The Morpho is never attacked, so the Abaddon's own "held back while any Morpho lives" rule left no legal target
+    ///     until the last Morpho was gone. The Abaddon stays attackable down to <see cref="BST_CrucibleLogic.AbaddonHeldFloorPercent"/>:
+    ///     it is chipped, never killed ahead of the Morphos.
+    /// </summary>
+    private static void AbaddonHoldLane20261015()
+    {
+        var cfg = BstSettings.Defaults();
+        const uint abaddonId = 14655, drakeId = 14651;
+        bool Forbidden(float hp, bool morphoAlive = true) => BST_CrucibleLogic.ConditionallyForbidden(abaddonId, 0, morphoAlive, 0, false, hp);
+        BST_CrucibleLogic.TargetCandidate Candidate(uint nameId, float hp) =>
+            new(nameId, hp, false, Forbidden: nameId == abaddonId && Forbidden(hp));
+        List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
+
+        Check("abaddon-hold: a Morpho alive, the Abaddon at 100%: attackable (the floor is 35%)", !Forbidden(100f));
+        Check("abaddon-hold: ... at 98% and at 60%: attackable", !Forbidden(98f) && !Forbidden(60f));
+        Check("abaddon-hold: ... just above the floor (35.1%): attackable", !Forbidden(35.1f));
+        Check("abaddon-hold: ... at the floor (35%) and below: held back, the Abaddon is not killed ahead of the Morphos", Forbidden(35f) && Forbidden(20f) && Forbidden(1f));
+        Check("abaddon-hold: ... no HP reading (0%): held back", Forbidden(0f));
+        Check("abaddon-hold: every Morpho gone: attackable at any HP", !Forbidden(100f, false) && !Forbidden(10f, false) && !Forbidden(0f, false));
+        Check("abaddon-hold: the floor sits between 0 and 100", BST_CrucibleLogic.AbaddonHeldFloorPercent is > 0f and < 100f);
+        Check("abaddon-hold: the Abaddon never passed to the rule as another enemy: the drake and the barbmole are not held",
+            !BST_CrucibleLogic.ConditionallyForbidden(drakeId, 0, true, 0, false, 100f) && !BST_CrucibleLogic.ConditionallyForbidden(14653, 0, true, 0, false, 100f));
+
+        // Target picking: the Abaddon alone with a Morpho alive was an empty list (nothing to pick).
+        Check("abaddon-hold: auto-targeting, the Abaddon alone at 100% with a Morpho alive: it is picked",
+            Allowed(Candidate(abaddonId, 100f)).SequenceEqual(new[] { 0 }));
+        Check("abaddon-hold: ... at the floor: nothing to pick (held)", Allowed(Candidate(abaddonId, 30f)).Count == 0);
+        Check("abaddon-hold: ... the drake (priority order puts it first) is still picked ahead of the Abaddon",
+            Allowed(Candidate(abaddonId, 100f), Candidate(drakeId, 100f)).SequenceEqual(new[] { 1 }));
+
+        // The decision path, replayed from the CR| line at 20:54:57.132 ET: board 5 battle 5, the Abaddon targeted at 100%, the character
+        // at 64%, the familiar at 100%, a GCD ready. The state's TargetDoNotAttack is what the reader derives from the rule.
+        var live = CrucibleState(50) with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(5, 5), EnemyCount = 1,
+            HasHostileTarget = true, TargetNameId = abaddonId, TargetHpPercent = 100f, HighestEnemyHpPercent = 100f,
+            PlayerHpPercent = 64f, PetHpPercent = 100f, GcdReady = true, CanWeave = false, ProtectedNearTarget = true,
+        };
+        var morphoAliveAtFull = live with { TargetDoNotAttack = Forbidden(100f) };
+        var d = Decide(morphoAliveAtFull, cfg);
+        Check("abaddon-hold: replay 20:54:57 ET, Abaddon at 100% with a Morpho alive: the rotation attacks it (no hold)",
+            d.Reason != "crucible:hold-do-not-attack" && d.ActionId != BST_CrucibleLogic.Hold, $"{d.ActionId} {d.Reason} [{d.Declines}]");
+        Check("abaddon-hold: ... the attack is the weaponskill chain", d.ActionId is BST.SmashAxe or BST.AxebladeBite or BST.Shieldsplitter, $"{d.ActionId} {d.Reason}");
+        var atFloor = live with { TargetHpPercent = 30f, TargetDoNotAttack = Forbidden(30f) };
+        Check("abaddon-hold: replay, the Abaddon chipped to 30% with a Morpho still alive: held back",
+            Decide(atFloor, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-do-not-attack" });
+        Check("abaddon-hold: replay 20:56:20 ET, the last Morpho gone (flag cleared), the Abaddon at 100%: the rotation attacks it",
+            Decide(live with { ProtectedNearTarget = false, TargetDoNotAttack = Forbidden(100f, false) }, cfg).ActionId != BST_CrucibleLogic.Hold);
+        Check("abaddon-hold: a Morpho targeted itself stays held (the table, not the Abaddon rule)",
+            Decide(live with { TargetNameId = 14656, TargetDoNotAttack = true }, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-do-not-attack" });
+
+        // The reader hands the rule the target's own HP: a rule that ignored it would behave as the 1.0.4.304 reader did.
+        var reader = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
+        var m = System.Text.RegularExpressions.Regex.Match(reader, @"internal static bool CrucibleForbidden\(IBattleChara enemy\)\s*=>(?<body>[^;]*);");
+        Check("abaddon-hold: the live reader passes the enemy's HP percent into the rule",
+            m.Success && m.Groups["body"].Value.Contains("CurrentHp", StringComparison.Ordinal) && m.Groups["body"].Value.Contains("MaxHp", StringComparison.Ordinal),
+            m.Success ? m.Groups["body"].Value.Trim() : "CrucibleForbidden not found");
+    }
 
     private static void CoreLane20261013()
     {
