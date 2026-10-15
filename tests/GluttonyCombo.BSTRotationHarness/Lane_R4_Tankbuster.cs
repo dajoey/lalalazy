@@ -223,5 +223,24 @@ internal static partial class Program
         };
         Check("r4-tankbuster: 4.4-07 Cauterize, 1.0 s left (the whole cast sits inside the 2.5 s lead): Vileskin",
             Decide(dragon, on) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin-knockback" }, Decide(dragon, on).Reason);
+
+        // ---- 4.5 Fivefold Fallout 48724 (First Master's battle 5, Gargoyle Piece): the castbar id; the damage arrives
+        // under hit id 48725 (the same helper's 20 y knockback row). 409 casts, 0 direct damage on 48724; 48725 hit the
+        // character 124 times (max 620) and familiars 76 times (Sabotender 645, Bat 627, Diremite 580). Hit lands 0.3 s
+        // after the castbar (measured 0.23-0.26).
+        var fivefold = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 5, TargetCastId = 48724, TargetCastRemaining = 2.5f,
+            ReadySnarl = true, PetHp = 900f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, a 900 HP familiar at Standard (645 x 1.25 = 806): Snarl covers it",
+            Decide(At(fivefold, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(fivefold, CrucibleDegree.Standard), on).Reason);
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, First Degree (645 x 2.0 x 1.25 = 1613), a 1,700 HP familiar: cover",
+            Decide(At(fivefold with { PetHp = 1700f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(fivefold with { PetHp = 1700f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, degree unread (645 x 2.0 = 1290), a 1,400 HP familiar: cover",
+            Decide(fivefold with { PetHp = 1400f }, on).Reason == "aggro:snarl-tankbuster",
+            Decide(fivefold with { PetHp = 1400f }, on).Reason);
     }
 }
