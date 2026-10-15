@@ -69,5 +69,22 @@ internal static partial class Program
         Check("r4-tankbuster: 2.5-04 100-tonze Slash, degree unread, a 1,200 HP familiar (under 1228): no cover",
             Decide(tonze with { PetHp = 1200f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
             Decide(tonze with { PetHp = 1200f, PetHpPercent = 80f }, on).Reason);
+
+        // ---- 3.1-08a Crushing Blade 48471 (Third Board battle 1, the cavalier; also the 15 y knockback cast): measured
+        // 455 on the character in 88 of 88 hits, never once on a familiar. Registered with no measured row, so the cover
+        // never arms (the logs saw 50 castbars and 0 snarl decisions). The cover arms on the documented estimate.
+        var blade = CrucibleState() with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 1, TargetCastId = 48471, TargetCastRemaining = 3f,
+            ReadySnarl = true, PetHp = 3492f, PetHpPercent = 100f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, a 3,492 HP familiar at Standard (estimate 751 x 1.25 = 939): Snarl covers it",
+            Decide(blade, on).Reason == "aggro:snarl-tankbuster", Decide(blade, on).Reason);
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, First Degree (751 x 2.0 x 1.25 = 1878), a 2,000 HP familiar: cover",
+            Decide(At(blade with { PetHp = 2000f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(blade with { PetHp = 2000f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 3.1-08a Crushing Blade, degree unread (751 x 2.0 = 1502), a 1,600 HP familiar: cover",
+            Decide(blade with { PetHp = 1600f, PetHpPercent = 80f }, on).Reason == "aggro:snarl-tankbuster",
+            Decide(blade with { PetHp = 1600f, PetHpPercent = 80f }, on).Reason);
     }
 }
