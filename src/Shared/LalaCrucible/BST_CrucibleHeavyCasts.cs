@@ -121,6 +121,8 @@ internal static partial class BST_CrucibleData
             "Devilet Piece, battle 6 (R4 row 2.6-06): a 10 s room-wide cast the plugin answers by killing the caster (KillTheCaster). 13 casts in the one recorded run, 6 hit: the character 66 once, familiars 65-263 (Worm max 263). HitDelay not measured (Boards 1-3 stay 0); the cast is also the battle's kill-the-caster target."),
         new(48690, "Rotten Stench", 4, 3, 5.7f, -0.5f, CrucibleHitKind.PartyWide, 773, 534, 13, 8, false,
             "Corpse Flower Piece, hit id 48691: character and familiar hit in the same burst in 6 of 8 bursts."),
+        new(48724, "Fivefold Fallout", 4, 5, 3.0f, 0.3f, CrucibleHitKind.Tankbuster, 620, 645, 409, 124, false,
+            "Gargoyle Piece, battle 5 (R4 row 4.5). The castbar id; the damage arrives under hit id 48725 (the same helper's 20 y knockback cast, already in CrucibleKnockbacks): 409 casts with no direct 48724 damage, 48725 hit the character 124 times (max 620) and familiars 76 times (Sabotender 645, Bat 627, Diremite 580). Hit lands 0.3 s after the castbar (measured 0.23-0.26 on three cast-end pairs; BMR models the helper cast at 3.0 s, the largest plugin remaining seen was 2.7)."),
         new(49272, "Atomic Ray", 5, 6, 12.7f, 0.3f, CrucibleHitKind.CastOnly, 4782, 0, 2, 2, true,
             "Durga Piece. Both casts began while the familiar held enmity and both hit the CHARACTER for 3,998 and 4,782 (max HP about 4,060); the character died twice in one visit."),
         new(48721, "Rippling Evisceration", 4, 5, 7.7f, 0.3f, CrucibleHitKind.Positional, 1244, 0, 22, 1, false,
