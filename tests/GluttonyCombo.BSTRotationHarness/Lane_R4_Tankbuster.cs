@@ -167,5 +167,23 @@ internal static partial class Program
         Check("r4-tankbuster: 5.5-06 Mangling Fang, First Degree, a 1,700 HP familiar (under 1728): no cover",
             Decide(At(fang with { PetHp = 1700f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
             Decide(At(fang with { PetHp = 1700f }, CrucibleDegree.First), on).Reason);
+
+        // ---- 2.0-07 Goblin Rush 48517 (Second Board battle 7, Loosefrox Inkyjots 14561; guide 5.0 s cast): 0 recorded
+        // rows - Chewchum died first in every logged pull. Registered with the estimate basis from the same board's
+        // measured tankbusters (100-tonze Slash 549 x 1.65 = 906).
+        var rush = CrucibleState() with
+        {
+            CrucibleBoard = 2, CrucibleBattle = 7, TargetCastId = 48517, TargetCastRemaining = 4f,
+            ReadySnarl = true, PetHp = 1200f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 2.0-07 Goblin Rush, a 1,200 HP familiar at Standard (estimate 906 x 1.25 = 1133): Snarl covers it",
+            Decide(At(rush, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(rush, CrucibleDegree.Standard), on).Reason);
+        Check("r4-tankbuster: 2.0-07 Goblin Rush, First Degree (906 x 2.0 x 1.25 = 2265), a 2,400 HP familiar: cover",
+            Decide(At(rush with { PetHp = 2400f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(rush with { PetHp = 2400f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 2.0-07 Goblin Rush, degree unread (906 x 2.0 = 1812), a 1,900 HP familiar: cover",
+            Decide(rush with { PetHp = 1900f }, on).Reason == "aggro:snarl-tankbuster",
+            Decide(rush with { PetHp = 1900f }, on).Reason);
     }
 }
