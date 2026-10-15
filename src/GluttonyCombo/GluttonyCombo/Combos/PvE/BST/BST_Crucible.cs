@@ -209,7 +209,7 @@ internal partial class BST
     /// <summary> Gigantis Piece (Second Master's battle 10), whose status 2056 names the club's element. </summary>
     private const uint GigantisNameId = 14670;
 
-    /// <summary> A Morpho lives on the field (the Abaddon is held back while one does), as last read. </summary>
+    /// <summary> A Morpho lives on the field (the Abaddon is held back at or below its HP floor while one does), as last read. </summary>
     internal static bool MorphoAlive;
 
     /// <summary> The Gigantis club's element (status 2056's param: 0x499 lightning, 0x49A fire), 0 while none is known or no Gigantis is up. </summary>
@@ -223,7 +223,8 @@ internal partial class BST
 
     /// <summary> Held back now though attackable some of the time (<see cref="BST_CrucibleLogic.ConditionallyForbidden"/>), with the context last read. </summary>
     internal static bool CrucibleForbidden(IBattleChara enemy) =>
-        BST_CrucibleLogic.ConditionallyForbidden(enemy.NameId, enemy.BaseId, MorphoAlive, ClubElement, GelsSinceClub);
+        BST_CrucibleLogic.ConditionallyForbidden(enemy.NameId, enemy.BaseId, MorphoAlive, ClubElement, GelsSinceClub,
+            enemy.MaxHp == 0 ? 0f : 100f * enemy.CurrentHp / enemy.MaxHp);
 
     /// <summary> The last shed-eligible cast (<see cref="BST_CrucibleData.PoisonShedCasts"/>) seen on any enemy's castbar, and when. </summary>
     private static uint _shedCastId;
@@ -447,7 +448,7 @@ internal partial class BST
 
         s.BattleHasKnockback = BST_CrucibleData.KnockbackBattles.Contains((s.CrucibleBoard, s.CrucibleBattle));
 
-        // Attackable some of the time, held back now: the Abaddon while a Morpho lives, the Gigantis gel saved for the bait.
+        // Attackable some of the time, held back now: the Abaddon at its HP floor while a Morpho lives, the Gigantis gel saved for the bait.
         MorphoAlive = morphoAlive;
         TrackClub(gigantisUp, club, newGel);
         if (target is not null && CrucibleForbidden(target))

@@ -1471,20 +1471,27 @@ internal static class BST_CrucibleLogic
     }
 
     /// <summary>
-    ///     An enemy that is attackable only some of the time, held back now: the Abaddon while any Morpho lives (it eats them; BMR DrakePiece.cs
-    ///     CalculateModuleAIHints: Abaddon PriorityForbidden while a Morpho is alive; the guide: "Abaddon last, after every Morpho is eaten"), and
+    ///     The Abaddon is chipped down to this HP percent while a Morpho lives and held back from there, so it is never killed ahead of the
+    ///     Morphos it feeds on. Held back at any HP the whole time, the rotation had no legal target for as long as a Morpho lived (83 s in the
+    ///     recorded Abaddon fight, the Morphos themselves being do-not-attack): no damage and no aggro for the whole wait.
+    /// </summary>
+    public const float AbaddonHeldFloorPercent = 35f;
+
+    /// <summary>
+    ///     An enemy that is attackable only some of the time, held back now: the Abaddon while any Morpho lives and its HP is at or below
+    ///     <see cref="AbaddonHeldFloorPercent"/> (it eats them; BMR DrakePiece.cs CalculateModuleAIHints: Abaddon PriorityForbidden while a Morpho is
+    ///     alive; the guide: "Abaddon last, after every Morpho is eaten" - above the floor it takes chip damage, what the guide's "take its aggro" asks
+    ///     for, and is still never the last enemy standing), and
     ///     the big Gigantis gel of the OTHER element than the club's (<paramref name="clubElement"/>, status 2056's param), which is saved for the
     ///     Smashing Stamp bait while the gel matching the club is killed (BMR GigantisPiece.cs SlimePriority: a lightning club forbids
     ///     Congealed Kindling, a fire club Congealed Lightning; the guide: "Cyclops, then the gel you are not crushing", "aim the line through a gel
     ///     of the other element"). Right after the club changes nothing is held back until new gels spawn (<paramref name="gelsSinceClub"/>, BMR's
-    ///     weaponRecentlyChanged); the small gels are never held back.
+    ///     weaponRecentlyChanged); the small gels are never held back. <paramref name="hpPercent"/> is the enemy's own HP percent (0 when unread).
     /// </summary>
-    public const float AbaddonHeldFloorPercent = 35f;
-
     public static bool ConditionallyForbidden(uint nameId, uint baseId, bool morphoAlive, uint clubElement, bool gelsSinceClub, float hpPercent = 0f)
     {
         if (nameId == BST_CrucibleData.AbaddonNameId)
-            return morphoAlive;
+            return morphoAlive && hpPercent <= AbaddonHeldFloorPercent;
         if (!gelsSinceClub)
             return false;
         return (baseId, clubElement) switch
