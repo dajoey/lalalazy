@@ -20,7 +20,7 @@ internal static partial class Program
 
         // ---- 2.1-02 Deadly Hold 48138 (Second Board battle 1): measured 206 on the character, 227 on a familiar (Diremite).
         // The cast IS registered but FamiliarCanTakeTankbuster answers false without a measured MaxOnFamiliar row, so
-        // tankbusterSetUp never arms. Cover at Standard, First Degree and unread degree once the row exists.
+        // tankbusterSetUp never arms. Cover at Standard, First Degree and unread degree; no cover under the gate.
         var hold = CrucibleState() with
         {
             CrucibleBoard = 2, CrucibleBattle = 1, TargetCastId = 48138, TargetCastRemaining = 3f,
@@ -29,10 +29,19 @@ internal static partial class Program
         Check("r4-tankbuster: 2.1-02 Deadly Hold, a 3,492 HP familiar at Standard (227 x 1.25 = 284): Snarl covers it",
             Decide(hold, on).Reason == "aggro:snarl-tankbuster", Decide(hold, on).Reason);
         Check("r4-tankbuster: 2.1-02 Deadly Hold, First Degree (227 x 2.0 x 1.25 = 568), a 600 HP familiar: cover",
-            Decide(At(hold with { PetHp = 600f, PetHpPercent = 18f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
-            Decide(At(hold with { PetHp = 600f, PetHpPercent = 18f }, CrucibleDegree.First), on).Reason);
+            Decide(At(hold with { PetHp = 600f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(hold with { PetHp = 600f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
         Check("r4-tankbuster: 2.1-02 Deadly Hold, degree unread (margin 2.0 -> 227 x 2.0 = 454), a 460 HP familiar: cover",
-            Decide(hold with { PetHp = 460f, PetHpPercent = 14f }, on).Reason == "aggro:snarl-tankbuster",
-            Decide(hold with { PetHp = 460f, PetHpPercent = 14f }, on).Reason);
+            Decide(hold with { PetHp = 460f, PetHpPercent = 80f }, on).Reason == "aggro:snarl-tankbuster",
+            Decide(hold with { PetHp = 460f, PetHpPercent = 80f }, on).Reason);
+        Check("r4-tankbuster: 2.1-02 Deadly Hold, a 270 HP familiar at Standard (under 284): no cover",
+            Decide(hold with { PetHp = 270f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(hold with { PetHp = 270f, PetHpPercent = 80f }, on).Reason);
+        Check("r4-tankbuster: 2.1-02 Deadly Hold, First Degree, a 500 HP familiar (under 568): no cover",
+            Decide(At(hold with { PetHp = 500f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(hold with { PetHp = 500f, PetHpPercent = 80f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 2.1-02 Deadly Hold, degree unread, a 400 HP familiar (under 454): no cover",
+            Decide(hold with { PetHp = 400f, PetHpPercent = 80f }, on).Reason != "aggro:snarl-tankbuster",
+            Decide(hold with { PetHp = 400f, PetHpPercent = 80f }, on).Reason);
     }
 }

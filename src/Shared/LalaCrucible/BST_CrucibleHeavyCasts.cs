@@ -2,10 +2,13 @@ using System.Collections.Generic;
 
 namespace Lalalazy.Crucible;
 
-// First / Second Master's Board heavy casts, MEASURED from the recorded runs of 2026-09-26 .. 09-30 (the plugin's CR|
-// telemetry, the IINACT network logs and ffxivdb action events; 30 heavy hits across 10 of the 24 battles). Pure data,
+// First / Second Master's Board heavy casts, MEASURED from the recorded runs (the plugin's CR|
+// telemetry, the IINACT network logs and ffxivdb action events; the Master's Board rows from the 2026-09-26 .. 09-30 runs,
+// the Second/Third Board tankbuster rows re-derived 2026-10-15 over the 09-21 .. 10-14 action events). Pure data,
 // shared SOURCE (GluttonyCombo + LazyCrucible + both harnesses). Nothing here is a guide number: a battle that was never
 // fought in those runs is absent from <see cref="BST_CrucibleData.MeasuredBattles"/> and its casts stay guide-derived.
+// Cast SECONDS for the Second/Third Board rows come from the 7.56 sheet and crucible-bindings (the plugin logged no c= castbar
+// for those ids in the database window); every hit number on them is measured.
 
 /// <summary> What a heavy cast does to whoever it hits, as the logs show it. </summary>
 public enum CrucibleHitKind : byte
@@ -51,14 +54,16 @@ public readonly record struct CrucibleHeavyCast(
 internal static partial class BST_CrucibleData
 {
     /// <summary>
-    ///     Battles fought in the recorded runs (board 4 = First Master's, 5 = Second Master's; battle 0 is the boss). A cast of any other
-    ///     battle in these two boards has no measurement behind it: guide-derived at best.
+    ///     Battles fought in the recorded runs (board 4 = First Master's, 5 = Second Master's; 2026-10-15: the Second/Third Board
+    ///     battles whose tankbusters got measured rows; battle 0 is the boss). A cast of any other battle has no measurement behind
+    ///     it: guide-derived at best.
     /// </summary>
     public static readonly HashSet<(int Board, int Battle)> MeasuredBattles =
     [
         (4, 0), (4, 1), (4, 3), (4, 5), (4, 7), (4, 8),
         (5, 1), (5, 3), (5, 5), (5, 6),
         (3, 2),   // r4-third2: Third Board battle 2 (Ymir / Sahagin), 51 recorded runs: the Dreadwash row below
+        (2, 1),
     ];
 
     /// <summary> Whether a battle of the two Master's Boards was actually fought in the recorded runs. </summary>
@@ -91,6 +96,9 @@ internal static partial class BST_CrucibleData
         // ---- Third Board, battle 2 (r4-third2) ----------------------------------------------------------------------------------
         new(48485, "Dreadwash", 3, 2, 8.0f, 0.0f, CrucibleHitKind.Tankbuster, 910, 948, 87, 64, false,
             "Sahagin Piece, ffxivdb 2026-09-24 to 2026-10-07: 87 cast starts, 64 effects 7.96-8.00 s after the start (lands at the castbar's end). Each completed cast hit one target, the enmity holder: 33 on the character (479-910), 31 on a familiar (424-948). Hysteria (296) followed 28 of the 33 character hits."),
+        // ---- Second Board, single-target casts that follow the enmity holder ----------------------------------------------------
+        new(48138, "Deadly Hold", 2, 1, 5.0f, 0f, CrucibleHitKind.Tankbuster, 206, 227, 52, 24, false,
+            "Battle-1 manticore trash (R4 row 2.1-02). Cast 5.0 s (7.56 sheet, crucible-bindings C2); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 52 rows, 24 with damage; character max 206 (20 hits), familiars Diremite 227, Colibri 226, Treant 206, Puk 189."),
 
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,
