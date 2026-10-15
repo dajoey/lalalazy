@@ -88,6 +88,37 @@ canary abaddon-idle-hold tick 1792025697132: TargetDoNotAttack true -> false
   canary: decision flipped, as designed
 ```
 
+## First Degree windows and the degree comparison (round 4)
+
+Ten recorded First Master's Board windows (`corpus/firstdegree-*.tsv`: encounters 3241-3257 on 2026-10-14 from ffxivdb, build 1.0.4.302, `dg=1` on every `CR|` line;
+encounter 2472 from the 2026-10-06 capture, build 1.0.4.288, `dg=x`: the plugin had not read the degree, kept as the unread-degree control). The replayer
+rebuilds `CrucibleDegreeKnown` / `CrucibleDegreeLevel` from the `dg=` letter (`Rebuilder.Rebuild`), so the real `Decide` sees the degree the plugin saw.
+The window line prints the reproduced share and the insensitive share (`exact = insensitive`: reproduced AND no sampled completion of the gap fields changes it).
+
+After each window with a degree letter the replay decides every tick twice, with the degree from its `dg=` letter and with the degree forced to Standard
+(`DegreeCompare.cs`). The guard and the cover rule read absolute HP, which the lines do not carry, so the comparison reports two things: the *realistic*
+completion (character max HP 4,060 and a 3,492 HP familiar, scaled by the logged percentages, every other gap field at its baseline: a claim about the code)
+and *any sampled completion* (an HP grid plus 64 random completions of every gap field: shows the scale can matter on that tick, not that it did).
+The `degree what-if` line forces Second and Third on the same recorded states and counts what the Second / Third guard scales change.
+
+| window | piece | ticks | reproduced | insensitive | dg= differs from Standard (realistic / any sampled) |
+|---|---|---|---|---|---|
+| `firstdegree-2472-sapling` | Sapling (dg=x) | 417 | 379 (90.9%) | 2 (0.5%) | not run: degree unread |
+| `firstdegree-3241-sapling` | Sapling | 277 | 242 (87.4%) | 2 (0.7%) | 0 / 0 |
+| `firstdegree-3245-gargoyle` | Gargoyle | 245 | 204 (83.3%) | 0 (0.0%) | 2 / 3 |
+| `firstdegree-3247-treant` | Treant | 216 | 195 (90.3%) | 1 (0.5%) | 0 / 0 |
+| `firstdegree-3249-corpse-flower` | Corpse Flower | 254 | 212 (83.5%) | 0 (0.0%) | 0 / 11 |
+| `firstdegree-3251-treant` | Treant | 251 | 208 (82.9%) | 3 (1.2%) | 0 / 0 |
+| `firstdegree-3252-treant` | Treant | 230 | 210 (91.3%) | 2 (0.9%) | 0 / 0 |
+| `firstdegree-3254-queen-hawk` | Queen Hawk | 242 | 213 (88.0%) | 0 (0.0%) | 0 / 11 |
+| `firstdegree-3255-corpse-flower` | Corpse Flower | 202 | 181 (89.6%) | 0 (0.0%) | 0 / 8 |
+| `firstdegree-3257-corpse-flower` | Corpse Flower | 323 | 260 (80.5%) | 0 (0.0%) | 0 / 19 |
+
+The insensitive share is low because no tick has every decision-critical field rebuilt (above): these windows show the recorded decision is *reachable*, not that
+nothing else was. The one place the degree changes a decision on the realistic completion is Sweeping Evisceration (cast 48717) in the Gargoyle window: with
+`dg=1` the replay does not press the cover Snarl (the familiar cannot take 2 x the recorded 2,021 with the 1.25 margin), as the plugin recorded; forced to Standard
+the same state presses it (`aggro:snarl-tankbuster`). Rotten Stench (Corpse Flower) and the other windows would differ only if the character was under 33% HP.
+
 ## Adding a window
 
 ```

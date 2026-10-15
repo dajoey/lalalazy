@@ -67,6 +67,7 @@ internal static class Program
         Console.WriteLine($"Crucible replay: real BST_RotationLogic.Decide, source '{label}' ({Meta("SrcRoot")}), settings = BstSettings.Defaults()");
         var fail = 0;
         var reports = new List<WindowReport>();
+        var degreeCompares = new List<(string Name, DegreeCompare.Result Result)>();
         foreach (var path in paths)
         {
             var w = LogWindow.Load(path);
@@ -88,10 +89,19 @@ internal static class Program
             var causes = ticks.Where(t => !t.Matches).GroupBy(t => t.Cause).OrderByDescending(g => g.Count()).Take(3)
                 .Select(g => $"{g.Count()}x {g.Key}");
             Console.WriteLine($"window {w.Name,-34} build {w.Build,-9} ticks {ticks.Count,4} | reproduced {rep.Reproduced,4} ({pct,5:0.0}%) " +
-                              $"[exact {rep.Count(TickClass.Reproduced)}, gap-dependent {rep.Count(TickClass.ReproducedGap)}] | differ {ticks.Count - rep.Reproduced,4} " +
+                              $"[exact = insensitive {rep.Count(TickClass.Reproduced)} ({100.0 * rep.Count(TickClass.Reproduced) / Math.Max(1, ticks.Count):0.0}%), gap-dependent {rep.Count(TickClass.ReproducedGap)}] | differ {ticks.Count - rep.Reproduced,4} " +
                               $"[gap {rep.Count(TickClass.GapDiffers)}, unreached {rep.Count(TickClass.Unreached)}] | decisive {rep.Decisive.Count(t => t.Matches)}/{rep.Decisive.Count()} | all-fields-rebuilt {rep.Strict} | {verdict}");
             if (ticks.Count != rep.Reproduced)
                 Console.WriteLine($"    why it differs: {string.Join("; ", causes)}");
+            var dgc = DegreeCompare.Run(ticks);
+            if (dgc.Known != 0)
+            {
+                degreeCompares.Add((w.Name, dgc));
+                Console.WriteLine($"    degree {w.Name}: dg= read on {dgc.Known} of {dgc.Ticks} ticks | decision differs from the degree forced to Standard on {dgc.Realistic} ticks " +
+                                  $"(realistic HP) and on {dgc.Sampled} ticks (any sampled completion)");
+                foreach (var d in dgc.Differing.Take(3))
+                    Console.WriteLine($"      {d.Ms} cast {d.CastId} HP {d.PlayerHp:0}/{d.PetHp:0}: recorded {d.Recorded} | dg= {d.AtDegree} | Standard {d.AtStandard}");
+            }
             if (freeze)
                 Freeze(path, expectKey, rep.Reproduced);
             if (verbose || (expect is not null && expect != rep.Reproduced))
@@ -110,6 +120,19 @@ internal static class Program
                           $"all decision-critical fields rebuilt {strict} ({100.0 * strict / Math.Max(1, total):0.0}%) | not replayable (some critical field missing) {total - strict} ({100.0 * (total - strict) / Math.Max(1, total):0.0}%)");
         var dec = reports.SelectMany(r => r.Decisive).ToList();
         Console.WriteLine($"decisive ticks (recorded decision is a rule, not the gcdchain floor): {dec.Count}, reproduced {dec.Count(t => t.Matches)} ({100.0 * dec.Count(t => t.Matches) / Math.Max(1, dec.Count):0.0}%), reproduced and insensitive to every gap field {dec.Count(t => t.Class == TickClass.Reproduced)}");
+        if (degreeCompares.Count != 0)
+        {
+            var known = degreeCompares.Sum(x => x.Result.Known);
+            Console.WriteLine($"degree: {degreeCompares.Count} windows carry a dg= letter on {known} ticks | decision differs from the degree forced to Standard on " +
+                              $"{degreeCompares.Sum(x => x.Result.Realistic)} ticks (realistic HP; the dg= decision equals the recorded one on {degreeCompares.Sum(x => x.Result.DegreeMatchesRecorded)}, " +
+                              $"the Standard one on {degreeCompares.Sum(x => x.Result.StandardMatchesRecorded)}) and on {degreeCompares.Sum(x => x.Result.Sampled)} ticks on any sampled completion");
+        }
+        if (degreeCompares.Count != 0)
+        {
+            var what = degreeCompares.SelectMany(x => x.Result.WhatIf).GroupBy(kv => kv.Key).OrderByDescending(g => g.Sum(kv => kv.Value)).ToList();
+            Console.WriteLine($"degree what-if (the same recorded states with the degree forced; realistic HP): Second differs from First on {degreeCompares.Sum(x => x.Result.SecondVsFirst)} ticks, " +
+                              $"Third differs from Second on {degreeCompares.Sum(x => x.Result.ThirdVsSecond)} ticks" + (what.Count == 0 ? "" : ": " + string.Join("; ", what.Take(6).Select(g => $"{g.Sum(kv => kv.Value)}x {g.Key}"))));
+        }
         Console.WriteLine("gap fields that change a decision on their own, by ticks (what to log first):");
         foreach (var g in reports.SelectMany(r => r.Ticks).SelectMany(t => t.Sensitive).GroupBy(x => x).OrderByDescending(g => g.Count()).Take(12))
             Console.WriteLine($"  {g.Key,-28} {g.Count(),4} ticks   {FieldTable.ByName[g.Key].Proposal}");
