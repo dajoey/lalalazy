@@ -185,6 +185,7 @@ internal partial class BST
             new(48816, 4, 0, "Touchdown", "04FirstMasterBoard/BorgnyTheVenomous.cs:21,243 (helper, 4.0 s, 30 y)"),
             new(48667, 4, 1, "Aero III", "04FirstMasterBoard/StrixPiece.cs:21,50 (Strix Plume, 12.0 s, 25 y)"),
             new(50758, 4, 2, "Tremblor", "04FirstMasterBoard/MorbolPiece.cs:27,54 (helper, 5.0 s, 10 y)"),
+            new(48704, 4, 4, "Cauterize", "04FirstMasterBoard/IceDragonPiece.cs:96,103,113 (helper, 1.0 s, 30 y rect; the dragon's own 48700 is a 10 s single-target cast, not the knockback)"),
             new(48725, 4, 5, "Fivefold Fallout", "04FirstMasterBoard/GargoylePiece.cs:38,310-326 (helper, 3.0 s, 20 y)"),
             new(50649, 4, 7, "Obliterate", "04FirstMasterBoard/GolemPiece.cs:21,269 (golem, 5.0 s, 17 y)"),
             new(48805, 4, 9, "Fiery Fury", "04FirstMasterBoard/ProgenitrixPiece.cs:27,147 (helper, 7.9 s, 15 y)"),
