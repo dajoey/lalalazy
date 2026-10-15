@@ -279,6 +279,23 @@ internal static partial class BST_CrucibleData
     public static readonly uint[] HealPotionActions = [46962, 46961, 46960, 46959, 46965, 46964, 46963];
 
     /// <summary>
+    ///     The Blessed Horn (XBMItem sheet row 96) as its use action, from the 7.56 sheet (fetched live 2026-10-15).
+    ///     A KO'd familiar cannot be summoned again by any means except this item (S9 asellog L260, S4 CGW Crucible
+    ///     guide), so the rotation offers it through the item HUD exactly like a heal potion.
+    /// </summary>
+    public const uint BlessedHornAction = 46979;
+
+    /// <summary> XBMItem sheet row -> revive action, for the same HUD stock walk the heal potions use. </summary>
+    public static readonly Dictionary<uint, uint> ReviveItemRows = new() { [96] = BlessedHornAction };
+
+    /// <summary>
+    ///     BNpcName -> status bits an enemy resists, beyond what its Vulnerable bits say (same bit order; bit 5 =
+    ///     poison). No sheet carries enemy resists, so this is hand-authored knowledge from the guides: the banemite
+    ///     piece (1.4) shrugs poison off, and S17 lists only Ice familiars for that fight.
+    /// </summary>
+    public static readonly Dictionary<uint, ushort> ResistedStatuses = new() { [14536] = 1 << 5 };
+
+    /// <summary>
     ///     XBMItem sheet row -> heal potion action, for the live HUD stock walk: the Crucible item HUD carries these
     ///     rows in its slots (76-79 = G1-G4 Beast Potion, the same numbering the game's shop and AutoDuty's item engine
     ///     use). Grounded in the captured XBMContentsMainHUD values (XB| lines): slot base 9 + i*5, held byte at +1,

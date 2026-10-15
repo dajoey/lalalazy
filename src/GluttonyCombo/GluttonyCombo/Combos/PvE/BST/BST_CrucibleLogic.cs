@@ -1090,6 +1090,24 @@ internal static class BST_CrucibleLogic
     }
 
     /// <summary>
+    ///     A KO'd familiar (the pet buddy object at 0 HP) is revived with the held Blessed Horn through the item HUD,
+    ///     exactly like a heal potion. No summon brings a KO'd familiar back (S9 asellog L260, S4 CGW Crucible guide);
+    ///     without the horn the rotation spends a fresh 90 s horn lock on the next beast while the KO'd slot sits dead.
+    ///     Gated by the survival policy; the live layer offers the horn only when it is held and its recast is clear.
+    /// </summary>
+    public static (uint ActionId, string Reason) TryRevive(in BstState s, in BstSettings cfg, List<string> declines)
+    {
+        if (!cfg.CrucibleSurvival || !s.FamiliarDown)
+            return (0, "");
+        if (!s.ReadyReviveHorn)
+        {
+            declines.Add("crucible:revive-none-held");
+            return (0, "");
+        }
+        return (BST_CrucibleData.BlessedHornAction, "crucible:revive-horn");
+    }
+
+    /// <summary>
     ///     Crucible tactics that cost the familiar's Tempered Release or a Parting Blow. Priced from the recorded runs
     ///     (task tasks-20261002-crucible-add-pack-and-window-tactics-01):
     ///     <list type="bullet">

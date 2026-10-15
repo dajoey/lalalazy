@@ -557,6 +557,9 @@ internal partial class BST
             : BST_CrucibleLogic.PickHealPotion(
                 BST_CrucibleData.HealPotionActions, HeldHealActions(), RefusedHealActions(now),
                 id => GetCooldownRemainingTime(id) < 0.1f);
+        // The revive readiness shares the potion hand-off's spacing (one item menu at a time) and adds the horn's recast.
+        s.ReadyReviveHorn = _itemMenuOpenedTick == 0 && GetCooldownRemainingTime(BST_CrucibleData.BlessedHornAction) < 0.1f
+            && ReadReviveSlots().ContainsKey(BST_CrucibleData.BlessedHornAction);
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
         var poisonResistant = false;
         foreach (var status in player.StatusList)
@@ -575,6 +578,7 @@ internal partial class BST
         {
             s.PetHpPercent = 100f * pet.CurrentHp / pet.MaxHp;
             s.PetHp = pet.CurrentHp;
+            s.FamiliarDown = pet.CurrentHp == 0;   // a KO'd familiar: only a Blessed Horn brings it back
 
             // A poison the familiar sheds by leaving (a string's Toxicosis wins: its refresh gates the shed).
             foreach (var status in pet.StatusList)

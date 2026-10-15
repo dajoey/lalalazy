@@ -201,6 +201,9 @@ internal sealed class Rebuilder
                 gaps.Add(nameof(BstState.SinceSummon));
         }
 
+        // FamiliarDown: pet= is 0 both when no horn is active and when the familiar sits at 0 HP; the slot decides.
+        s.FamiliarDown = s.ActiveSlot != 0 && s.PetHpPercent == 0f;
+
         // un-rebuilt timers that have a "never" rest value stay at the field default; gap probing replaces them
         t.State = s;
         foreach (var row in FieldTable.Rows.Where(r => r.Kind == Kind.Missing))

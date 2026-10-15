@@ -56,6 +56,7 @@ internal static class Program
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
         DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
+        CrucibleR4FamiliarLane20261015(); // r4 familiar lane 2026-10-15 (titles prefixed "r4:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -3278,6 +3279,89 @@ internal static class Program
         Check("doom-needle: the live reader finds the needle actor (BaseId) and reads its rotation and position",
             reader.Contains("NeedleBaseId", StringComparison.Ordinal) && reader.Contains(".Rotation", StringComparison.Ordinal)
             && reader.Contains("NeedleSinceTurn", StringComparison.Ordinal) && reader.Contains("HourglassAge", StringComparison.Ordinal));
+    }
+
+
+    /// <summary>
+    ///     Round-4 familiar rows (task tasks-20261015-crucible-r4-fix-familiar-item-01): the Blessed Horn revive of a
+    ///     KO'd familiar (rot-31), the banemite's poison resistance in the advisor (1.4-01) and the Bomb Piece's
+    ///     Self-destruct burst (sv-07b). The Soulkin borrow timing row is deliberately-unchanged (prepull borrow is
+    ///     declined on purpose; see the task page) and has no case here.
+    /// </summary>
+    private static void CrucibleR4FamiliarLane20261015()
+    {
+        Console.WriteLine("-- crucible r4 familiar lane 2026-10-15: Blessed Horn revive (rot-31), poison-resist scoring (1.4-01), bomb Self-destruct (sv-07b) --");
+        var cfg = BstSettings.Defaults();
+        string D(BstDecision d) => $"{d.ActionId}/{d.Reason} [{d.Declines}]";
+
+        // ---------------- rot-31: a KO'd familiar is revived with the held Blessed Horn, not re-summoned
+        // S9 asellog L260 / S4 CGW: "Familiars who are KO'd cannot be summoned again unless revived with a Blessed Horn."
+        var reviveBase = CrucibleState(50) with { FamiliarDown = true, ReadyReviveHorn = true };
+        Check("r4: KO'd familiar + held Blessed Horn + clear recast: the rotation returns the Blessed Horn",
+            Decide(reviveBase, cfg) is { ActionId: BST_CrucibleData.BlessedHornAction, Reason: "crucible:revive-horn" }, D(Decide(reviveBase, cfg)));
+        Check("r4: ... the revive lives in the survival policy: off, it never fires",
+            Decide(reviveBase, cfg with { CrucibleSurvival = false }).ActionId != BST_CrucibleData.BlessedHornAction);
+        Check("r4: the familiar alive again: no revive (the normal rules run)",
+            Decide(reviveBase with { FamiliarDown = false }, cfg).ActionId != BST_CrucibleData.BlessedHornAction);
+        Check("r4: no Blessed Horn held: declined with a reason, and the tick still acts (never a dead tick)",
+            Decide(reviveBase with { ReadyReviveHorn = false }, cfg).Declines.Contains("crucible:revive-none-held")
+            && Decide(reviveBase with { ReadyReviveHorn = false }, cfg).ActionId != 0,
+            D(Decide(reviveBase with { ReadyReviveHorn = false }, cfg)));
+        Check("r4: the Blessed Horn id is the sheet's: XBMItem row 96 -> use action 46979 (7.56 sheet, fetched live 2026-10-15)",
+            BST_CrucibleData.BlessedHornAction == 46979u && BST_CrucibleData.ReviveItemRows.ContainsKey(96u));
+
+        // ---------------- 1.4-01: the banemite piece (1.4) shrugs poison off, so poison familiars score down there
+        // The guide (S17) lists Ice familiars for 1.4 and never a poison one; the panel's Vulnerable bits have no
+        // resist side (BST_CrucibleData.cs:87), so the resist is hand-authored knowledge.
+        var whyWespe = new List<string>();
+        var wespe = BST_CrucibleAdvisor.Score(1, 4, 10, CrucibleNeeds.None, whyWespe);
+        Check("r4: the wespe (row 10, poisons) is scored down on 1.4 with a why entry", whyWespe.Contains("poison resisted"), $"{wespe} [{string.Join(",", whyWespe)}]");
+        var whyZiz = new List<string>();
+        var ziz = BST_CrucibleAdvisor.Score(1, 4, 21, CrucibleNeeds.None, whyZiz);
+        Check("r4: the Ziz (row 21, ice, no poison) takes no penalty on 1.4 and outscores the wespe",
+            !whyZiz.Contains("poison resisted") && ziz > wespe, $"ziz={ziz} wespe={wespe} [{string.Join(",", whyZiz)}]");
+        Check("r4: the resist map names the banemite piece (14536) and only the poison bit",
+            BST_CrucibleData.ResistedStatuses.ContainsKey(14536u) && BST_CrucibleData.ResistedStatuses[14536u] == (1 << 5));
+        Check("r4: the Flying Trap (row 20, ice but poisons) still clears the floor on 1.4 (its ice keeps it in the guide's list)",
+            BST_CrucibleAdvisor.Score(1, 4, 20, CrucibleNeeds.None) > 0);
+        Check("r4: no penalty on a battle with no resist row (1.1)",
+            !ScoreWhy(1, 1, 10).Contains("poison resisted"));
+
+        // ---------------- sv-07b: the Bomb Piece's Self-destruct (49211, 8 s, room-wide) bursts like the Golem's
+        var bomb = CrucibleState(50) with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 3, ActiveSlot = 1, PetObjectBeast = 26,
+            OneWithNature = true, ReadyTempered = true, TargetCastId = 49211, TargetCastRemaining = 7.5f,
+        };
+        Check("r4: 5.3 bomb Self-destruct with a spendable release: Tempered Release goes first (kill the bombs faster)",
+            Decide(bomb, cfg).Reason == "crucible:burst-tempered", D(Decide(bomb, cfg)));
+        var bombLate = bomb with { OneWithNature = false, SinceTempered = 3f, ReadyParting = true, ReadyHorn2 = true, Slot2PetHp = 100f, TargetCastRemaining = 7.2f };
+        Check("r4: release spent, cast young, a healthy horn waits: Parting Blow recalls before the room-wide blast",
+            Decide(bombLate, cfg).Reason == "crucible:burst-parting", D(Decide(bombLate, cfg)));
+        Check("r4: ... and the Golem heart (48766) still bursts exactly as before",
+            Decide(bomb with { TargetCastId = 48766 }, cfg).Reason == "crucible:burst-tempered", D(Decide(bomb with { TargetCastId = 48766 }, cfg)));
+        Check("r4: the cast set covers the bomb (49211) and the grenade (48792, sheet only, never seen cast) beside the Golem heart",
+            BST_CrucibleData.SelfDestructCasts.Contains(48766u) && BST_CrucibleData.SelfDestructCasts.Contains(49211u)
+            && BST_CrucibleData.SelfDestructCasts.Contains(48792u));
+
+        // ---------------- the live reader and the decision plumbing
+        var logic = RepoFile("Combos", "PvE", "BST", "BST_CrucibleLogic.cs");
+        Check("r4: TryRevive is a Decide rule in the crucible block (not an idle logging path)",
+            logic.Contains("TryRevive", StringComparison.Ordinal) && logic.Contains("crucible:revive-horn", StringComparison.Ordinal));
+        var live = RepoFile("Combos", "PvE", "BST", "BST_CrucibleLive.cs");
+        Check("r4: the live layer walks the HUD for row 96 and offers it through the item menu like a potion",
+            live.Contains("ReadReviveSlots", StringComparison.Ordinal) && live.Contains("RequestReviveItem", StringComparison.Ordinal)
+            && live.Contains("BST_CrucibleData.ReviveItemRows", StringComparison.Ordinal));
+        var crucible = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
+        Check("r4: the collector reads FamiliarDown (pet buddy at 0 HP) and ReadyReviveHorn",
+            crucible.Contains("FamiliarDown", StringComparison.Ordinal) && crucible.Contains("ReadyReviveHorn", StringComparison.Ordinal));
+    }
+
+    private static List<string> ScoreWhy(int board, int battle, int row)
+    {
+        var why = new List<string>();
+        BST_CrucibleAdvisor.Score(board, battle, row, CrucibleNeeds.None, why);
+        return why;
     }
 
     private static void CoreLane20261013()

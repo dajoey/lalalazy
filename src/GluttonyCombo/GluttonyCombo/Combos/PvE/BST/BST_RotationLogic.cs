@@ -295,6 +295,8 @@ internal static class BST_RotationLogic
         public float PlayerHpPercent;
         public float PlayerHp;                       // absolute: the survival guard compares it to a cast's largest measured hit
         public uint ReadyHealPotion;                // best-grade Crucible heal potion action with stock held and recast clear, 0 = none
+        public bool FamiliarDown;                 // the summoned familiar's object sits at 0 HP (KO'd; no summon brings it back, only a Blessed Horn does)
+        public bool ReadyReviveHorn;              // a Blessed Horn is held in the Crucible item HUD and its recast is clear
         public float PetHpPercent;                // the summoned familiar (100 when none)
         public float PetHp;                       // the summoned familiar's HP (absolute)
         public float PlayerIntakePerSecond;       // HP the character lost per second over the last 10 s
@@ -615,6 +617,12 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- 1b. Crucible: pet-save, stances, protected enemies
         if (crucible)
         {
+            // A KO'd familiar is revived first (a held Blessed Horn through the item HUD): no summon brings it back,
+            // and a Snarl or save ordered at a dead familiar would only cover nothing.
+            var revive = BST_CrucibleLogic.TryRevive(s, cfg, declines);
+            if (revive.ActionId != 0)
+                return Pick(revive.ActionId, revive.Reason);
+
             var aggro = BST_CrucibleLogic.ChooseAggro(s, cfg);
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                 shadow = aggro.Reason;

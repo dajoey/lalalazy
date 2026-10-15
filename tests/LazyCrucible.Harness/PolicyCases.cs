@@ -163,9 +163,13 @@ internal static class PolicyCases
             $"bold={bold?.Score} survival={survival?.Score}");
 
         var campCtx = Ctx(1, new() { [18] = 2 }, camp: true);
-        Check("Campsite ahead: a hurt familiar's feed is discounted (it may rest and lose it); Lily is not",
-            FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx) < FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 }))
-            && FeedPolicy.Value(166, Fam(18, 0), campCtx) > FeedPolicy.Value(166, Fam(18, 0), Ctx(1)));
+        Check("Campsite ahead: Lily still gains value (its feed survives a rest)",
+            FeedPolicy.Value(166, Fam(18, 0), campCtx) > FeedPolicy.Value(166, Fam(18, 0), Ctx(1, new() { [18] = 2 })));
+        // r4 lv-12: no hurt-familiar feed discount any more - the camp rule never rests a fed familiar, so a feed
+        // given before the campsite cannot be wiped by a rest. Feeding the damage beasts stands.
+        Check("Campsite ahead: a hurt familiar's feed is NOT discounted (fed familiars never rest)",
+            FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx) == FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 })),
+            $"{FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx)} vs {FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 }))}");
     }
 
     private static void Camp()
@@ -193,6 +197,31 @@ internal static class PolicyCases
 
         var b4 = CampPolicy.Choose([Fam(18, 0, hp: 30)], 2, Ctx(4, new() { [18] = 2 }));
         Check("Boards 4-5: the reason says the heal table is assumed", b4.Reason.Contains("assumed"), b4.Reason);
+
+        // r4 lv-12 (Crucible guide S20, two sources): resting wipes a familiar's feed, and a fed familiar is the one
+        // damage dealer the camp rule must never trade away: it never rests (unless it ate Lily Simular, whose feed
+        // survives the rest).
+        var neverFed = CampPolicy.Choose([Fam(18, 0, hp: 5, ate: [144])], 2, Ctx(1, new() { [18] = 2 }, playerHp: 100));
+        Check("B1, the only candidate ate a feed: nobody rests (a fed familiar is never rested), you take the self heal",
+            neverFed.Rows.Count == 0 && neverFed.HealPercent == 90, neverFed.Reason);
+        var unfedFirst = CampPolicy.Choose([Fam(18, 0, hp: 30, ate: [144, 155]), Fam(40, 1, hp: 5)], 2, Ctx(1, new() { [18] = 2, [40] = 1 }));
+        Check("B1, a fed 30% and an unfed 5%: the unfed one rests, the fed one keeps its feed",
+            unfedFirst.Rows.SequenceEqual([40]), unfedFirst.Reason);
+        var lilyStill = CampPolicy.Choose([Fam(18, 0, hp: 10, ate: [144, 166]), Fam(40, 1, hp: 95)], 2, Ctx(1, new() { [18] = 2 }, playerHp: 100));
+        Check("B1, a Lily eater at 10%: it still rests (its feed survives the rest)",
+            lilyStill.Rows.SequenceEqual([18]), lilyStill.Reason);
+
+        // r4 lv-10 (pinned, verified as designed): the held Blessed Horn (row 96) is worth holding - it revives a
+        // needed familiar (45) and outscores the worthwhile floor (12) even with nobody down (18). The plugin never
+        // sells or discards items, so "may discard a Blessed Horn" has no code path: pinned here so a refactor cannot
+        // silently drop the value.
+        var whyHorn = new List<string>();
+        var hornHeld = ItemValue.Of(96, Ctx(1, new() { [18] = 2 }), Inventory.Empty, [Fam(18, 0, hp: 100)], whyHorn);
+        Check("B1: the held Blessed Horn outscores the worthwhile floor with everyone up", hornHeld >= ItemValue.Worthwhile, $"{hornHeld} [{string.Join(",", whyHorn)}]");
+        var whyHornDown = new List<string>();
+        var hornNeeded = ItemValue.Of(96, Ctx(1, new() { [18] = 2 }), Inventory.Empty, [Fam(18, 0, hp: 0)], whyHornDown);
+        Check("B1: with a needed familiar KO'd the Blessed Horn's value jumps (it revives a needed familiar)",
+            hornNeeded > hornHeld && whyHornDown.Contains("revives a needed familiar"), $"{hornNeeded} [{string.Join(",", whyHornDown)}]");
     }
 
     private static void Shop()

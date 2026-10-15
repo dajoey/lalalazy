@@ -384,7 +384,12 @@ internal partial class BST
     ///     the XB| captures, rows 76-79 = G1-G4 Beast Potion). Empty when the HUD is not readable — then no potion is offered,
     ///     matching AutoDuty's "no slot, no use".
     /// </summary>
-    internal static unsafe Dictionary<uint, int> ReadHeldHealSlots()
+    internal static unsafe Dictionary<uint, int> ReadHeldHealSlots() => ReadHeldSlots(BST_CrucibleData.HealPotionItemRows);
+
+    /// <summary> The held revive item (the Blessed Horn, XBMItem row 96) with its HUD slot: the same walk, the revive map. </summary>
+    internal static unsafe Dictionary<uint, int> ReadReviveSlots() => ReadHeldSlots(BST_CrucibleData.ReviveItemRows);
+
+    private static unsafe Dictionary<uint, int> ReadHeldSlots(Dictionary<uint, uint> rows)
     {
         try
         {
@@ -407,7 +412,7 @@ internal partial class BST
                         break;
                     slots.Add((unit->AtkValues[at + 1].Byte != 0, AsItemRow(unit->AtkValues[at + 3])));
                 }
-                return BST_CrucibleLogic.HeldHealSlots(slots, BST_CrucibleData.HealPotionItemRows);
+                return BST_CrucibleLogic.HeldHealSlots(slots, rows);
             }
         }
         catch (Exception)
@@ -474,6 +479,35 @@ internal partial class BST
             _itemMenuOpenedTick = now;
             NoteHealPress(actionId, now, hpPercent);
             LogHealItem($"open|act={actionId}|slot={slot}|hp={hpPercent:0}");
+            return true;
+        }
+        catch (Exception)
+        {
+            _itemMenuOpenedTick = 0;
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     Open the item menu on the slot holding the Blessed Horn (the KO'd familiar's revive). Same dance as a heal
+    ///     potion (see <see cref="RequestHealItem"/>), but no press-outcome tracking: the horn's own recast and the
+    ///     decision's spacing are the brake.
+    /// </summary>
+    internal static unsafe bool RequestReviveItem(uint actionId, long now)
+    {
+        if (_itemMenuOpenedTick != 0)
+            return false;
+        try
+        {
+            var hud = ReadyAddon(CrucibleHudAddon);
+            if (hud == null || ReadyAddon(ContextMenuAddon) != null || ReadyAddon(ItemShopAddon) != null)
+                return false;
+            if (!ReadReviveSlots().TryGetValue(actionId, out var slot))
+                return false;
+
+            ECommons.Automation.Callback.Fire(hud, true, 6, slot);
+            _itemMenuOpenedTick = now;
+            LogHealItem($"open|act={actionId}|slot={slot}|revive=1");
             return true;
         }
         catch (Exception)
