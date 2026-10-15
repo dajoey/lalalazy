@@ -441,6 +441,7 @@ internal partial class BST
             _healPressTick = 0;
             _itemMenuOpenedTick = 0;
             MorphoAlive = false;
+            OtherEnemiesUp = false;
             TrackClub(false, 0, false);
             _shedCastId = 0;
             _shedCastTick = 0;
@@ -520,7 +521,7 @@ internal partial class BST
             }
 
             s.EnemyCount++;
-            if (nameId != BST_CrucibleData.AbaddonNameId)
+            if (BST_CrucibleLogic.CountsAsOtherEnemy(nameId, npc.IsDead, npc.IsTargetable, npc.CurrentHp, npc.IsHostile()))
                 otherEnemiesUp = true;
             // An enemy in a counter stance (Paralyzing Spikes) beside the target: an AoE press at the target would land on it (r4-third2).
             if (!s.StanceNearTarget && target is not null && npc.GameObjectId != target.GameObjectId

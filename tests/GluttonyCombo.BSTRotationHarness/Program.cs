@@ -56,6 +56,7 @@ internal static partial class Program
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
         DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
+        R4ShippedLane20261015(); // R4 shipped-fixes regression lane 2026-10-15 (titles prefixed "r4-shipped:")
         R4Third2Lane20261015(); // R4 third-board-battle-2 lane 2026-10-15 (titles prefixed "r4-third2:")
         R4RotationLane20261015(); // R4 rotation lane 2026-10-15 (titles prefixed "r4-rotation:")
         R4DegreeLane20261015(); // R4 degree lane 2026-10-15 (titles prefixed "r4-degree:")
@@ -1106,17 +1107,19 @@ internal static partial class Program
                 && new uint[] { 989, 390, 3129, 1572 }.All(id => !BST_CrucibleData.PanelFlagsDispellable(id)));
             Check("the Abaddon fight (5.5) needs the dispel", (BST_CrucibleLogic.FightNeeds(5, 5) & CrucibleNeeds.Dispel) != 0);
 
-            // The Abaddon fight, replayed: Wave Kinship held and ready, Regen on the target.
+            // The Abaddon piece (5.5), replayed: Wave Kinship held and ready, a dispellable buff on the target. The flag is derived from the table (r4-shipped R7):
+            // the Drake's Blaze Spikes (5465) is the buff the table lists; the Abaddon's Regen (989) is not one, so no case here may call it a carrier.
             var cfg = BstSettings.Defaults();
+            var carrierFlag = BST_CrucibleData.DispellableBuffs.Contains(5465);
             var live = CrucibleState(50) with { SinceSummon = 12f, ReadyParting = false, SinceHornPress = 30f };
             var abaddon = live with
             {
                 CrucibleBoard = 5, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(5, 5), EnemyCount = 3,
                 Slot1Beast = 1, Slot2Beast = 8, Slot3Beast = 4, ActiveSlot = 1, PetObjectBeast = 1, GcdReady = true,
                 KinshipHeld = true, BeastModeResolved = BST.QuellingWave, ReadyBeastMode = true,
-                TargetHasDispellableBuff = true, EnemyHasDispellableBuff = true,
+                TargetHasDispellableBuff = carrierFlag, EnemyHasDispellableBuff = carrierFlag,
             };
-            Check("Abaddon with Regen on the target, Quelling Wave held: dispel it", Decide(abaddon, cfg) is { ActionId: BST.QuellingWave, Reason: "crucible:dispel-quellingwave" },
+            Check("Abaddon piece fight, Quelling Wave held, a Blaze Spikes (5465) carrier targeted: dispel it", Decide(abaddon, cfg) is { ActionId: BST.QuellingWave, Reason: "crucible:dispel-quellingwave" },
                 $"{Decide(abaddon, cfg).Reason} [{Decide(abaddon, cfg).Declines}]");
 
             // The carrier is not the target: bring the Wavekin out (there was no way before: the buff was only ever read off the target).
@@ -1125,7 +1128,7 @@ internal static partial class Program
                 KinshipHeld = false, BeastModeResolved = 0, ReadyBeastMode = false, TargetHasDispellableBuff = false,
                 ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = true,
             };
-            Check("Regen on an enemy that is not the target, no Wave held, a pugil on a ready horn: blow it",
+            Check("a dispellable buff (Blaze Spikes) on an enemy that is not the target, no Wave held, a pugil on a ready horn: blow it",
                 Decide(elsewhere, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-dispel-slot3" }, $"{Decide(elsewhere, cfg).Reason} [{Decide(elsewhere, cfg).Declines}]");
             Check("... nobody carries a dispellable buff: no swap",
                 Decide(elsewhere with { EnemyHasDispellableBuff = false }, cfg).ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn));

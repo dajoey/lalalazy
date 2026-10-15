@@ -1880,6 +1880,15 @@ internal static class BST_CrucibleLogic
         };
     }
 
+    /// <summary>
+    ///     Whether one object the Crucible reader walks counts as "another enemy up" for <see cref="ConditionallyForbidden"/>'s
+    ///     <c>othersUp</c> (r4-shipped R4): a living, targetable, hostile enemy that is neither the Abaddon nor on the do-not-attack table
+    ///     (the Morphos and eggs). PURE: the reader passes each object's own fields; the harness drives it with every combination.
+    /// </summary>
+    public static bool CountsAsOtherEnemy(uint nameId, bool dead, bool targetable, uint currentHp, bool hostile) =>
+        !dead && targetable && currentHp != 0 && hostile
+        && !BST_CrucibleData.DoNotAttack.ContainsKey(nameId) && nameId != BST_CrucibleData.AbaddonNameId;
+
     /// <summary> The Final Hourglass the King Ahriman piece's Roulette spawns (BNpcName). </summary>
     public const uint HourglassNameId = 14689;
 

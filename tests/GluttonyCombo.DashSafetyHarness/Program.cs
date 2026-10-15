@@ -95,7 +95,7 @@ Check("wiring: BST.cs gates the landing read", true,
 Check("wiring: ReadDashLanding takes its verdict from Judge", true,
     live.Contains("BST_DashSafety.Judge(atEnemy, atLanding)", StringComparison.Ordinal));
 Check("wiring: BST.cs feeds the hazard clock every tick", true,
-    bst.Contains("_dashHazardClock.Tick(Environment.TickCount64 / 1000.0, BST_RotationLogic.DashHazardNow(s))", StringComparison.Ordinal));
+    bst.Contains("BST_RotationLogic.FeedDashClock(ref _dashHazardClock, ref s, Environment.TickCount64 / 1000.0)", StringComparison.Ordinal));
 Check("wiring: BST.cs passes the mechanic hold into the SG| label", true,
     bst.Contains("mechanicHold: BST_RotationLogic.DashMechanicHold(s, BST_Crucible && s.CrucibleBoard != 0)", StringComparison.Ordinal));
 Check("wiring: no inline both-required verdict left", false,

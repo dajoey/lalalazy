@@ -922,6 +922,14 @@ internal static class BST_RotationLogic
         }
     }
 
+    /// <summary>
+    ///     One tick of the dash clock, in the order the live half reads a state (r4-shipped R10): the state read so far (landing verdict, the target's
+    ///     cast, BMR's prediction, a known knockback) feeds <see cref="DashHazardNow"/> into the clock and the settle seconds left go back into
+    ///     <see cref="BstState.DashSettleRemaining"/>. BST.cs calls this where it used to tick the clock inline; the harness calls the same function.
+    /// </summary>
+    public static void FeedDashClock(ref DashHazardClock clock, ref BstState s, double nowSeconds) =>
+        s.DashSettleRemaining = clock.Tick(nowSeconds, DashHazardNow(s));
+
     /// <summary> A predicted hit on the character this close holds a dash (the dash locks the character 1.1 s and carries it up to 20 y). </summary>
     public const float DashHitLeadSeconds = 3.5f;
 
