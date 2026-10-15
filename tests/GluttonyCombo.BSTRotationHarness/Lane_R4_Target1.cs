@@ -156,17 +156,18 @@ internal static partial class Program
         Check("r4-target1: 4.2-08 the 4.2 kill order is not touched: the seedling is in no documented order",
             !BST_CrucibleData.PriorityAddOrder.SelectMany(w => w).SelectMany(t => t).Contains(seedling));
 
-        // ---- 4.3-05 Queen Hawk eat trick: closed without code. The trick is the player's positioning (the hawk on the line to the flower); the plugin
-        // needs 17 to 24 s to take a hawk from 100% to 0 (22 recorded windows), so killing it on sight never beat Final Sting's 5 s cast, and the flower
-        // already ate it in 13 of those 22. A gate that keeps it alive lengthens every hawk's life with no hand on the cone (16 character deaths on record).
+        // ---- 4.3-05 Queen Hawk eat trick: closed without code. The trick is the player's positioning (the hawk on the line to the flower). In 22 recorded
+        // spans of the plugin aiming at a hawk (2026-10-14, build 1.0.4.302), 8 went from 100% to 0 in 17.2 to 23.7 s, so killing it on sight never beat Final
+        // Sting's 5 s cast; 12 spans ended with the hawk above 0% (the dossier credits the flower with 115 hawk deaths). A gate that keeps the hawk alive
+        // lengthens every hawk's life with no hand on the cone, and the dossier counts 16 character deaths to the hawk.
         const uint hawk = 14605, flower = 14603;
         var hawks = Allowed(T(flower), T(hawk));
         Check("r4-target1: 4.3-05 closed without code: the Queen Hawk stays a priority add, killed on sight ahead of the Corpse Flower",
             hawks.SequenceEqual(new[] { 1 }) && BST_CrucibleData.PriorityAdds.Contains(hawk), Show(hawks));
         Check("r4-target1: 4.3-05 ... and Final Sting (48689) stays a registered tankbuster the cover rules answer", BST_CrucibleData.Tankbusters.Contains(48689));
 
-        // ---- 2.0-05 Gobbieboom Barrage 48234/50446: closed without code. The game gives no stun on Chewchum in any log (22 + 24 casts, 11 runs), the
-        // bomb's push needs its position against the pool, which the plugin does not read, and a 12 y blast beside the party is the cost of a wrong hit.
+        // ---- 2.0-05 Gobbieboom Barrage 48234/50446: closed without code. The logs show no stun on Chewchum after 46 casts (22 + 24); the bomb's push needs
+        // its position against the pool, which the plugin does not read; the dossier gives the round bomb a 12 y blast circle.
         const uint bomb = 14563;
         var bombField = Allowed(T(loosefrox), T(chewchum), T(bomb));
         Check("r4-target1: 2.0-05 closed without code: the Gobbie Bomb (14563) is no priority add; the brothers' pair is the only thing the order narrows",
