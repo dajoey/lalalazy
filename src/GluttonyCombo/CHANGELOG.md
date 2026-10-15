@@ -1,3 +1,12 @@
+## v1.0.4.306 (2026-10-15) [testing]
+### Changed
+- **White Mage: Temperance and Divine Caress are now handled as the two separate actions they are.** Since the pair was split, the heal combos watched for the Divine Grace buff and pressed whatever Temperance had turned into. Now Temperance itself is used when it is ready - in the single-target, area and simple heal modes and in the raidwide features alike - and Divine Caress is pressed on its own when it is ready. The area-of-effect simple heal mode gains a Divine Caress step it did not have, and the Asylum replacement mode now tries Asylum first, then Temperance, then Divine Caress, instead of preferring Temperance while Asylum was on cooldown.
+### Fixed
+- **A ground-placed action is no longer fired before it is ready.** The action watcher could send a ground-target placement for a replacement action that was still on cooldown; it now checks readiness first.
+### Notes
+- Merges upstream WrathCombo changes through 2026-10-14 (9 commits). The automatic regen and shield checks on the focus target now use the plugin's own status lookup, ending an ambiguity with the shared library's lookup of the same name.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.305 (2026-10-15) [testing]
 ### Fixed
 - **Beastmaster in the Crucible of the Unbroken, Abaddon Piece: the rotation no longer stands idle while a Morpho is alive.** The Abaddon was held back from the start of the fight until every Morpho was gone, and the Morphos themselves are never attacked, so for as long as a Morpho lived (over a minute in a recorded fight) the Abaddon was the only enemy and nothing was left that the rotation was allowed to hit: no damage and no aggro while the Morphos confused the character. Intended behaviour in this piece: the Drake and the Barbmoles are killed first, as before; once the Abaddon is the only enemy left it is attacked and chipped down to 35% of its health, and held there while any Morpho is alive, so it is never killed ahead of the Morphos it feeds on; once the last Morpho is gone it is attacked to the end. Eggs and Morphos as targets are still never attacked, and the Gigantis gel rule is unchanged.
