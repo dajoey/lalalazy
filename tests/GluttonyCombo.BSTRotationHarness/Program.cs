@@ -56,6 +56,7 @@ internal static partial class Program
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
         DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
+        R4Third2Lane20261015(); // R4 third-board-battle-2 lane 2026-10-15 (titles prefixed "r4-third2:")
         R4RotationLane20261015(); // R4 rotation lane 2026-10-15 (titles prefixed "r4-rotation:")
         R4DegreeLane20261015(); // R4 degree lane 2026-10-15 (titles prefixed "r4-degree:")
         R4OptionsLane20261015(); // R4 options lane 2026-10-15 (titles prefixed "r4-options:")
