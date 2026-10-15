@@ -99,5 +99,35 @@ internal static partial class Program
         Check("r4-tankbuster: 3.1-08a Crushing Blade, the character under the measured 455 but a 900 HP familiar: still no cover (the estimate never takes the death-cover)",
             Decide(blade with { PetHp = 900f, PetHpPercent = 80f, PlayerHp = 400f, PlayerHpPercent = 9f }, on).Reason != "aggro:snarl-tankbuster",
             Decide(blade with { PetHp = 900f, PetHpPercent = 80f, PlayerHp = 400f, PlayerHpPercent = 9f }, on).Reason);
+
+        // ---- 3.1-09 Blizzard 48621 (Third Board bone bishop 14567, plus the sheet-pinned casters of the same cast: ice
+        // sprite 14607, kupocaster 14679) and Straight Punch 49435 (Hapalit 14691): single-target hits that follow enmity
+        // with NO castbar, so no tankbuster key ever fires. The cover keys on the caster.
+        var bishop = CrucibleState() with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 1, TargetNameId = 14567, ReadySnarl = true,
+            PetHp = 3492f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 3.1-09 Blizzard, the bone bishop on the character, a 3,492 HP familiar (48 x 1.25 = 60): Snarl covers it",
+            Decide(bishop, on).Reason == "aggro:snarl-panel-burst", Decide(bishop, on).Reason);
+        Check("r4-tankbuster: 3.1-09 Blizzard, the ice sprite (same cast, First Master's 4.4): Snarl covers it",
+            Decide(bishop with { CrucibleBoard = 4, CrucibleBattle = 4, TargetNameId = 14607 }, on).Reason == "aggro:snarl-panel-burst",
+            Decide(bishop with { CrucibleBoard = 4, CrucibleBattle = 4, TargetNameId = 14607 }, on).Reason);
+        Check("r4-tankbuster: 3.1-09 Blizzard, the kupocaster (same cast, Second Master's 5.11): Snarl covers it",
+            Decide(bishop with { CrucibleBoard = 5, CrucibleBattle = 11, TargetNameId = 14679 }, on).Reason == "aggro:snarl-panel-burst",
+            Decide(bishop with { CrucibleBoard = 5, CrucibleBattle = 11, TargetNameId = 14679 }, on).Reason);
+        var punch = CrucibleState() with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 13, TargetNameId = 14691, ReadySnarl = true,
+            PetHp = 1200f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 3.1-09 Straight Punch, Hapalit on the character, a 1,200 HP familiar at Standard (909 x 1.25 = 1136): Snarl covers it",
+            Decide(punch, on).Reason == "aggro:snarl-panel-burst", Decide(punch, on).Reason);
+        Check("r4-tankbuster: 3.1-09 Straight Punch, First Degree (909 x 2.0 x 1.25 = 2273), a 2,400 HP familiar: cover",
+            Decide(At(punch with { PetHp = 2400f }, CrucibleDegree.First), on).Reason == "aggro:snarl-panel-burst",
+            Decide(At(punch with { PetHp = 2400f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 3.1-09 Straight Punch, degree unread (909 x 2.0 = 1818), a 1,900 HP familiar: cover",
+            Decide(punch with { PetHp = 1900f }, on).Reason == "aggro:snarl-panel-burst",
+            Decide(punch with { PetHp = 1900f }, on).Reason);
     }
 }
