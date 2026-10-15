@@ -199,5 +199,15 @@ internal static partial class Program
         };
         Check("r4-tankbuster: 2.6-06 Void Fire III, 40 HP under the measured 66 room-wide hit (percentage above the panic line): the raidwide guard",
             Decide(fire, on).Reason == "crucible:raidwide-guard", Decide(fire, on).Reason);
+
+        Check("r4-tankbuster: 2.6-06 Void Fire III, 600 HP above the measured 66: no guard",
+            Decide(fire with { PlayerHp = 600f }, on).Reason != "crucible:raidwide-guard",
+            Decide(fire with { PlayerHp = 600f }, on).Reason);
+        Check("r4-tankbuster: 2.6-06 Void Fire III, First Degree scales the hit to 116 (66 x 1.75), 100 HP: guard",
+            Decide(At(fire with { PlayerHp = 100f }, CrucibleDegree.First), on).Reason == "crucible:raidwide-guard",
+            Decide(At(fire with { PlayerHp = 100f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 2.6-06 Void Fire III, survival off: nothing pressed",
+            Decide(fire, on with { CrucibleSurvival = false }).Reason != "crucible:raidwide-guard",
+            Decide(fire, on with { CrucibleSurvival = false }).Reason);
     }
 }
