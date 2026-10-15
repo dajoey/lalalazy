@@ -146,5 +146,16 @@ internal static partial class Program
         Check("r4-tankbuster: 3.1-09 a manticore (not a panel-burst caster) on the character: no panel-burst cover",
             Decide(bishop with { TargetNameId = 14566 }, on).Reason != "aggro:snarl-panel-burst",
             Decide(bishop with { TargetNameId = 14566 }, on).Reason);
+
+        // ---- 5.5-06 Mangling Fang 49254 (Second Master's battle 5, Drake Piece): the row had MaxOnFamiliar 0 (no familiar
+        // hit in its original window); 2026-10-15 re-derivation measured Damselfly 691. The cover arms on the measured hit.
+        var fang = CrucibleState() with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 5, TargetCastId = 49254, TargetCastRemaining = 3f,
+            ReadySnarl = true, PetHp = 900f, PetHpPercent = 80f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+        };
+        Check("r4-tankbuster: 5.5-06 Mangling Fang, a 900 HP familiar at Standard (691 x 1.25 = 864): Snarl covers it",
+            Decide(At(fang, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster",
+            Decide(At(fang, CrucibleDegree.Standard), on).Reason);
     }
 }
