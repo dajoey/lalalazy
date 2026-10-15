@@ -159,6 +159,13 @@ internal static class FieldTable
         M("KnockbackCastRemaining", "log `kbr=` (soonest knockback cast) in CR|", C(0f, 2f)),
         M("ShieldChargeClipsGcd", "add to the `rd=` bitmap", FalseFirst),
         M("DashSettleRemaining", "log `dsr=` (dash hazard hold left) in CR|", C(0f, 2f)),
+
+        M("NeedleKnown", "the `NE|` line (one per needle turn, 1.0.4.307) carries the needle's heading; CR| has no needle field", FalseFirst, crit: false),
+        M("NeedleHeading", "the `NE|` line h=", C(0f), crit: false),
+        M("NeedleSinceTurn", "the `NE|` line timestamp", C(0f, 1f), crit: false),
+        M("NeedleToPlayerBearing", "the `NE|` line pb=", C(0f), crit: false),
+        M("NeedleToPlayerDistance", "the `NE|` line pd=", C(0f), crit: false),
+        M("HourglassAge", "the `NE|` line age=", C(0f), crit: false),
     ];
 
     public static readonly Dictionary<string, FieldRow> ByName = Rows.ToDictionary(r => r.Name);

@@ -338,6 +338,71 @@ internal partial class BST
         s.CrucibleDegreeLevel = s.CrucibleDegreeKnown ? _degreeRead : 0;
     }
 
+    private static ulong _needleId;
+    private static float _needleHeading;
+    private static long _needleTurnTick;
+    private static ulong _hourglassId;
+    private static long _hourglassSeenTick;
+
+    /// <summary>
+    ///     The King Ahriman piece's Roulette (<see cref="BST_CrucibleLogic.HourglassNeedleHold"/>): how long the Final Hourglass has been up, and
+    ///     the needle actor's heading, when it last turned, and where the character stands from it. The needle only ever points along the four
+    ///     axes (every recorded heading), so a reading is snapped to the nearest quarter turn; a turn is a change of more than half a radian,
+    ///     and the needle counts as read only once it has been seen to turn (the phase of its ticks is known from then on). Each turn is logged
+    ///     (<c>NE|</c>) so the next run shows whether the client sees the needle the way the network log does.
+    /// </summary>
+    private static void ReadNeedle(ref BST_RotationLogic.BstState s, IGameObject? needle, ulong hourglassId, IGameObject player, IBattleChara? target, long now)
+    {
+        if (hourglassId == 0)
+            _hourglassId = 0;
+        else if (hourglassId != _hourglassId)
+        {
+            _hourglassId = hourglassId;
+            _hourglassSeenTick = now;
+        }
+        if (_hourglassId != 0)
+            s.HourglassAge = (now - _hourglassSeenTick) / 1000f;
+
+        if (needle is null)
+        {
+            _needleId = 0;
+            _needleTurnTick = 0;
+            return;
+        }
+
+        const float quarter = MathF.PI / 2f;
+        var raw = needle.Rotation;
+        var heading = MathF.Round(raw / quarter) * quarter;
+        if (needle.GameObjectId != _needleId)
+        {
+            _needleId = needle.GameObjectId;
+            _needleHeading = heading;
+            _needleTurnTick = 0;
+        }
+        else if (MathF.Abs(MathF.IEEERemainder(heading - _needleHeading, 2f * MathF.PI)) > 0.5f)
+        {
+            _needleHeading = heading;
+            _needleTurnTick = now;
+            var hp = target is { NameId: BST_CrucibleLogic.HourglassNameId } t && t.MaxHp > 0 ? 100f * t.CurrentHp / t.MaxHp : -1f;
+            Svc.Log.Information(
+                $"NE|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|id={needle.GameObjectId:X}|raw={raw:F2}|h={heading:F2}|hg={hp:F0}|age={s.HourglassAge:F1}"
+                + $"|pb={MathF.Atan2(player.Position.X - needle.Position.X, player.Position.Z - needle.Position.Z):F2}|pd={Vector3.Distance(player.Position, needle.Position):F1}");
+        }
+        if (_needleTurnTick == 0)
+            return;
+
+        var dx = player.Position.X - needle.Position.X;
+        var dz = player.Position.Z - needle.Position.Z;
+        var distance = MathF.Sqrt(dx * dx + dz * dz);
+        if (distance < 1f)
+            return;
+        s.NeedleKnown = true;
+        s.NeedleHeading = _needleHeading;
+        s.NeedleSinceTurn = (now - _needleTurnTick) / 1000f;
+        s.NeedleToPlayerBearing = MathF.Atan2(dx, dz);
+        s.NeedleToPlayerDistance = distance;
+    }
+
     internal static unsafe void ReadCrucible(ref BST_RotationLogic.BstState s)
     {
         var territory = Svc.ClientState.TerritoryType;
@@ -352,6 +417,9 @@ internal partial class BST
             _lastLivePetRow = 0;
             _shellWasUp = false;
             _shellBrokeTick = 0;
+            _needleId = 0;
+            _needleTurnTick = 0;
+            _hourglassId = 0;
             PartyHpVerified = false;
             PlayerHpSamples.Clear();
             TargetHpSamples.Clear();
@@ -388,12 +456,19 @@ internal partial class BST
         var newGel = false;
         uint club = 0;
         ProtectedScratch.Clear();
+        IGameObject? needle = null;
+        ulong hourglassId = 0;
         foreach (var obj in Svc.Objects)
         {
+            if (needle is null && obj.BaseId == BST_CrucibleLogic.NeedleBaseId)
+                needle = obj;
+
             if (obj is not IBattleNpc npc || npc.IsDead || !npc.IsTargetable || npc.CurrentHp == 0 || !npc.IsHostile())
                 continue;
 
             var nameId = npc.NameId;
+            if (nameId == BST_CrucibleLogic.HourglassNameId)
+                hourglassId = npc.GameObjectId;
             if (nameId == BST_CrucibleData.MorphoNameId)
                 morphoAlive = true;
             if (nameId == GigantisNameId)
@@ -448,6 +523,8 @@ internal partial class BST
             if (s.CrucibleBattle < 0 && BST_CrucibleData.Enemy(nameId) is { } enemy && enemy.Board == s.CrucibleBoard)
                 s.CrucibleBattle = enemy.Battle;
         }
+
+        ReadNeedle(ref s, needle, hourglassId, player, target, now);
 
         if (s.CrucibleBattle >= 0)
             s.CrucibleNeeds = BattleNeedsCached(s.CrucibleBoard, s.CrucibleBattle);
