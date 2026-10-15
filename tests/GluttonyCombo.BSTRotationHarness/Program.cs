@@ -10,7 +10,7 @@ namespace GluttonyCombo.BSTRotationHarness;
 ///     (research/bst-live-evidence.md) that runs the real engine through 300 s fights at every level
 ///     1-50 with several loadouts, and asserts the safety invariants on every run.
 /// </summary>
-internal static class Program
+internal static partial class Program
 {
     private static int _pass;
     private static int _fail;
@@ -56,6 +56,7 @@ internal static class Program
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
         DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
+        R4DegreeLane20261015(); // R4 degree lane 2026-10-15 (titles prefixed "r4-degree:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
