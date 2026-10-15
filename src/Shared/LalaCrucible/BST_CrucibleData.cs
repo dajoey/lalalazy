@@ -243,6 +243,36 @@ internal static partial class BST_CrucibleData
     public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562)];
 
     /// <summary>
+    ///     The pairs whose first kill is held back until the other is close (r4-target1 2.5-06): the Second Board elite's brothers.
+    ///     The Loosefrox / Chewchum kill order is unsettled in the dossier (G8 against AS), so that pair keeps the plain balancing.
+    /// </summary>
+    public static readonly (uint A, uint B)[] FinalBlowPairs = [(14555, 14556)];
+
+    /// <summary> The other member of a <see cref="FinalBlowPairs"/> pair, 0 when <paramref name="nameId"/> is in none. </summary>
+    public static uint FinalBlowPartner(uint nameId)
+    {
+        foreach (var (a, b) in FinalBlowPairs)
+        {
+            if (nameId == a)
+                return b;
+            if (nameId == b)
+                return a;
+        }
+
+        return 0;
+    }
+
+    /// <summary> Recharge (Demon / Evil Weapon / Devilet Piece): one stack every 2 s on the enemy that gorges; Damage Up (5409) comes with the fifth. </summary>
+    public const uint RechargeStatus = 5406;
+
+    /// <summary>
+    ///     Adds the guides kill fast that are not part of the pinned game-data <see cref="PriorityAdds"/> set (the harness asserts that set
+    ///     exactly): they join it for targeting. Seedling Piece 14600 (First Master's, the Morbol fight): "kill them, the poison is not
+    ///     worth leaving up".
+    /// </summary>
+    public static readonly HashSet<uint> FastKillAdds = [];
+
+    /// <summary>
     ///     Hard hits on the character (or the highest-enmity target) that a familiar with enough HP can take under Snarl: castbar
     ///     action ids bound from BossmodReborn's Crucible modules and the guides (two sources, or one real log), 2026-09-17.
     ///     Snarl -> Parting Blow no longer dodges them: the 7.56 hotfix of 2026-09-17 removes Cover before the hit, and the

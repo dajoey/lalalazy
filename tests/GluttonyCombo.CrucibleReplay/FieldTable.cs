@@ -141,6 +141,9 @@ internal static class FieldTable
         M("SinceCurtainsCast", "log `scu=` (age of the last Curtains cast) in CR|", Since),
         R("TargetNameId", "CR t=nameId", C(0u)),
         M("ShellJustBroke", "add flag letter `K` (shell just broke) to CR f=", FalseFirst),
+        D("PairPartnerSeen", "CR t= ne= hi=", "the other brother is alive: with two targetable enemies the highest HP is the partner's; one targetable enemy leaves it unknown (a gap)", FalseFirst),
+        D("PairPartnerHpPercent", "CR t= hi=", "the highest enemy HP when it is above the target's, else not above it", C(100f, 50f, 0f)),
+        D("PairGuardSeconds", "CR series", "seconds the guard condition has held over consecutive ticks of the window", C(0f, 3f, 10f)),
 
         R("BmrSeen", "CR bh= present", FalseFirst),
         R("BmrHitIn", "CR bh=", C(float.MaxValue)),

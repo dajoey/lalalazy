@@ -333,6 +333,9 @@ internal static class BST_RotationLogic
         public float NeedleToPlayerDistance;      // yalms
         public float HourglassAge;                // seconds since the Final Hourglass was first seen targetable
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
+        public bool PairPartnerSeen;              // the target is a BST_CrucibleData.FinalBlowPairs member and the other one is alive (targetable or not)
+        public float PairPartnerHpPercent;        // that partner's HP % (read only when PairPartnerSeen)
+        public float PairGuardSeconds;            // how long PairFinalBlowRisk has held without a break, 0 when it does not
 
         // crux lane 2026-10-13: stock BossMod Reborn's incoming-hit clock (Services/IPC_Subscriber/BossModHints.cs), the familiar's
         // poison, the active familiar's own release reach around do-not-attack enemies, and the character's Blink.

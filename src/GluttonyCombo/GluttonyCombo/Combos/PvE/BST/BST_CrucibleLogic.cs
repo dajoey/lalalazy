@@ -1392,7 +1392,7 @@ internal static class BST_CrucibleLogic
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion, and so is <see cref="Forbidden"/>
     ///     (<see cref="ConditionallyForbidden"/>: attackable only some of the time, held back now).
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false, bool Forbidden = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false, bool Forbidden = false, int RechargeStacks = 0);
 
     /// <summary>
     ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
@@ -1414,6 +1414,24 @@ internal static class BST_CrucibleLogic
 
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;
+
+    /// <summary> A <see cref="BST_CrucibleData.FinalBlowPairs"/> member at or under this HP % is in the kill zone: the first kill is near. </summary>
+    public const float PairKillZoneHp = 20f;
+
+    /// <summary> In the kill zone the lower member is left alone while the other is more than this many HP % above it. </summary>
+    public const float PairFinalGap = 4f;
+
+    /// <summary> The final-blow hold ends after this long (seconds) with the partner still out of reach; the fight never waits longer. </summary>
+    public const float PairHoldMaxSeconds = 6f;
+
+    /// <summary> The target is the lower of a final-blow pair, in the kill zone, with the partner alive and more than <see cref="PairFinalGap"/> above it. </summary>
+    public static bool PairFinalBlowRisk(in BST_RotationLogic.BstState s) => false;
+
+    /// <summary> <see cref="PairFinalBlowRisk"/> and the hold has not yet run <see cref="PairHoldMaxSeconds"/>: decline the press. </summary>
+    public static bool PairFinalBlowHold(in BST_RotationLogic.BstState s) => false;
+
+    /// <summary> <see cref="PairFinalBlowRisk"/> for longer than <see cref="PairHoldMaxSeconds"/>: the hold released and says so. </summary>
+    public static bool PairFinalBlowTimedOut(in BST_RotationLogic.BstState s) => false;
 
     /// <summary>
     ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos or damage-immune enemies;
