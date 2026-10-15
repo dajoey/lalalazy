@@ -1,0 +1,2 @@
+-- window tablitaur-partner-away-b2-bt5: archived capture (the 2026-09-25 fights are older than ffxivdb's retention), build 1.0.4.233
+-- re-pull: python3 tests/GluttonyCombo.CrucibleReplay/tools/fetch_window.py --from "2026-09-25T01:54:48Z" --to "2026-09-25T01:55:30Z" --from-tsv ~/work/bst-crucible-research/xb-captures/plugin-lines-20260924-20260930.tsv --out <file>

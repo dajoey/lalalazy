@@ -29,6 +29,7 @@ internal sealed class Rebuilder
     private long _slotSinceMs = -1;
     private bool _slotSinceKnown;
     private int _btIdx = -1, _dsIdx = -1, _btSeen = -1;
+    private long _pairRiskSinceMs;
 
     public Rebuilder(LogWindow w) => _w = w;
 
@@ -118,6 +119,36 @@ internal sealed class Rebuilder
             s.BmrMaxCast = float.MaxValue;
         }
         s.CrucibleDegreeLevel = Math.Max(0, cr.Degree);
+
+        // The Tablitaur pair (r4-target1 2.5-06). ne= and hi= count the targetable enemies only, so the brother is read from them: the highest enemy HP
+        // above the target's is the partner's; two counted enemies with the target the highest leave the partner's HP only known to be no higher; one
+        // counted enemy that is the target leaves it unknown (a gap: the brother may be dead or untargetable, and nothing logged says which).
+        var risk = false;
+        if (s.HasHostileTarget && BST_CrucibleData.FinalBlowPartner(s.TargetNameId) != 0)
+        {
+            if (cr.HighestEnemyHp > s.TargetHpPercent)
+            {
+                s.PairPartnerSeen = true;
+                s.PairPartnerHpPercent = cr.HighestEnemyHp;
+            }
+            else if (cr.Enemies >= 2)
+            {
+                s.PairPartnerSeen = true;
+                s.PairPartnerHpPercent = Math.Min(cr.HighestEnemyHp, s.TargetHpPercent);
+            }
+            else
+            {
+                gaps.Add(nameof(BstState.PairPartnerSeen));
+                gaps.Add(nameof(BstState.PairPartnerHpPercent));
+            }
+
+            risk = BST_CrucibleLogic.PairFinalBlowRisk(s);
+        }
+
+        // The guard clock over consecutive ticks of the window, with the plugin's own helper.
+        s.PairGuardSeconds = BST_CrucibleLogic.TrackPairGuard(risk, ref _pairRiskSinceMs, cr.Ms);
+        if (gaps.Contains(nameof(BstState.PairPartnerSeen)))
+            gaps.Add(nameof(BstState.PairGuardSeconds));
 
         // InCombat: positive evidence of a fight, else unknown
         var fighting = cr.PlayerHp is > 0 and < 100 || (s.HasHostileTarget && cr.TargetHp < 100) || cr.Intake > 0 || cr.Has('y') || cr.Has('p');
