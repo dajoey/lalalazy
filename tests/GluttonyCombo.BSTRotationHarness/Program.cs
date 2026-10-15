@@ -1072,7 +1072,9 @@ internal static partial class Program
             Check("... its research row stays (the guide still counts it) and says why it is not tried",
                 BST_CrucibleData.DispelRows.Any(r => r.StatusId == 989 && r.Basis == "disproven"));
             Check("Growing (390, Saplings) and Impassion (3129, Medusa) stay in the list as unproven tries: the guides name them, the logs decide",
-                BST_CrucibleData.DispellableBuffs.Contains(390) && BST_CrucibleData.DispellableBuffs.Contains(3129));
+                BST_CrucibleData.DispellableBuffs.Contains(390) && !BST_CrucibleData.DispellableBuffs.Contains(3129));
+            // r4-reaction 5.7-08: Impassion (3129) left the dispel list (research row kept, basis "disproven"); the title above is superseded
+            // for it, the cases in Lane_R4_Reaction.cs carry the rule.
             var gaps = new List<string>();
             var guideRows = 0;
             for (var board = 1; board <= 5; board++)

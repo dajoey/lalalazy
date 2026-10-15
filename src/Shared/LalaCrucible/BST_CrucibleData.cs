@@ -134,7 +134,9 @@ internal static partial class BST_CrucibleData
     ///     run (ffxivdb status_events) and the guides say to dispel it, but the panel does not flag it; "guide" = the guides
     ///     say so and the id comes from the panel's cast table, never seen on an enemy in a run; "disproven" = a run sent dispels and the
     ///     status stood (989 Regen: 12 Quelling Waves at the Abaddon 2026-10-03 19:34-19:35, effects damage only, no removal; the same
-    ///     cast on the Drake's Blaze Spikes carried the removal effect), so it is never tried. A "live" / "guide" id has never been
+    ///     cast on the Drake's Blaze Spikes carried the removal effect), or the cross-checked research says the game does not honour a
+    ///     dispel on it (3129 Impassion, Medusa: the panel does not flag it, S4 and S7 say none of the three borrowed answers removes
+    ///     it, and no dispel was ever recorded landing on it), so it is never tried. A "live" / "guide" id has never been
     ///     dispelled in a run, so the rotation gives up on it after <see cref="BST_CrucibleLogic.DispelMaxTries"/> dispels that left it standing.
     ///     The test in BSTRotationHarness asserts one row per guide counter, so a new dispel need cannot ship without an id.
     /// </summary>
@@ -151,7 +153,7 @@ internal static partial class BST_CrucibleData
         new(4, 9, 2528, "Ice Spikes (Snoll Piece)", "panel"),
         new(5, 5, 5465, "Blaze Spikes (Drake Piece)", "panel"),
         new(5, 5, 989, "Regen (Rehabilitation) on the Abaddon from eaten Morphos", "disproven"),
-        new(5, 7, 3129, "Impassion Damage Up (Medusa Piece)", "guide"),
+        new(5, 7, 3129, "Impassion Damage Up (Medusa Piece)", "disproven"),
         new(5, 11, 1225, "Spirit of Pompetition (Kinged Swordsmog)", "panel"),
     ];
 
