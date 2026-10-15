@@ -111,6 +111,8 @@ internal static class FieldTable
         R("PlayerHpPercent", "CR hp=", C(100f)),
         M("PlayerHp", "log absolute HP and max HP (`hpa=cur/max`) in CR|", s => [s.PlayerHpPercent * 40f, s.PlayerHpPercent * 20f, s.PlayerHpPercent * 80f]),
         M("ReadyHealPotion", "log the heal potion action id the engine would press (`hpot=`) in CR|", C(0u, BST_CrucibleData.HealPotionActions[0])),
+        M("ReadyReviveHorn", "log the revive offer (`rv=0/1`: a held Blessed Horn with a clear recast) in CR|", FalseFirst),
+        D("FamiliarDown", "CR pet= + BT battlehorn", "the familiar is KO'd when a horn is active and its HP reads 0 (pet= is 0 both when no horn is active and at 0 HP; the slot decides)", FalseFirst, bt: true),
         R("PetHpPercent", "CR pet=", C(100f)),
         M("PetHp", "log the familiar's absolute HP (`peta=`) in CR|", s => [s.PetHpPercent * 20f, s.PetHpPercent * 10f, s.PetHpPercent * 40f]),
         R("PlayerIntakePerSecond", "CR in=", C(0f)),

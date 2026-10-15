@@ -301,6 +301,8 @@ internal static class BST_RotationLogic
         public float PlayerHpPercent;
         public float PlayerHp;                       // absolute: the survival guard compares it to a cast's largest measured hit
         public uint ReadyHealPotion;                // best-grade Crucible heal potion action with stock held and recast clear, 0 = none
+        public bool FamiliarDown;                 // the summoned familiar's object sits at 0 HP (KO'd; no summon brings it back, only a Blessed Horn does)
+        public bool ReadyReviveHorn;              // a Blessed Horn is held in the Crucible item HUD and its recast is clear
         public float PetHpPercent;                // the summoned familiar (100 when none)
         public float PetHp;                       // the summoned familiar's HP (absolute)
         public float PlayerIntakePerSecond;       // HP the character lost per second over the last 10 s
