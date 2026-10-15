@@ -146,13 +146,16 @@ internal partial class BST
         {
             var inStance = false;
             var damageImmune = false;
+            var petrified = false;
             foreach (var status in t.StatusList)
             {
                 if (BST_CrucibleData.StanceStatuses.Contains(status.StatusId))
                     inStance = true;
                 if (BST_CrucibleData.IsDamageImmunityStatus(status.StatusId))
                     damageImmune = true;
-                if (inStance && damageImmune)
+                if (BST_CrucibleData.PetrifiedStatuses.Contains(status.StatusId))
+                    petrified = true;
+                if (inStance && damageImmune && petrified)
                     break;
             }
             var dispellable = DispelArmed && CarriesDispellableBuff(t)
@@ -168,7 +171,8 @@ internal partial class BST
                 dispellable,
                 proven,
                 CrucibleForbidden(t),
-                RechargeStacksOf(t)));
+                RechargeStacksOf(t),
+                petrified));
         }
 
         return candidates;

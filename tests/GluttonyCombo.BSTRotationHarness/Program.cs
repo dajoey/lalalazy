@@ -354,7 +354,7 @@ internal static partial class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 61 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite, King Ahriman's Final Hourglass added; 2026-10-13: the Administrator out, its five adds and the pyrobolus in)",
+        Check("Crucible priority adds: exact game-data set, 62 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite, King Ahriman's Final Hourglass added; 2026-10-13: the Administrator out, its five adds and the pyrobolus in; 2026-10-15: the Cross Charge lightning sprite in — the Behemoth holds Invincible while sprites live)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
@@ -364,7 +364,7 @@ internal static partial class Program
                 14611, 14612, 14613, 14614, 14616, 14627,
                 14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
-                14676, 14677, 14680, 14681, 14683, 14689, 14691, 14692, 14699,
+                14676, 14677, 14680, 14681, 14683, 14686, 14689, 14691, 14692, 14699,
             }));
         Check("priority-add order overlay: crawling before shambling; biloko before sapling before diremite",
             BST_CrucibleData.PriorityAddRank(14586) < BST_CrucibleData.PriorityAddRank(14585)
@@ -768,11 +768,12 @@ internal static partial class Program
             && Allowed(C(14638, 100f, false), C(14641, 100f, false), C(14639, 100f, false)).SequenceEqual(new[] { 2 })
             && Allowed(C(14638, 100f, false), C(14641, 100f, false)).SequenceEqual(new[] { 1 })
             && Allowed(C(14638, 100f, false)).SequenceEqual(new[] { 0 }));
-        Check("moogle finale: Mogmugger, then the Melomogs, then the kinged healer and caster together, then the Kinged Swordsmog",
-            Allowed(C(14683, 100f, false), C(14681, 100f, false), C(14676, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0 })
-            && Allowed(C(14681, 100f, false), C(14676, 100f, false), C(14677, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0 })
-            && Allowed(C(14676, 100f, false), C(14677, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0, 1 })
-            && Allowed(C(14680, 100f, false)).SequenceEqual(new[] { 0 }));
+        Check("moogle finale: the Kinged Swordsmog first (her death ends the fight even with others alive), then Mogmugger, the Melomogs, then the kinged healer and caster together",
+            Allowed(C(14680, 100f, false), C(14683, 100f, false), C(14681, 100f, false), C(14676, 100f, false)).SequenceEqual(new[] { 0 })
+            && Allowed(C(14683, 100f, false), C(14681, 100f, false), C(14676, 100f, false), C(14677, 100f, false)).SequenceEqual(new[] { 0 })
+            && Allowed(C(14681, 100f, false), C(14676, 100f, false), C(14677, 100f, false)).SequenceEqual(new[] { 0 })
+            && Allowed(C(14676, 100f, false), C(14677, 100f, false)).SequenceEqual(new[] { 0, 1 })
+            && Allowed(C(14677, 100f, false)).SequenceEqual(new[] { 0 }));
 
         // Strix Piece (board 4, battle 1): the boss casts Aero III itself, then a Plume add (14598) casts the 12 s 25y one.
         // The game never marks either cast interruptible (0 of 5 logged casts), so the only counter is killing the add:
@@ -2905,7 +2906,7 @@ internal static partial class Program
         Check("hourglass up with Hapalit and Dirty Eye: the hourglass is the only target until it is broken",
             allowed.SequenceEqual(new[] { 2 }), string.Join(",", allowed));
         var noGlass = BST_CrucibleLogic.AllowedTargets(new[] { T(hapalit), T(dirtyEye) });
-        Check("control: no hourglass, Hapalit and Dirty Eye stay equally targetable", noGlass.SequenceEqual(new[] { 0, 1 }), string.Join(",", noGlass));
+        Check("control: no hourglass, only Hapalit is targetable (Hapalit before the Dirty Eye for its Burns)", noGlass.SequenceEqual(new[] { 0 }), string.Join(",", noGlass));
         Check("control: the hourglass alone is targetable", BST_CrucibleLogic.AllowedTargets(new[] { T(hourglass) }).SequenceEqual(new[] { 0 }));
     }
 

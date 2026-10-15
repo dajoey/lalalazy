@@ -188,6 +188,14 @@ internal static partial class BST_CrucibleData
     public static bool IsDamageImmunityStatus(uint statusId) =>
         InvulnerableStatuses.Contains(statusId);
 
+    /// <summary>
+    ///     Petrify on an enemy: Stone Curse 437, what the Medusa's Petrifying Regard applies to the target its baited
+    ///     cone hits (the guides' play is to bait it onto one of the four Cyclopes, and a petrified Cyclops dies to
+    ///     any hit — M2 pieces 5.7). The state was not read before round 4: the petrified enemy sat in the ordinary
+    ///     kill order instead of being taken at once.
+    /// </summary>
+    public static readonly HashSet<uint> PetrifiedStatuses = [437];
+
     /// <summary> Directional Parry (Forward Guard). 680 is the named status everywhere. </summary>
     public static readonly HashSet<uint> ParryStatuses = [680];
 
@@ -237,10 +245,13 @@ internal static partial class BST_CrucibleData
     };
 
     /// <summary>
-    ///     Pairs that must die together (killing one first enrages the other): elder / younger tablitaur (Second
-    ///     Board elite), Loosefrox Inkyjots / Chewchum Popoto (Second Board boss).
+    ///     Pairs that must die together: killing one first enrages the other (elder / younger tablitaur, Second
+    ///     Board elite; Loosefrox Inkyjots / Chewchum Popoto, Second Board boss), or a survivor revives the one
+    ///     that died first — the Summon's two Lamias share one id and Raise 49287 revives a dead Lamia, so they
+    ///     are killed evenly: halve one, switch, finish both. A pair whose members share one id constrains two
+    ///     actors of that id; the lower-HP one is dropped while they are more than PairHpGap apart.
     /// </summary>
-    public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562)];
+    public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562), (14661, 14661)];
 
     /// <summary>
     ///     The pairs whose first kill is held back until the other is close (r4-target1 2.5-06): the Second Board elite's brothers.
@@ -351,9 +362,11 @@ internal static partial class BST_CrucibleData
         14611, 14612, 14613, 14614, 14616, 14627,
         // M2: lightning sprite, deepeye, bomb, atomos wave adds (gremlins, puddings, bavarois, flan, vodoriga, dahak),
         //     barbmole (drake-fight spinemole), spinner-rook, lamia, cyclops x2 (medusa + gigantis), congealed gels,
-        //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues
+        //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues,
+        //     the 5.12 Cross Charge lightning sprite (the Behemoth holds Invincible while sprites live, so the sprite is
+        //     ranked and the unranked Behemoth and Giant drop out while it lives)
         14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649, 14653,
-        14659, 14661, 14662, 14671, 14672, 14673, 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
+        14659, 14661, 14662, 14671, 14672, 14673, 14676, 14677, 14680, 14681, 14683, 14686, 14691, 14692, 14699,
         // M2 King Ahriman: the Final Hourglass the Roulette spawns (live 2026-10-03: with Hapalit and Dirty Eye up it was never attacked
         // and its Death killed the character through Doom; broken within ~12 s in the two roulettes with no adds up)
         14689,
@@ -393,13 +406,13 @@ internal static partial class BST_CrucibleData
         [[14595], [14591]],                                    // Thanatos before the guardia that covers it
         [[14624], [14627], [14625]],                           // progenitrix wave: grenade, pyrobolus, bomb (BMR ProgenitrixPiece.cs 5 / 4 / 3)
         [[14640], [14639], [14641]],                           // boogyman wave: self-destructing bomb, deepeye, light sprite
-        [[14683], [14681], [14676, 14677], [14680]],           // moogle finale: Mogmugger, Melomogs, kinged healer and caster, Kinged Swordsmog
+        [[14680], [14683], [14681], [14676, 14677]],           // moogle finale: the Kinged Swordsmog first — killing her ends the fight even with others alive (kill her as soon as reachable); then Mogmugger, the Melomogs, the kinged healer and caster
         [[14542], [14543]],                                    // Pas de Seul: Succubus Mage before the Knights
         [[14539], [14748]],                                    // ogre: small wisps before the great wisp
         [[14574], [14573]],                                    // zu pack: pullet (Caustic Vomit) before the cockerel
         [[14589], [14591]],                                    // cactuar pack: flowertender before the guardia
         [[14646], [14645, 14647, 14649], [14644, 14643, 14648]], // Atomos summons: bavarois; pudding, flan, dahak; gremlins, vodoriga
-        [[14689], [14691, 14692]],                             // King Ahriman: the Final Hourglass before Hapalit and Dirty Eye
+        [[14689], [14691], [14692]],                           // King Ahriman: the Final Hourglass, then Hapalit (its Burns keeps landing) before the Dirty Eye
         [[14611, 14616], [14613], [14614, 14612]],             // Administrator: bug and cobra, dreadnaught, drone and footman (boss last; BMR + guide)
     ];
 
