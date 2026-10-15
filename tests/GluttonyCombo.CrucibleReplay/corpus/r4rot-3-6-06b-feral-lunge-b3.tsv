@@ -1,0 +1,58 @@
+#source=archive:plugin-lines-20260924-20260930.tsv
+#from=2026-09-25 04:18:17+00
+#to=2026-09-25 04:18:30+00
+#lead_s=3
+#build=1.0.4.233
+#piece=board 3, Feral Lunge cast 48569, Shield Charge gap-close at 2.4 s
+#tags=shield-charge,reserve,feral-lunge
+#expect.head=15
+2026-09-25T04:18:14.587Z	CR|1790309894587|b=3|bt=6|nd=|ne=1|hi=79|t=14583:79|c=0:0.0|f=yc|hp=10|pet=53|sl=81.76.53|dec=44883:gcdchain|sh=|ttd=88|in=9|vul=0|xp=1
+2026-09-25T04:18:14.645Z	BT|1790309894645|548400030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:pet-busy|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:14.900Z	BT|1790309894900|548400030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:15.353Z	BT|1790309895353|548400030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:pet-busy|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:15.470Z	CR|1790309895470|b=3|bt=6|nd=|ne=1|hi=79|t=14583:77|c=0:0.0|f=yc|hp=10|pet=53|sl=81.76.53|dec=44885:gcdchain|sh=|ttd=86|in=0|vul=0|xp=1
+2026-09-25T04:18:15.610Z	BT|1790309895610|618400030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:min-stay|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:16.911Z	CR|1790309896911|b=3|bt=6|nd=|ne=1|hi=77|t=14583:77|c=0:0.0|f=yc|hp=10|pet=50|sl=81.76.50|dec=44885:gcdchain|sh=|ttd=114|in=0|vul=0|xp=1
+2026-09-25T04:18:17.167Z	CR|1790309897166|b=3|bt=6|nd=|ne=1|hi=77|t=14583:77|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=44885:gcdchain|sh=|ttd=114|in=0|vul=0|xp=1
+2026-09-25T04:18:17.211Z	BT|1790309897211|618400030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:17.557Z	BT|1790309897557|619000030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:17.812Z	BT|1790309897812|619000030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:min-stay|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:17.911Z	CR|1790309897911|b=3|bt=6|nd=|ne=1|hi=77|t=14583:75|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=47093:combo:trick-first|sh=|ttd=72|in=10|vul=0|xp=1
+2026-09-25T04:18:18.066Z	BT|1790309898066|709000030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=47093:combo:trick-first|fd=crucible:petsave-no-healthier-horn+exit:min-stay|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:18.210Z	CR|1790309898210|b=3|bt=-1|nd=|ne=0|hi=0|t=14583:75|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=47093:combo:trick-first|sh=|ttd=72|in=10|vul=0|xp=1
+2026-09-25T04:18:19.697Z	BT|1790309899697|709000030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44879:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:trick-first-waiting|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:19.697Z	CR|1790309899697|b=3|bt=-1|nd=|ne=0|hi=0|t=14583:76|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=44879:gcdchain|sh=|ttd=151|in=10|vul=0|xp=1
+2026-09-25T04:18:20.619Z	CR|1790309900619|b=3|bt=6|nd=|ne=1|hi=76|t=14583:76|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=44879:gcdchain|sh=|ttd=178|in=10|vul=0|xp=1
+2026-09-25T04:18:20.693Z	BT|1790309900693|709000030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=47093:combo:trick-first|fd=crucible:petsave-no-healthier-horn+exit:min-stay|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:20.879Z	CR|1790309900879|b=3|bt=6|nd=|ne=1|hi=76|t=14583:76|c=48569:3.5|f=yc|hp=8|pet=50|sl=81.76.50|dec=47093:combo:trick-first|sh=|ttd=132|in=10|vul=0|xp=1
+2026-09-25T04:18:20.945Z	BT|1790309900945|709c00030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=47093:combo:trick-first|fd=crucible:petsave-no-healthier-horn+exit:min-stay|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:21.130Z	CR|1790309901130|b=3|bt=6|nd=|ne=1|hi=76|t=14583:75|c=48569:3.2|f=ysc|hp=8|pet=50|sl=81.76.50|dec=47093:combo:trick-first|sh=aggro:snarl-last-resort|ttd=127|in=10|vul=0|xp=1
+2026-09-25T04:18:21.347Z	BT|1790309901347|709c00030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:min-stay+combo:trick-first-waiting|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:21.380Z	CR|1790309901380|b=3|bt=6|nd=|ne=1|hi=76|t=14583:76|c=48569:3.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=139|in=10|vul=0|xp=1
+2026-09-25T04:18:21.599Z	BT|1790309901599|70009c030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:pet-busy+combo:awaiting-pet-heart|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:21.631Z	CR|1790309901631|b=3|bt=6|nd=|ne=1|hi=76|t=14583:73|c=48569:2.7|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=114|in=10|vul=0|xp=1
+2026-09-25T04:18:22.012Z	CR|1790309902012|b=3|bt=6|nd=|ne=1|hi=75|t=14583:73|c=48569:2.4|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44893:shieldcharge:gapclose|sh=aggro:snarl-last-resort|ttd=112|in=10|vul=0|xp=1
+2026-09-25T04:18:22.012Z	BT|1790309902012|70009c030000000000|3|0|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44893:shieldcharge:gapclose|fd=crucible:petsave-no-healthier-horn+exit:pet-busy+combo:awaiting-pet-heart|sl=8.39.12|lv=50|4614
+2026-09-25T04:18:22.266Z	CR|1790309902266|b=3|bt=6|nd=|ne=1|hi=73|t=14583:72|c=48569:2.1|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=92|in=10|vul=0|xp=1
+2026-09-25T04:18:22.266Z	BT|1790309902266|70009c030202000000|3|2|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:axe-waiting-gcd|sl=8.39.12|lv=50|4596,4614
+2026-09-25T04:18:22.624Z	CR|1790309902624|b=3|bt=6|nd=|ne=1|hi=73|t=14583:72|c=48569:1.7|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44887:combo:axe-clockwise-after-trick|sh=aggro:snarl-last-resort|ttd=94|in=10|vul=0|xp=1
+2026-09-25T04:18:22.624Z	BT|1790309902624|70009c030202000000|3|2|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44887:combo:axe-clockwise-after-trick|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4596,4614
+2026-09-25T04:18:23.344Z	BT|1790309903344|70009c030202000000|3|2|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4596,4614
+2026-09-25T04:18:23.344Z	CR|1790309903344|b=3|bt=6|nd=|ne=1|hi=72|t=14583:72|c=48569:1.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=93|in=10|vul=0|xp=1
+2026-09-25T04:18:23.601Z	BT|1790309903601|00009c030202000000|3|2|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4596,4614
+2026-09-25T04:18:23.853Z	BT|1790309903853|000c9c030202000000|3|2|0|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4596,4614
+2026-09-25T04:18:24.105Z	BT|1790309904105|000c9c030703010004|3|3|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready+combo:wavering-heart|sl=8.39.12|lv=50|4643,4614
+2026-09-25T04:18:24.420Z	CR|1790309904420|b=3|bt=6|nd=|ne=1|hi=71|t=14583:71|c=0:0.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=111|in=10|vul=0|xp=1
+2026-09-25T04:18:25.581Z	BT|1790309905581|000c9c030703010004|3|3|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:wavering-heart|sl=8.39.12|lv=50|4643,4614
+2026-09-25T04:18:25.734Z	CR|1790309905734|b=3|bt=6|nd=|ne=1|hi=71|t=14583:69|c=0:0.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44883:gcdchain|sh=aggro:snarl-last-resort|ttd=59|in=10|vul=0|xp=1
+2026-09-25T04:18:25.831Z	BT|1790309905831|0d0c9c030703010004|3|3|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready+combo:wavering-heart|sl=8.39.12|lv=50|4643,4614
+2026-09-25T04:18:25.991Z	CR|1790309905991|b=3|bt=-1|nd=|ne=0|hi=0|t=14583:69|c=0:0.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44885:gcdchain|sh=aggro:snarl-last-resort|ttd=59|in=10|vul=0|xp=1
+2026-09-25T04:18:26.294Z	BT|1790309906294|0d0c9c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready+combo:wavering-heart|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:26.546Z	BT|1790309906546|0d0c9c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:26.799Z	BT|1790309906799|0d189c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:27.489Z	BT|1790309907489|0d189c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:28.068Z	BT|1790309908068|0d189c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+exit:no-other-horn-ready|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:28.630Z	CR|1790309908630|b=3|bt=6|nd=|ne=1|hi=68|t=14583:68|c=0:0.0|f=ysc|hp=8|pet=50|sl=81.76.50|dec=44885:gcdchain|sh=aggro:snarl-last-resort|ttd=79|in=0|vul=0|xp=1
+2026-09-25T04:18:29.366Z	CR|1790309909366|b=3|bt=6|nd=|ne=1|hi=68|t=14583:68|c=0:0.0|f=yc|hp=8|pet=50|sl=81.76.50|dec=44885:gcdchain|sh=|ttd=100|in=0|vul=0|xp=1
+2026-09-25T04:18:29.366Z	BT|1790309909366|0d189c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4600,4614
+2026-09-25T04:18:29.651Z	BT|1790309909651|0d249c030606010004|3|6|1|0|pet=1073772660:Mandragora:18927|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=8.39.12|lv=50|4600,4614

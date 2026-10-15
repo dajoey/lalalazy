@@ -19,8 +19,9 @@ namespace GluttonyCombo.Combos.PvE;
 ///         <item>Lingering Vantage exists only from L44 (Tempered Release) / L46 (Borrow).</item>
 ///         <item>Combos are Trick + axe pairs; each axe spends all TP. The pet's Heart lands ~1 s after
 ///               Trick (p90 1.7 s, p99 2.5 s over 308 live Tricks), so the follow-up axe waits for it.</item>
-///         <item>Axes are Weaponskills on their own recast: auto-rotation only sends them when the GCD
-///               is ready, so they are offered on GCD-ready ticks, never behind a weave gate.</item>
+///         <item>Axes are Weaponskills on their own recast (group 16, not the GCD's 58). Typed as Weaponskills the
+///               sender only takes them on a GCD-ready tick, where each pushes the next GCD back ~0.45 s; typed as
+///               abilities (<see cref="BstState.AxesOffGcd"/>, r4) they are offered in a weave window instead.</item>
 ///     </list>
 /// </remarks>
 internal static class BST_RotationLogic
@@ -171,6 +172,11 @@ internal static class BST_RotationLogic
 
         // L40+: bank Natural Instinct once Mastered is building (feeds Rallying Cheer -> more Tricks).
         if (level >= LvRallyingCheer && naturalStacks == 0 && masterStacks >= 2 && ccwLearned)
+            return ComboOrder.AxeFirst;
+
+        // Mastered Instinct caps at 3 and Rally is on a 120 s recast, so an axe-finished combo past the cap adds nothing: bank Natural instead
+        // (a Trick-finished combo, axe first), up to its cap of 3. Rallying Cheer needs 2; the rule above alone stopped at 1.
+        if (level >= LvRallyingCheer && masterStacks >= 3 && naturalStacks < 3 && ccwLearned)
             return ComboOrder.AxeFirst;
 
         if (cwLearned)
@@ -351,6 +357,10 @@ internal static class BST_RotationLogic
 
         // dash-hold lane 2026-10-14
         public float DashSettleRemaining;         // seconds of hold left after the last mechanic that held a dash cleared (DashHazardClock); 0 = none
+
+        // r4 rotation lane 2026-10-15
+        public bool AxesOffGcd;                   // the sender types the four TP axes as abilities (recast group 16, not the GCD): they ride a weave window. false = sent as Weaponskills, only on a GCD-ready tick
+        public float DashCageRemaining;           // seconds left of the Deadly Demesne cage window (BST_Crucible stamps the cast's first tick); 0 = none
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -822,6 +832,8 @@ internal static class BST_RotationLogic
                     declines.Add("crucible:shieldcharge-protected-near");
                 else if (DashLandingDecline(s, crucible) is { } blocked)
                     declines.Add(blocked);
+                else if (ShieldChargeReserve(s, crucible) is { } kept)
+                    declines.Add(kept);
                 else
                     return Pick(BST.ShieldCharge, "shieldcharge:overcap");
             }
@@ -831,6 +843,8 @@ internal static class BST_RotationLogic
                 {
                     if (DashLandingDecline(s, crucible) is { } blocked)
                         declines.Add(blocked);
+                    else if (ShieldChargeReserve(s, crucible) is { } kept)
+                        declines.Add(kept);
                     else
                         return Pick(BST.ShieldCharge, s.TargetDistance > 3.5f ? "shieldcharge:gapclose" : "shieldcharge:max-charges");
                 }
@@ -876,6 +890,49 @@ internal static class BST_RotationLogic
     /// <summary> A cast (the target's, or a known knockback from any caster) with this much or less left holds a dash; covers a 3 s cast whole. </summary>
     public const float DashCastLeadSeconds = 3f;
 
+    /// <summary> Deadly Demesne (3.0 s cast): the swords drop and form a cage that binds (Fetters, 48609) 8.1 s after the cast starts. </summary>
+    public const uint DemesneCastId = 48608;
+
+    /// <summary>
+    ///     How long after the Demesne cast starts a dash toward her is a dash into the cage: the last blade line along the cage goes off 16.6 s
+    ///     after the cast starts (action_events 2026-09-04..10-15: 28 casts, Fetters 8.08-8.15 s, blade lines 13.6 s and 16.6 s). The hold is the dash only.
+    /// </summary>
+    public const float DashCageSeconds = 16.7f;
+
+    /// <summary> The recast of the four TP axes (recast group 16, 5 s); a weave tick before it is over would be refused. </summary>
+    public const float AxeRecastSeconds = 5f;
+
+    /// <summary> The four TP axes: Weaponskill category in the sheet but recast group 16 (the GCD is group 58), so the game takes them in a weave window. </summary>
+    public static bool OffGcdAxe(uint actionId) =>
+        actionId is BST.AvalancheAxe or BST.MistralAxe or BST.SpinningAxe or BST.GaleAxe;
+
+    /// <summary>
+    ///     When a TP axe may be offered. The sender types the axes as abilities (<see cref="BstState.AxesOffGcd"/>): in a real weave window
+    ///     (GCD rolling with a lock's worth left, not a GCD-ready tick that an idle GCD reports as a window) once its own recast is over, so the
+    ///     GCD chain is never pushed back by it (recorded: 2.497 s GCD gap after a weaved axe, 2.933 s after one sent on a GCD-ready tick).
+    ///     Not typed that way: the Weaponskill rule, a GCD-ready tick.
+    /// </summary>
+    public static bool AxeWindow(in BstState s) =>
+        s.AxesOffGcd ? s.CanWeave && !s.GcdReady && s.SinceAxe >= AxeRecastSeconds : s.GcdReady;
+
+    /// <summary>
+    ///     The casts that need the last Shield Charge afterwards: Hammerleap (48135 7.0 s / 48137 8.1 s: run to the opposite edge, dash back) and
+    ///     Feral Lunge (48569 3.8 s / 48570 4.0 s: step out of the line, dash back). The label, or null for any other cast.
+    /// </summary>
+    public static string? ReserveCastName(uint castId) => castId switch
+    {
+        48135 or 48137 => "hammerleap",
+        48569 or 48570 => "feral-lunge",
+        _ => null,
+    };
+
+    /// <summary>
+    ///     Why the last Shield Charge is kept (a decline label), or null when a dash may spend it. Only on a board, only the last charge, and only while
+    ///     the cast that needs it is running (at most its own length, 8.1 s); with two or more charges the dash goes as before.
+    /// </summary>
+    public static string? ShieldChargeReserve(in BstState s, bool crucible) =>
+        crucible && s.ShieldChargeCharges <= 1 && s.TargetCastId != 0 && ReserveCastName(s.TargetCastId) is { } name ? "shieldcharge:reserve-" + name : null;
+
     /// <summary> The mechanic that holds a dash right now (without the settle), or null. </summary>
     public static string? DashHazard(in BstState s)
     {
@@ -899,7 +956,7 @@ internal static class BST_RotationLogic
     ///     <paramref name="crucible"/> is the rotation's own flag (the Crucible tactics option on, on a board): off, nothing is held.
     /// </summary>
     public static string? DashMechanicHold(in BstState s, bool crucible) =>
-        !crucible ? null : DashHazard(s) ?? (s.DashSettleRemaining > 0f ? "settling" : null);
+        !crucible ? null : DashHazard(s) ?? (s.DashCageRemaining > 0f ? "cage" : null) ?? (s.DashSettleRemaining > 0f ? "settling" : null);
 
     /// <summary> Why a Shield Charge must not fire at this landing (a decline label), or null when it may. </summary>
     public static string? DashLandingDecline(in BstState s, bool crucible, bool? mechanicGate = null) => s.DashLanding switch
@@ -1127,11 +1184,12 @@ internal static class BST_RotationLogic
         // L50 finisher: Sun/Moon active and TP 250 -> the axe whose finisher is the OPPOSITE type (Universality).
         // Hawkish Talons rushes to the target (Action sheet AffectsPosition); Risen Fall and Calamity do not move the character. The dash
         // answers to the same landing check as Shield Charge, and where it may not land, Calamity (Gale Axe, a 10 y line) completes the
-        // Universality in its place. On a Crucible board the finishers stay melee-only. Elsewhere Risen Fall and Calamity reach their real
-        // range (25 y / 10 y); Hawkish Talons closes a gap only where Shield Charge may (gap-closing on) and the landing is known safe.
+        // Universality in its place. Risen Fall and Calamity reach their real range (25 y / 10 y) on a Crucible board too (r4 rot-21: they do not
+        // move the character, and the protected-enemy hold below still applies); on a board the dash stays melee-only. Elsewhere Hawkish Talons
+        // closes a gap only where Shield Charge may (gap-closing on) and the landing is known safe.
         if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe)
         {
-            if (s.SunMoon == BeastmasterAffinity.Moonstalker && s.TargetDistance <= (crucible ? 3.5f : FinisherRange))
+            if (s.SunMoon == BeastmasterAffinity.Moonstalker && s.TargetDistance <= FinisherRange)
                 return (BST.SpinningAxe, "finisher:risenfall-universality");
             if (s.SunMoon == BeastmasterAffinity.Sunstrider)
             {
@@ -1144,7 +1202,7 @@ internal static class BST_RotationLogic
                     return (BST.MistralAxe, "finisher:hawkishtalons-universality");
                 if (hold.Length != 0)
                     declines.Add(hold.Replace("shieldcharge:", "finisher:hawkishtalons-"));
-                if (s.TargetDistance <= (crucible ? 3.5f : CalamityRange))
+                if (s.TargetDistance <= CalamityRange)
                     return (BST.GaleAxe, "finisher:calamity-universality");
             }
         }
@@ -1167,7 +1225,7 @@ internal static class BST_RotationLogic
         {
             var want = Clockwise(petAffinity);
             var axe = AxeLearned(want, s.Level) ? AxeFor(want) : AnyLearnedAxe(s.Level);
-            if (s.GcdReady && targetInMelee)
+            if (AxeWindow(s) && targetInMelee)
                 return (axe, axe == AxeFor(want) ? "combo:axe-clockwise-after-trick" : "combo:axe-after-trick");
             declines.Add("combo:axe-waiting-gcd");
             return (0, "");
@@ -1192,7 +1250,7 @@ internal static class BST_RotationLogic
         {
             var want = Clockwise(s.LastAxeAffinity);
             var axe = AxeLearned(want, s.Level) ? AxeFor(want) : AnyLearnedAxe(s.Level);
-            if (s.GcdReady && targetInMelee)
+            if (AxeWindow(s) && targetInMelee)
                 return (axe, "combo:axe-after-axe");
         }
 
@@ -1218,7 +1276,7 @@ internal static class BST_RotationLogic
                 else
                 {
                     var ccw = CounterClockwise(petAffinity);
-                    if (s.GcdReady && targetInMelee && AxeLearned(ccw, s.Level))
+                    if (AxeWindow(s) && targetInMelee && AxeLearned(ccw, s.Level))
                         return (AxeFor(ccw), "combo:axe-first");
                     declines.Add("combo:axe-first-waiting");
                 }
@@ -1231,7 +1289,7 @@ internal static class BST_RotationLogic
 
         // Bare axe: no familiar possible (below L8, no horn assigned or ready), or TP about to overcap.
         var familiarPossible = s.Level >= LvTrick && (familiarOut || PickReadyHorn(s, 0) != 0 || s.ActiveSlot != 0);
-        if (s.PlayerTp >= 100 && s.ReadyAxe && s.GcdReady && targetInMelee
+        if (s.PlayerTp >= 100 && s.ReadyAxe && AxeWindow(s) && targetInMelee
             && (!familiarPossible || s.PlayerTp >= 235))
         {
             var axe = AnyLearnedAxe(s.Level);

@@ -3382,7 +3382,7 @@ internal static partial class Program
         Check("core: Crucible, Sunstrider, landing unknown (no boss-mod answer) -> Calamity", Decide(crFin with { DashLanding = DashLanding.Unknown }, cfg).ActionId == BST.GaleAxe);
         Check("core: Crucible, Moonstalker, landing in danger -> Risen Fall still (it does not move the character)",
             Decide(crFin with { SunMoon = BeastmasterAffinity.Moonstalker, DashLanding = DashLanding.Danger }, cfg).Reason == "finisher:risenfall-universality");
-        Check("core: Crucible keeps the melee gate: Sunstrider at 8 y -> no finisher", Decide(crFin with { TargetDistance = 8f }, cfg).Reason.StartsWith("finisher:") == false);
+        Check("core: Crucible keeps the dash melee-only: Sunstrider at 8 y -> not Hawkish Talons, and past Calamity's 10 y no finisher (r4-rotation rot-21: Calamity reaches its 10 y on a board)", Decide(crFin with { TargetDistance = 8f }, cfg).ActionId != BST.MistralAxe && Decide(crFin with { TargetDistance = 11f }, cfg).Reason.StartsWith("finisher:") == false);
         Check("core: outside the Crucible, Sunstrider at 15 y, clean landing -> Hawkish Talons (25 y)", Decide(fin with { TargetDistance = 15f }, cfg).Reason == "finisher:hawkishtalons-universality", D(Decide(fin with { TargetDistance = 15f }, cfg)));
         Check("core: outside the Crucible, Moonstalker at 20 y -> Risen Fall (25 y)", Decide(fin with { TargetDistance = 20f, SunMoon = BeastmasterAffinity.Moonstalker }, cfg).Reason == "finisher:risenfall-universality");
         Check("core: outside the Crucible, 26 y -> no finisher", !Decide(fin with { TargetDistance = 26f }, cfg).Reason.StartsWith("finisher:"));

@@ -16,7 +16,15 @@ internal static class UIntExtensions
 
     internal static string ItemName(this uint value) => ActionAndStatusLocalization.GetItemName(value);
 
-    internal static ActionAttackType ActionAttackType(this uint value) => (ActionAttackType)(ActionSheet.TryGetValue(value, out var actSheet) ? actSheet.ActionCategory.RowId : 0);
+    /// <summary>
+    ///     The action's category, as the auto-rotation sender reads it: a Weaponskill is sent when the GCD is ready, an ability when the animation
+    ///     lock is. The four Beastmaster TP axes are category Weaponskill but recast group 16 (the GCD is 58), so they are abilities here
+    ///     (r4 rot-32): recorded play shows the game takes them in a weave window and the next GCD then lands on time.
+    /// </summary>
+    internal static ActionAttackType ActionAttackType(this uint value) =>
+        global::GluttonyCombo.Combos.PvE.BST_RotationLogic.OffGcdAxe(value)
+            ? global::GluttonyCombo.Data.ActionWatching.ActionAttackType.Ability
+            : (ActionAttackType)(ActionSheet.TryGetValue(value, out var actSheet) ? actSheet.ActionCategory.RowId : 0);
 
     internal static float ActionRange(this uint value) =>
         ActionManager.GetActionRange(value);

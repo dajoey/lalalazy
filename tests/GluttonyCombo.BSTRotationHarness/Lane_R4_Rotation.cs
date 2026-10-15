@@ -80,6 +80,21 @@ internal static partial class Program
         Check("r4-rotation: rot-09 the stacks climb: 2 Natural stand within 12 combos of a fresh fight (the old rule: never in 40)",
             climb is > 0 and <= 12, $"combos {climb}");
 
+        // Recorded tick, ffxivdb 2026-10-13 23:39:13Z (GluttonyCombo 1.0.4.301, board 5 battle 10, L50): gauge Mastered 3 + Natural 1, the Treant out, both
+        // gauges over 100, the plugin recorded dec=combo:trick-first. The readiness the log does not carry is what that decision proves (Trick and axe ready,
+        // a weave window); the replay cannot rebuild it jointly, so the tick is rebuilt here from the BT| gauge bytes 61789001000000730d / CR| line.
+        var recorded = CrucibleState(50) with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 10, TargetNameId = 14670, TargetDistance = 2.2f, Slot1Beast = 36, Slot2Beast = 40, Slot3Beast = 23,
+            PetObjectBeast = BST_Beasts.RowFromBNpcBase(18951), PlayerTp = 112, FamiliarTp = 120, MasterStacks = 3, NaturalStacks = 1,
+            ReadyTrick = true, ReadyAxe = true, GcdReady = true, CanWeave = true, ReadyParting = false, PetOrder = PetOrder.None,
+        };
+        var recTick = Decide(recorded, cfg);
+        Check("r4-rotation: rot-09 recorded tick (2026-10-13 23:39:13Z, Mastered 3 + Natural 1, recorded combo:trick-first): the pair now starts axe-first to bank the second Natural",
+            recTick.Reason == "combo:axe-first", D(recTick));
+        Check("r4-rotation: rot-09 ... the same tick with Natural already at 3 still reproduces the recorded combo:trick-first (nothing left to bank)",
+            Decide(recorded with { NaturalStacks = 3 }, cfg).Reason == "combo:trick-first");
+
         // ---------------------------------------------------------------- rot-21: finishers reach 25 y (Risen Fall) and 10 y (Calamity) on a board
         var fin = BaseState(50) with
         {
@@ -149,7 +164,7 @@ internal static partial class Program
         Check("r4-rotation: rot-32 the combo wait is still named (combo:axe-waiting-gcd) on the GCD-ready tick",
             Decide(gcdOff(afterTrick), cfg).Declines.Contains("combo:axe-waiting-gcd"), D(Decide(gcdOff(afterTrick), cfg)));
 
-        // The GCD chain is never delayed: 60 s of a melee fight with the real Decide, 100 ms ticks, GCD 2.5 s, every action a 0.6 s animation
+        // The GCD chain is never delayed: 180 s of a melee fight with the real Decide, 100 ms ticks, GCD 2.5 s, every action a 0.6 s animation
         // lock, an axe every time TP reaches 100 (+15 per GCD), 5 s axe recast. The sender: an ability goes when the lock is under the queue
         // window (0.5 s), a Weaponskill when the GCD is. CanWeave is Wrath's: GCD left > 0.6 s + lock, lock <= 0.6 s.
         (float MaxGcdGap, float MedianGcdGap, int Axes, int WeavedAxes, int GcdPresses) Timeline(bool axesOffGcd)
@@ -157,7 +172,7 @@ internal static partial class Program
             // deciseconds, so the 2.5 s GCD is exactly 25 ticks
             int gcd = 0, lockT = 0, axeCd = 0, lastGcdAt = -1, tp = 100, axes = 0, weavedAxes = 0;
             var gaps = new List<float>();
-            for (var tick = 0; tick < 600; tick++)
+            for (var tick = 0; tick < 1800; tick++)
             {
                 gcd = Math.Max(0, gcd - 1); lockT = Math.Max(0, lockT - 1); axeCd = Math.Max(0, axeCd - 1);
                 var st = BaseState(5) with
@@ -191,6 +206,8 @@ internal static partial class Program
         }
         var legacy = Timeline(false);
         var weaved = Timeline(true);
+        Console.WriteLine($"   r4-rotation timeline 180 s: axes on the GCD-ready tick - longest GCD gap {legacy.MaxGcdGap:0.0} s, median {legacy.MedianGcdGap:0.0} s, {legacy.GcdPresses} GCDs, {legacy.Axes} axes; "
+            + $"axes weaved - longest {weaved.MaxGcdGap:0.0} s, median {weaved.MedianGcdGap:0.0} s, {weaved.GcdPresses} GCDs, {weaved.Axes} axes ({weaved.WeavedAxes} mid-GCD)");
         Check("r4-rotation: rot-32 timeline: with the axes on the GCD-ready tick the longest GCD gap is pushed past 3 s (the recorded 2.9 s, the old behaviour)",
             legacy.MaxGcdGap >= 3.0f, $"max gap {legacy.MaxGcdGap:0.0} median {legacy.MedianGcdGap:0.0} axes {legacy.Axes} gcds {legacy.GcdPresses}");
         Check("r4-rotation: rot-32 timeline: with the axes weaved every axe is sent with 0.7 s or more of GCD left and no GCD gap exceeds 2.5 s (the GCD chain is never delayed)",
@@ -233,6 +250,14 @@ internal static partial class Program
                 heldTicks++;
         Check("r4-rotation: 2.1-03 the reserve holds the last charge for the cast and no longer: at most 8.2 s over an 8.1 s cast (under 15 s)",
             heldTicks is > 0 and <= 82, $"{heldTicks} ticks = {heldTicks / 10f:0.0} s");
+        // Recorded ticks, 2026-09-25 01:59:43Z and 01:59:44Z (build 1.0.4.233, board 2, L40): the Hammerleap cast 48135 had 6.1 s then 4.6 s left, the plugin
+        // dashed to the boss at the wall (dec=shieldcharge:gapclose both times). Charges are not logged: with one left the dash is now held, with two it still goes.
+        foreach (var left in new[] { 6.1f, 4.6f })
+        {
+            var rec = live with { Level = 40, CrucibleBoard = 2, CrucibleBattle = 1, TargetCastId = 48135, TargetCastRemaining = left, TargetDistance = 14f };
+            Check($"r4-rotation: 2.1-03 recorded tick (Hammerleap {left:0.0} s left, recorded shieldcharge:gapclose): one charge -> held for the return, two -> the recorded dash",
+                !Dashes(Decide(rec with { ShieldChargeCharges = 1 }, cfg)) && Dashes(Decide(rec with { ShieldChargeCharges = 2 }, cfg)));
+        }
         var lunge = live with { TargetCastId = 48569, TargetCastRemaining = 3.7f };
         var lungeDecision = Decide(lunge, cfg);
         Check("r4-rotation: 3.6-06b Feral Lunge cast (48569) running, one charge left: the dash is held, one charge kept",

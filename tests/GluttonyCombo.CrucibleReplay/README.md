@@ -263,6 +263,8 @@ A rebuildable field is also a gap on a tick that has no `BT|` line within 2 s (o
 | `KnockbackCastRemaining` | missing | not logged |
 | `ShieldChargeClipsGcd` | missing | not logged |
 | `DashSettleRemaining` | missing | not logged |
+| `AxesOffGcd` | missing | not logged (constant true since r4; recorded windows predate it, so the baseline is false) |
+| `DashCageRemaining` | missing | not logged |
 | `NeedleKnown` | missing | not logged (the `NE|` line carries the needle) |
 | `NeedleHeading` | missing | not logged (`NE|` h=) |
 | `NeedleSinceTurn` | missing | not logged (`NE|` timestamp) |

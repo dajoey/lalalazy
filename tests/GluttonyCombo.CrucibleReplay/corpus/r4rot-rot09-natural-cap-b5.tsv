@@ -1,0 +1,58 @@
+#source=ffxivdb
+#from=2026-10-13 19:39:08-04
+#to=2026-10-13 19:39:20-04
+#lead_s=3
+#build=1.0.4.301
+#piece=board 5 (L50), Mastered 3 + Natural 1
+#tags=rotation,natural-stacks
+#expect.head=13
+2026-10-13T23:39:05.409Z	BT|1791934745409|45609001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:06.004Z	BT|1791934746004|45609001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:06.108Z	CR|1791934746108|b=5|bt=10|nd=IC|ne=1|hi=31|t=14670:29|c=0:0.0|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=43|in=13|vul=0|xp=1|d=2.0|mv=0.0|dg=x|bh=3.9|bk=2|bp=1|bf=0|mct=-
+2026-10-13T23:39:06.255Z	BT|1791934746255|54609001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:06.754Z	CR|1791934746754|b=5|bt=10|nd=IC|ne=1|hi=29|t=14670:29|c=0:0.0|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=44|in=13|vul=0|xp=1|d=2.0|mv=0.0|dg=x|bh=3.3|bk=2|bp=1|bf=0|mct=-
+2026-10-13T23:39:07.764Z	BT|1791934747764|54609001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:08.015Z	BT|1791934748015|546c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:08.350Z	BT|1791934748350|546c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:08.360Z	CR|1791934748359|b=5|bt=10|nd=IC|ne=1|hi=29|t=14670:29|c=49377:2.7|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=49|in=18|vul=0|xp=1|d=2.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:08.360Z	DS|1791934748360|t=14670|enemy=0|landing=0|v=danger
+2026-10-13T23:39:08.609Z	CR|1791934748609|b=5|bt=10|nd=IC|ne=1|hi=29|t=14670:29|c=49377:2.4|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44883:gcdchain|sh=|ttd=44|in=18|vul=0|xp=1|d=2.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:08.609Z	BT|1791934748609|546c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:10.087Z	BT|1791934750087|546c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:10.684Z	BT|1791934750684|546c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:10.830Z	CR|1791934750829|b=5|bt=10|nd=IC|ne=1|hi=29|t=14670:28|c=49377:0.2|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44885:gcdchain|sh=|ttd=44|in=18|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:10.943Z	BT|1791934750943|616c9001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:11.090Z	CR|1791934751090|b=5|bt=10|nd=IC|ne=1|hi=29|t=14670:27|c=0:0.0|f=ysc|hp=64|pet=100|sl=100.100.91|dec=44885:gcdchain|sh=|ttd=44|in=18|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:11.193Z	BT|1791934751193|61789001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:11.338Z	DS|1791934751338|t=14670|enemy=1|landing=1|v=safe
+2026-10-13T23:39:12.422Z	BT|1791934752422|61789001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:13.045Z	BT|1791934753045|61789001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:13.128Z	CR|1791934753128|b=5|bt=10|nd=IC|ne=1|hi=27|t=14670:26|c=0:0.0|f=ysc|hp=64|pet=100|sl=100.100.91|dec=47093:combo:trick-first|sh=|ttd=43|in=11|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:13.302Z	BT|1791934753302|70789001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=47093:combo:trick-first|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=-|4608,4614
+2026-10-13T23:39:13.724Z	BT|1791934753724|70789001000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=36.40.23|lv=50|tk=pending|4608,4614
+2026-10-13T23:39:13.724Z	CR|1791934753724|b=5|bt=10|nd=IC|ne=1|hi=27|t=14670:26|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=46|in=19|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:13.982Z	BT|1791934753982|70007801000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=36.40.23|lv=50|tk=pending|4608,4614
+2026-10-13T23:39:13.983Z	CR|1791934753982|b=5|bt=10|nd=IC|ne=1|hi=26|t=14670:23|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=23|in=19|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:14.241Z	BT|1791934754241|700c7801000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=36.40.23|lv=50|tk=pending|4608,4614
+2026-10-13T23:39:14.318Z	CR|1791934754318|b=5|bt=10|nd=IC|ne=1|hi=26|t=14670:26|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=49|in=19|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:14.572Z	CR|1791934754572|b=5|bt=10|nd=IC|ne=1|hi=26|t=14670:23|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=23|in=19|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:14.789Z	BT|1791934754789|700c7801000000730d|1|0|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=36.40.23|lv=50|tk=pending|4608,4614
+2026-10-13T23:39:14.850Z	CR|1791934754850|b=5|bt=10|nd=IC|ne=1|hi=26|t=14670:26|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=49|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:15.068Z	BT|1791934755068|700c7801040400730d|1|4|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=combo:awaiting-pet-heart|sl=36.40.23|lv=50|tk=pending|4608,4598,4614
+2026-10-13T23:39:15.101Z	CR|1791934755100|b=5|bt=10|nd=IC|ne=1|hi=23|t=14670:23|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44889:combo:axe-clockwise-after-trick|sh=|ttd=23|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:15.320Z	BT|1791934755320|000c7801040400730d|1|4|0|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=36.40.23|lv=50|tk=heart|4608,4598,4614
+2026-10-13T23:39:15.352Z	CR|1791934755351|b=5|bt=10|nd=IC|ne=1|hi=23|t=14670:22|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44879:gcdchain|sh=|ttd=19|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:15.835Z	BT|1791934755835|000c7801070101730d|1|1|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=36.40.23|lv=50|tk=heart|4608,4643,4614
+2026-10-13T23:39:15.942Z	CR|1791934755942|b=5|bt=10|nd=IC|ne=1|hi=22|t=14670:21|c=0:0.0|f=ysc|hp=63|pet=100|sl=100.100.91|dec=44883:gcdchain|sh=|ttd=17|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:16.090Z	BT|1791934756090|000c7801070101730d|1|1|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=36.40.23|lv=50|tk=heart|4608,4643,4614
+2026-10-13T23:39:17.069Z	BT|1791934757069|00187801070101730d|1|1|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=36.40.23|lv=50|tk=heart|4608,4643,4614
+2026-10-13T23:39:17.547Z	BT|1791934757547|00187801070101730d|1|1|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=combo:wavering-heart|sl=36.40.23|lv=50|tk=heart|4608,4643,4614
+2026-10-13T23:39:18.057Z	BT|1791934758057|00187801060601730d|1|6|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44883:gcdchain|fd=combo:wavering-heart|sl=36.40.23|lv=50|tk=heart|4608,4600,4614
+2026-10-13T23:39:18.173Z	CR|1791934758173|b=5|bt=10|nd=IC|ne=1|hi=20|t=14670:20|c=0:0.0|f=ysc|hp=62|pet=100|sl=100.100.91|dec=44905:rally:stacks|sh=|ttd=16|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:18.308Z	BT|1791934758308|0d187801060601730d|1|6|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44905:rally:stacks|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=heart|4608,4600,4614
+2026-10-13T23:39:18.423Z	CR|1791934758423|b=5|bt=10|nd=IC|ne=1|hi=20|t=14670:19|c=0:0.0|f=ysc|hp=62|pet=100|sl=100.100.91|dec=44905:rally:stacks|sh=|ttd=13|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:18.809Z	CR|1791934758809|b=5|bt=10|nd=IC|ne=1|hi=19|t=14670:19|c=0:0.0|f=ysc|hp=62|pet=100|sl=100.100.91|dec=44905:rally:stacks|sh=|ttd=13|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:18.852Z	BT|1791934758852|0d187801060601730d|1|6|1|115|pet=1073759853:Treant:18951|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=heart|4608,4600,4614
+2026-10-13T23:39:19.068Z	CR|1791934759068|b=5|bt=10|nd=IC|ne=1|hi=19|t=14670:19|c=0:0.0|f=ysc|hp=62|pet=100|sl=100.100.91|dec=44888:finisher:risenfall-universality|sh=|ttd=15|in=13|vul=0|xp=1|d=2.2|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
+2026-10-13T23:39:19.109Z	BT|1791934759109|fa1878010606017301|1|6|1|115|pet=1073759853:Treant:18951|bm=44902|av=44930|dec=44888:finisher:risenfall-universality|fd=crucible:exit-keep-reserve-horn|sl=36.40.23|lv=50|tk=heart|4608,4600,4614
+2026-10-13T23:39:19.900Z	BT|1791934759900|fa1878010606017301|1|6|1|115|pet=1073759853:Treant:18951|bm=44902|av=44930|dec=44888:finisher:risenfall-universality|fd=|sl=36.40.23|lv=50|tk=heart|4608,4600,4614

@@ -36,6 +36,7 @@ internal partial class BST
     private static ulong _parryTargetId;
     private static long _parryEndedTick;
     private static long _curtainsCastSeenTick = -1;
+    private static long _cageStartTick = -1;
     private static string _hornWarningKey = "";
     private static int _lastLivePetRow;
     private static bool _shellWasUp;
@@ -108,6 +109,13 @@ internal partial class BST
     ///     so the summon hold can cover the ~1 s between the bar emptying and the knockout landing; float.MaxValue when
     ///     none was seen recently. Read every tick from ReadState, board or not.
     /// </summary>
+    /// <summary>
+    ///     Seconds left of the Deadly Demesne cage window (the cast's first tick stamped in <see cref="ReadCrucible"/>), 0 when none: the dash
+    ///     toward her is held while it runs (BST_RotationLogic.DashMechanicHold, "cage"). Read every tick from ReadState.
+    /// </summary>
+    internal static float DashCageRemainingSeconds(long now) =>
+        _cageStartTick >= 0 ? Math.Max(0f, BST_RotationLogic.DashCageSeconds - (now - _cageStartTick) / 1000f) : 0f;
+
     internal static float SinceCurtainsCastSeconds(long now) =>
         _curtainsCastSeenTick >= 0 && now - _curtainsCastSeenTick < CurtainsCastMemoryMs
             ? (now - _curtainsCastSeenTick) / 1000f
@@ -414,6 +422,7 @@ internal partial class BST
             _hornWarningKey = "";
             _parryTargetId = 0;
             _curtainsCastSeenTick = -1;
+            _cageStartTick = -1;
             _lastLivePetRow = 0;
             _shellWasUp = false;
             _shellBrokeTick = 0;
@@ -678,6 +687,10 @@ internal partial class BST
                 // the summon hold needs those ticks.
                 if (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId))
                     _curtainsCastSeenTick = now;
+                // Deadly Demesne: stamp the cast's first tick; the cage stands for BST_RotationLogic.DashCageSeconds from it (r4 3.0-09b).
+                if (s.TargetCastId == BST_RotationLogic.DemesneCastId
+                    && (_cageStartTick < 0 || now - _cageStartTick >= (long)(BST_RotationLogic.DashCageSeconds * 1000f)))
+                    _cageStartTick = now;
             }
 
             var petId = Svc.Buddies.PetBuddy?.GameObject?.GameObjectId ?? 0;

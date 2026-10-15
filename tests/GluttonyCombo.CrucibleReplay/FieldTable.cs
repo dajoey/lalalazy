@@ -160,6 +160,8 @@ internal static class FieldTable
         M("KnockbackCastRemaining", "log `kbr=` (soonest knockback cast) in CR|", C(0f, 2f)),
         M("ShieldChargeClipsGcd", "add to the `rd=` bitmap", FalseFirst),
         M("DashSettleRemaining", "log `dsr=` (dash hazard hold left) in CR|", C(0f, 2f)),
+        M("AxesOffGcd", "constant: true in every build since r4 (the sender types the TP axes as abilities); recorded windows predate it", FalseFirst),
+        M("DashCageRemaining", "log `dcr=` (Deadly Demesne cage window left) in CR|", C(0f, 10f)),
 
         M("NeedleKnown", "the `NE|` line (one per needle turn, 1.0.4.307) carries the needle's heading; CR| has no needle field", FalseFirst, crit: false),
         M("NeedleHeading", "the `NE|` line h=", C(0f), crit: false),

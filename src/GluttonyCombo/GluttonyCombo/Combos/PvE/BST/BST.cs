@@ -252,6 +252,9 @@ internal partial class BST : Melee
             CanWeave = CanWeave() || (RemainingGCD <= 0f && AnimationLock <= 0.05f && !player.IsCasting && !InMeleeRange()),
             // Shield Charge locks the character 1.1 s, not the 0.6 s CanWeave() assumes (core lane 2026-10-13).
             ShieldChargeClipsGcd = CanWeave() && !CanWeave(BST_RotationLogic.ShieldChargeAnimationLock),
+            // r4 rotation lane: the sender (UIntExtensions.ActionAttackType) types the four TP axes as abilities; the engine follows what it reads.
+            AxesOffGcd = global::GluttonyCombo.Extensions.UIntExtensions.ActionAttackType(AvalancheAxe) == global::GluttonyCombo.Data.ActionWatching.ActionAttackType.Ability,
+            DashCageRemaining = DashCageRemainingSeconds(now),
             SinceSummon = slot != 0 ? SecondsSince(_familiarArrivedTick) : 0f,
             SinceHornPress = Math.Min(SinceUsed(FirstBattlehorn), Math.Min(SinceUsed(SecondBattlehorn), SinceUsed(ThirdBattlehorn))),
             SinceTrick = SinceUsed(Trick),
