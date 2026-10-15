@@ -66,6 +66,7 @@ internal static partial class BST_CrucibleData
         (2, 1),
         (2, 5),
         (3, 1),
+        (2, 6),
     ];
 
     /// <summary> Whether a battle of the two Master's Boards was actually fought in the recorded runs. </summary>
@@ -116,6 +117,8 @@ internal static partial class BST_CrucibleData
             "Drake Piece. Cast line names the holder 2 of 2; only two casts logged. 2026-10-15 re-derivation (ffxivdb 09-24..10-15, R4 row 5.5-06): the largest familiar hit is Damselfly 691 (Uragnite 545), so the cover gate uses 691."),
 
         // ---- Not a Snarl rule ------------------------------------------------------------------------------------------------------
+        new(48222, "Void Fire III", 2, 6, 10.0f, 0f, CrucibleHitKind.PartyWide, 66, 263, 13, 6, false,
+            "Devilet Piece, battle 6 (R4 row 2.6-06): a 10 s room-wide cast the plugin answers by killing the caster (KillTheCaster). 13 casts in the one recorded run, 6 hit: the character 66 once, familiars 65-263 (Worm max 263). HitDelay not measured (Boards 1-3 stay 0); the cast is also the battle's kill-the-caster target."),
         new(48690, "Rotten Stench", 4, 3, 5.7f, -0.5f, CrucibleHitKind.PartyWide, 773, 534, 13, 8, false,
             "Corpse Flower Piece, hit id 48691: character and familiar hit in the same burst in 6 of 8 bursts."),
         new(49272, "Atomic Ray", 5, 6, 12.7f, 0.3f, CrucibleHitKind.CastOnly, 4782, 0, 2, 2, true,
