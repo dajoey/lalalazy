@@ -5,8 +5,8 @@
 #build=1.0.4.304
 #piece=board 5 battle 13 (target 14688/14691)
 #tags=cleanse,invulnerable-hold
-#expect.head=45
 #expect.304=45
+#expect.head=29
 2026-10-15T01:09:07.340Z	BT|1792026547340|293000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44885:gcdchain|fd=summon:no-horn-ready|sl=20.21.40|lv=50|tk=-|
 2026-10-15T01:09:07.432Z	CR|1792026547431|b=5|bt=13|nd=C|ne=1|hi=71|t=14688:71|c=0:0.0|f=yc|hp=65|pet=0|sl=100.100.95|dec=44879:gcdchain|sh=|ttd=544|in=113|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-
 2026-10-15T01:09:07.591Z	BT|1792026547591|383000000000000000|0|0|0|0|pet=none|bm=44886|av=44884|dec=44879:gcdchain|fd=summon:no-horn-ready|sl=20.21.40|lv=50|tk=-|

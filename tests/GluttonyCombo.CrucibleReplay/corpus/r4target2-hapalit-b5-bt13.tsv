@@ -5,7 +5,7 @@
 #build=1.0.4.304
 #piece=King Ahriman roulette (board 5, battle 13)
 #tags=kill-order,hapalit,hourglass
-#expect.head=148
+#expect.head=122
 2026-10-15T01:08:27.237Z	BT|1792026507237|383c00010000008300|1|0|0|131|pet=1073800636:Flying Trap:18935|bm=44903|av=44884|dec=44879:gcdchain|fd=|sl=20.21.40|lv=50|tk=-|4609,4614
 2026-10-15T01:08:27.837Z	BT|1792026507837|383c00010000008300|1|0|0|131|pet=1073800636:Flying Trap:18935|bm=44903|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=20.21.40|lv=50|tk=-|4609,4614
 2026-10-15T01:08:27.945Z	CR|1792026507945|b=5|bt=-1|nd=|ne=1|hi=28|t=14689:10|c=0:0.0|f=ysc|hp=99|pet=100|sl=100.100.95|dec=44879:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=0.0|mv=0.0|dg=x|bh=-|bk=0|bp=0|bf=0|mct=-

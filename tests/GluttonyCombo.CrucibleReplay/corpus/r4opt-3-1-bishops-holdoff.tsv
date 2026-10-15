@@ -6,7 +6,7 @@
 #piece=board 3 battle 1 (Bone Bishops, target 14567)
 #tags=pack-window,hold-off
 #note=3.1-01b: recorded with the pack window off; ne=2 own:tempered with sh=pack-hold-off
-#expect.head=49
+#expect.head=27
 2026-10-02T16:09:09.197Z	BT|1790957349197|008484020303000008|2|3|0|0|pet=1073771622:Adamantoise:18940|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=29.25.43|lv=50|4597
 2026-10-02T16:09:09.197Z	CR|1790957349197|b=3|bt=1|nd=|ne=1|hi=39|t=14564:39|c=48460:0.2|f=ysc|hp=60|pet=100|sl=93.100.0|dec=44883:gcdchain|sh=|ttd=45|in=15|vul=0|xp=0
 2026-10-02T16:09:09.453Z	BT|1790957349453|000084020303000008|2|3|0|0|pet=1073771622:Adamantoise:18940|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=29.25.43|lv=50|4597
