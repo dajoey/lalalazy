@@ -30,5 +30,23 @@ internal static partial class Program
             Decide(reviveBase with { ReadyReviveHorn = false }, cfg).Declines.Contains("crucible:revive-none-held")
             && Decide(reviveBase with { ReadyReviveHorn = false }, cfg).ActionId != 0,
             D(Decide(reviveBase with { ReadyReviveHorn = false }, cfg)));
+        Check("r4-familiar: rot-31 ... the revive lives in the survival policy: off, it never fires",
+            Decide(reviveBase, cfg with { CrucibleSurvival = false }).ActionId != BST_CrucibleData.BlessedHornAction);
+        Check("r4-familiar: rot-31 the familiar alive again: no revive (the normal rules run)",
+            Decide(reviveBase with { FamiliarDown = false }, cfg).ActionId != BST_CrucibleData.BlessedHornAction);
+        Check("r4-familiar: rot-31 the Blessed Horn id is the sheet's: XBMItem row 96 -> use action 46979 (7.56 sheet, fetched live 2026-10-15)",
+            BST_CrucibleData.BlessedHornAction == 46979u && BST_CrucibleData.ReviveItemRows.ContainsKey(96u));
+
+        // ---------------- the live reader and the decision plumbing (guards; they read the repo source)
+        var logic = RepoFile("Combos", "PvE", "BST", "BST_CrucibleLogic.cs");
+        Check("r4-familiar: rot-31 TryRevive is a Decide rule in the crucible block (not an idle logging path)",
+            logic.Contains("TryRevive", StringComparison.Ordinal) && logic.Contains("crucible:revive-horn", StringComparison.Ordinal));
+        var live = RepoFile("Combos", "PvE", "BST", "BST_CrucibleLive.cs");
+        Check("r4-familiar: rot-31 the live layer walks the HUD for row 96 and offers it through the item menu like a potion",
+            live.Contains("ReadReviveSlots", StringComparison.Ordinal) && live.Contains("RequestReviveItem", StringComparison.Ordinal)
+            && live.Contains("BST_CrucibleData.ReviveItemRows", StringComparison.Ordinal));
+        var crucible = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
+        Check("r4-familiar: rot-31 the collector reads FamiliarDown (pet buddy at 0 HP) and ReadyReviveHorn",
+            crucible.Contains("FamiliarDown", StringComparison.Ordinal) && crucible.Contains("ReadyReviveHorn", StringComparison.Ordinal));
     }
 }

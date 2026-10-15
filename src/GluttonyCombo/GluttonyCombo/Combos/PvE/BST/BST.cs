@@ -154,6 +154,14 @@ internal partial class BST : Melee
             withoutPotion.ReadyHealPotion = 0;
             buttonAction = BST_RotationLogic.Decide(withoutPotion, cfg).ActionId;
         }
+        else if (decision.ActionId == BST_CrucibleData.BlessedHornAction)
+        {
+            // The KO'd familiar's revive goes through the item HUD too; the button gets the decision without it.
+            RequestReviveItem(decision.ActionId, Environment.TickCount64);
+            var withoutRevive = state;
+            withoutRevive.ReadyReviveHorn = false;
+            buttonAction = BST_RotationLogic.Decide(withoutRevive, cfg).ActionId;
+        }
 
         LastDecisionActionId = decision.ActionId;
         LastDecisionReason = decision.Reason;
