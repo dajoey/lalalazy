@@ -5,7 +5,7 @@
 #build=1.0.4.304
 #piece=board 5 battle 1 (target 14631)
 #tags=cleanse,answer-swap
-#expect.head=20
+#expect.head=19
 #expect.304=20
 2026-10-15T00:52:37.344Z	CR|1792025557344|b=5|bt=1|nd=C|ne=1|hi=10|t=0:0|c=0:0.0|f=c|hp=86|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=|mv=6.9|dg=x|bh=5.3|bk=1|bp=1|bf=0|mct=-
 2026-10-15T00:52:37.595Z	CR|1792025557595|b=5|bt=1|nd=C|ne=1|hi=10|t=14631:10|c=49188:3.3|f=yc|hp=86|pet=98|sl=98.53.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1|d=9.2|mv=0.0|dg=x|bh=5.0|bk=1|bp=1|bf=0|mct=-

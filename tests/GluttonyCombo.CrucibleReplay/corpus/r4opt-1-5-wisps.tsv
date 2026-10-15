@@ -6,7 +6,7 @@
 #piece=board 1 battle 5 (Burning Ward wisps)
 #tags=pack-window
 #note=1.5-04: recorded before the shadow field existed; ne=3 wisp pack ticks
-#expect.head=81
+#expect.head=63
 2026-09-29T00:14:17.457Z	CR|1790640857457|b=1|bt=5|nd=|ne=1|hi=61|t=14538:61|c=0:0.0|f=ysc|hp=54|pet=100|sl=98.100.95|dec=44883:gcdchain|sh=|ttd=65|in=3|vul=0|xp=1
 2026-09-29T00:14:18.146Z	BT|1790640858146|544800020000000000|2|0|0|0|pet=1073787888:Drake:18950|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=34.35.32|lv=30|
 2026-09-29T00:14:18.734Z	BT|1790640858734|544800020000000000|2|0|0|0|pet=1073787888:Drake:18950|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:min-stay|sl=34.35.32|lv=30|

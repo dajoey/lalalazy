@@ -147,6 +147,8 @@ internal static partial class Program
         Check("r4-snarl: rot-14 pull: ... the character at 50%: it keeps tanking", D(tanking with { PlayerHp = 2030f, PlayerHpPercent = 50f }, on).Reason != "aggro:challenge-pull-budget");
         Check("r4-snarl: rot-14 pull: ... the option unticked: no budget Challenge (the old rules only)", D(tanking, Off(on, R4SnarlPullOpt)).Reason != "aggro:challenge-pull-budget");
         Check("r4-snarl: rot-14 pull: ... a piece with no ceiling in the table: no budget Challenge (unchanged there)", D(OnPet(Fight(3, 3)) with { PetHp = 1920f, PetHpPercent = 55f, SinceSnarl = 20f, ReadySnarl = false }, on).Reason != "aggro:challenge-pull-budget");
+        Check("r4-snarl: rot-14 pull: ... Gargoyle at First Degree (the pull does not cover it): a tanking familiar at 55% is not Challenged by the budget rule (the old rules stand)",
+            D(OnPet(At(Fight(4, 5), CrucibleDegree.First)) with { PetHp = 1920f, PetHpPercent = 55f, SinceSnarl = 20f, ReadySnarl = false }, on).Reason != "aggro:challenge-pull-budget");
         Check("r4-snarl: rot-14 pull: ... a registered tankbuster cast is up: no budget Challenge (a covering familiar stays through the cast)",
             D(tanking with { TargetCastId = 48620, TargetCastRemaining = 3f }, on).Reason != "aggro:challenge-pull-budget");
         // End to end through Decide, tick by tick: pull -> Snarl, familiar holding -> nothing, familiar spent -> Challenge, no second Snarl at once.
