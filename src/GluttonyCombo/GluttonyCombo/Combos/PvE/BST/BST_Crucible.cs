@@ -209,8 +209,11 @@ internal partial class BST
     /// <summary> Gigantis Piece (Second Master's battle 10), whose status 2056 names the club's element. </summary>
     private const uint GigantisNameId = 14670;
 
-    /// <summary> A Morpho lives on the field (the Abaddon is held back at or below its HP floor while one does), as last read. </summary>
+    /// <summary> A Morpho lives on the field (the Abaddon is held back while one does and it is not alone, or is at its HP floor), as last read. </summary>
     internal static bool MorphoAlive;
+
+    /// <summary> An enemy other than the Abaddon is up (not a Morpho or an egg), as last read: the Abaddon is the last one to be killed. </summary>
+    internal static bool OtherEnemiesUp;
 
     /// <summary> The Gigantis club's element (status 2056's param: 0x499 lightning, 0x49A fire), 0 while none is known or no Gigantis is up. </summary>
     internal static uint ClubElement;
@@ -224,7 +227,7 @@ internal partial class BST
     /// <summary> Held back now though attackable some of the time (<see cref="BST_CrucibleLogic.ConditionallyForbidden"/>), with the context last read. </summary>
     internal static bool CrucibleForbidden(IBattleChara enemy) =>
         BST_CrucibleLogic.ConditionallyForbidden(enemy.NameId, enemy.BaseId, MorphoAlive, ClubElement, GelsSinceClub,
-            enemy.MaxHp == 0 ? 0f : 100f * enemy.CurrentHp / enemy.MaxHp);
+            enemy.MaxHp == 0 ? 0f : 100f * enemy.CurrentHp / enemy.MaxHp, OtherEnemiesUp);
 
     /// <summary> The last shed-eligible cast (<see cref="BST_CrucibleData.PoisonShedCasts"/>) seen on any enemy's castbar, and when. </summary>
     private static uint _shedCastId;
@@ -380,6 +383,7 @@ internal partial class BST
         // Enemies present: count, highest HP, which panel battle they belong to, eggs / morphos near the target.
         var shellUp = false;
         var morphoAlive = false;
+        var otherEnemiesUp = false;
         var gigantisUp = false;
         var newGel = false;
         uint club = 0;
@@ -420,6 +424,8 @@ internal partial class BST
             }
 
             s.EnemyCount++;
+            if (nameId != BST_CrucibleData.AbaddonNameId)
+                otherEnemiesUp = true;
             if (!s.EnemyHasDispellableBuff && CarriesDispellableBuff(npc) && GetTargetDistance(npc) <= DispelReach)
                 s.EnemyHasDispellableBuff = true;
             if (!s.DispelCawReachable && CarriesDispellableBuff(npc) && CawCanDispel(npc))
@@ -448,8 +454,9 @@ internal partial class BST
 
         s.BattleHasKnockback = BST_CrucibleData.KnockbackBattles.Contains((s.CrucibleBoard, s.CrucibleBattle));
 
-        // Attackable some of the time, held back now: the Abaddon at its HP floor while a Morpho lives, the Gigantis gel saved for the bait.
+        // Attackable some of the time, held back now: the Abaddon while a Morpho lives and another enemy is up (alone, only at its HP floor), the Gigantis gel saved for the bait.
         MorphoAlive = morphoAlive;
+        OtherEnemiesUp = otherEnemiesUp;
         TrackClub(gigantisUp, club, newGel);
         if (target is not null && CrucibleForbidden(target))
             s.TargetDoNotAttack = true;

@@ -3135,17 +3135,22 @@ internal static class Program
     {
         var cfg = BstSettings.Defaults();
         const uint abaddonId = 14655, drakeId = 14651;
-        bool Forbidden(float hp, bool morphoAlive = true) => BST_CrucibleLogic.ConditionallyForbidden(abaddonId, 0, morphoAlive, 0, false, hp);
-        BST_CrucibleLogic.TargetCandidate Candidate(uint nameId, float hp) =>
-            new(nameId, hp, false, Forbidden: nameId == abaddonId && Forbidden(hp));
+        // othersUp: the Drake or a Barbmole is still up; false = the Abaddon is the only enemy left (the CR| ne=1 of the recorded window).
+        bool Forbidden(float hp, bool morphoAlive = true, bool othersUp = false) =>
+            BST_CrucibleLogic.ConditionallyForbidden(abaddonId, 0, morphoAlive, 0, false, hp, othersUp);
+        BST_CrucibleLogic.TargetCandidate Candidate(uint nameId, float hp, bool othersUp = false) =>
+            new(nameId, hp, false, Forbidden: nameId == abaddonId && Forbidden(hp, true, othersUp));
         List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
 
-        Check("abaddon-hold: a Morpho alive, the Abaddon at 100%: attackable (the floor is 35%)", !Forbidden(100f));
+        Check("abaddon-hold: a Morpho alive, the Abaddon the only enemy left, at 100%: attackable (the floor is 35%)", !Forbidden(100f));
         Check("abaddon-hold: ... at 98% and at 60%: attackable", !Forbidden(98f) && !Forbidden(60f));
         Check("abaddon-hold: ... just above the floor (35.1%): attackable", !Forbidden(35.1f));
         Check("abaddon-hold: ... at the floor (35%) and below: held back, the Abaddon is not killed ahead of the Morphos", Forbidden(35f) && Forbidden(20f) && Forbidden(1f));
         Check("abaddon-hold: ... no HP reading (0%): held back", Forbidden(0f));
-        Check("abaddon-hold: every Morpho gone: attackable at any HP", !Forbidden(100f, false) && !Forbidden(10f, false) && !Forbidden(0f, false));
+        Check("abaddon-hold: every Morpho gone: attackable at any HP, other enemies up or not",
+            !Forbidden(100f, false) && !Forbidden(10f, false) && !Forbidden(0f, false) && !Forbidden(100f, false, true));
+        Check("abaddon-hold: a Morpho alive and the Drake or a Barbmole still up: held back at any HP (Abaddon last, as before)",
+            Forbidden(100f, true, true) && Forbidden(60f, true, true) && Forbidden(0f, true, true));
         Check("abaddon-hold: the floor sits between 0 and 100", BST_CrucibleLogic.AbaddonHeldFloorPercent is > 0f and < 100f);
         Check("abaddon-hold: the Abaddon never passed to the rule as another enemy: the drake and the barbmole are not held",
             !BST_CrucibleLogic.ConditionallyForbidden(drakeId, 0, true, 0, false, 100f) && !BST_CrucibleLogic.ConditionallyForbidden(14653, 0, true, 0, false, 100f));
@@ -3154,8 +3159,8 @@ internal static class Program
         Check("abaddon-hold: auto-targeting, the Abaddon alone at 100% with a Morpho alive: it is picked",
             Allowed(Candidate(abaddonId, 100f)).SequenceEqual(new[] { 0 }));
         Check("abaddon-hold: ... at the floor: nothing to pick (held)", Allowed(Candidate(abaddonId, 30f)).Count == 0);
-        Check("abaddon-hold: ... the drake (priority order puts it first) is still picked ahead of the Abaddon",
-            Allowed(Candidate(abaddonId, 100f), Candidate(drakeId, 100f)).SequenceEqual(new[] { 1 }));
+        Check("abaddon-hold: ... the Drake still up: only the Drake is picked, the Abaddon waits (Abaddon last)",
+            Allowed(Candidate(abaddonId, 100f, true), Candidate(drakeId, 100f)).SequenceEqual(new[] { 1 }));
 
         // The decision path, replayed from the CR| line at 20:54:57.132 ET: board 5 battle 5, the Abaddon targeted at 100%, the character
         // at 64%, the familiar at 100%, a GCD ready. The state's TargetDoNotAttack is what the reader derives from the rule.
@@ -3181,8 +3186,9 @@ internal static class Program
         // The reader hands the rule the target's own HP: a rule that ignored it would behave as the 1.0.4.304 reader did.
         var reader = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
         var m = System.Text.RegularExpressions.Regex.Match(reader, @"internal static bool CrucibleForbidden\(IBattleChara enemy\)\s*=>(?<body>[^;]*);");
-        Check("abaddon-hold: the live reader passes the enemy's HP percent into the rule",
-            m.Success && m.Groups["body"].Value.Contains("CurrentHp", StringComparison.Ordinal) && m.Groups["body"].Value.Contains("MaxHp", StringComparison.Ordinal),
+        Check("abaddon-hold: the live reader passes the enemy's HP percent and whether another enemy is up into the rule",
+            m.Success && m.Groups["body"].Value.Contains("CurrentHp", StringComparison.Ordinal) && m.Groups["body"].Value.Contains("MaxHp", StringComparison.Ordinal)
+            && m.Groups["body"].Value.Contains("OtherEnemiesUp", StringComparison.Ordinal),
             m.Success ? m.Groups["body"].Value.Trim() : "CrucibleForbidden not found");
     }
 
