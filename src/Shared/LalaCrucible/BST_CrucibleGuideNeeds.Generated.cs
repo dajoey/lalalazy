@@ -31,6 +31,7 @@ internal static partial class BST_CrucibleGuideNeeds
         new(4, 2, CrucibleNeeds.Cleanse, CrucibleNeedTier.Required, "Paralysis from Extremely Bad Breath", ["panel"]),
         new(4, 2, CrucibleNeeds.Cleanse, CrucibleNeedTier.Required, "Poison from Seedling hits", ["panel"]),
         new(4, 2, CrucibleNeeds.Cleanse, CrucibleNeedTier.Required, "Paralysis from Carrion Broth hits", ["panel"]),
+        new(4, 4, CrucibleNeeds.Cleanse, CrucibleNeedTier.Required, "Frostbite from Rime Wreath", ["AS", "BMR"]),
         new(4, 6, CrucibleNeeds.Interrupt, CrucibleNeedTier.Required, "Confound (Administrator)", ["panel"]),
         new(4, 6, CrucibleNeeds.Cleanse, CrucibleNeedTier.Required, "Poison from Noxious Nova", ["panel"]),
         new(4, 8, CrucibleNeeds.Interrupt, CrucibleNeedTier.Required, "Natural Nurture (Biloko Piece)", ["panel"]),

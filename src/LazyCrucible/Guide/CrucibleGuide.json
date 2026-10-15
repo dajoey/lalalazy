@@ -3641,7 +3641,16 @@
     }
    ],
    "hits": [],
-   "counters": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Frostbite from Rime Wreath",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
    "threats": [
     "knockback",
     "roomwide",
