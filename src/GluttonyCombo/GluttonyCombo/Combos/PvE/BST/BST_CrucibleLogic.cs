@@ -895,6 +895,16 @@ internal static class BST_CrucibleLogic
             if (cleave && tankbuster && s.PetHpPercent >= 50f)
                 return (BST.Snarl, "aggro:snarl-cleave-tankbuster");
 
+            // Panel-burst casters (the bone bishop's Blizzard, Hapalit's Straight Punch): their single-target hit follows
+            // enmity but has no castbar (an instant press), so no cast id can key a tankbuster Snarl. The cover keys on
+            // the caster and holds while the familiar's HP is at least the recorded hit, scaled and margined like the
+            // tankbuster cover (BST_CrucibleData.PanelBurstCasters), with the cleave's settle precondition.
+            if (s.PetHpPercent >= 50f && s.SinceHornPress > SummonSettleSeconds
+                && BST_CrucibleData.PanelBurstCasters.TryGetValue(s.TargetNameId, out var panel)
+                && s.PetHp >= panel.MaxOnFamiliar * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel)
+                    * CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel))
+                return (BST.Snarl, "aggro:snarl-panel-burst");
+
             var lastResort = s.PlayerHpPercent is > 0f and <= 25f;
             var stingDue = BST_Beasts.ByRow(SlotBeast(s, s.ActiveSlot)) is { } b
                            && (b.Release & BeastmasterReleaseTraits.Exit) != 0 && FinalStingDue(s, cfg);

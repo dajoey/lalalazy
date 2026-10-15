@@ -318,6 +318,21 @@ internal static partial class BST_CrucibleData
     };
 
     /// <summary>
+    ///     Casters whose single-target hit follows enmity but has no castbar (an instant press) — the Third Board bone
+    ///     bishop's Blizzard 48621 (pinned to the ice sprite 14607 and the kupocaster 14679 by the 7.56 action sheets'
+    ///     matching text) and the Second Master's Hapalit 14691's Straight Punch 49435 (R4 rows 3.1-09, 5.13): the Snarl
+    ///     holds the caster while the familiar's HP is at least the largest hit on a familiar the logs recorded for the
+    ///     cast, scaled and margined like the tankbuster cover.
+    /// </summary>
+    public static readonly Dictionary<uint, (uint HitId, int MaxOnFamiliar, string Evidence)> PanelBurstCasters = new()
+    {
+        [14567] = (48621, 48, "Blizzard: familiars max 48 (Diremite/Bat/Colibri/Puk), character 1288-1280 in 16 hits (ffxivdb 09-24..10-15); the sheet text pins the same cast to the ice sprite and kupocaster."),
+        [14607] = (48621, 48, "Blizzard: the ice sprite's sheet text matches the bone bishop's; no separate recording."),
+        [14679] = (48621, 48, "Blizzard: the kupocaster's sheet text matches the bone bishop's; no separate recording."),
+        [14691] = (49435, 909, "Straight Punch: familiars max 909 (Ziz), character 10 hits max 652 (ffxivdb 09-24..10-15); no castbar (0 cast lines, sheet 0.0 s)."),
+    };
+
+    /// <summary>
     ///     Seconds from the moment the plugin's castbar remaining reaches 0 to the hit landing (negative = the hit lands first). Measured
     ///     for the Master's Board casts in <see cref="HeavyCasts"/>; 0 for every other id (no measurement: Boards 1-3 and the guide-only
     ///     Master's ids).
