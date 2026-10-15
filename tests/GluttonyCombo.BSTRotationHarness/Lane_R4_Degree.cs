@@ -80,7 +80,7 @@ internal static partial class Program
         var evis = CrucibleState() with
         {
             CrucibleBoard = 4, CrucibleBattle = 5, TargetCastId = 48717, TargetCastRemaining = 7.6f,
-            ReadySnarl = true, ReadyParting = true, PetHp = 1500f, PetHpPercent = 43f, PlayerHp = 2800f, PlayerHpPercent = 69f,
+            ReadySnarl = true, ReadyParting = true, PetHp = 1500f, PetHpPercent = 60f, PlayerHp = 2800f, PlayerHpPercent = 69f,
             EnemyTargetsPlayer = true, EnemyTargetsPet = false,
         };
         bool Snarls(BstState s) => Decide(s, on) is { ActionId: BST.Snarl, Reason: "aggro:snarl-tankbuster" };
