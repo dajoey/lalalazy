@@ -189,5 +189,15 @@ internal static partial class Program
         Check("r4-tankbuster: 2.0-07 Goblin Rush, a 1,100 HP familiar at Standard (under 1133): no cover",
             Decide(At(rush with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster",
             Decide(At(rush with { PetHp = 1100f }, CrucibleDegree.Standard), on).Reason);
+
+        // ---- 2.6-06 Void Fire III 48222 (Second Board battle 6, Devilet Piece; 10 s room-wide cast): 13 casts in the one
+        // recorded run, 6 hit: character 66 once, familiars 65-263. A PartyWide row so the raidwide guard knows the cast.
+        var fire = CrucibleState() with
+        {
+            InCombat = true, CrucibleBoard = 2, CrucibleBattle = 6, TargetCastId = 48222, TargetCastRemaining = 4f,
+            PlayerHp = 40f, PlayerHpPercent = 60f, ReadyHealPotion = 46961,
+        };
+        Check("r4-tankbuster: 2.6-06 Void Fire III, 40 HP under the measured 66 room-wide hit (percentage above the panic line): the raidwide guard",
+            Decide(fire, on).Reason == "crucible:raidwide-guard", Decide(fire, on).Reason);
     }
 }
