@@ -487,8 +487,8 @@ internal static class Program
                 WithNew(WithNew(WithNew(WithNew(worst, "GcdReady", false), "CanWeave", false), "InCombat", false), "PlayerIsCasting", false)));
         Check("CR| the live sampler wires the replay inputs from ReadState and the collector statics (no new game reads)",
             RepoFile("Data", "BeastmasterTelemetry.cs").Contains("s.TargetInvulnerable", StringComparison.Ordinal)
-            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST_Crucible.MorphoAlive", StringComparison.Ordinal)
-            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST_Crucible.OtherEnemiesUp", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST.MorphoAlive", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST.OtherEnemiesUp", StringComparison.Ordinal)
             && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("s.ReadyHorn1", StringComparison.Ordinal),
             "SampleCrucible must feed f=I, rd=, mo= and ou= from state the tick already read");
         var moving = new CrucibleTelemetryFormat.GateState();
