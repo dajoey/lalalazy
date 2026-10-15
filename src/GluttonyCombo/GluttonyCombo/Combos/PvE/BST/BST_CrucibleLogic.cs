@@ -1274,9 +1274,10 @@ internal static class BST_CrucibleLogic
     /// <summary>
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion, and so is <see cref="Forbidden"/>
-    ///     (<see cref="ConditionallyForbidden"/>: attackable only some of the time, held back now).
+    ///     (<see cref="ConditionallyForbidden"/>: attackable only some of the time, held back now);
+    ///     <see cref="Petrified"/> marks an enemy under Stone Curse 437 — it dies to any hit.
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false, bool Forbidden = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false, bool Forbidden = false, bool Petrified = false);
 
     /// <summary>
     ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
@@ -1308,8 +1309,9 @@ internal static class BST_CrucibleLogic
     ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart. With
     ///     <paramref name="interruptArmed"/> (Soul Crush held and ready) an enemy casting something interruptible comes before
     ///     all of that: the cast is gone in seconds and the order resumes when it ends; a caster of a
-    ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next, then (with <paramref name="dispelArmed"/>) the enemies
-    ///     that carry a dispellable buff.
+    ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next, then a petrified enemy (Stone Curse 437: it dies
+    ///     to any hit, so it is killed on purpose before the dispel and the kill order), then (with
+    ///     <paramref name="dispelArmed"/>) the enemies that carry a dispellable buff.
     /// </summary>
     public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false, bool dispelArmed = false)
     {
@@ -1337,6 +1339,13 @@ internal static class BST_CrucibleLogic
         var killers = allowed.FindAll(i => candidates[i].CastId != 0 && BST_CrucibleData.KillTheCaster.Contains(candidates[i].CastId));
         if (killers.Count > 0)
             return killers;
+
+        // A petrified enemy (Stone Curse 437, the Medusa's Regard baited onto a Cyclops) dies to any hit: it is killed
+        // on purpose, ahead of the dispel try and the kill order. The interruptible and kill-the-caster casts stay
+        // ahead of it: the petrified enemy does not act while petrified, a casting one does.
+        var petrified = allowed.FindAll(i => candidates[i].Petrified);
+        if (petrified.Count > 0)
+            return petrified;
 
         // The dispel is armed (Quelling Wave held, or the vulture ready) and an enemy carries a dispellable buff: that enemy
         // before the kill order, stances included (the spikes are exactly what the dispel removes). The buff is gone in one
@@ -1379,6 +1388,27 @@ internal static class BST_CrucibleLogic
 
         foreach (var (a, b) in BST_CrucibleData.Pairs)
         {
+            // A pair that shares one id (the Summon's two Lamias, Raise 49287 revives a dead Lamia) constrains two
+            // actors of that id: the lower-HP one is dropped while the gap is open, so they are killed evenly.
+            if (a == b)
+            {
+                var same = allowed.FindAll(i => candidates[i].NameId == a);
+                if (same.Count < 2)
+                    continue;
+                var highest = same[0];
+                var lowest = same[0];
+                foreach (var i in same)
+                {
+                    if (candidates[allowed[i]].HpPercent > candidates[allowed[highest]].HpPercent)
+                        highest = i;
+                    if (candidates[allowed[i]].HpPercent < candidates[allowed[lowest]].HpPercent)
+                        lowest = i;
+                }
+                if (candidates[allowed[highest]].HpPercent - candidates[allowed[lowest]].HpPercent > PairHpGap)
+                    allowed.RemoveAt(lowest);
+                continue;
+            }
+
             var ia = allowed.FindIndex(i => candidates[i].NameId == a);
             var ib = allowed.FindIndex(i => candidates[i].NameId == b);
             if (ia < 0 || ib < 0)
