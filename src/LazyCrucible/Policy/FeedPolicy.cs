@@ -21,8 +21,8 @@ public readonly record struct FeedChoice(int FeedRow, int StockIndex, int Famili
 ///     fights ahead inflict; then a little damage. Drawbacks (max HP -80%, Slow +200%, self damage over time, a chance
 ///     to inflict a status on itself) cost more than most feeds give. The value is weighted by how many fights ahead
 ///     the familiar is a horn pick for (<see cref="RunContext.HornDemand"/>), so feed goes to the familiars that will
-///     fight. A campsite ahead discounts feeding a hurt familiar that may rest there (resting wipes feed) unless it
-///     already ate Lily Simular; Lily and Lassi themselves gain value when a campsite is ahead.</para>
+///     fight. The camp rule never rests a fed familiar, so feeding before a campsite is safe; Lily and Lassi
+///     themselves gain value when a campsite is ahead (Lily's feed survives the rest, Lassi full-heals).</para>
 /// </summary>
 internal static class FeedPolicy
 {
@@ -141,9 +141,6 @@ internal static class FeedPolicy
         if (raw <= 0)
             return raw;
         var weighted = raw * (1.0 + ctx.Demand(f.Row));
-        // Resting wipes feed (unless it ate Lily Simular): a hurt familiar is likely to rest at a campsite ahead.
-        if (ctx.CampAhead && f.HpPercent < 60 && !f.AteLily && (CrucibleItems.Get(feedRow).Flags & ItemFlags.KeepsFeedAtCamp) == 0)
-            weighted *= 0.75;
         return (int)Math.Round(weighted);
     }
 
