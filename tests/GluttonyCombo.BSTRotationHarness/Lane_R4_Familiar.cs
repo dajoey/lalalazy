@@ -65,6 +65,23 @@ internal static partial class Program
             BST_CrucibleAdvisor.Score(1, 4, 20, CrucibleNeeds.None) > 0);
         Check("r4-familiar: 1.4-01 no penalty on a battle with no resist row (1.1)",
             !ScoreWhy(1, 1, 10).Contains("poison resisted"));
+
+        // ---------------- sv-07b: the Bomb Piece's Self-destruct (49211, 8 s, room-wide) bursts like the Golem's
+        // 2026-09-30 01:21:59Z (board 5 battle 3): the bomb casts 49211 with 7.7 s left and the familiar eats the
+        // blast with no recall (dec=gcdchain throughout) - the burst set held only the Golem heart.
+        var bomb = CrucibleState(50) with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 3, ActiveSlot = 1, PetObjectBeast = 26,
+            OneWithNature = true, ReadyTempered = true, TargetCastId = 49211, TargetCastRemaining = 7.5f,
+        };
+        Check("r4-familiar: sv-07b 5.3 bomb Self-destruct with a spendable release: Tempered Release goes first (kill the bombs faster)",
+            Decide(bomb, cfg).Reason == "crucible:burst-tempered", D(Decide(bomb, cfg)));
+        var bombLate = bomb with { OneWithNature = false, SinceTempered = 3f, ReadyParting = true, ReadyHorn2 = true, Slot2PetHp = 100f, TargetCastRemaining = 7.2f };
+        Check("r4-familiar: sv-07b release spent, cast young, a healthy horn waits: Parting Blow recalls before the room-wide blast",
+            Decide(bombLate, cfg).Reason == "crucible:burst-parting", D(Decide(bombLate, cfg)));
+        Check("r4-familiar: sv-07b the cast set covers the bomb (49211) and the grenade (48792, sheet only, never seen cast) beside the Golem heart",
+            BST_CrucibleData.SelfDestructCasts.Contains(48766u) && BST_CrucibleData.SelfDestructCasts.Contains(49211u)
+            && BST_CrucibleData.SelfDestructCasts.Contains(48792u));
     }
 
     private static List<string> ScoreWhy(int board, int battle, int row)
