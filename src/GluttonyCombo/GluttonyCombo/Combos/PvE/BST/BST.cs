@@ -102,6 +102,9 @@ internal partial class BST : Melee
         CrucibleSnarlParting = BST_CrucibleSnarlParting,
         CrucibleSurvival = BST_CrucibleSurvival,
         CruciblePackWindow = BST_CruciblePackWindow,
+        CrucibleSnarlAtPull = BST_CrucibleSnarlAtPull,
+        CrucibleChallengeBack = BST_CrucibleChallengeBack,
+        CrucibleProvisionSwap = BST_CrucibleProvisionSwap,
     };
 
     private static BST_RotationLogic.BstSettings AdvancedSettings(bool aoe) => WithCrucible(new()

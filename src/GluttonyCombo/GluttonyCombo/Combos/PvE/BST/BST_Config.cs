@@ -50,6 +50,9 @@ internal partial class BST
             BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", true),
             BST_CrucibleSurvival = new("BST_CrucibleSurvival", true),
             BST_CruciblePackWindow = new("BST_CruciblePackWindow", true),
+            BST_CrucibleSnarlAtPull = new("BST_CrucibleSnarlAtPull", true),
+            BST_CrucibleChallengeBack = new("BST_CrucibleChallengeBack", true),
+            BST_CrucibleProvisionSwap = new("BST_CrucibleProvisionSwap", true),
             BST_CrucibleCycleForDamage = new("BST_CrucibleCycleForDamage", true),
             BST_CruciblePrepullHorns = new("BST_CruciblePrepullHorns", true);
 
@@ -171,6 +174,18 @@ internal partial class BST
             DrawAdditionalBoolChoice(BST_CrucibleSnarlParting,
                 FormatAndCache(BST_Config.CrucibleSnarlParting0And1, Snarl.ActionName()),
                 BST_Config.CrucibleSnarlPartingDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleSnarlAtPull,
+                FormatAndCache(BST_Config.CrucibleSnarlAtPull0And1, Snarl.ActionName()),
+                BST_Config.CrucibleSnarlAtPullDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleChallengeBack,
+                FormatAndCache(BST_Config.CrucibleChallengeBack0And1, Challenge.ActionName(), Snarl.ActionName()),
+                BST_Config.CrucibleChallengeBackDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleProvisionSwap,
+                FormatAndCache(BST_Config.CrucibleProvisionSwap0And1, Snarl.ActionName(), Challenge.ActionName()),
+                BST_Config.CrucibleProvisionSwapDesc);
 
             DrawAdditionalBoolChoice(BST_CrucibleSurvival,
                 BST_Config.CrucibleSurvival,

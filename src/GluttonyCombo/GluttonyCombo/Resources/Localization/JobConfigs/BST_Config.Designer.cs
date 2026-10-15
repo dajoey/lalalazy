@@ -556,6 +556,60 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Open a fight with {0}: the familiar takes the enemy at the pull.
+        /// </summary>
+        internal static string CrucibleSnarlAtPull0And1 {
+            get {
+                return ResourceManager.GetString("CrucibleSnarlAtPull0And1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to On by default. At the pull (the enemy still near full HP, the familiar at 90% or more) the familiar takes the enemy with Snarl, so the first hits land on it. Only in the pieces where the logs show the familiar surviving the largest hit that piece has put on whoever held the enemy; everywhere else nothing changes. The character takes the enemy back with Challenge once the familiar is down to 60% (it has no regeneration) and the character is at 60% or more. Untick to Snarl only for the cover, parry and low-HP rules..
+        /// </summary>
+        internal static string CrucibleSnarlAtPullDesc {
+            get {
+                return ResourceManager.GetString("CrucibleSnarlAtPullDesc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} back after the cover {1} on the Flauros Piece.
+        /// </summary>
+        internal static string CrucibleChallengeBack0And1 {
+            get {
+                return ResourceManager.GetString("CrucibleChallengeBack0And1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to On by default. On the Flauros Piece (Second Master's Board) the familiar covers the Erratic Blaster with Snarl, and the character takes the enemy back with Challenge once the hit has landed (about 8 s after the Snarl) so the familiar is not left tanking its attacks. Needs the character at 60% HP or more. Untick to leave the enemy on the familiar as before..
+        /// </summary>
+        internal static string CrucibleChallengeBackDesc {
+            get {
+                return ResourceManager.GetString("CrucibleChallengeBackDesc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Swap who tanks at each Provision ({0} to the familiar, {1} back).
+        /// </summary>
+        internal static string CrucibleProvisionSwap0And1 {
+            get {
+                return ResourceManager.GetString("CrucibleProvisionSwap0And1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to On by default. The Boogyman Piece's Provision swaps its weapon, and its attacks then leave the other weapon's vulnerability on whoever holds it, so the guide swaps the tank at every Provision. While Provision is being cast the familiar is given the enemy with Snarl (at 70% HP or more and able to take the largest hit that fight has put on a tank) and the character takes it back with Challenge (at 60% HP or more). Untick to keep the enemy where it is..
+        /// </summary>
+        internal static string CrucibleProvisionSwapDesc {
+            get {
+                return ResourceManager.GetString("CrucibleProvisionSwapDesc", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Dodge known tankbusters with {0} then {1}.
         /// </summary>
         internal static string CrucibleSnarlParting0And1 {
