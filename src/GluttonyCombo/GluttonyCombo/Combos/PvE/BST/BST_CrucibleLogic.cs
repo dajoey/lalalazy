@@ -866,7 +866,10 @@ internal static class BST_CrucibleLogic
         var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
         var cleave = BST_CrucibleData.CleaveAutoBosses.Contains(s.TargetNameId);
         // The familiar covers the character with Snarl alone (no Parting Blow after it: since the Sep 17 hotfix that hands the hit back).
-        var tankbusterSetUp = cfg.CrucibleSnarlParting && tankbuster && s.ReadySnarl && !s.EnemyTargetsPet
+        // Dreadwash (r4-third2 3.2-03b): Soul Crush first. The cover Snarl is for when that interrupt cannot go out (not held, or the Sahagin is out of melee reach).
+        var interruptFirst = BST_CrucibleData.InterruptFirstCasts.Contains(s.TargetCastId) && InterruptArmed(s, cfg)
+                             && s.TargetInterruptible && s.TargetDistance <= InterruptReach;
+        var tankbusterSetUp = cfg.CrucibleSnarlParting && tankbuster && !interruptFirst && s.ReadySnarl && !s.EnemyTargetsPet
                               && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > TankbusterSnarlMinLeadSeconds
                               && FamiliarCanTakeTankbuster(s);
 
@@ -911,6 +914,8 @@ internal static class BST_CrucibleLogic
                 return (BST.Snarl, "aggro:provision-swap");
             if (PullSnarlDue(s, cfg, tankbuster, cleave, stingDue))
                 return (BST.Snarl, "aggro:snarl-pull");
+            if (WaterSnarlDue(s, cfg, tankbuster, stingDue))
+                return (BST.Snarl, "aggro:snarl-water");
         }
 
         if (s.ReadyChallenge && s.EnemyTargetsPet)
@@ -999,6 +1004,38 @@ internal static class BST_CrucibleLogic
         cfg.CrucibleSnarlAtPull && s.InCombat && !tankbuster && !cleave && !stingDue && !s.TargetHasParry && !BST_CrucibleData.ProvisionCasts.Contains(s.TargetCastId)
         && s.TargetHpPercent >= PullEnemyHpPercent && s.PetHpPercent >= PullPetHpPercent
         && !InChallengeBackBattle(s) && FamiliarCanHoldPiece(s);
+
+    /// <summary>
+    ///     r4-third2 3.2-08: the Sahagin's Water (48626: instant, 100-155, no castbar to react to) follows the enmity holder, so the Sahagin on the character
+    ///     gets a Snarl and the spell goes to the familiar (dossier: "point it at the familiar"). Same terms as the pull Snarl: the "Snarl at the pull" option,
+    ///     a familiar that can hold the piece, and the familiar at <see cref="ProvisionPetHpPercent"/> or more, so the Challenge back at
+    ///     <see cref="PullBudgetPetHpPercent"/> (<see cref="PullBudgetSpent"/>) does not take it straight back. No tankbuster cast, parry or Final Sting due.
+    /// </summary>
+    public static bool WaterSnarlDue(in BstState s, in BstSettings cfg, bool tankbuster, bool stingDue) =>
+        cfg.CrucibleSnarlAtPull && s.InCombat && !tankbuster && !stingDue && !s.TargetHasParry
+        && BST_CrucibleData.WaterCasterNameIds.Contains(s.TargetNameId)
+        && s.PetHpPercent >= ProvisionPetHpPercent && FamiliarCanHoldPiece(s);
+
+    /// <summary>
+    ///     r4-third2 sv-02: the target is casting a counter-stance cast (Paralyzing Spikes, 3.0 s) with <see cref="BST_CrucibleData.StanceCastLeadSeconds"/> or
+    ///     less left. The buff lands at the castbar's end and a press made now resolves after it: the hold starts here instead of one hit late. At most
+    ///     that last second of the cast is held on top of the stance hold the buff itself brings.
+    /// </summary>
+    public static bool StanceCastLanding(in BstState s) =>
+        s.TargetCastId != 0 && BST_CrucibleData.StanceCasts.Contains(s.TargetCastId) && s.TargetCastRemaining <= BST_CrucibleData.StanceCastLeadSeconds;
+
+    /// <summary>
+    ///     r4-third2 sv-02: the held Quelling Wave (a single-target GCD spell, not reflected by Paralyzing Spikes per Icy Veins) is pressed at a stanced
+    ///     target on the battles in <see cref="BST_CrucibleData.QuellingStanceBattles"/>, behind the ranged-wave option.
+    /// </summary>
+    public static (uint ActionId, string Reason) TryStanceQuellingWave(in BstState s, in BstSettings cfg)
+    {
+        if (!cfg.UseQuellingWaveRanged || !s.HasHostileTarget || !s.TargetInStance || s.TargetDoNotAttack || s.TargetInvulnerable
+            || !BST_CrucibleData.QuellingStanceBattles.Contains((s.CrucibleBoard, s.CrucibleBattle))
+            || !DispelViaWave(s) || !s.GcdReady || s.TargetDistance > 30f)
+            return (0, "");
+        return (BST.QuellingWave, "crucible:stance-quellingwave");
+    }
 
     /// <summary>
     ///     rot-14: the familiar that took the enemy has used its share. Only in pieces the pull Snarl covers (<see cref="PullCoversPiece"/>; not the

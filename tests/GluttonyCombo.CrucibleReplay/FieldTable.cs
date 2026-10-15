@@ -127,6 +127,7 @@ internal static class FieldTable
         R("TargetDoNotAttack", PGate + "X", FalseFirst),
         M("TargetInvulnerable", "add flag letter `I` (damage-immune target) to CR f=", FalseFirst),
         R("ProtectedNearTarget", PGate + "N", FalseFirst),
+        M("StanceNearTarget", "add a flag letter (a stanced enemy beside the target) to CR f= (r4-third2 sv-02; the replay-input fields are another task's)", FalseFirst),
         R("TargetHasParry", PGate + "P", FalseFirst),
         R("ParryJustEnded", PGate + "J", FalseFirst),
         R("TargetCastId", "CR c=id", C(0u)),

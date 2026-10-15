@@ -522,6 +522,19 @@ internal partial class BST
             s.EnemyCount++;
             if (nameId != BST_CrucibleData.AbaddonNameId)
                 otherEnemiesUp = true;
+            // An enemy in a counter stance (Paralyzing Spikes) beside the target: an AoE press at the target would land on it (r4-third2).
+            if (!s.StanceNearTarget && target is not null && npc.GameObjectId != target.GameObjectId
+                && Vector3.Distance(npc.Position, target.Position) <= BST_CrucibleData.StanceAoeReach + target.HitboxRadius)
+            {
+                foreach (var status in npc.StatusList)
+                {
+                    if (BST_CrucibleData.StanceStatuses.Contains(status.StatusId))
+                    {
+                        s.StanceNearTarget = true;
+                        break;
+                    }
+                }
+            }
             if (!s.EnemyHasDispellableBuff && CarriesDispellableBuff(npc) && GetTargetDistance(npc) <= DispelReach)
                 s.EnemyHasDispellableBuff = true;
             if (!s.DispelCawReachable && CarriesDispellableBuff(npc) && CawCanDispel(npc))

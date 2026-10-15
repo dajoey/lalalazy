@@ -1,0 +1,106 @@
+#source=archive:plugin-lines-since-20261002T2037Z.tsv
+#from=2026-10-02T15:33:45Z
+#to=2026-10-02T15:34:07Z
+#lead_s=3
+#build=1.0.4.256
+#piece=Sahagin (board 3 battle 2)
+#tags=water,snarl,3.2-08
+#note=Sahagin on the character (y), Snarl ready (s), no stance, familiar 72-100%: no cast bar for Water
+#expect.head=35
+2026-10-02T15:33:43.321Z	BT|1790955223321|0d3084020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:43.545Z	CR|1790955223545|b=3|bt=2|nd=I|ne=3|hi=98|t=14570:24|c=0:0.0|f=psc|hp=71|pet=81|sl=93.81.100|dec=44885:gcdchain|sh=|ttd=25|in=28|vul=0|xp=1
+2026-10-02T15:33:43.578Z	BT|1790955223578|0d3c84020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:44.554Z	CR|1790955224554|b=3|bt=2|nd=I|ne=3|hi=98|t=14570:24|c=0:0.0|f=psc|hp=71|pet=78|sl=93.78.100|dec=44885:gcdchain|sh=|ttd=30|in=28|vul=0|xp=1
+2026-10-02T15:33:44.939Z	BT|1790955224939|0d3c84020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:45.115Z	CR|1790955225115|b=3|bt=2|nd=I|ne=3|hi=98|t=14570:15|c=0:0.0|f=psc|hp=71|pet=78|sl=93.78.100|dec=44885:gcdchain|sh=|ttd=6|in=28|vul=0|xp=1
+2026-10-02T15:33:45.195Z	BT|1790955225195|1c3c84020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:45.371Z	CR|1790955225371|b=3|bt=2|nd=I|ne=3|hi=98|t=14570:15|c=0:0.0|f=psc|hp=71|pet=78|sl=93.78.100|dec=44879:gcdchain|sh=|ttd=6|in=28|vul=0|xp=1
+2026-10-02T15:33:46.028Z	CR|1790955226028|b=3|bt=2|nd=I|ne=3|hi=98|t=14570:14|c=0:0.0|f=psc|hp=71|pet=78|sl=93.78.100|dec=44879:gcdchain|sh=|ttd=5|in=28|vul=0|xp=1
+2026-10-02T15:33:46.555Z	BT|1790955226555|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:46.859Z	BT|1790955226859|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:47.436Z	BT|1790955227436|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:47.436Z	CR|1790955227436|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:98|c=48485:7.5|f=psci|hp=71|pet=78|sl=93.78.100|dec=44879:gcdchain|sh=|ttd=0|in=28|vul=0|xp=1
+2026-10-02T15:33:47.692Z	CR|1790955227692|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:98|c=48485:7.2|f=psci|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=0|in=28|vul=0|xp=1
+2026-10-02T15:33:47.692Z	BT|1790955227692|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:49.277Z	CR|1790955229277|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:98|c=48485:5.7|f=psci|hp=71|pet=72|sl=93.72.100|dec=44902:beastmode:soulcrush-interrupt|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:49.277Z	BT|1790955229277|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44902:beastmode:soulcrush-interrupt|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:49.533Z	BT|1790955229533|1c4884020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:49.533Z	CR|1790955229533|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:98|c=48485:5.4|f=psci|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:49.789Z	BT|1790955229789|1c5484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:49.917Z	CR|1790955229917|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:98|c=48485:5.0|f=psci|hp=71|pet=72|sl=93.72.100|dec=44902:beastmode:soulcrush-interrupt|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:50.045Z	BT|1790955230045|295484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44902:beastmode:soulcrush-interrupt|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:50.173Z	CR|1790955230173|b=3|bt=2|nd=I|ne=3|hi=98|t=14571:92|c=48485:4.8|f=psci|hp=71|pet=72|sl=93.72.100|dec=44902:beastmode:soulcrush-interrupt|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:50.573Z	CR|1790955230573|b=3|bt=2|nd=I|ne=3|hi=92|t=14571:92|c=48485:4.4|f=psci|hp=71|pet=72|sl=93.72.100|dec=44902:beastmode:soulcrush-interrupt|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:50.621Z	BT|1790955230621|295484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:50.829Z	CR|1790955230829|b=3|bt=2|nd=I|ne=3|hi=92|t=14571:77|c=48485:4.1|f=psci|hp=71|pet=72|sl=93.72.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:50.877Z	BT|1790955230877|8d5484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:51.261Z	CR|1790955231261|b=3|bt=2|nd=I|ne=3|hi=77|t=14571:77|c=0:0.0|f=psc|hp=71|pet=72|sl=93.72.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:33:51.774Z	BT|1790955231774|8d5484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:52.351Z	BT|1790955232351|8d5484020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:52.461Z	CR|1790955232461|b=3|bt=2|nd=I|ne=3|hi=77|t=14571:71|c=0:0.0|f=psc|hp=71|pet=72|sl=93.72.100|dec=44885:gcdchain|sh=|ttd=13|in=0|vul=0|xp=1
+2026-10-02T15:33:52.606Z	BT|1790955232606|9c6084020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:52.718Z	CR|1790955232718|b=3|bt=2|nd=I|ne=3|hi=77|t=14571:68|c=0:0.0|f=psc|hp=71|pet=72|sl=93.72.100|dec=44879:gcdchain|sh=|ttd=12|in=0|vul=0|xp=1
+2026-10-02T15:33:53.119Z	CR|1790955233118|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:68|c=0:0.0|f=psc|hp=71|pet=72|sl=93.72.100|dec=44879:gcdchain|sh=|ttd=13|in=0|vul=0|xp=1
+2026-10-02T15:33:53.519Z	CR|1790955233519|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:68|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=44879:gcdchain|sh=|ttd=13|in=0|vul=0|xp=1
+2026-10-02T15:33:54.223Z	BT|1790955234223|9c6084020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:54.847Z	BT|1790955234847|9c6084020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:54.975Z	CR|1790955234975|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:66|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=11|in=0|vul=0|xp=1
+2026-10-02T15:33:55.103Z	BT|1790955235103|9c6084020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:55.631Z	CR|1790955235631|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:66|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=47093:combo:trick-first|sh=|ttd=12|in=0|vul=0|xp=1
+2026-10-02T15:33:55.631Z	BT|1790955235631|9c6c84020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=47093:combo:trick-first|fd=crucible:exit-keep-reserve-horn|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:55.887Z	BT|1790955235887|9c006c020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:55.887Z	CR|1790955235887|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:57|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=8|in=0|vul=0|xp=1
+2026-10-02T15:33:56.143Z	CR|1790955236143|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:64|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=13|in=0|vul=0|xp=1
+2026-10-02T15:33:56.402Z	CR|1790955236399|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:57|c=0:0.0|f=ysc|hp=71|pet=72|sl=93.72.100|dec=44883:gcdchain|sh=|ttd=10|in=0|vul=0|xp=1
+2026-10-02T15:33:56.672Z	CR|1790955236671|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:57|c=0:0.0|f=ysc|hp=71|pet=53|sl=93.53.100|dec=44883:gcdchain|sh=|ttd=16|in=0|vul=0|xp=1
+2026-10-02T15:33:56.703Z	BT|1790955236703|9c006c020000007104|2|0|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:awaiting-pet-heart|sl=29.24.25|lv=50|4608,4614
+2026-10-02T15:33:56.927Z	CR|1790955236927|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:57|c=0:0.0|f=ysc|hp=71|pet=53|sl=93.53.100|dec=44888:combo:axe-clockwise-after-trick|sh=|ttd=16|in=0|vul=0|xp=1
+2026-10-02T15:33:56.960Z	BT|1790955236960|9c006c020303007104|2|3|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44888:combo:axe-clockwise-after-trick|fd=crucible:petsave-swap-waiting-gcd|sl=29.24.25|lv=50|4608,4597,4614
+2026-10-02T15:33:57.184Z	CR|1790955237184|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:56|c=0:0.0|f=ysc|hp=71|pet=53|sl=93.53.100|dec=44883:gcdchain|sh=|ttd=16|in=0|vul=0|xp=1
+2026-10-02T15:33:57.216Z	BT|1790955237216|00006c020303007104|2|3|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:petsave-swap-waiting-gcd|sl=29.24.25|lv=50|4608,4597,4614
+2026-10-02T15:33:57.440Z	CR|1790955237440|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:48|c=0:0.0|f=ysc|hp=71|pet=53|sl=93.53.100|dec=44883:gcdchain|sh=|ttd=9|in=0|vul=0|xp=1
+2026-10-02T15:33:57.664Z	BT|1790955237664|00006c020303007104|2|3|0|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:petsave-covering|sl=29.24.25|lv=50|4608,4597,4614
+2026-10-02T15:33:57.696Z	CR|1790955237696|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:48|c=0:0.0|f=psc|hp=71|pet=53|sl=93.53.100|dec=44883:gcdchain|sh=|ttd=9|in=0|vul=0|xp=1
+2026-10-02T15:33:57.921Z	BT|1790955237921|0d006c020704017108|2|4|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44893:shieldcharge:overcap|fd=crucible:petsave-covering+crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=29.24.25|lv=50|4608,4643,4614
+2026-10-02T15:33:57.952Z	CR|1790955237952|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:41|c=0:0.0|f=psc|hp=71|pet=53|sl=93.53.100|dec=44893:shieldcharge:overcap|sh=|ttd=7|in=0|vul=0|xp=1
+2026-10-02T15:33:58.208Z	CR|1790955238208|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:41|c=0:0.0|f=psc|hp=71|pet=50|sl=93.50.100|dec=44893:shieldcharge:overcap|sh=|ttd=7|in=0|vul=0|xp=1
+2026-10-02T15:33:58.497Z	CR|1790955238497|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:41|c=0:0.0|f=psc|hp=71|pet=50|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=8|in=0|vul=0|xp=1
+2026-10-02T15:33:58.497Z	BT|1790955238497|0d006c020704017108|2|4|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:petsave-covering+crucible:exit-keep-reserve-horn+combo:wavering-heart|sl=29.24.25|lv=50|4608,4643,4614
+2026-10-02T15:33:58.753Z	BT|1790955238753|0d0c6c020704017108|2|4|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44894:crucible:petsave-swap|fd=|sl=29.24.25|lv=50|4608,4643,4614
+2026-10-02T15:33:58.753Z	CR|1790955238753|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:34|c=0:0.0|f=ysc|hp=71|pet=50|sl=93.50.100|dec=44894:crucible:petsave-swap|sh=|ttd=6|in=0|vul=0|xp=1
+2026-10-02T15:33:59.168Z	CR|1790955239168|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:39|c=0:0.0|f=ysc|hp=71|pet=50|sl=93.50.100|dec=44894:crucible:petsave-swap|sh=|ttd=8|in=0|vul=0|xp=1
+2026-10-02T15:33:59.424Z	CR|1790955239424|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:34|c=0:0.0|f=ysc|hp=71|pet=50|sl=93.50.100|dec=44894:crucible:petsave-swap|sh=|ttd=6|in=0|vul=0|xp=1
+2026-10-02T15:33:59.779Z	BT|1790955239779|0d0c6c020704017108|2|4|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:wavering-heart|sl=29.24.25|lv=50|4608,4643,4614
+2026-10-02T15:33:59.780Z	CR|1790955239779|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:33|c=0:0.0|f=ysc|hp=71|pet=50|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=6|in=0|vul=0|xp=1
+2026-10-02T15:34:00.033Z	CR|1790955240033|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:20|c=0:0.0|f=ysc|hp=71|pet=50|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=3|in=0|vul=0|xp=1
+2026-10-02T15:34:00.049Z	BT|1790955240049|0d0c6c020505017108|2|5|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn+combo:wavering-heart|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:00.305Z	BT|1790955240305|0d0c6c020505017108|2|5|1|113|pet=1073742611:Apkallu:18939|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:petsave-no-healthier-horn|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:00.481Z	CR|1790955240481|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:20|c=0:0.0|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:00.561Z	BT|1790955240561|0d0c6c030505017108|3|5|1|113|pet=none|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=29.24.25|lv=50|4601,4608,4599,4614
+2026-10-02T15:34:00.817Z	BT|1790955240817|0d0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44885:gcdchain|fd=|sl=29.24.25|lv=50|4601,4608,4599,4614
+2026-10-02T15:34:00.865Z	CR|1790955240865|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:20|c=50532:2.7|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=3|in=0|vul=0|xp=1
+2026-10-02T15:34:01.074Z	BT|1790955241074|1c0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44879:gcdchain|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4601,4608,4599,4614
+2026-10-02T15:34:01.122Z	CR|1790955241122|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:14|c=50532:2.4|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44879:gcdchain|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:01.329Z	BT|1790955241329|1c0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44890:own:tempered|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4601,4608,4599,4614
+2026-10-02T15:34:01.378Z	CR|1790955241378|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:14|c=50532:2.2|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44890:own:tempered|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:01.634Z	BT|1790955241634|1c0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44895:own:borrow-while-tempered-recasts|fd=exit:pet-busy|sl=29.24.25|lv=50|4601,4608,4599,4614
+2026-10-02T15:34:01.634Z	CR|1790955241634|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:14|c=50532:1.9|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44895:own:borrow-while-tempered-recasts|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:01.890Z	CR|1790955241890|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:14|c=50532:1.7|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44879:gcdchain|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:01.890Z	BT|1790955241890|1c0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44879:gcdchain|fd=exit:pet-busy|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:02.786Z	BT|1790955242786|1c0c6c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:03.042Z	BT|1790955243042|1c186c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44879:gcdchain|fd=|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:03.363Z	BT|1790955243363|1c186c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44879:gcdchain|fd=exit:pet-busy|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:03.491Z	CR|1790955243491|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:11|c=50532:0.1|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44883:gcdchain|sh=|ttd=1|in=0|vul=0|xp=1
+2026-10-02T15:34:03.619Z	BT|1790955243619|1c186c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:03.762Z	CR|1790955243762|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:11|c=0:0.0|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44883:gcdchain|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:04.210Z	CR|1790955244210|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:11|c=0:0.0|f=Sysc|hp=71|pet=100|sl=93.50.100|dec=44883:gcdchain|sh=|ttd=2|in=0|vul=0|xp=1
+2026-10-02T15:34:04.466Z	CR|1790955244466|b=3|bt=2|nd=I|ne=3|hi=73|t=14570:6|c=0:0.0|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44883:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:34:05.219Z	BT|1790955245219|1c186c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44883:gcdchain|fd=|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:05.860Z	BT|1790955245860|1c186c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44883:gcdchain|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:05.924Z	CR|1790955245923|b=3|bt=2|nd=I|ne=3|hi=73|t=14570:5|c=0:0.0|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:34:06.116Z	BT|1790955246116|29246c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=1000004:crucible:hold-stance|fd=|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:06.180Z	CR|1790955246180|b=3|bt=2|nd=I|ne=3|hi=73|t=14571:11|c=48482:2.4|f=Sysc|hp=71|pet=100|sl=93.50.100|dec=1000004:crucible:hold-stance|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:34:06.516Z	CR|1790955246516|b=3|bt=2|nd=I|ne=2|hi=73|t=14571:11|c=48482:2.1|f=Sysc|hp=71|pet=100|sl=93.50.100|dec=1000004:crucible:hold-stance|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:34:06.564Z	BT|1790955246564|29246c030505017108|3|5|1|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4608,4599,4614
+2026-10-02T15:34:06.772Z	CR|1790955246772|b=3|bt=2|nd=I|ne=2|hi=73|t=14569:73|c=0:0.0|f=ysc|hp=71|pet=100|sl=93.50.100|dec=44885:gcdchain|sh=|ttd=0|in=0|vul=0|xp=1
+2026-10-02T15:34:06.980Z	BT|1790955246980|29246c030000007108|3|0|0|113|pet=1073742708:Adamantoise:18940|bm=44902|av=44884|dec=44885:gcdchain|fd=crucible:exit-no-resummon-horn|sl=29.24.25|lv=50|4608,4614

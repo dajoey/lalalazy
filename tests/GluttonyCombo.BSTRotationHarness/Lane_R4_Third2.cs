@@ -82,6 +82,8 @@ internal static partial class Program
         Check("r4-third2: 3.2-08 Water: the familiar holds the Sahagin and is down to 57%: the character takes it back (aggro:challenge-pull-budget)",
             Is(held, BST.Challenge, "aggro:challenge-pull-budget"), Show(held));
         Check("r4-third2: 3.2-08 Water: Snarl on its recast: no Snarl", D(Fight() with { ReadySnarl = false }, on).Reason != "aggro:snarl-water");
+        Check("r4-third2: 3.2-08 Water: 'Snarl at the pull' unticked (the option whose Challenge back at 60% balances it): no water Snarl",
+            D(Fight(), Opt(on, "CrucibleSnarlAtPull", false)).Reason != "aggro:snarl-water");
         Check("r4-third2: 3.2-08 Water: a familiar that cannot hold the piece at this degree (Third Degree, 3,492 HP): no Snarl",
             D(Fight() with { CrucibleDegreeLevel = CrucibleDegree.Third }, on).Reason != "aggro:snarl-water");
         var sahaginStance = D(Fight() with { TargetInStance = true }, on);
@@ -91,7 +93,8 @@ internal static partial class Program
         // ================================================================ sv-02 / kd-03 Paralyzing Spikes
         // Cast 50532 is 3.0 s; the buff lands at its end. Recorded hits on the stanced Sahagin by the five "unanswered Paralyzing Spikes" deaths: a combo press
         // 1.8 s and an Axeblade Bite 0.0 s after the buff, two Shield Charge AoEs (6.3 s and 39.2 s in), one auto-attack.
-        BstState Spikes(float remaining) => Fight() with { TargetCastId = 50532, TargetCastRemaining = remaining, TargetInStance = false };
+        // No duty action ready: with a Snarl ready the aggro rules come first in the stance branch (the water Snarl above).
+        BstState Spikes(float remaining) => Fight() with { ReadySnarl = false, ReadyChallenge = false, TargetCastId = 50532, TargetCastRemaining = remaining, TargetInStance = false };
         var landing = D(Spikes(0.6f), on);
         Check("r4-third2: sv-02 kd-03 the Sahagin is 0.6 s from finishing Paralyzing Spikes: nothing is pressed at it (crucible:hold-stance)",
             Is(landing, BST_CrucibleLogic.Hold, "crucible:hold-stance"), Show(landing));
@@ -126,7 +129,7 @@ internal static partial class Program
 
         // Quelling Wave is not reflected (Icy Veins; no log has a Quelling Wave on a stanced Sahagin): the held wave is the damage while the stance is up.
         BstState Wave(BstState s) => s with { KinshipHeld = true, BeastModeResolved = BST.QuellingWave, ReadyBeastMode = true, TargetDistance = 8f };
-        var stanced = Fight() with { TargetInStance = true };
+        var stanced = Fight() with { TargetInStance = true, ReadySnarl = false, ReadyChallenge = false }; // no duty action ready: the aggro rules come first in the stance branch
         var wave = D(Wave(stanced), on);
         Check("r4-third2: sv-02 kd-03 the Sahagin in Paralyzing Spikes and a Quelling Wave held: the wave is pressed (crucible:stance-quellingwave)",
             Is(wave, BST.QuellingWave, "crucible:stance-quellingwave"), Show(wave));

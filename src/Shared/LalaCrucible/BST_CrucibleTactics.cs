@@ -63,4 +63,36 @@ internal static partial class BST_CrucibleData
 
     /// <summary> Whether the guide's window for <paramref name="battle"/> is a pack, a shell break or neither (hold is only for those). </summary>
     public static bool IsShellBattle(int board, int battle) => board == 3 && battle == 2;
+
+    // ------------------------------------------------------------------ Third Board battle 2: Ymir / Sahagin (r4-third2)
+
+    /// <summary> Sahagin Piece (14571): its Water (48626, instant, 100-155) hits the enmity holder 923 times in the logs; a Snarl keeps it on the familiar. </summary>
+    public static readonly HashSet<uint> WaterCasterNameIds = [14571];
+
+    /// <summary>
+    ///     Casts the dossier answers with Soul Crush first and the cover Snarl only when that interrupt cannot go out (Dreadwash, 48485: on the panel's
+    ///     interruptible list; 24 of 87 casts were interrupted in the logs).
+    /// </summary>
+    public static readonly HashSet<uint> InterruptFirstCasts = [48485];
+
+    /// <summary> Paralyzing Spikes (50532, 3.0 s cast): the counter stance (5434, 40 s) lands on the Sahagin when the cast ends. </summary>
+    public static readonly HashSet<uint> StanceCasts = [50532];
+
+    /// <summary>
+    ///     A stance cast with this much castbar left or less counts as the stance for the hold: a press made now resolves after the buff lands
+    ///     (recorded: an Axeblade Bite 0.0 s and a combo press 1.8 s after the buff, both counted as hits into the spikes).
+    /// </summary>
+    public const float StanceCastLeadSeconds = 1.0f;
+
+    /// <summary>
+    ///     How far from the target an AoE press (Shield Charge) may land before it hits an enemy in a counter stance (yalms): the egg reach, the plugin's
+    ///     worst case for a player AoE. 2026-09-30 and 2026-10-07: a dash at the Ymir Shell hit the stanced Sahagin for 505 and 577 (log_type 22).
+    /// </summary>
+    public const float StanceAoeReach = 10f;
+
+    /// <summary>
+    ///     Battles where a held Quelling Wave is pressed at a stanced enemy: Icy Veins says the wave "does not reflect the paralysis" of Paralyzing Spikes
+    ///     (3.2). One source and no log of a wave on a stanced Sahagin, so it is limited to the one battle the claim is about.
+    /// </summary>
+    public static readonly HashSet<(int Board, int Battle)> QuellingStanceBattles = [(3, 2)];
 }

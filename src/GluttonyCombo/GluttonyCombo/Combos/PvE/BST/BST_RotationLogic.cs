@@ -315,6 +315,7 @@ internal static class BST_RotationLogic
         public bool TargetDoNotAttack;            // eggs, morphos
         public bool TargetInvulnerable;           // damage-immune phase (e.g. Burning Ward)
         public bool ProtectedNearTarget;          // a do-not-attack enemy within AoE reach of the target
+        public bool StanceNearTarget;             // another enemy in a counter stance (Paralyzing Spikes) within AoE reach of the target: an AoE press lands on it
         public bool TargetHasParry;               // Directional Parry (bone knight Forward Guard)
         public bool ParryJustEnded;               // the target lost Directional Parry within the last few seconds
         public uint TargetCastId;                 // 0 when not casting
@@ -681,9 +682,11 @@ internal static class BST_RotationLogic
             var pairHold = BST_CrucibleLogic.PairFinalBlowHold(s);
             if (BST_CrucibleLogic.PairFinalBlowTimedOut(s))
                 declines.Add("crucible:pair-final-blow-timeout");
-            if (s.HasHostileTarget && (s.TargetDoNotAttack || needleHold || pairHold || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
+            // r4-third2 sv-02: a stance cast in its last second is the stance (anything pressed now resolves after the buff lands).
+            var inStance = s.TargetInStance || BST_CrucibleLogic.StanceCastLanding(s);
+            if (s.HasHostileTarget && (s.TargetDoNotAttack || needleHold || pairHold || inStance || s.TargetInvulnerable || parryFacingPlayer))
             {
-                var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer
+                var stanceBreak = inStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer
                                   && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
                 if (!stanceBreak)
                 {
@@ -692,9 +695,13 @@ internal static class BST_RotationLogic
                     var cleanse = BST_CrucibleLogic.TryCleanse(s, beast);
                     if (cleanse.ActionId != 0)
                         return Pick(cleanse.ActionId, cleanse.Reason);
+                    // r4-third2 sv-02: the held Quelling Wave is the damage on a stanced Sahagin (it is not reflected), never one of the hits the stance punishes.
+                    if (!s.TargetDoNotAttack && !needleHold && !pairHold && !parryFacingPlayer
+                        && BST_CrucibleLogic.TryStanceQuellingWave(s, cfg) is { ActionId: not 0 } stanceWave)
+                        return Pick(stanceWave.ActionId, stanceWave.Reason);
                     return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
                         : needleHold ? "crucible:hold-hourglass-needle"
-                        : s.TargetInStance ? "crucible:hold-stance"
+                        : inStance ? "crucible:hold-stance"
                         : s.TargetInvulnerable ? "crucible:hold-invulnerable"
                         : pairHold ? "crucible:hold-pair-final-blow"
                         : "crucible:hold-parry");
@@ -848,6 +855,8 @@ internal static class BST_RotationLogic
                     declines.Add("shieldcharge:overcap-out-of-range");
                 else if (crucible && s.ProtectedNearTarget)
                     declines.Add("crucible:shieldcharge-protected-near");
+                else if (crucible && s.StanceNearTarget)
+                    declines.Add("crucible:shieldcharge-stance-near");
                 else if (DashLandingDecline(s, crucible) is { } blocked)
                     declines.Add(blocked);
                 else if (ShieldChargeReserve(s, crucible) is { } kept)
@@ -859,7 +868,10 @@ internal static class BST_RotationLogic
             {
                 if (s.TargetDistance > 3.5f || (atCap && !s.IsMoving))
                 {
-                    if (DashLandingDecline(s, crucible) is { } blocked)
+                    // r4-third2 sv-02: a dash is an AoE; a stanced enemy beside the target would take it (505 and 577 on the Sahagin in two recorded deaths).
+                    if (crucible && s.StanceNearTarget)
+                        declines.Add("crucible:shieldcharge-stance-near");
+                    else if (DashLandingDecline(s, crucible) is { } blocked)
                         declines.Add(blocked);
                     else if (ShieldChargeReserve(s, crucible) is { } kept)
                         declines.Add(kept);

@@ -58,6 +58,7 @@ internal static partial class BST_CrucibleData
     [
         (4, 0), (4, 1), (4, 3), (4, 5), (4, 7), (4, 8),
         (5, 1), (5, 3), (5, 5), (5, 6),
+        (3, 2),   // r4-third2: Third Board battle 2 (Ymir / Sahagin), 51 recorded runs: the Dreadwash row below
     ];
 
     /// <summary> Whether a battle of the two Master's Boards was actually fought in the recorded runs. </summary>
@@ -86,6 +87,10 @@ internal static partial class BST_CrucibleData
             "Golem Piece. Victim was the holder in 2 of 2 (character 1,349, familiar 1,112); only two casts logged. Re-checked 2026-10-13 over 7 casts (ffxivdb to 10-11): the holder at the hit took it 7 of 7 (familiar 1, character 6, one of them after a Parting Blow recalled the familiar); BMR's knockback typing does not change who is hit."),
         new(48669, "On the Properties of Darkness", 4, 1, 7.7f, 0.3f, CrucibleHitKind.Tankbuster, 1265, 0, 13, 10, false,
             "Strix Piece. Hit the character in 10 of 10 hits and never the familiar, which the guide's 'room-wide, cannot be avoided' contradicts; the character held enmity in every logged cast, so following the holder is consistent but not proven against a familiar holding it. Settled 2026-10-13 over 139 casts (ffxivdb to 10-11): a familiar still holding after a Snarl took it 2 of 2 (2,004 / 2,045, degree not recorded, so not in MaxOnFamiliar); with a Parting Blow during the cast, the character 39 of 39. It follows the holder; BMR's room-wide typing is wrong about the target."),
+
+        // ---- Third Board, battle 2 (r4-third2) ----------------------------------------------------------------------------------
+        new(48485, "Dreadwash", 3, 2, 8.0f, 0.0f, CrucibleHitKind.Tankbuster, 910, 948, 87, 64, false,
+            "Sahagin Piece, ffxivdb 2026-09-24 to 2026-10-07: 87 cast starts, 64 effects 7.96-8.00 s after the start (lands at the castbar's end). Each completed cast hit one target, the enmity holder: 33 on the character (479-910), 31 on a familiar (424-948). Hysteria (296) followed 28 of the 33 character hits."),
 
         // ---- Second Master's Board ---------------------------------------------------------------------------------------------
         new(49188, "Erratic Blaster", 5, 1, 6.7f, 0.3f, CrucibleHitKind.Tankbuster, 1378, 1752, 6, 6, false,
