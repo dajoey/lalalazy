@@ -166,6 +166,11 @@ internal static class PolicyCases
         Check("Campsite ahead: a hurt familiar's feed is discounted (it may rest and lose it); Lily is not",
             FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx) < FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 }))
             && FeedPolicy.Value(166, Fam(18, 0), campCtx) > FeedPolicy.Value(166, Fam(18, 0), Ctx(1)));
+        // r4 lv-12: no hurt-familiar feed discount any more - the camp rule never rests a fed familiar, so a feed
+        // given before the campsite cannot be wiped by a rest. Feeding the damage beasts stands.
+        Check("r4-familiar: lv-12 Campsite ahead: a hurt familiar's feed is NOT discounted (fed familiars never rest)",
+            FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx) == FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 })),
+            $"{FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), campCtx)} vs {FeedPolicy.Weighted(144, Fam(18, 0, hp: 40), Ctx(1, new() { [18] = 2 }))}");
     }
 
     private static void Camp()
@@ -193,6 +198,16 @@ internal static class PolicyCases
 
         var b4 = CampPolicy.Choose([Fam(18, 0, hp: 30)], 2, Ctx(4, new() { [18] = 2 }));
         Check("Boards 4-5: the reason says the heal table is assumed", b4.Reason.Contains("assumed"), b4.Reason);
+
+        // r4 lv-12 (Crucible guide S20, two sources): resting wipes a familiar's feed, and a fed familiar is the one
+        // damage dealer the camp rule must never trade away: it never rests (unless it ate Lily Simular, whose feed
+        // survives the rest).
+        var neverFed = CampPolicy.Choose([Fam(18, 0, hp: 5, ate: [144])], 2, Ctx(1, new() { [18] = 2 }, playerHp: 100));
+        Check("r4-familiar: lv-12 the only candidate ate a feed: nobody rests (a fed familiar is never rested), you take the self heal",
+            neverFed.Rows.Count == 0 && neverFed.HealPercent == 90, neverFed.Reason);
+        var unfedFirst = CampPolicy.Choose([Fam(18, 0, hp: 30, ate: [144, 155]), Fam(40, 1, hp: 5)], 2, Ctx(1, new() { [18] = 2, [40] = 1 }));
+        Check("r4-familiar: lv-12 a fed 30% and an unfed 5%: the unfed one rests, the fed one keeps its feed",
+            unfedFirst.Rows.SequenceEqual([40]), unfedFirst.Reason);
     }
 
     private static void Shop()
