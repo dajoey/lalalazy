@@ -6,7 +6,7 @@
 #piece=board 2 battle 4 (Zombie Pieces)
 #tags=pack-window
 #note=2.4-04: recorded before the shadow field existed; ne=4 own:tempered then ne=3 exit:partingblow
-#expect.head=37
+#expect.head=36
 2026-09-25T01:51:45.588Z	BT|1790301105588|294800000000000000|0|0|0|0|pet=1073854500:Morbol:18954|bm=44886|av=44884|dec=44883:gcdchain|fd=crucible:summon-moving|sl=39.37.19|lv=40|
 2026-09-25T01:51:45.631Z	CR|1790301105631|b=2|bt=4|nd=|ne=1|hi=78|t=14552:75|c=0:0.0|f=yc|hp=94|pet=0|sl=100.100.100|dec=44885:gcdchain|sh=|ttd=48|in=3|vul=0|xp=0
 2026-09-25T01:51:45.845Z	BT|1790301105845|294800000000000000|0|0|0|0|pet=1073854500:Morbol:18954|bm=44886|av=44884|dec=44885:gcdchain|fd=crucible:summon-moving|sl=39.37.19|lv=40|

@@ -969,14 +969,23 @@ internal static class BST_CrucibleLogic
     ///     largest hit the logs put on whoever held it) and the familiar's HP is at least that hit scaled to the board's degree, with the cover margin.
     ///     Unread degree: scale 1.0, margin 2.0 (the same reading as <see cref="FamiliarCanTakeTankbuster"/>).
     /// </summary>
-    public static bool FamiliarCanHoldPiece(in BstState s)
+    public static bool FamiliarCanHoldPiece(in BstState s) => s.PetHp > 0f && s.PetHp >= HoldNeed(s);
+
+    /// <summary> The HP a familiar needs to hold this piece (ceiling x degree scale x cover margin); <see cref="float.MaxValue"/> when the piece has no measured ceiling. </summary>
+    private static float HoldNeed(in BstState s)
     {
         var ceiling = BST_CrucibleData.FamiliarHitCeiling(s.CrucibleBoard, s.CrucibleBattle);
-        if (ceiling <= 0 || s.PetHp <= 0f)
-            return false;
-        return s.PetHp >= ceiling * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel)
-                          * CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
+        return ceiling <= 0 ? float.MaxValue
+            : ceiling * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel) * CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
     }
+
+    /// <summary>
+    ///     The pull covers this piece at this degree: a measured ceiling, and the familiar's full HP (its HP over its HP share) is enough for it. Does not
+    ///     look at the HP the familiar has now. Where it is false (First Degree on the Master's Boards, an unmeasured piece) the pull rules do nothing
+    ///     and the old Challenge rules stand.
+    /// </summary>
+    public static bool PullCoversPiece(in BstState s) =>
+        s.PetHp > 0f && s.PetHpPercent > 0f && s.PetHp / (s.PetHpPercent / 100f) >= HoldNeed(s);
 
     private static bool InChallengeBackBattle(in BstState s) => BST_CrucibleData.ChallengeBackCasts.ContainsKey((s.CrucibleBoard, s.CrucibleBattle));
 
@@ -992,13 +1001,13 @@ internal static class BST_CrucibleLogic
         && !InChallengeBackBattle(s) && FamiliarCanHoldPiece(s);
 
     /// <summary>
-    ///     rot-14: the familiar that took the enemy has used its share. Only in pieces the pull Snarl covers (a ceiling is measured, not the Flauros
-    ///     Piece) and while no tankbuster cast is up (a covering familiar stays through the cast).
+    ///     rot-14: the familiar that took the enemy has used its share. Only in pieces the pull Snarl covers (<see cref="PullCoversPiece"/>; not the
+    ///     Flauros Piece) and while no tankbuster cast is up (a covering familiar stays through the cast).
     /// </summary>
     public static bool PullBudgetSpent(in BstState s, in BstSettings cfg, bool tankbuster) =>
         cfg.CrucibleSnarlAtPull && !tankbuster && s.PetHpPercent is > 0f and <= PullBudgetPetHpPercent
         && s.PlayerHpPercent >= ReturnPlayerHpPercent && s.SinceHornPress > SummonSettleSeconds
-        && BST_CrucibleData.FamiliarHitCeiling(s.CrucibleBoard, s.CrucibleBattle) > 0 && !InChallengeBackBattle(s);
+        && !InChallengeBackBattle(s) && PullCoversPiece(s);
 
     /// <summary>
     ///     5.1-05: the cover Snarl's hit has landed on the Flauros Piece, so the character takes the enemy back (dossier: "Snarl in the cast, Challenge

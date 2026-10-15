@@ -5,7 +5,7 @@
 #build=1.0.4.304
 #piece=board 5 battle 10 (target 14673)
 #tags=interrupt,soulcrush
-#expect.head=30
+#expect.head=17
 #expect.304=30
 2026-10-15T01:05:12.326Z	BT|1792026312326|475478030000000004|3|0|0|0|pet=1073800110:Golem:18938|bm=44886|av=44884|dec=44883:gcdchain|fd=|sl=40.20.23|lv=50|tk=-|4601
 2026-10-15T01:05:12.360Z	DS|1792026312360|t=14670|enemy=0|landing=0|v=danger

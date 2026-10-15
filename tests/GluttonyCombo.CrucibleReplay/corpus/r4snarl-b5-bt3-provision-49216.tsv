@@ -1,0 +1,55 @@
+#source=archive:plugin-lines-20260924-20260930.tsv
+#from=2026-09-30T01:22:44Z
+#to=2026-09-30T01:22:50Z
+#lead_s=3
+#build=1.0.4.245
+#piece=board 5 battle 3 (Boogyman Piece)
+#tags=provision-swap
+#note=5.3-02 control: Provision 49216 cast, but the character is at 32% so the low-HP Snarl rules decide; the swap changes nothing here
+#expect.head=9
+2026-09-30T01:22:41.049Z	CR|1790731361049|b=5|bt=3|nd=|ne=1|hi=58|t=14638:58|c=0:0.0|f=yc|hp=33|pet=89|sl=89.0.25|dec=44879:gcdchain|sh=|ttd=0|in=24|vul=0|xp=1
+2026-09-30T01:22:41.625Z	BT|1790731361625|709090010000000008|1|0|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:axe-first-waiting|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:41.746Z	CR|1790731361746|b=5|bt=3|nd=|ne=1|hi=58|t=14638:58|c=0:0.0|f=yc|hp=33|pet=89|sl=89.0.25|dec=44888:combo:axe-first|sh=|ttd=103|in=24|vul=0|xp=1
+2026-09-30T01:22:41.876Z	BT|1790731361876|709090010000000008|1|0|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44888:combo:axe-first|fd=|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:41.996Z	CR|1790731361996|b=5|bt=3|nd=|ne=1|hi=58|t=14638:58|c=0:0.0|f=yc|hp=33|pet=89|sl=89.0.25|dec=44879:gcdchain|sh=|ttd=110|in=24|vul=0|xp=1
+2026-09-30T01:22:42.134Z	BT|1790731362134|009090010000000008|1|0|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:trick-after-axe-waiting|sl=20.27.44|lv=50|4614
+2026-09-30T01:22:42.373Z	CR|1790731362373|b=5|bt=3|nd=|ne=1|hi=58|t=14638:57|c=0:0.0|f=yc|hp=33|pet=89|sl=89.100.25|dec=44879:gcdchain|sh=|ttd=73|in=24|vul=0|xp=1
+2026-09-30T01:22:42.611Z	BT|1790731362611|009090010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44879:gcdchain|fd=combo:trick-after-axe-waiting|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:42.661Z	CR|1790731362661|b=5|bt=3|nd=|ne=1|hi=57|t=14638:57|c=0:0.0|f=yc|hp=33|pet=89|sl=89.100.25|dec=44891:exit:partingblow|sh=|ttd=78|in=24|vul=0|xp=1
+2026-09-30T01:22:42.869Z	BT|1790731362869|009090010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44891:exit:partingblow|fd=|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:43.119Z	BT|1790731363119|009c90010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44891:exit:partingblow|fd=|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:43.400Z	BT|1790731363400|009c90010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=47093:combo:trick-after-axe|fd=exit:partingblow-recast|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:43.400Z	CR|1790731363400|b=5|bt=3|nd=|ne=1|hi=56|t=14638:56|c=0:0.0|f=yc|hp=33|pet=89|sl=89.100.25|dec=47093:combo:trick-after-axe|sh=|ttd=71|in=21|vul=0|xp=1
+2026-09-30T01:22:43.656Z	CR|1790731363656|b=5|bt=3|nd=|ne=1|hi=56|t=14638:51|c=0:0.0|f=yc|hp=33|pet=89|sl=89.100.25|dec=47093:combo:trick-after-axe|sh=|ttd=32|in=21|vul=0|xp=1
+2026-09-30T01:22:43.656Z	BT|1790731363656|00b490010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=47093:combo:trick-after-axe|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:44.080Z	CR|1790731364080|b=5|bt=3|nd=|ne=1|hi=52|t=14638:52|c=0:0.0|f=yc|hp=32|pet=89|sl=89.100.25|dec=47093:combo:trick-after-axe|sh=|ttd=34|in=21|vul=0|xp=1
+2026-09-30T01:22:44.100Z	BT|1790731364100|00b490010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=47093:combo:trick-after-axe|fd=exit:partingblow-recast|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:44.333Z	CR|1790731364333|b=5|bt=3|nd=|ne=1|hi=52|t=14638:51|c=0:0.0|f=pc|hp=32|pet=89|sl=89.100.25|dec=44883:gcdchain|sh=|ttd=33|in=29|vul=0|xp=1
+2026-09-30T01:22:44.354Z	BT|1790731364354|0000b4010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44883:gcdchain|fd=combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:45.120Z	BT|1790731365120|0000b4010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44883:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:45.212Z	CR|1790731365212|b=5|bt=3|nd=|ne=1|hi=51|t=14638:50|c=0:0.0|f=pc|hp=32|pet=89|sl=89.100.25|dec=44885:gcdchain|sh=|ttd=29|in=29|vul=0|xp=1
+2026-09-30T01:22:45.373Z	BT|1790731365373|0d00b4010404000008|1|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:45.597Z	CR|1790731365597|b=5|bt=3|nd=|ne=1|hi=51|t=14638:50|c=49216:2.7|f=pc|hp=32|pet=0|sl=89.100.25|dec=44892:summon:slot2|sh=|ttd=29|in=7|vul=0|xp=1
+2026-09-30T01:22:45.624Z	BT|1790731365624|0d00b4000404000008|0|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44892:summon:slot2|fd=|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:45.850Z	CR|1790731365850|b=5|bt=3|nd=|ne=1|hi=50|t=14638:50|c=49216:2.4|f=pc|hp=32|pet=0|sl=89.100.25|dec=44885:gcdchain|sh=|ttd=38|in=7|vul=0|xp=1
+2026-09-30T01:22:45.875Z	BT|1790731365875|0d00b4000404000008|0|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44885:gcdchain|fd=summon:waiting-weave+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:46.264Z	CR|1790731366264|b=5|bt=3|nd=|ne=1|hi=50|t=14638:50|c=49216:2.0|f=yc|hp=32|pet=0|sl=89.100.25|dec=44885:gcdchain|sh=|ttd=38|in=7|vul=0|xp=1
+2026-09-30T01:22:46.330Z	BT|1790731366330|0d00b4000404000008|0|4|0|0|pet=1073819512:Flying Trap:18935|bm=44886|av=44884|dec=44885:gcdchain|fd=familiar:summon-in-flight+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598
+2026-09-30T01:22:46.516Z	CR|1790731366516|b=5|bt=3|nd=|ne=1|hi=50|t=14638:50|c=49216:1.8|f=yc|hp=32|pet=100|sl=89.100.25|dec=44885:gcdchain|sh=|ttd=38|in=7|vul=0|xp=1
+2026-09-30T01:22:46.582Z	BT|1790731366582|0d00b4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44885:gcdchain|fd=exit:pet-busy+combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:47.019Z	BT|1790731367019|0d00b4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44885:gcdchain|fd=combo:awaiting-pet-heart|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:47.277Z	BT|1790731367277|0d0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44885:gcdchain|fd=|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:47.411Z	CR|1790731367411|b=5|bt=3|nd=|ne=1|hi=50|t=14638:50|c=49216:0.9|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44885:gcdchain|sh=|ttd=35|in=7|vul=0|xp=1
+2026-09-30T01:22:47.584Z	BT|1790731367584|0d0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44890:own:tempered|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:47.669Z	CR|1790731367669|b=5|bt=3|nd=|ne=1|hi=50|t=14638:50|c=49216:0.6|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44890:own:tempered|sh=|ttd=35|in=7|vul=0|xp=1
+2026-09-30T01:22:47.838Z	BT|1790731367838|1c0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44890:own:tempered|fd=crucible:exit-no-resummon-horn|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:47.924Z	CR|1790731367924|b=5|bt=3|nd=|ne=1|hi=50|t=14638:48|c=49216:0.4|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44890:own:tempered|sh=|ttd=30|in=7|vul=0|xp=1
+2026-09-30T01:22:48.302Z	BT|1790731368302|1c0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44895:own:borrow-while-tempered-recasts|fd=exit:pet-busy|sl=20.27.44|lv=50|4598,4601
+2026-09-30T01:22:48.302Z	CR|1790731368302|b=5|bt=3|nd=|ne=1|hi=50|t=14638:48|c=49216:0.0|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44895:own:borrow-while-tempered-recasts|sh=|ttd=34|in=7|vul=0|xp=1
+2026-09-30T01:22:48.561Z	BT|1790731368561|1c0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44879:gcdchain|fd=exit:pet-busy|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:48.561Z	CR|1790731368561|b=5|bt=3|nd=|ne=1|hi=48|t=14638:48|c=49216:0.0|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44879:gcdchain|sh=|ttd=31|in=7|vul=0|xp=1
+2026-09-30T01:22:48.811Z	CR|1790731368811|b=5|bt=3|nd=|ne=1|hi=48|t=14638:48|c=0:0.0|f=ysc|hp=32|pet=100|sl=89.100.25|dec=44879:gcdchain|sh=|ttd=34|in=7|vul=0|xp=1
+2026-09-30T01:22:48.841Z	BT|1790731368841|1c0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=46751:aggro:snarl-player-low|fd=|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:49.066Z	CR|1790731369066|b=5|bt=3|nd=|ne=1|hi=48|t=14638:48|c=0:0.0|f=yc|hp=32|pet=100|sl=89.100.25|dec=44879:gcdchain|sh=|ttd=34|in=7|vul=0|xp=1
+2026-09-30T01:22:49.092Z	BT|1790731369092|1c0cb4020404000008|2|4|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4598,4614
+2026-09-30T01:22:49.605Z	BT|1790731369605|1c0cb4020000000008|2|0|0|0|pet=1073819528:Uragnite:18942|bm=44886|av=44884|dec=44879:gcdchain|fd=|sl=20.27.44|lv=50|4614
