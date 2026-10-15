@@ -845,6 +845,13 @@ internal static class BST_CrucibleLogic
     ///     no such cast is up and the player is 50%+ — a familiar that holds aggro through the autos is ground down fight
     ///     long (Third Board elite 2026-09-25: pet 44% → 20% under cleave autos while the player sat at 8%).
     ///     Score mode: Challenge whenever the target is on the familiar; Snarl only for the tankbuster dodge.
+    ///     <para>
+    ///         Round 4 (snarl lane), each behind its own option: <b>Snarl at the pull</b> (<see cref="PullSnarlDue"/>, the fresh familiar takes the enemy on the
+    ///         pieces whose measured ceiling it can hold) and the Challenge back once it has used its share (<see cref="PullBudgetSpent"/>); the
+    ///         <b>Challenge back</b> after the Erratic Blaster's cover Snarl (<see cref="ChallengeBackDue"/>); the <b>Provision swap</b> (who tanks
+    ///         alternates at every Provision cast, <see cref="ProvisionSwapToFamiliar"/> / <see cref="ProvisionSwapToCharacter"/>). None of them holds
+    ///         anything: each is one ability on a weave window.
+    ///     </para>
     /// </summary>
     public static (uint ActionId, string Reason) ChooseAggro(in BstState s, in BstSettings cfg)
     {
@@ -899,6 +906,11 @@ internal static class BST_CrucibleLogic
                 if (carries && !stingDue)
                     return (BST.Snarl, "aggro:snarl-player-low");
             }
+
+            if (ProvisionSwapToFamiliar(s, cfg))
+                return (BST.Snarl, "aggro:provision-swap");
+            if (PullSnarlDue(s, cfg, tankbuster, cleave, stingDue))
+                return (BST.Snarl, "aggro:snarl-pull");
         }
 
         if (s.ReadyChallenge && s.EnemyTargetsPet)
@@ -915,10 +927,105 @@ internal static class BST_CrucibleLogic
 
             if (s.PetHpPercent is > 0f and <= 30f && s.PlayerHpPercent >= 60f && s.SinceHornPress > SummonSettleSeconds)
                 return (BST.Challenge, "aggro:challenge-pet-low");
+
+            // Round 4: after the rules above, so a familiar at 30% or lower still reads aggro:challenge-pet-low.
+            if (ProvisionSwapToCharacter(s, cfg))
+                return (BST.Challenge, "aggro:provision-swap");
+            if (ChallengeBackDue(s, cfg, tankbuster))
+                return (BST.Challenge, "aggro:challenge-back");
+            if (PullBudgetSpent(s, cfg, tankbuster))
+                return (BST.Challenge, "aggro:challenge-pull-budget");
         }
 
         return (0, "");
     }
+
+    // ------------------------------------------------------------------ round 4: who tanks (snarl lane)
+
+    /// <summary> The enemy counts as fresh (the pull) while the target is at or above this HP. </summary>
+    public const float PullEnemyHpPercent = 90f;
+
+    /// <summary> The pull Snarl is given to a familiar at or above this HP. </summary>
+    public const float PullPetHpPercent = 90f;
+
+    /// <summary>
+    ///     A familiar that took the enemy at the pull is Challenged back at or below this HP: its HP is the run's (no regeneration, a knocked-out
+    ///     familiar is gone), and in the Standard-period logs the runs with a Snarl in the first 15 s lost familiars about twice as often (First
+    ///     Master's Board 3.45 against 1.70 deaths a fight, familiar KOs included).
+    /// </summary>
+    public const float PullBudgetPetHpPercent = 60f;
+
+    /// <summary> The character takes the enemy back (Challenge) only at or above this HP. </summary>
+    public const float ReturnPlayerHpPercent = 60f;
+
+    /// <summary> Above <see cref="PullBudgetPetHpPercent"/>, so a familiar given the enemy at a swap is not Challenged back by the budget rule on the next tick. </summary>
+    public const float ProvisionPetHpPercent = 70f;
+
+    /// <summary> Seconds after the hit of the cast a Snarl covered before the Challenge back goes in (the hit lands 0.3 s after the castbar; a Challenge earlier hands it to the character). </summary>
+    public const float ChallengeBackMarginSeconds = 1.0f;
+
+    /// <summary>
+    ///     The familiar can hold the enemy in this piece: the piece has a measured ceiling (<see cref="BST_CrucibleData.FamiliarHitCeilings"/>, the
+    ///     largest hit the logs put on whoever held it) and the familiar's HP is at least that hit scaled to the board's degree, with the cover margin.
+    ///     Unread degree: scale 1.0, margin 2.0 (the same reading as <see cref="FamiliarCanTakeTankbuster"/>).
+    /// </summary>
+    public static bool FamiliarCanHoldPiece(in BstState s)
+    {
+        var ceiling = BST_CrucibleData.FamiliarHitCeiling(s.CrucibleBoard, s.CrucibleBattle);
+        if (ceiling <= 0 || s.PetHp <= 0f)
+            return false;
+        return s.PetHp >= ceiling * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel)
+                          * CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
+    }
+
+    private static bool InChallengeBackBattle(in BstState s) => BST_CrucibleData.ChallengeBackCasts.ContainsKey((s.CrucibleBoard, s.CrucibleBattle));
+
+    /// <summary>
+    ///     rot-14: Snarl at the pull (dossier S7 / S8: "Snarl at the start of combat"). The fight is fresh (target at <see cref="PullEnemyHpPercent"/>
+    ///     or more), the familiar is fresh (<see cref="PullPetHpPercent"/>) and can hold the piece (<see cref="FamiliarCanHoldPiece"/>), and nothing
+    ///     else owns the aggro: no tankbuster cast, no parry, no cleave-auto boss (its Challenge rule would take it straight back), no Final Sting due,
+    ///     not the Flauros Piece (the cover Snarl and the Challenge back own that fight).
+    /// </summary>
+    public static bool PullSnarlDue(in BstState s, in BstSettings cfg, bool tankbuster, bool cleave, bool stingDue) =>
+        cfg.CrucibleSnarlAtPull && s.InCombat && !tankbuster && !cleave && !stingDue && !s.TargetHasParry && !BST_CrucibleData.ProvisionCasts.Contains(s.TargetCastId)
+        && s.TargetHpPercent >= PullEnemyHpPercent && s.PetHpPercent >= PullPetHpPercent
+        && !InChallengeBackBattle(s) && FamiliarCanHoldPiece(s);
+
+    /// <summary>
+    ///     rot-14: the familiar that took the enemy has used its share. Only in pieces the pull Snarl covers (a ceiling is measured, not the Flauros
+    ///     Piece) and while no tankbuster cast is up (a covering familiar stays through the cast).
+    /// </summary>
+    public static bool PullBudgetSpent(in BstState s, in BstSettings cfg, bool tankbuster) =>
+        cfg.CrucibleSnarlAtPull && !tankbuster && s.PetHpPercent is > 0f and <= PullBudgetPetHpPercent
+        && s.PlayerHpPercent >= ReturnPlayerHpPercent && s.SinceHornPress > SummonSettleSeconds
+        && BST_CrucibleData.FamiliarHitCeiling(s.CrucibleBoard, s.CrucibleBattle) > 0 && !InChallengeBackBattle(s);
+
+    /// <summary>
+    ///     5.1-05: the cover Snarl's hit has landed on the Flauros Piece, so the character takes the enemy back (dossier: "Snarl in the cast, Challenge
+    ///     back"). The window is the cast's own length plus the hit delay of its row plus <see cref="ChallengeBackMarginSeconds"/> (6.7 + 0.3 + 1.0 =
+    ///     8.0 s after the Snarl, which goes in at the start of the cast); no tankbuster cast may be up, so the next one is covered again.
+    /// </summary>
+    public static bool ChallengeBackDue(in BstState s, in BstSettings cfg, bool tankbuster)
+    {
+        if (!cfg.CrucibleChallengeBack || tankbuster || !BST_CrucibleData.ChallengeBackCasts.TryGetValue((s.CrucibleBoard, s.CrucibleBattle), out var castId)
+            || BST_CrucibleData.HeavyCast(castId) is not { } row)
+            return false;
+        return s.SinceSnarl > row.CastSeconds + row.HitDelay + ChallengeBackMarginSeconds
+               && s.PlayerHpPercent >= ReturnPlayerHpPercent && s.PetHpPercent > 0f && s.SinceHornPress > SummonSettleSeconds;
+    }
+
+    /// <summary> A Provision cast is up and both duty actions are clear (neither pressed in the last 15 s: the swap just made is not undone inside the same cast). </summary>
+    private static bool ProvisionSwapOpen(in BstState s, in BstSettings cfg) =>
+        cfg.CrucibleProvisionSwap && s.TargetCastId != 0 && BST_CrucibleData.ProvisionCasts.Contains(s.TargetCastId)
+        && s.ReadySnarl && s.ReadyChallenge && s.SinceHornPress > SummonSettleSeconds;
+
+    /// <summary> 5.3-02: the character holds the enemy; the familiar (70%+, able to take the piece's largest hit) takes it at the weapon swap. </summary>
+    public static bool ProvisionSwapToFamiliar(in BstState s, in BstSettings cfg) =>
+        ProvisionSwapOpen(s, cfg) && !s.EnemyTargetsPet && s.EnemyTargetsPlayer && s.PetHpPercent >= ProvisionPetHpPercent && FamiliarCanHoldPiece(s);
+
+    /// <summary> 5.3-02: the familiar holds the enemy; the character (60%+) takes it back at the weapon swap. </summary>
+    public static bool ProvisionSwapToCharacter(in BstState s, in BstSettings cfg) =>
+        ProvisionSwapOpen(s, cfg) && s.EnemyTargetsPet && s.PlayerHpPercent >= ReturnPlayerHpPercent && s.PetHpPercent > 0f;
 
     /// <summary>
     ///     Final Sting is due: the target is at or below the execute line (halved with 2+ enemies), or the target's

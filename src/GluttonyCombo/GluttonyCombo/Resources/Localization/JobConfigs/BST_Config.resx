@@ -285,6 +285,24 @@
   <data name="CrucibleScoreModeDesc" xml:space="preserve">
     <value>For high-score runs: Challenge whenever the target turns on the familiar so familiars finish at full HP; Snarl only to put a familiar into a tankbuster it can survive (the option below). Uses the Snarl / Challenge setting (Log only records, Use presses).</value>
   </data>
+  <data name="CrucibleSnarlAtPull0And1" xml:space="preserve">
+    <value>Open a fight with {0}: the familiar takes the enemy at the pull</value>
+  </data>
+  <data name="CrucibleSnarlAtPullDesc" xml:space="preserve">
+    <value>On by default. At the pull (the enemy still near full HP, the familiar at 90% or more) the familiar takes the enemy with Snarl, so the first hits land on it. Only in the pieces where the logs show the familiar surviving the largest hit that piece has put on whoever held the enemy; everywhere else nothing changes. The character takes the enemy back with Challenge once the familiar is down to 60% (it has no regeneration) and the character is at 60% or more. Untick to Snarl only for the cover, parry and low-HP rules.</value>
+  </data>
+  <data name="CrucibleChallengeBack0And1" xml:space="preserve">
+    <value>{0} back after the cover {1} on the Flauros Piece</value>
+  </data>
+  <data name="CrucibleChallengeBackDesc" xml:space="preserve">
+    <value>On by default. On the Flauros Piece (Second Master's Board) the familiar covers the Erratic Blaster with Snarl, and the character takes the enemy back with Challenge once the hit has landed (about 8 s after the Snarl) so the familiar is not left tanking its attacks. Needs the character at 60% HP or more. Untick to leave the enemy on the familiar as before.</value>
+  </data>
+  <data name="CrucibleProvisionSwap0And1" xml:space="preserve">
+    <value>Swap who tanks at each Provision ({0} to the familiar, {1} back)</value>
+  </data>
+  <data name="CrucibleProvisionSwapDesc" xml:space="preserve">
+    <value>On by default. The Boogyman Piece's Provision swaps its weapon, and its attacks then leave the other weapon's vulnerability on whoever holds it, so the guide swaps the tank at every Provision. While Provision is being cast the familiar is given the enemy with Snarl (at 70% HP or more and able to take the largest hit that fight has put on a tank) and the character takes it back with Challenge (at 60% HP or more). Untick to keep the enemy where it is.</value>
+  </data>
   <data name="CrucibleSnarlParting0And1" xml:space="preserve">
     <value>{0} a familiar into known tankbusters it can survive</value>
   </data>

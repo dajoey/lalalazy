@@ -392,6 +392,12 @@ internal static class BST_RotationLogic
         public bool CrucibleSurvival;
         /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default on since round 4; off: only logged in <c>sh=</c>). </summary>
         public bool CruciblePackWindow;
+        /// <summary> Snarl at the pull so the familiar takes the enemy, in the pieces where it survives the largest hit the piece lands on a tank; Challenge back once it has used its share (round 4; config key BST_CrucibleSnarlAtPull). </summary>
+        public bool CrucibleSnarlAtPull;
+        /// <summary> Challenge back after the cover Snarl once the Erratic Blaster has landed (round 4; config key BST_CrucibleChallengeBack). </summary>
+        public bool CrucibleChallengeBack;
+        /// <summary> Swap who tanks at each Provision cast: Snarl to the familiar, Challenge back to the character (round 4; config key BST_CrucibleProvisionSwap). </summary>
+        public bool CrucibleProvisionSwap;
 
         public static BstSettings Defaults(bool aoe = false) => new()
         {
@@ -426,6 +432,9 @@ internal static class BST_RotationLogic
             CrucibleSnarlParting = true,
             CrucibleSurvival = true,
             CruciblePackWindow = true,
+            CrucibleSnarlAtPull = true,
+            CrucibleChallengeBack = true,
+            CrucibleProvisionSwap = true,
         };
     }
 
