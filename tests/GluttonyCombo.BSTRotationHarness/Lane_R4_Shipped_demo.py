@@ -3,7 +3,7 @@
 
 Run on DAJOEYROG from the lalalazy checkout root (or any worktree that holds the lane files):
 
-    python tests\\GluttonyCombo.BSTRotationHarness\\Lane_R4_Shipped_demo.py <abaddon|dispel|dash|hourglass|production> [--out DIR] [--keep]
+    python tests\\GluttonyCombo.BSTRotationHarness\\Lane_R4_Shipped_demo.py <abaddon|dispel|dash|hourglass|production|dispel-parent> [--out DIR] [--keep]
 
 It makes a scratch worktree at the build BEFORE the fix, copies in the lane's own files (Support + that fix's file; the files are byte-identical to the
 integration head's, no stub is added to the source under test), makes `Program` partial and adds the one call to `Main`, builds the BST rotation
@@ -18,7 +18,10 @@ HARNESS = os.path.join("tests", "GluttonyCombo.BSTRotationHarness")
 FIXES = {
     # name: (build before the fix, fix methods, note)
     "abaddon": ("ce67410e4", ["Abaddon"], "1.0.4.304, the Abaddon alone with a Morpho alive is held at any HP"),
-    "dispel": ("692fd8227~1", ["Dispel"], "the build before 692fd8227: Regen 989 a live dispel row, no proven-first aim"),
+    # 692fd8227's parent (33e61844b) is the commit that added the fix's own failing-first cases, so four older cases fail there too; its parent b1c3849d (1.0.4.269 testing) has the
+    # same dispel code and a green harness, and is the build the demonstration runs on. "dispel-parent" runs the lane on 692fd8227~1 as well, for the record.
+    "dispel": ("b1c3849d", ["Dispel"], "the build before the dispel fix (1.0.4.269 testing): Regen 989 a live dispel row, no proven-first aim"),
+    "dispel-parent": ("692fd8227~1", ["Dispel"], "692fd8227's parent: the same code plus the fix's own failing-first cases"),
     "dash": ("21295dd09", ["Dash"], "1.0.4.301 development: DashLandingDecline has no mechanic hold"),
     "hourglass": ("587d75b65", ["Hourglass"], "the build before a0c56e308: the Final Hourglass is attacked whatever the needle does"),
     "production": ("GluttonyCombo-v1.0.4.301", ["Abaddon", "Dispel", "Dash", "Hourglass"], "production tag 1.0.4.301"),
