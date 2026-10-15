@@ -1434,6 +1434,12 @@ internal static class BST_CrucibleLogic
     public static bool PairFinalBlowTimedOut(in BST_RotationLogic.BstState s) => false;
 
     /// <summary>
+    ///     The guard's clock, one call per tick: while <paramref name="risk"/> holds without a break, the seconds since it began
+    ///     (<paramref name="sinceMs"/> keeps the start, 0 when it is not running); a tick without the risk stops and clears it.
+    /// </summary>
+    public static float TrackPairGuard(bool risk, ref long sinceMs, long nowMs) => 0f;
+
+    /// <summary>
     ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos or damage-immune enemies;
     ///     enemies in a counter stance only when nothing else is up; priority adds first — and of the priority adds up, only
     ///     the most dangerous documented tier (<see cref="BST_CrucibleData.PriorityAddOrder"/>) until it is dead, so a
