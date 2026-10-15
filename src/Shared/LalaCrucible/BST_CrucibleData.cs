@@ -300,6 +300,7 @@ internal static partial class BST_CrucibleData
         48620, 48471, 48489, 50465, 48563,        // Third Board: Thunderbolt, Crushing Blade, Caustic Vomit, Flying Frenzy, Song of Torment
         48485,                                    // Third Board battle 2: Dreadwash (follows the enmity holder in 64 of 64 completed casts; HeavyCasts row)
         48809, 48822, 48689, 48730,               // First Master's (measured): Toxic Vomit, Salivous Snap, Final Sting, Grim Fate (five-hit string)
+        48724,                                    // First Master's (measured): Fivefold Fallout (castbar id; the damage and the 20 y knockback arrive under hit id 48725)
         48717, 50649, 48669,                      // First Master's (measured): Sweeping Evisceration, Obliterate, On the Properties of Darkness
         49188, 49254,                             // Second Master's (measured): Erratic Blaster, Mangling Fang
         49470, 49205,                             // Second Master's (guide only, never seen cast): Thunderbolt, Void Thunder III

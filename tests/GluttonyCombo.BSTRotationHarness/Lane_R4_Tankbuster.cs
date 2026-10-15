@@ -242,5 +242,15 @@ internal static partial class Program
         Check("r4-tankbuster: 4.5 Fivefold Fallout, degree unread (645 x 2.0 = 1290), a 1,400 HP familiar: cover",
             Decide(fivefold with { PetHp = 1400f }, on).Reason == "aggro:snarl-tankbuster",
             Decide(fivefold with { PetHp = 1400f }, on).Reason);
+
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, an 800 HP familiar at Standard (under 806): no cover",
+            Decide(At(fivefold with { PetHp = 800f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(fivefold with { PetHp = 800f }, CrucibleDegree.Standard), on).Reason);
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, First Degree, a 1,600 HP familiar (under 1613): no cover",
+            Decide(At(fivefold with { PetHp = 1600f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(fivefold with { PetHp = 1600f }, CrucibleDegree.First), on).Reason);
+        Check("r4-tankbuster: 4.5 Fivefold Fallout, 0.2 s left (under the 0.5 s lead): no cover Snarl",
+            Decide(At(fivefold with { TargetCastRemaining = 0.2f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster",
+            Decide(At(fivefold with { TargetCastRemaining = 0.2f }, CrucibleDegree.Standard), on).Reason);
     }
 }
