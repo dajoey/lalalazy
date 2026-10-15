@@ -57,6 +57,7 @@ internal static partial class Program
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
         DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
         R4DegreeLane20261015(); // R4 degree lane 2026-10-15 (titles prefixed "r4-degree:")
+        R4OptionsLane20261015(); // R4 options lane 2026-10-15 (titles prefixed "r4-options:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
