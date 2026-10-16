@@ -59,6 +59,7 @@ internal static partial class Program
         R4Synth3Lane20261015(); // Round 4 synthetic lane 2026-10-15 (titles prefixed "r4-synth3:")
         R4ShippedLane20261015(); // R4 shipped-fixes regression lane 2026-10-15 (titles prefixed "r4-shipped:")
         R4Third2Lane20261015(); // R4 third-board-battle-2 lane 2026-10-15 (titles prefixed "r4-third2:")
+        R4Synth1Lane20261015(); // R4 synthetic lane 2026-10-15, Boards 1-3 UNOBSERVED rows (titles prefixed "r4-synth1:")
         R4RotationLane20261015(); // R4 rotation lane 2026-10-15 (titles prefixed "r4-rotation:")
         R4DegreeLane20261015(); // R4 degree lane 2026-10-15 (titles prefixed "r4-degree:")
         R4OptionsLane20261015(); // R4 options lane 2026-10-15 (titles prefixed "r4-options:")
