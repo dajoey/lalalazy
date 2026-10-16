@@ -23,6 +23,7 @@ internal static partial class Program
         var cfg = BstSettings.Defaults();
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
         List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
+        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool avoid, bool damageImmune = false) => new(nameId, hp, avoid, damageImmune);
         string D(BstDecision d) => $"{d.ActionId}/{d.Reason} [{d.Declines}]";
         List<string> Why(int board, int battle, int row, CrucibleNeeds covered)
         {
@@ -153,6 +154,7 @@ internal static partial class Program
         {
             CrucibleBoard = 4, CrucibleBattle = 2, TargetCastId = 50758, TargetCastRemaining = 5f,
             KinshipHeld = true, BeastModeResolved = BST.Scaleskin, ReadyBeastMode = true, PlayerTargetedByEnemy = true,
+            ReadyParting = false,
         };
         var skinOn = on with { UseScaleskin = true };
         Check("r4-synth2: 4.2-05 Tremblor, Scaleskin held and the character targeted (UseScaleskin on): press it",
@@ -162,7 +164,7 @@ internal static partial class Program
         var vileskin = CrucibleState() with
         {
             CrucibleBoard = 4, CrucibleBattle = 2, KinshipHeld = true, BeastModeResolved = BST.Vileskin,
-            ReadyBeastMode = true, KnockbackCastRemaining = 2f,
+            ReadyBeastMode = true, KnockbackCastRemaining = 2f, ReadyParting = false,
         };
         var vileskinIdle = vileskin with { KnockbackCastRemaining = 0f };
         Check("r4-synth2: 4.2-05 Tremblor in flight (2.0 s left), Vileskin held: knockback press",
@@ -189,8 +191,8 @@ internal static partial class Program
             Allowed(new(14606, 100f, false), new(14607, 100f, false)).SequenceEqual([1]),
             string.Join(",", Allowed(new(14606, 100f, false), new(14607, 100f, false))));
         Check("r4-synth2: 4.4-01 kill the sprite first: sprite gone, the dragon is targetable (negative twin)",
-            Allowed(new(14606, 100f, false)).SequenceEqual([0]),
-            string.Join(",", Allowed(new(14606, 100f, false))));
+            Allowed(C(14606, 100f, false)).SequenceEqual([0]),
+            string.Join(",", Allowed(C(14606, 100f, false))));
         Check("r4-synth2: 4.4-01 data: both rows fire-weak, the fire pick is magical, the sprite is a panel-burst caster",
             BST_CrucibleData.Enemy(14606) is { } dragon && dragon.Weakness == CrucibleWeakness.Fire
             && BST_CrucibleData.Enemy(14607) is { } sprite && sprite.Weakness == CrucibleWeakness.Fire
@@ -250,8 +252,8 @@ internal static partial class Program
             Allowed(new(14610, 100f, false), new(14611, 100f, false)).SequenceEqual([1]),
             string.Join(",", Allowed(new(14610, 100f, false), new(14611, 100f, false))));
         Check("r4-synth2: Bug walk + Object 199: bug gone, the Administrator is targetable (negative twin)",
-            Allowed(new(14610, 100f, false)).SequenceEqual([0]),
-            string.Join(",", Allowed(new(14610, 100f, false))));
+            Allowed(C(14610, 100f, false)).SequenceEqual([0]),
+            string.Join(",", Allowed(C(14610, 100f, false))));
         Check("r4-synth2: Bug walk + Object 199 data: the bug (14611) is a priority add, the Administrator (14610) is not",
             BST_CrucibleData.PriorityAdds.Contains(14611u) && !BST_CrucibleData.PriorityAdds.Contains(14610u),
             $"{BST_CrucibleData.PriorityAdds.Contains(14611u)}/{BST_CrucibleData.PriorityAdds.Contains(14610u)}");
@@ -292,13 +294,13 @@ internal static partial class Program
         Check("r4-synth2: Grenade damage stacking + boss: the Self-destruct cast up with the release held: burst (Tempered Release) goes first",
             Decide(grenade, on).Reason == "crucible:burst-tempered", D(Decide(grenade, on)));
         Check("r4-synth2: Grenade damage stacking + boss: grenade gone, the boss is targetable (negative twin)",
-            Allowed(new(14623, 100f, false)).SequenceEqual([0]),
-            string.Join(",", Allowed(new(14623, 100f, false))));
+            Allowed(C(14623, 100f, false)).SequenceEqual([0]),
+            string.Join(",", Allowed(C(14623, 100f, false))));
         Check("r4-synth2: Grenade damage stacking + boss: no Self-destruct cast up, no burst press (negative twin)",
             !Decide(grenadeNoCast, on).Reason.StartsWith("crucible:burst"), D(Decide(grenadeNoCast, on)));
         Check("r4-synth2: Grenade data: 14624 is a priority add and 48792 is a Self-destruct cast",
-            BST_CrucibleData.PriorityAdds.Contains(14624u) && BST_CrucibleTactics.SelfDestructCasts.Contains(48792u),
-            $"{BST_CrucibleData.PriorityAdds.Contains(14624u)}/{BST_CrucibleTactics.SelfDestructCasts.Contains(48792u)}");
+            BST_CrucibleData.PriorityAdds.Contains(14624u) && BST_CrucibleData.SelfDestructCasts.Contains(48792u),
+            $"{BST_CrucibleData.PriorityAdds.Contains(14624u)}/{BST_CrucibleData.SelfDestructCasts.Contains(48792u)}");
 
         // ---- Pyrobolus: Toxic Fumes 48796 (battle 9): cleanse poison (5141, cleansable); the cone-dodging half is
         // movement (BossMod/AutoDuty) and stays EXTERNAL.
@@ -321,7 +323,7 @@ internal static partial class Program
         // holds Ice Spikes (2528); with the Quelling Wave armed, dispel the stance instead (the dispel row is panel).
         var snoll = CrucibleState() with
         {
-            CrucibleBoard = 4, CrucibleBattle = 9, TargetInStance = true,
+            CrucibleBoard = 4, CrucibleBattle = 9, TargetInStance = true, TargetHasDispellableBuff = true,
         };
         var snollWave = snoll with
         {
@@ -336,9 +338,9 @@ internal static partial class Program
             !Decide(snollNoStance, on).Reason.StartsWith("crucible:hold"), D(Decide(snollNoStance, on)));
         Check("r4-synth2: Snoll data: 2528 is a stance status, the (4,9) dispel row is panel, 14626 needs Dispel, (4,9) is not a quelling-stance battle",
             BST_CrucibleData.StanceStatuses.Contains(2528u)
-            && BST_CrucibleTactics.DispelRows.Any(r => r.Board == 4 && r.Battle == 9 && r.StatusId == 2528 && r.Basis == "panel")
+            && BST_CrucibleData.DispelRows.Any(r => r.Board == 4 && r.Battle == 9 && r.StatusId == 2528 && r.Basis == "panel")
             && BST_CrucibleData.Enemy(14626) is { } snollRow && (snollRow.Needs & CrucibleNeeds.Dispel) != 0
-            && !BST_CrucibleTactics.QuellingStanceBattles.Contains((4, 9)),
+            && !BST_CrucibleData.QuellingStanceBattles.Contains((4, 9)),
             $"{BST_CrucibleData.StanceStatuses.Contains(2528u)} / {BST_CrucibleData.Enemy(14626)?.Needs.ToString() ?? "?"}");
     }
 }
