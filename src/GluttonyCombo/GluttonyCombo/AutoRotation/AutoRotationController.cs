@@ -2,6 +2,7 @@
 
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Statuses;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
@@ -1693,7 +1694,7 @@ internal unsafe class AutoRotationController
             _ => 0
         };
 
-        if (regenSpell != 0 && !JustUsed(regenSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(regenBuff, out var regen) || regen?.RemainingTime <= 5f))
+        if (regenSpell != 0 && !JustUsed(regenSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(regenBuff, out IStatus? regen) || regen?.RemainingTime <= 5f))
         {
             var query = Svc.Objects.GetBattleCharas().Where(x => !x.IsDead && x.IsTargetable && x.IsHostile());
             if (!query.Any())
@@ -1743,7 +1744,7 @@ internal unsafe class AutoRotationController
             _ => 0
         };
 
-        if (shieldSpell != 0 && !JustUsed(shieldSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(shieldBuff, out var shield) || shield?.RemainingTime <= 1f))
+        if (shieldSpell != 0 && !JustUsed(shieldSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(shieldBuff, out IStatus? shield) || shield?.RemainingTime <= 1f))
         {
             if (prepSpell != 0 && !JustUsed(prepSpell, 4) && !LocalPlayer.HasStatus(SGE.Buffs.Eukrasia))
             {

@@ -55,6 +55,7 @@ internal static class Program
         CruxLane();
         CoreLane20261013(); // core lane 2026-10-13 (titles prefixed "core:")
         AbaddonHoldLane20261015(); // Abaddon hold lane 2026-10-15 (titles prefixed "abaddon-hold:")
+        DoomNeedleLane20261015(); // Doom lane 2026-10-15 (titles prefixed "doom-needle:")
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -3190,6 +3191,93 @@ internal static class Program
             m.Success && m.Groups["body"].Value.Contains("CurrentHp", StringComparison.Ordinal) && m.Groups["body"].Value.Contains("MaxHp", StringComparison.Ordinal)
             && m.Groups["body"].Value.Contains("OtherEnemiesUp", StringComparison.Ordinal),
             m.Success ? m.Groups["body"].Value.Trim() : "CrucibleForbidden not found");
+    }
+
+    /// <summary>
+    ///     The Final Hourglass of the King Ahriman piece (board 5, battle 13), replayed from the 2026-10-14 21:08:25 to 21:08:32 ET roulette and
+    ///     the 21:09:38 to 21:09:47 one (raw network log). Breaking the hourglass lets the next needle tick (every 1.56 s, 16 of 16 recorded
+    ///     Death casts) fire Death (a 23 y cone, Doom 5421, 6 s, not cleansable: the character died every time it landed) along the needle's
+    ///     heading at that tick. The needle turns -90 degrees 0.49 s after each tick; the character stands beside the hourglass, bound.
+    ///     The first roulette broke the hourglass one tick before the needle pointed at the character: Doom, dead 6 s later.
+    /// </summary>
+    private static void DoomNeedleLane20261015()
+    {
+        var cfg = BstSettings.Defaults();
+        const float east = 1.5708f, west = -1.5708f, north = -3.1416f;
+        // Roulette 1: the needle at (119.98,-420.00), the character at (134.05,-420.30) beside the hourglass at (133,-420).
+        // Needle turns (type 270): 26.049 -> 0, 27.614 -> -1.5709, 29.177 -> -3.1416, 30.740 -> +1.5708. Death fired 31.856 with heading +1.5708.
+        var bearing1 = MathF.Atan2(134.05f - 119.98f, -420.30f - -420.00f);
+        BstState Press(double at, float hourglassHp, float heading, double lastTurnAt, float bearing, float distance = 14.1f, float age = 6f) =>
+            CrucibleState(50) with
+            {
+                CrucibleBoard = 5, CrucibleBattle = -1, EnemyCount = 1, HasHostileTarget = true, TargetNameId = BST_CrucibleLogic.HourglassNameId,
+                TargetHpPercent = hourglassHp, HighestEnemyHpPercent = hourglassHp, PlayerHpPercent = 99f, PetHpPercent = 100f, GcdReady = true, CanWeave = false,
+                NeedleKnown = true, NeedleHeading = heading, NeedleSinceTurn = (float)(at - lastTurnAt), NeedleToPlayerBearing = bearing,
+                NeedleToPlayerDistance = distance, HourglassAge = age,
+            };
+        BstDecision Hold(in BstState s) => Decide(s, cfg);
+        bool Held(in BstState s) => Hold(s) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-hourglass-needle" };
+
+        Check("doom-needle: the geometry matches the log: the character lies east of the needle (bearing +1.59 rad, the Death heading was +1.5708)",
+            MathF.Abs(bearing1 - east) < 0.05f, $"{bearing1:F3}");
+
+        // 21:08:30.40 ET: the press that broke it (Axeblade Bite at 30.518). Hourglass at 1%, the needle last turned at 29.177 to -3.1416 and turns to
+        // +1.5708 at 30.740: the next tick after the break is 31.81 and fires east, at the character.
+        var killPress = Press(30.40, 1f, north, 29.177, bearing1);
+        Check("doom-needle: replay 21:08:30.40 ET, hourglass at 1%, the next tick fires east at the character: the weaponskill is held",
+            Held(killPress), $"{Hold(killPress).ActionId} {Hold(killPress).Reason} [{Hold(killPress).Declines}]");
+        Check("doom-needle: ... the held press is the Hold action, never an attack", Hold(killPress).ActionId == BST_CrucibleLogic.Hold);
+        // 21:08:27.88 ET (Smash Axe): hourglass 28%, needle at -1.5709 since 27.614: the ticks that can follow fire south-west, away from the character.
+        var safePress = Press(27.88, 28f, west, 27.614, bearing1);
+        Check("doom-needle: replay 21:08:27.88 ET, hourglass at 28%, no tick in reach fires at the character: the rotation attacks",
+            !Held(safePress) && Hold(safePress).ActionId != BST_CrucibleLogic.Hold, $"{Hold(safePress).ActionId} {Hold(safePress).Reason}");
+        Check("doom-needle: ... the attack is the weaponskill chain", Hold(safePress).ActionId is BST.SmashAxe or BST.AxebladeBite or BST.Shieldsplitter, $"{Hold(safePress).ActionId}");
+        Check("doom-needle: 21:08:25.25 ET, hourglass at 100%: attacked whatever the needle does (one hit cannot break it)",
+            !Held(Press(25.25, 100f, east, 24.5, bearing1)) && !Held(Press(25.25, 76f, east, 24.5, bearing1)));
+        Check("doom-needle: at the risk line (75%) and below the guard applies", Held(Press(30.40, 75f, north, 29.177, bearing1)) && Held(Press(30.40, 10f, north, 29.177, bearing1)));
+
+        // Roulette 2: the needle at (120,-420), the character at (105.94,-419.66) beside the hourglass at (107,-420); Death fired 46.781 with heading -3.1416.
+        // Needle turns: 44.156 -> -1.5708, 45.713 -> -3.1416. The character was 91 degrees off the real Death heading and was not hit.
+        var bearing2 = MathF.Atan2(105.94f - 120f, -419.66f - -420f);
+        Check("doom-needle: roulette 2 geometry: the character lies west of the needle", MathF.Abs(bearing2 - west) < 0.05f, $"{bearing2:F3}");
+        Check("doom-needle: replay 21:09:44.73 ET, hourglass low, the needle points at the character and a tick can follow within reach: held",
+            Held(Press(44.73, 20f, west, 44.156, bearing2)));
+        Check("doom-needle: replay 21:09:45.90 ET, hourglass low, the needle now points away and the next two ticks stay away: attacked",
+            !Held(Press(45.90, 20f, north, 45.713, bearing2)));
+
+        // The edges of the guard: unknown or out of reach means the rotation behaves as before.
+        Check("doom-needle: needle not read: attacked as before", !Held(killPress with { NeedleKnown = false }));
+        Check("doom-needle: another target (a Hapalit): attacked as before", !Held(killPress with { TargetNameId = 14691 }));
+        Check("doom-needle: the character 30 y from the needle (past the cone's 23 y): attacked", !Held(killPress with { NeedleToPlayerDistance = 30f }));
+        Check("doom-needle: the needle stopped turning for 6 s (stale reading): attacked", !Held(killPress with { NeedleSinceTurn = 6f }));
+        Check("doom-needle: the guard gives up after 12 s on the hourglass (the cast that follows is worse than a Doom risk): attacked",
+            !Held(killPress with { HourglassAge = 12.5f }) && Held(killPress with { HourglassAge = 11.5f }));
+        Check("doom-needle: the hold is a plain hold: a cleanse or aggro action still goes first (nothing here to cleanse)",
+            Hold(killPress).Reason == "crucible:hold-hourglass-needle");
+
+        // Every phase of the needle: with the character in one fixed place, the hold clears within one full turn of the needle (about 6.2 s), so the
+        // hourglass is always broken in time (the guard window is 12 s).
+        int releases = 0, holds = 0;
+        for (var at = 0.0; at < 6.3; at += 0.1)
+        {
+            // phase: the needle turns every 1.5605 s, east -> south0 -> west -> north -> east ...
+            var turns = (int)(at / 1.5605);
+            var heading = east - turns * 1.5708f;
+            if (heading < -3.1417f) heading += 6.2832f;
+            var sinceTurn = at - turns * 1.5605;
+            if (Held(Press(at, 10f, heading, at - sinceTurn, bearing1)))
+                holds++;
+            else
+                releases++;
+        }
+        Check("doom-needle: over one full needle cycle (6.3 s) the press is held for part of it and released for the rest: the hourglass can always be broken safely",
+            holds > 10 && releases > 10, $"held {holds}, released {releases}");
+
+        // The live reader feeds the rule from the needle actor.
+        var reader = RepoFile("Combos", "PvE", "BST", "BST_Crucible.cs");
+        Check("doom-needle: the live reader finds the needle actor (BaseId) and reads its rotation and position",
+            reader.Contains("NeedleBaseId", StringComparison.Ordinal) && reader.Contains(".Rotation", StringComparison.Ordinal)
+            && reader.Contains("NeedleSinceTurn", StringComparison.Ordinal) && reader.Contains("HourglassAge", StringComparison.Ordinal));
     }
 
     private static void CoreLane20261013()

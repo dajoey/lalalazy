@@ -320,6 +320,12 @@ internal static class BST_RotationLogic
         public float SincePartingBlow;            // since the recall (Parting Blow) was last pressed; float.MaxValue when never
         public float SinceCurtainsCast;           // since a Curtains KO cast was last seen on the target (stamped while the castbar runs); float.MaxValue when none recently
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
+        public bool NeedleKnown;                  // the Roulette's needle (the King Ahriman fight's turning pointer) is up and has been seen to turn
+        public float NeedleHeading;               // radians: the needle's rotation now (it turns -90 degrees every NeedleStepSeconds)
+        public float NeedleSinceTurn;             // seconds since that rotation last changed
+        public float NeedleToPlayerBearing;       // radians, from the needle to the character (the Death cone's frame)
+        public float NeedleToPlayerDistance;      // yalms
+        public float HourglassAge;                // seconds since the Final Hourglass was first seen targetable
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
 
         // crux lane 2026-10-13: stock BossMod Reborn's incoming-hit clock (Services/IPC_Subscriber/BossModHints.cs), the familiar's
@@ -646,7 +652,8 @@ internal static class BST_RotationLogic
             // (2026-09-26: 14 s of hold with no familiar out, player 43% -> 0%). Fight instead.
             // Directional parry facing player: holding prevents spamming 0-damage frontal attacks.
             var parryFacingPlayer = ParryFacingPlayer(s);
-            if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
+            var needleHold = BST_CrucibleLogic.HourglassNeedleHold(s);
+            if (s.HasHostileTarget && (s.TargetDoNotAttack || needleHold || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
             {
                 var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer
                                   && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
@@ -658,6 +665,7 @@ internal static class BST_RotationLogic
                     if (cleanse.ActionId != 0)
                         return Pick(cleanse.ActionId, cleanse.Reason);
                     return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
+                        : needleHold ? "crucible:hold-hourglass-needle"
                         : s.TargetInStance ? "crucible:hold-stance"
                         : s.TargetInvulnerable ? "crucible:hold-invulnerable"
                         : "crucible:hold-parry");

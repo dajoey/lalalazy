@@ -1503,6 +1503,73 @@ internal static class BST_CrucibleLogic
         };
     }
 
+    /// <summary> The Final Hourglass the King Ahriman piece's Roulette spawns (BNpcName). </summary>
+    public const uint HourglassNameId = 14689;
+
+    /// <summary> The Roulette's needle: a nameless actor at the arena centre whose rotation is the Death cone's heading (BNpcBase). </summary>
+    public const uint NeedleBaseId = 19738;
+
+    /// <summary> The needle ticks every 1.56 s (16 of 16 recorded Death casts fired one tick after the previous tick) and turns -90 degrees 0.49 s after each tick. </summary>
+    public const float NeedleStepSeconds = 1.5605f;
+
+    public const float NeedleTurnAfterTickSeconds = 0.49f;
+
+    /// <summary>
+    ///     From the press to the hourglass breaking: 0.4 to 0.67 s in the two recorded breaks (the ability line to the cast being cancelled), so
+    ///     the break lands 0.3 to 1.4 s after the weaponskill is sent. Death fires on the first tick after the break.
+    /// </summary>
+    public const float BreakLagMinSeconds = 0.3f, BreakLagMaxSeconds = 1.4f;
+
+    /// <summary> At or below this HP percent one weaponskill (the largest recorded hit is 67% of the hourglass) can break it. </summary>
+    public const float HourglassRiskPercent = 75f;
+
+    /// <summary> Death is a 23 y cone; a character past this is out of reach. </summary>
+    public const float DeathConeReach = 24f;
+
+    /// <summary>
+    ///     The cone's half-angle as assumed here. The sheet gives no angle: the recorded hit lay 1 degree off the heading, the recorded miss 91
+    ///     degrees off; the needle only ever points at multiples of 90 degrees, so any value between 45 and 90 sorts them the same way.
+    /// </summary>
+    public const float DeathConeHalfAngle = MathF.PI / 3f;
+
+    /// <summary>
+    ///     The guard gives up this long after the hourglass becomes targetable: its 24.7 s cast ends there and a broken-late hourglass is worse
+    ///     than a Doom risk, and a needle reading that never clears must not hold the fight forever.
+    /// </summary>
+    public const float HourglassGuardSeconds = 12f;
+
+    /// <summary>
+    ///     Hold the weaponskills on the Final Hourglass: breaking it makes the next needle tick fire Death (Doom 5421, 6 s, not cleansable, the
+    ///     character died every time it landed: 6 of 6) along the needle's heading at that tick. The rotation broke it as a priority add whatever
+    ///     the needle did (the 21:08:31 ET break fired east, at the bound character beside the hourglass). While the hourglass is low enough for
+    ///     one hit to break it (<see cref="HourglassRiskPercent"/>) the press is held when any tick the break can precede (the break lands
+    ///     <see cref="BreakLagMinSeconds"/> to <see cref="BreakLagMaxSeconds"/> after the press) points the cone at the character; the needle
+    ///     only points one way in four, so the hold clears within one turn of the needle. Unknown (needle not read, not yet seen to turn, stale) never holds.
+    /// </summary>
+    public static bool HourglassNeedleHold(in BST_RotationLogic.BstState s)
+    {
+        if (!s.NeedleKnown || !s.HasHostileTarget || s.TargetNameId != HourglassNameId
+            || s.TargetHpPercent > HourglassRiskPercent || s.HourglassAge > HourglassGuardSeconds
+            || s.NeedleToPlayerDistance > DeathConeReach || s.NeedleSinceTurn > 3f * NeedleStepSeconds)
+            return false;
+
+        // Ticks, in seconds from now: the turn that set the current heading was at -NeedleSinceTurn, 0.49 s after tick 0; tick k >= 1 fires
+        // with the heading set by turn k-1, which is the current one turned (k-1) quarter turns.
+        for (var k = 1; k < 4; k++)
+        {
+            var tick = -s.NeedleSinceTurn - NeedleTurnAfterTickSeconds + k * NeedleStepSeconds;
+            if (tick < BreakLagMinSeconds)
+                continue;
+            if (tick - NeedleStepSeconds >= BreakLagMaxSeconds)
+                break;
+            var heading = s.NeedleHeading - (k - 1) * (MathF.PI / 2f);
+            var off = MathF.Abs(MathF.IEEERemainder(heading - s.NeedleToPlayerBearing, 2f * MathF.PI));
+            if (off < DeathConeHalfAngle)
+                return true;
+        }
+        return false;
+    }
+
     /// <summary> A cleansable debuff calls for the cleanse, except a poison while the character resists poison (the cleanse would be spent on a debuff that is already cut short or harmless). </summary>
     public static bool CleanseCounts(uint statusId, bool poisonResistant) =>
         !(poisonResistant && BST_CrucibleData.PoisonStatuses.Contains(statusId));

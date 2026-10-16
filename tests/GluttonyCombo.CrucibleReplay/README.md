@@ -18,8 +18,8 @@ their `#min_reproduced_pct`, lines that did not parse, and canaries that did not
 
 ## What the replay can and cannot prove (read this first)
 
-The lines are a lossy summary of the state `Decide` reads. Of the 116 fields of `BstState`, **56 are rebuildable, 17 derivable and
-43 are missing** (table below; the table is checked against the struct by reflection, so a new field fails the run until it is classified).
+The lines are a lossy summary of the state `Decide` reads. Of the 122 fields of `BstState`, **56 are rebuildable, 17 derivable and
+49 are missing** (table below; the table is checked against the struct by reflection, so a new field fails the run until it is classified).
 Missing fields include the ones most rules read: GCD/weave state, every cooldown/readiness flag, the last-press timers, the combo state,
 damage-immune target, absolute HP, heal-potion stock. So **no tick has every decision-critical field rebuilt (0.0%)**.
 
@@ -228,8 +228,14 @@ A rebuildable field is also a gap on a tick that has no `BT|` line within 2 s (o
 | `KnockbackCastRemaining` | missing | not logged |
 | `ShieldChargeClipsGcd` | missing | not logged |
 | `DashSettleRemaining` | missing | not logged |
+| `NeedleKnown` | missing | not logged (the `NE|` line carries the needle) |
+| `NeedleHeading` | missing | not logged (`NE|` h=) |
+| `NeedleSinceTurn` | missing | not logged (`NE|` timestamp) |
+| `NeedleToPlayerBearing` | missing | not logged (`NE|` pb=) |
+| `NeedleToPlayerDistance` | missing | not logged (`NE|` pd=) |
+| `HourglassAge` | missing | not logged (`NE|` age=) |
 
-Fields in `BstState`: 116 (`--fields` prints `fields: 116 (56 rebuildable, 17 derivable, 43 missing); BstState declares 116`).
+Fields in `BstState`: 122 (`--fields` prints `fields: 122 (56 rebuildable, 17 derivable, 49 missing); BstState declares 122`).
 
 ## Proposal: telemetry that would close the gaps (not part of this change)
 
