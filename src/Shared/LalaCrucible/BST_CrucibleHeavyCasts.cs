@@ -63,6 +63,7 @@ internal static partial class BST_CrucibleData
         (4, 0), (4, 1), (4, 3), (4, 5), (4, 7), (4, 8),
         (5, 1), (5, 3), (5, 5), (5, 6),
         (3, 2),   // r4-third2: Third Board battle 2 (Ymir / Sahagin), 51 recorded runs: the Dreadwash row below
+        (3, 3),   // r4-synth1: Third Board battle 3 (Zu / Cockerel / Pullet), 3 recorded runs: the Flying Frenzy row below
         (2, 1),
         (2, 5),
         (3, 1),
@@ -100,6 +101,9 @@ internal static partial class BST_CrucibleData
         // ---- Third Board, battle 2 (r4-third2) ----------------------------------------------------------------------------------
         new(48485, "Dreadwash", 3, 2, 8.0f, 0.0f, CrucibleHitKind.Tankbuster, 910, 948, 87, 64, false,
             "Sahagin Piece, ffxivdb 2026-09-24 to 2026-10-07: 87 cast starts, 64 effects 7.96-8.00 s after the start (lands at the castbar's end). Each completed cast hit one target, the enmity holder: 33 on the character (479-910), 31 on a familiar (424-948). Hysteria (296) followed 28 of the 33 character hits."),
+        // ---- Third Board, battle 3 (r4-synth1) ----------------------------------------------------------------------------------
+        new(50465, "Flying Frenzy", 3, 3, 8.0f, 0f, CrucibleHitKind.Tankbuster, 852, 869, 10, 9, false,
+            "Zu Piece, battle 3 (R4 row 3.3-07b). Cast 8.0 s (log cast, dossier); HitDelay not measured (Boards 1-3 stay 0). 10 marker casts in the 3 recorded 3.3 runs; damage id 48490: 9 hit events, 7 on familiars (max 869, Opo-opo) and 2 on the character (max 852, Grandpa Joe) (ffxivdb action_events 2026-10-16)."),
         // ---- Second Board, single-target casts that follow the enmity holder ----------------------------------------------------
         new(48138, "Deadly Hold", 2, 1, 5.0f, 0f, CrucibleHitKind.Tankbuster, 206, 227, 52, 24, false,
             "Battle-1 manticore trash (R4 row 2.1-02). Cast 5.0 s (7.56 sheet, crucible-bindings C2); HitDelay not measured (Boards 1-3 stay 0). Re-derived 2026-10-15 from ffxivdb action_events: 52 rows, 24 with damage; character max 206 (20 hits), familiars Diremite 227, Colibri 226, Treant 206, Puk 189."),

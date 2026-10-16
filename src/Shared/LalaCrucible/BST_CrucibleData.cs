@@ -318,6 +318,7 @@ internal static partial class BST_CrucibleData
     {
         [48471] = (455, 751, "Crushing Blade: 88 of 88 recorded hits on the character, max 455; never hit a familiar (ffxivdb 09-24..10-15). Estimate 455 x 1.65 = 751."),
         [48517] = (549, 906, "Goblin Rush: 0 recorded casts (Chewchum Popoto died first in every logged pull); the basis is the stand-in from the same board's measured tankbusters (100-tonze Slash 549). Estimate 549 x 1.65 = 906. Guide: 5.0 s cast, Loosefrox Inkyjots."),
+        [48489] = (910, 1502, "Caustic Vomit: 0 completed casts (6 started, all interrupted or the mob died first; 0 hits anywhere, ffxivdb), so no measured basis exists; the basis is the stand-in from the same board's measured tankbusters (Dreadwash 910). Estimate 910 x 1.65 = 1502. Guide: 13.0 s cast, Heavy 5356 (R4 row 3.3-02)."),
     };
 
     /// <summary>
