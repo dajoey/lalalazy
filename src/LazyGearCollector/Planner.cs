@@ -127,13 +127,24 @@ public sealed class Planner
         IEnumerable<PieceChain> chains, int targetTier)
     {
         var plans = chains.Select(c => Plan(c, targetTier)).ToList();
+        var (total, done) = Summarize(plans);
+        return (plans, total, done);
+    }
+
+    /// <summary>Aggregates remaining costs and completion over an already-computed set of plans.</summary>
+    public static (Dictionary<uint, long> Total, int Done) Summarize(IEnumerable<PiecePlan> plans)
+    {
         var total = new Dictionary<uint, long>();
+        var done = 0;
         foreach (var p in plans)
+        {
+            if (p.Complete) done++;
             foreach (var kv in p.Remaining)
             {
                 total.TryGetValue(kv.Key, out var existing);
                 total[kv.Key] = existing + kv.Value;
             }
-        return (plans, total, plans.Count(p => p.Complete));
+        }
+        return (total, done);
     }
 }

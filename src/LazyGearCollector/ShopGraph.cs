@@ -21,6 +21,7 @@ public sealed record ShopOffer(
 public sealed class ShopGraph
 {
     private readonly Dictionary<uint, List<ShopOffer>> _producedBy = new();
+    private readonly Dictionary<uint, string> _nameCache = new();
     private readonly IDataManager _data;
 
     public int OfferCount { get; private set; }
@@ -87,6 +88,15 @@ public sealed class ShopGraph
     public string ItemName(uint itemId)
     {
         if (itemId == 0) return "";
+        // Names are static sheet data; the UI asks for the same ids every frame, so look each up once.
+        if (_nameCache.TryGetValue(itemId, out var cached)) return cached;
+        var name = ResolveName(itemId);
+        _nameCache[itemId] = name;
+        return name;
+    }
+
+    private string ResolveName(uint itemId)
+    {
         var sheet = _data.GetExcelSheet<Item>();
         if (sheet == null || !sheet.TryGetRow(itemId, out var item)) return $"Item#{itemId}";
         var n = item.Name.ExtractText();

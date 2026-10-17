@@ -28,8 +28,23 @@ public sealed class CollectorWindow : Window
         ["Slaying"] = "Melee and physical ranged",
     };
 
+    private static readonly string[] TargetTierLabels = { "base", "+1", "+2", "+3" };
+
+    // Planning walks the shop graph and resolves item names, so it is too expensive to redo for
+    // every section of every frame: plan the whole collection once and let the bar, role table
+    // and detail view filter the one result set. The cadence matches the ownership scanner's
+    // live-count cache; changing the goal or the cached-containers option replans at once.
+    private static readonly TimeSpan PlanCacheDuration = TimeSpan.FromSeconds(2);
+
     private readonly Plugin _plugin;
     private string? _selectedRole;
+    private GearCollection? _planCollection;
+    private int _planTarget = -1;
+    private bool _planIncludeCached;
+    private DateTime _planExpiry = DateTime.MinValue;
+    private List<PiecePlan> _plans = [];
+    private Dictionary<uint, long> _planTotal = new();
+    private int _planDone;
 
     public CollectorWindow(Plugin plugin) : base("Lazy Gear Collector##lazygear")
     {
@@ -58,18 +73,36 @@ public sealed class CollectorWindow : Window
         ImGui.Separator();
 
         var target = _plugin.Config.TargetTier;
-        var (allPlans, grandTotal, donePieces) = _plugin.Planner.PlanMany(collection.Pieces, target);
+        var (allPlans, grandTotal, donePieces) = CurrentPlans(collection, target);
 
         DrawOverall(collection, donePieces, allPlans.Count, grandTotal);
         ImGui.Separator();
 
-        DrawRoleTable(collection, target);
+        DrawRoleTable(collection, allPlans);
 
         if (_selectedRole != null)
         {
             ImGui.Separator();
-            DrawRoleDetail(collection, _selectedRole, target);
+            DrawRoleDetail(_selectedRole, allPlans);
         }
+    }
+
+    private (List<PiecePlan> Plans, Dictionary<uint, long> Total, int Done) CurrentPlans(
+        GearCollection collection, int target)
+    {
+        var includeCached = _plugin.Config.IncludeCachedContainers;
+        if (!ReferenceEquals(_planCollection, collection)
+            || _planTarget != target
+            || _planIncludeCached != includeCached
+            || DateTime.UtcNow >= _planExpiry)
+        {
+            (_plans, _planTotal, _planDone) = _plugin.Planner.PlanMany(collection.Pieces, target);
+            _planCollection = collection;
+            _planTarget = target;
+            _planIncludeCached = includeCached;
+            _planExpiry = DateTime.UtcNow.Add(PlanCacheDuration);
+        }
+        return (_plans, _planTotal, _planDone);
     }
 
     private void DrawCollectionPicker(GearCollection collection)
@@ -82,12 +115,11 @@ public sealed class CollectorWindow : Window
         ImGui.TextUnformatted("Goal:");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(90f);
-        var labels = new[] { "base", "+1", "+2", "+3" };
-        if (ImGui.BeginCombo("##target", labels[Math.Clamp(target, 0, 3)]))
+        if (ImGui.BeginCombo("##target", TargetTierLabels[Math.Clamp(target, 0, 3)]))
         {
-            for (var i = 0; i < labels.Length; i++)
+            for (var i = 0; i < TargetTierLabels.Length; i++)
             {
-                if (ImGui.Selectable(labels[i], i == target))
+                if (ImGui.Selectable(TargetTierLabels[i], i == target))
                 {
                     _plugin.Config.TargetTier = i;
                     _plugin.Config.Save();
@@ -95,9 +127,11 @@ public sealed class CollectorWindow : Window
             }
             ImGui.EndCombo();
         }
-        ImGui.SameLine();
+
+        // Own line: the self-explanatory label is far wider than the old one and would not fit
+        // next to the right-aligned goal combo.
         var cached = _plugin.Config.IncludeCachedContainers;
-        if (ImGui.Checkbox("Cached##inc", ref cached))
+        if (ImGui.Checkbox("Count saddlebag + retainers (cached)##inc", ref cached))
         {
             _plugin.Config.IncludeCachedContainers = cached;
             _plugin.Config.Save();
@@ -151,7 +185,7 @@ public sealed class CollectorWindow : Window
         }
     }
 
-    private void DrawRoleTable(GearCollection collection, int target)
+    private void DrawRoleTable(GearCollection collection, List<PiecePlan> allPlans)
     {
         if (!ImGui.BeginTable("roles", 4,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
@@ -165,8 +199,8 @@ public sealed class CollectorWindow : Window
 
         foreach (var role in collection.Roles)
         {
-            var chains = collection.ForRole(role).ToList();
-            var (plans, total, done) = _plugin.Planner.PlanMany(chains, target);
+            var plans = allPlans.Where(p => p.Piece.Role == role).ToList();
+            var (total, done) = Planner.Summarize(plans);
 
             ImGui.TableNextRow();
 
@@ -179,9 +213,9 @@ public sealed class CollectorWindow : Window
             ImGui.TextColored(Dim, RoleJobs.TryGetValue(role, out var jobs) ? jobs : "");
 
             ImGui.TableNextColumn();
-            var frac = chains.Count == 0 ? 0f : (float)done / chains.Count;
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, done == chains.Count ? BarDone : BarPart);
-            ImGui.ProgressBar(frac, new Vector2(-1f, 18f), $"{done}/{chains.Count}");
+            var frac = plans.Count == 0 ? 0f : (float)done / plans.Count;
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, done == plans.Count ? BarDone : BarPart);
+            ImGui.ProgressBar(frac, new Vector2(-1f, 18f), $"{done}/{plans.Count}");
             ImGui.PopStyleColor();
 
             ImGui.TableNextColumn();
@@ -208,7 +242,7 @@ public sealed class CollectorWindow : Window
         ImGui.EndTable();
     }
 
-    private void DrawRoleDetail(GearCollection collection, string role, int target)
+    private void DrawRoleDetail(string role, List<PiecePlan> allPlans)
     {
         ImGui.TextColored(Gold, $"{role} - piece by piece");
 
@@ -222,9 +256,9 @@ public sealed class CollectorWindow : Window
         ImGui.TableSetupColumn("What it needs", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableHeadersRow();
 
-        foreach (var chain in collection.ForRole(role))
+        foreach (var plan in allPlans.Where(p => p.Piece.Role == role))
         {
-            var plan = _plugin.Planner.Plan(chain, target);
+            var chain = plan.Piece;
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
