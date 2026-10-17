@@ -165,7 +165,8 @@ public class FateToolKitWindow : MinimisableWindow {
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                     _tweak.ToggleBlacklist(fate);
 
-                ImGui.TooltipOnHover(BuildFateTooltip(fate, displayName, isBlacklisted));
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip(BuildFateTooltip(fate, displayName, isBlacklisted));
             }
 
             ImGui.SameLine();
