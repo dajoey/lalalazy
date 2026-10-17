@@ -131,8 +131,14 @@ internal sealed unsafe class RetainerLiveService
             chars.Gil = im->GetInventoryItemCount(GilItemId);
             chars.Ventures = im->GetInventoryItemCount(VentureCoinItemId);
 
-            var gc = PlayerState.Instance()->GrandCompany;
-            chars.Seals = gc == 0 ? 0 : im->GetCompanySeals(gc);
+            // PlayerState.Instance() can be null during transitions even when the
+            // inventory manager is already up — guard it the same way.
+            var ps = PlayerState.Instance();
+            if (ps != null)
+            {
+                var gc = ps->GrandCompany;
+                chars.Seals = gc == 0 ? 0 : im->GetCompanySeals(gc);
+            }
         }
 
         // Free inventory slots across the four main bags — the same loop shape

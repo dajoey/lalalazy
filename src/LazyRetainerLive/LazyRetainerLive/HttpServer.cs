@@ -31,6 +31,7 @@ internal sealed class HttpServer : IDisposable
     private TcpListener? _listener;
     private Thread? _thread;
     private bool _running; // all reads/writes go through Volatile.* (CS0420-clean)
+    private int _generation; // bumped by Stop(); a ServeLoop exits once its generation is stale
     private int _boundPort;
     private long _nextBindAttemptTicks;
 
@@ -73,7 +74,11 @@ internal sealed class HttpServer : IDisposable
             _listener = listener;
             _boundPort = port;
             _running = true;
-            _thread = new Thread(ServeLoop) { IsBackground = true, Name = "LazyRetainerLive.Http" };
+            // Bind the loop to THIS listener and generation: the next Stop() +
+            // restart flips _running back to true, so the loop must key on its
+            // own generation rather than on _running alone.
+            var generation = Volatile.Read(ref _generation);
+            _thread = new Thread(() => ServeLoop(listener, generation)) { IsBackground = true, Name = "LazyRetainerLive.Http" };
             _thread.Start();
             LastError = "";
             Plugin.Log.Information($"LazyRetainerLive: serving GET http://127.0.0.1:{port}/retainers (loopback only)");
@@ -86,10 +91,9 @@ internal sealed class HttpServer : IDisposable
         }
     }
 
-    private void ServeLoop()
+    private void ServeLoop(TcpListener listener, int generation)
     {
-        var listener = _listener!;
-        while (Volatile.Read(ref _running))
+        while (Volatile.Read(ref _running) && Volatile.Read(ref _generation) == generation)
         {
             TcpClient client;
             try
@@ -98,7 +102,10 @@ internal sealed class HttpServer : IDisposable
             }
             catch (Exception)
             {
-                if (!Volatile.Read(ref _running)) break;
+                // Without the generation check a stale loop woken by Stop() sees
+                // the next generation's _running == true and tight-loops
+                // AcceptTcpClient on a dead listener at 100% CPU, silently.
+                if (!Volatile.Read(ref _running) || Volatile.Read(ref _generation) != generation) break;
                 continue; // transient accept error; keep serving
             }
 
@@ -207,9 +214,19 @@ internal sealed class HttpServer : IDisposable
     public void Stop()
     {
         Volatile.Write(ref _running, false);
+        // Stale the running ServeLoop BEFORE touching the listener: without this
+        // a loop woken by the stop (or finishing a slow client) sees the next
+        // generation's _running == true and keeps serving a dead listener.
+        Interlocked.Increment(ref _generation);
         try { _listener?.Stop(); } catch { }
         _listener = null;
+        var thread = _thread;
         _thread = null;
+        // AcceptTcpClient wakes the moment the listener stops; a mid-HandleClient
+        // loop exits at the next generation check. Join only briefly — this runs
+        // on the framework thread, and a stale thread terminates on its own.
+        if (thread != null && thread != Thread.CurrentThread)
+            thread.Join(500);
     }
 
     public void Dispose() => Stop();

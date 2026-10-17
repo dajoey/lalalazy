@@ -24,14 +24,16 @@ internal class ConfigWindow : Window
         { c.Enabled = enabled; changed = true; }
 
         var port = c.Port;
-        if (ImGui.InputInt("Loopback port", ref port))
+        // EnterReturnsTrue + hidden step buttons: commit once on Enter instead of
+        // per keystroke — every commit rebinds the listener via EnsureStarted.
+        if (ImGui.InputInt("Loopback port", ref port, flags: ImGuiInputTextFlags.EnterReturnsTrue))
         {
             c.Port = Math.Clamp(port, 1024, 65535);
             changed = true;
         }
         ImGui.TextDisabled("Serves GET http://127.0.0.1:<port>/retainers for the ffxiv dashboard relay.");
-        ImGui.TextDisabled("Loopback only - never reachable from other machines. Port changes");
-        ImGui.TextDisabled("apply after the plugin reloads (or /xlreload).");
+        ImGui.TextDisabled("Loopback only - never reachable from other machines. Press Enter to");
+        ImGui.TextDisabled("apply; the listener rebinds on the new port immediately.");
 
         ImGui.Spacing();
         ImGui.Separator();
