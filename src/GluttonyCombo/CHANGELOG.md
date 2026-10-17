@@ -1,6 +1,10 @@
-## v1.0.4.309 (2026-10-17)
+## v1.0.4.310 (2026-10-17)
 
-Upstream WrathCombo 1.0.4.27 changes: NIN Kassatsu sync fix; DTR bar entry now opens the UI on right-click (auto-rotation toggle moved to left-click); PvP hotbar save fixed writing to the wrong slot; SAM FRU opener fix; MCH target-setting cleanup; job config expression cleanups.
+- NIN: fixed a Kassatsu sync issue.
+- DTR bar entry: right-click now opens the UI; the auto-rotation toggle moved to left-click.
+- PvP: fixed hotbar saving writing to the wrong slot.
+- SAM: fixed the FRU opener.
+- MCH: removed an unused target setting; job config cleanups across many jobs.
 
 ## v1.0.4.308 (2026-10-15) [testing]
 ### Changed
