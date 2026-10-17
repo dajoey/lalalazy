@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
-using ECommons.DalamudServices;
 
 namespace LazySkywardTracker;
 
@@ -11,12 +10,16 @@ public sealed class TrackerWindow : Window
 {
     private readonly Plugin _plugin;
 
+    // Per-job point cap for the Skyward achievements; a server-reported max wins when known.
+    private const uint DefaultMaxPoints = 500000;
+
     // Pre-computed color constants
     private static readonly Vector4 GreenBar = new(0.1f, 0.6f, 0.2f, 1.0f);
     private static readonly Vector4 OrangeBar = new(0.85f, 0.45f, 0.0f, 1.0f);
     private static readonly Vector4 CyanTint = new(0.0f, 0.75f, 0.95f, 0.65f);
     private static readonly Vector4 CyanText = new(0.0f, 0.75f, 0.95f, 1.0f);
     private static readonly Vector4 DimText = new(0.6f, 0.6f, 0.6f, 1.0f);
+    private static readonly Vector4 RedText = new(0.9f, 0.3f, 0.3f, 1.0f);
 
     public TrackerWindow(Plugin plugin) : base("Lazy Skyward Tracker##lazysky")
     {
@@ -30,23 +33,32 @@ public sealed class TrackerWindow : Window
         // Get projected inventory points
         var projections = _plugin.Scanner.ScanInventory();
 
+        // Read the completed-achievements bitfield once per job per frame; each
+        // IsAchievementCompleted call re-resolves Achievement.Instance() under a try/catch.
+        var completed = new Dictionary<uint, bool>(Plugin.AchievementIds.Length);
+        foreach (var id in Plugin.AchievementIds)
+            completed[id] = Plugin.IsAchievementCompleted(id);
+
         // ── Overall progress calculations ────────────────────────────────
         uint totalCurrent = 0;
-        uint totalMax = 5500000;
+        uint totalMax = 0;
         uint totalInventoryPts = 0;
         int completedCount = 0;
 
         foreach (var id in Plugin.AchievementIds)
         {
-            if (Plugin.IsAchievementCompleted(id))
+            var max = EffectiveMax(id);
+            totalMax += max;
+
+            if (completed[id])
             {
-                totalCurrent += 500000;
+                totalCurrent += max;
                 completedCount++;
             }
             else if (Plugin.ProgressCache.TryGetValue(id, out var progress))
             {
-                totalCurrent += Math.Min(progress.Current, 500000);
-                if (progress.Current >= 500000)
+                totalCurrent += Math.Min(progress.Current, max);
+                if (progress.Current >= max)
                 {
                     completedCount++;
                 }
@@ -86,6 +98,22 @@ public sealed class TrackerWindow : Window
             _plugin.RequestAllProgress();
             _plugin.Scanner.InvalidateCache();
         }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Re-request point progress from the server and rescan inventory.");
+        }
+
+        // Status: a failed hook or an empty cache otherwise renders exactly like eleven 0/500000 bars.
+        if (!Plugin.IsTracking)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(RedText, "Tracking offline — hook failed to initialize; points shown may be stale.");
+        }
+        else if (Plugin.ProgressCache.Count == 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(DimText, "No progress data received yet — press Refresh Points.");
+        }
 
         ImGui.Separator();
         ImGui.Spacing();
@@ -102,18 +130,17 @@ public sealed class TrackerWindow : Window
             foreach (var id in Plugin.AchievementIds)
             {
                 var info = Plugin.SkywardAchievements[id];
-                bool isCompleted = Plugin.IsAchievementCompleted(id);
+                bool isCompleted = completed[id];
+                uint max = EffectiveMax(id);
                 uint current = 0;
-                uint max = 500000;
 
                 if (isCompleted)
                 {
-                    current = 500000;
+                    current = max;
                 }
                 else if (Plugin.ProgressCache.TryGetValue(id, out var progress))
                 {
                     current = progress.Current;
-                    max = progress.Max > 0 ? progress.Max : 500000;
                 }
 
                 projections.TryGetValue(id, out var projection);
@@ -196,6 +223,12 @@ public sealed class TrackerWindow : Window
             ImGui.EndTable();
         }
     }
+
+    /// <summary>Per-job max: the server-reported value once a progress packet has arrived, else the default cap.</summary>
+    private static uint EffectiveMax(uint achievementId)
+        => Plugin.ProgressCache.TryGetValue(achievementId, out var progress) && progress.Max > 0
+            ? progress.Max
+            : DefaultMaxPoints;
 
     /// <summary>
     /// Draws a semi-transparent cyan rectangle over the last ImGui item (a progress bar)

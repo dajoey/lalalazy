@@ -4,7 +4,6 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
-using ECommons.DalamudServices;
 using ECommons.EzHookManager;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lalalazy.Changelog;
@@ -54,8 +53,12 @@ public sealed class Plugin : IDalamudPlugin
 
     public static readonly Dictionary<uint, (uint Current, uint Max)> ProgressCache = new();
 
+    /// <summary>False when the progress hook never came up (broken signature on a new patch); the window warns instead of showing all-zero bars.</summary>
+    public static bool IsTracking => _hookReady;
+
     private unsafe delegate void ReceiveAchievementProgressDelegate(Achievement* achievement, uint id, uint current, uint max);
     private static EzHook<ReceiveAchievementProgressDelegate>? _receiveAchievementProgressHook;
+    private static bool _hookReady;
 
     // Progress detours running right now; the teardown drains this before pulling the hook
     // (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
@@ -112,6 +115,7 @@ public sealed class Plugin : IDalamudPlugin
                     ReceiveAchievementProgressDetour
                 );
                 _receiveAchievementProgressHook.Enable();
+                _hookReady = true;
             }
         }
         catch (Exception ex)
@@ -204,6 +208,7 @@ public sealed class Plugin : IDalamudPlugin
         _receiveAchievementProgressHook?.Disable();
         InFlight.Drain("LazySkywardTracker.ReceiveAchievementProgress", static m => PluginLog.Error(m));
         _receiveAchievementProgressHook = null;
+        _hookReady = false;
     }
 
     private void ToggleWindow() => _mainWindow.IsOpen = !_mainWindow.IsOpen;
