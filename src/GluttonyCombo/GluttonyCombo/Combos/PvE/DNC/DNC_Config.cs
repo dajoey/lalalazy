@@ -1,7 +1,4 @@
-#region
-
 using Dalamud.Interface.Colors;
-using Dalamud.Interface.Utility.Raii;
 using ECommons.ImGuiMethods;
 using System.Linq;
 using System.Numerics;
@@ -11,13 +8,6 @@ using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window.Functions;
 using static GluttonyCombo.Window.Functions.UserConfig;
-
-// ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
-// ReSharper disable InconsistentNaming
-// ReSharper disable CheckNamespace
-// ReSharper disable ClassNeverInstantiated.Global
-
-#endregion
 
 namespace GluttonyCombo.Combos.PvE;
 

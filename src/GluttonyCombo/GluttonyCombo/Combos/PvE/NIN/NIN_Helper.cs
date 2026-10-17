@@ -113,9 +113,9 @@ internal partial class NIN
                 {
                     not MudraFlags.None => SecondMudra switch
                     {
-                        MudraFlags.TenSecond => HasKassatsu ? GokaMekkyaku : Katon,
+                        MudraFlags.TenSecond => ActionLearned(GokaMekkyaku) && HasKassatsu ? GokaMekkyaku : Katon,
                         MudraFlags.ChiSecond => Raiton,
-                        MudraFlags.JinSecond => HasKassatsu ? HyoshoRanryu : Hyoton,
+                        MudraFlags.JinSecond => ActionLearned(HyoshoRanryu) && HasKassatsu ? HyoshoRanryu : Hyoton,
                         _ => 0
                     },
 

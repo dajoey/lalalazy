@@ -314,12 +314,16 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         DtrBarEntry ??= TryGetDtr("Gluttony Combo");
         if (DtrBarEntry is not null)
         {
-            DtrBarEntry.OnClick = (_) =>
+            DtrBarEntry.OnClick = (c) =>
             {
-                AutoRotationController.ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
+                if (c.ClickType == MouseClickType.Right)
+                    HandleOpenCommand(tab: ConfigWindow.OpenWindow, forceOpen: true);
+                else
+                    AutoRotationController.ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
             };
             DtrBarEntry.Tooltip = new SeString(
-            new TextPayload("Click to toggle Gluttony Combo's Auto-Rotation.\n"),
+            new TextPayload("Left Click to toggle Gluttony Combo's Auto-Rotation.\n"),
+            new TextPayload("Right Click to toggle Gluttony Combo's UI.\n"),
             new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
         }
 

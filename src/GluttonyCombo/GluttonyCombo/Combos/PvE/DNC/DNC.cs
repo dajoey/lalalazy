@@ -1,19 +1,9 @@
-﻿#region
-
-using GluttonyCombo.Combos.PvE.Enums;
+﻿using GluttonyCombo.Combos.PvE.Enums;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
-using GluttonyCombo.Data;
 using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvE.DNC.Config;
 using GluttonyCombo.Extensions;
-
-// ReSharper disable UnusedType.Global
-// ReSharper disable ClassNeverInstantiated.Global
-// ReSharper disable InconsistentNaming
-// ReSharper disable CheckNamespace
-
-#endregion
 
 namespace GluttonyCombo.Combos.PvE;
 

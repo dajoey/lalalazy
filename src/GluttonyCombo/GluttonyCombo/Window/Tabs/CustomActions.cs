@@ -7,6 +7,7 @@ using ECommons.ImGuiMethods;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using System.Numerics;
 using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Native;
 using GluttonyCombo.Services;
 
@@ -103,7 +104,7 @@ namespace GluttonyCombo.Window.Tabs
                         var val = P.CustomActions.HoveredSlot.Value;
                         RaptureHotbarModule.Instance()->Hotbars[val.Hotbar].Slots[val.Slot].Set(RaptureHotbarModule.HotbarSlotType.Action, SelectedAction.Id);
                         var actualSlot = RaptureHotbarModule.Instance()->Hotbars[val.Hotbar].Slots[val.Slot];
-                        RaptureHotbarModule.Instance()->WriteSavedSlot(Player.ClassJob.RowId, (uint)val.Hotbar, (uint)val.Slot, &actualSlot, false, false);
+                        RaptureHotbarModule.Instance()->WriteSavedSlot(Player.ClassJob.RowId, (uint)val.Hotbar, (uint)val.Slot, &actualSlot, false, CustomComboFunctions.InPvP());
                     }
                     SelectedAction = null;
                     DragDropMode = false;
