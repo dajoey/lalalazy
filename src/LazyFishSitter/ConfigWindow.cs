@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using LazyFishSitter.Core;
 
 namespace LazyFishSitter;
 
@@ -30,7 +31,16 @@ internal class ConfigWindow : Window
         var cmd = c.SitCommand;
         if (ImGui.InputText("Sit command", ref cmd, 64))
         { c.SitCommand = cmd.Trim(); changed = true; }
-        ImGui.TextDisabled("Default /sit. Must start with a slash.");
+        if (SitPolicy.IsValidSitCommand(c.SitCommand))
+        {
+            ImGui.TextDisabled("Default /sit. Must start with a slash.");
+        }
+        else
+        {
+            // Same predicate the policy guards on: while this shows, no sits are sent.
+            ImGui.TextColored(new Vector4(1f, 0.45f, 0.45f, 1f),
+                "Must start with a slash - no sits are sent while this is invalid.");
+        }
 
         ImGui.Separator();
 

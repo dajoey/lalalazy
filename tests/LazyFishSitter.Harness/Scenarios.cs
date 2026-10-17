@@ -96,7 +96,8 @@ internal sealed class Session
 }
 
 /// <summary>Result of replaying a session: what the policy sent, and when.</summary>
-internal sealed record Replay(List<(DateTime At, string Cmd, FishingSnapshot Snap)> Sends, List<string> Logs)
+internal sealed record Replay(List<(DateTime At, string Cmd, FishingSnapshot Snap)> Sends, List<string> Logs,
+    List<string> SkipReasons)
 {
     public int Count => Sends.Count;
 }
@@ -120,6 +121,7 @@ internal static class Runner
         var policy = new SitPolicy();
         var sends = new List<(DateTime, string, FishingSnapshot)>();
         var logs = new List<string>();
+        var skipReasons = new List<string>();
         DateTime? sentAt = null;
 
         var seatedBySit = false;
@@ -156,6 +158,7 @@ internal static class Runner
 
             var step = policy.Step(snap, at, new PolicyContext(enabled, sitCommand, blockReason));
             logs.AddRange(step.Logs);
+            skipReasons.Add(step.SkipReason);
             if (step.SendCommand is { } cmd)
             {
                 sends.Add((at, cmd, snap));
@@ -163,6 +166,6 @@ internal static class Runner
             }
         }
 
-        return new Replay(sends.Select(s => (s.Item1, s.Item2, s.Item3)).ToList(), logs);
+        return new Replay(sends.Select(s => (s.Item1, s.Item2, s.Item3)).ToList(), logs, skipReasons);
     }
 }

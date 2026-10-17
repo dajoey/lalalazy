@@ -46,6 +46,7 @@ internal static class Program
         Case18_JoeyReproduction_QuickCastsSitsAfterCast();
         Case19_StandAgainResitsOnSubsequentCast();
         Case20_BlindReadStandAgainResits();
+        Case21_InvalidSitCommandBlocksWithoutSending();
 
         Console.WriteLine(new string('-', 72));
         Console.WriteLine($"{_pass} passed, {_fail} failed");
@@ -382,5 +383,37 @@ internal static class Program
         var r = Runner.Run(s, sitReadsSeated: false);
         Check("20 a sit the game takes but never reads seated still re-sits after stand-up",
             r.Count == 2, $"sent {r.Count}");
+    }
+
+    // ---------------------------------------------------------------------------------
+    // 21. A sit command that is not a slash command throws at send time (ChatCommand.Execute
+    //     rejects anything not starting with '/'), and the throw happened AFTER the policy had
+    //     already counted the send against the trip's cap of 3. The policy must refuse an
+    //     unsendable command up front: no send, and the skip reason says why.
+    // ---------------------------------------------------------------------------------
+    private static void Case21_InvalidSitCommandBlocksWithoutSending()
+    {
+        Check("21a the default /sit is valid", SitPolicy.IsValidSitCommand("/sit"));
+        Check("21b another slash command is valid", SitPolicy.IsValidSitCommand("/groundsit"));
+        Check("21c a bare word is not valid", !SitPolicy.IsValidSitCommand("sit"));
+        Check("21d empty is not valid", !SitPolicy.IsValidSitCommand(""));
+        Check("21e whitespace is not valid", !SitPolicy.IsValidSitCommand("   "));
+        Check("21f null is not valid", !SitPolicy.IsValidSitCommand(null));
+
+        var noSlash = Runner.Run(new Session().ArriveAtHole().PoleReady(60).LeaveHole(),
+            sitTakes: false, sitCommand: "sit");
+        Check("21g a command without a slash never sends", noSlash.Count == 0, $"sent {noSlash.Count}");
+        Check("21h the skip reason says the command must start with a slash",
+            noSlash.SkipReasons.Any(r => r == SitPolicy.InvalidSitCommandReason),
+            string.Join(" | ", noSlash.SkipReasons.Distinct()));
+
+        var empty = Runner.Run(new Session().ArriveAtHole().PoleReady(60).LeaveHole(),
+            sitTakes: false, sitCommand: "");
+        Check("21i an empty command never sends", empty.Count == 0, $"sent {empty.Count}");
+        Check("21j an empty command reports the same reason",
+            empty.SkipReasons.Any(r => r == SitPolicy.InvalidSitCommandReason));
+
+        Check("21k the refusal is logged once so it is visible in ffxivdb",
+            noSlash.Logs.Count(l => l.Contains("is not sendable", StringComparison.Ordinal)) == 1);
     }
 }

@@ -62,7 +62,11 @@ public readonly record struct FishingSnapshot(
 
 /// <summary>What the host tells the policy about things outside the character read.</summary>
 /// <param name="Enabled">The plugin's enabled toggle.</param>
-/// <param name="SitCommand">The command to send (validated by the host; must start with a slash).</param>
+/// <param name="SitCommand">
+/// The command to send. The policy itself refuses anything <see cref="SitPolicy.IsValidSitCommand"/>
+/// rejects (empty, no leading slash, over 500 UTF-8 bytes): an unsendable command blocks the send
+/// instead of throwing at send time and consuming one of the trip's sends.
+/// </param>
 /// <param name="BlockReason">
 /// Non-null when a game condition (cutscene, combat, jumping, ...) makes injecting a command unsafe.
 /// The policy still tracks state while blocked; it just never sends.

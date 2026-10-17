@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace LazyFishSitter.Core;
 
 /// <summary>
@@ -45,6 +47,7 @@ public sealed class SitPolicy
     private int _consecutiveUnacceptedSends;
     private bool _satThisCast;
     private bool _capLogged;
+    private bool _invalidSitLogged;
     /// <summary>The character is seated as far as we can tell: a seated read, or the game took our /sit.</summary>
     private bool _sitBelieved;
     /// <summary>A seated read happened WITH THE ROD OUT, so "not seated" means something in this context.</summary>
@@ -79,6 +82,19 @@ public sealed class SitPolicy
 
     /// <summary>States where the character is idle and the game accepts /sit: standby beat (rod ready) or line in water.</summary>
     public static bool IsStandbyBeat(FishState s) => s is FishState.PoleReady or FishState.LineInWater;
+
+    /// <summary>Skip reason reported while the configured sit command is not sendable.</summary>
+    public const string InvalidSitCommandReason = "sit command must start with /";
+
+    /// <summary>
+    /// Mirrors exactly what the send path (ChatCommand.Execute) refuses: empty, missing the
+    /// leading slash, or over 500 UTF-8 bytes. Such a send can only throw, and before this
+    /// guard the throw still consumed one of the trip's <see cref="MaxSendsPerTrip"/> sends -
+    /// so the policy refuses an unsendable command up front instead, and the settings window
+    /// paints the field red until it is fixed.
+    /// </summary>
+    public static bool IsValidSitCommand(string? cmd) =>
+        !string.IsNullOrWhiteSpace(cmd) && cmd.StartsWith('/') && Encoding.UTF8.GetByteCount(cmd) <= 500;
 
     /// <summary>
     /// States where the game stands you for a catch and then re-seats you afterwards, so a
@@ -144,6 +160,20 @@ public sealed class SitPolicy
         if (!_tripActive) { reason = "not at a fishing hole"; return null; }
         if (ctx.BlockReason is { } blocked) { reason = blocked; return null; }
 
+        // An unsendable command is a config fault, not a game state: refuse it before any send
+        // bookkeeping so a command that can only throw never consumes one of the trip's sends.
+        if (!IsValidSitCommand(ctx.SitCommand))
+        {
+            if (!_invalidSitLogged)
+            {
+                _invalidSitLogged = true;
+                Log($"sit command '{ctx.SitCommand}' is not sendable (must start with /) - " +
+                    "refusing to send until the setting is fixed");
+            }
+            reason = InvalidSitCommandReason;
+            return null;
+        }
+
         // GUARD 1 - any seated signal at all. A /sit here would STAND him. This one must never
         // be wrong in the permissive direction, so it is first and absolute.
         if (snap.Seated) { reason = $"already seated ({snap.PostureText})"; return null; }
@@ -187,7 +217,7 @@ public sealed class SitPolicy
             return null;
         }
 
-        var cmd = string.IsNullOrWhiteSpace(ctx.SitCommand) ? "/sit" : ctx.SitCommand;
+        var cmd = ctx.SitCommand; // guarded above: always a sendable slash command here
         _lastSitSent = now;
         _sendsThisTrip++;
         _consecutiveUnacceptedSends++;
@@ -318,6 +348,7 @@ public sealed class SitPolicy
         _consecutiveUnacceptedSends = 0;
         _satThisCast = snap.Seated;
         _capLogged = false;
+        _invalidSitLogged = false;
         _sitBelieved = snap.Seated;
         _detectorProvenWithRodOut = false;
         _seatedReadsWithRodOut = 0;
@@ -348,6 +379,7 @@ public sealed class SitPolicy
         _consecutiveUnacceptedSends = 0;
         _satThisCast = false;
         _capLogged = false;
+        _invalidSitLogged = false;
         _sitBelieved = false;
         _detectorProvenWithRodOut = false;
         _seatedReadsWithRodOut = 0;
