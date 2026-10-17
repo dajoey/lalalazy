@@ -1,4 +1,13 @@
 # Changelog
+## v0.1.7.9 (2026-10-17) [testing]
+### Fixed
+- **Market-price lookups no longer log warnings while they retry.** When Universalis is slow or busy it answers with a temporary "try again" status or takes longer than before; the price client already retries those on its own with a pause between tries - that is its designed behavior, not a fault, so those lines now go to the debug log. Only one warning is written when a batch gives up entirely after all retries, and stale cached prices are used meanwhile, exactly as before.
+- **The price client now waits up to 60 seconds per request instead of 20.** Under load, Universalis sometimes finishes a large price query just after the old 20-second cutoff; the request was cancelled while the server was still working on it and the prices for that batch were refetched from scratch. The longer budget lets those queries land.
+- Market-price log lines no longer paste a hundred item numbers into the log; a batch is described as its item count instead.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Full harness: 401/401 PASS (6 new).
+
 ## v0.1.7.8 (2026-10-07) [testing]
 ### Fixed
 - **Knightshopper no longer buys units that are sitting on a retainer.** The purchase target counted everything the catalog can see, but the fetch-from-retainer step runs after the purchase and brings those units in anyway - with 90 units on a retainer, none in the bags and 9 missing, the run bought 99 instead of 9. The target now counts what is physically in the bags, and the fetch tops the bags up to exactly what the cart needs; every currency routes on the same corrected target.
