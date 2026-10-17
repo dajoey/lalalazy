@@ -52,8 +52,12 @@ public unsafe class AddonWeeklyBingoController : AddonController<AddonWeeklyBing
     }
     
     private void AddonRefresh(AddonWeeklyBingo* addon) {
+        // Fork: bail out when PlayerState is unavailable (login/logout transitions); dereferencing a null PlayerState* is a hard crash, not a catchable NRE.
+        var playerState = PlayerState.Instance();
+        if (playerState == null) return;
+
         foreach (var index in Enumerable.Range(0, 16)) {
-            System.PerfectTails.GameState[index] = PlayerState.Instance()->IsWeeklyBingoStickerPlaced(index);
+            System.PerfectTails.GameState[index] = playerState->IsWeeklyBingoStickerPlaced(index);
         }
 
         if (probabilityTextNode is not null) {

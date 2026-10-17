@@ -155,7 +155,11 @@ public sealed partial class PerfectTails {
 /// </summary>
 public sealed unsafe partial class PerfectTails {
     public SeString SolveAndGetProbabilitySeString() {
-        var stickersPlaced = PlayerState.Instance()->WeeklyBingoNumPlacedStickers;
+        // Fork: bail out when PlayerState is unavailable (login/logout transitions); dereferencing a null PlayerState* is a hard crash, not a catchable NRE.
+        var playerState = PlayerState.Instance();
+        if (playerState == null) return new SeString();
+
+        var stickersPlaced = playerState->WeeklyBingoNumPlacedStickers;
 
         // > 9 returns Error {-1,-1,-1} by the solver
         var values = Solve(this.GameState);
