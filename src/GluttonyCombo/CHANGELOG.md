@@ -1,3 +1,7 @@
+## v1.0.4.309 (2026-10-17)
+
+Upstream WrathCombo 1.0.4.27 changes: NIN Kassatsu sync fix; DTR bar entry now opens the UI on right-click (auto-rotation toggle moved to left-click); PvP hotbar save fixed writing to the wrong slot; SAM FRU opener fix; MCH target-setting cleanup; job config expression cleanups.
+
 ## v1.0.4.308 (2026-10-15) [testing]
 ### Changed
 - Telemetry only, no behaviour change: the Crucible decision log line (CR|) now carries the inputs the offline replay could not rebuild from the rest of the line - the target's invulnerability flag, the readiness of the Beastmaster's long cooldowns (the three horns, Shield Charge, Rally, Cheer, Beast Mode and the rest) as a bitmap, the health potion count, the player's current and maximum health, GCD and weave readiness, the in-combat and casting state, and whether Morphos or other enemies are still up. The offline replay tool reads these fields and replays the Crucible hold rules from them, so more of a recorded fight can be replayed faithfully.
