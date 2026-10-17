@@ -32,8 +32,14 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
 
     private static readonly JsonSerializerOptions CacheJson = new() { WriteIndented = false };
 
+    /// <summary>Per-request budget. 60s, not 20: a loaded Universalis can answer an aggregated batch
+    /// after 20s, and a 20s client timeout cancelled those requests while the server was still working
+    /// (card t-plugerr-06b09cbcf75d) - every such cancellation logged a warning and burned a retry.</summary>
+    public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
+
     private readonly HttpClient _http;
-    private readonly Action<string> _log;      // warnings/debug lines; the plugin routes them to IPluginLog, the probe to the console
+    private readonly Action<string> _warn;    // degradations: gave up after all retries, unexpected status, cache IO failure
+    private readonly Action<string> _debug;   // the designed path: retry/backoff in flight, attempt failures, cache hits
     private readonly string _cachePath;
     private readonly SemaphoreSlim _gate = new(MaxConcurrent, MaxConcurrent);
     private readonly object _lock = new();
@@ -62,17 +68,21 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
     public int RequestsMade { get; private set; }
     public int Failures { get; private set; }
 
-    public UniversalisClient(string configDirectory, string version, Action<string> log)
+    /// <param name="warn">receives degradations (gave up after all retries, unexpected status, cache IO failure).</param>
+    /// <param name="debug">receives the designed/handled path: retries with backoff in flight, per-attempt failures, cache lines.</param>
+    /// <param name="handler">transport override (tests script Universalis here); <c>null</c> uses the real handler.</param>
+    public UniversalisClient(string configDirectory, string version, Action<string> warn, Action<string> debug, HttpMessageHandler? handler = null)
     {
-        _log = log;
+        _warn = warn;
+        _debug = debug;
         _cachePath = Path.Combine(configDirectory, "prices.json");
-        _http = new HttpClient(new HttpClientHandler
+        _http = new HttpClient(handler ?? new HttpClientHandler
         {
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
         })
         {
             BaseAddress = new Uri("https://universalis.app/api/v2/"),
-            Timeout = TimeSpan.FromSeconds(20),
+            Timeout = RequestTimeout,
         };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd($"LazyCrafter/{version} (lalalazy; github.com/dajoey/lalalazy)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
@@ -238,6 +248,18 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
     /// <summary>Synchronous view of the marketable set; <c>null</c> until <see cref="MarketableAsync"/> has run.</summary>
     public bool? IsMarketable(uint itemId) => _marketable?.Contains(itemId);
 
+    /// <summary>Log-friendly form of a request URL: the item-id list (which can run to a hundred
+    /// numbers) becomes "<c>N ids</c>"; every other URL passes through unchanged.</summary>
+    internal static string Describe(string relative)
+    {
+        var parts = relative.Split('?', 2);
+        var segs = parts[0].Split('/');
+        var last = segs[^1];
+        if (segs.Length >= 2 && last.Length > 0 && char.IsDigit(last[0]) && last.Contains(','))
+            segs[^1] = $"{last.Split(',').Length} ids";
+        return string.Join("/", segs) + (parts.Length == 2 ? "?" + parts[1] : "");
+    }
+
     /// <summary>Per-city retainer tax percentages for <paramref name="world"/>, fetched once per session per world.</summary>
     public async Task<IReadOnlyDictionary<string, int>> TaxRatesAsync(string world, CancellationToken ct = default)
     {
@@ -275,14 +297,15 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
 
                     var code = (int)resp.StatusCode;
                     if (code == 404) return null;                       // nothing to retry
-                    if (code != 429 && code < 500) { Failures++; _log($"Universalis {relative} -> {code}"); return null; }
+                    if (code != 429 && code < 500) { Failures++; _warn($"Universalis {Describe(relative)} -> {code}"); return null; }
                     if (resp.Headers.RetryAfter?.Delta is { } ra && ra > delay) delay = ra;
-                    _log($"Universalis {relative} -> {code}, retry {attempt}/{MaxAttempts} in {delay.TotalSeconds}s");
+                    if (attempt < MaxAttempts)   // an attempt with no retry after it is covered by the gave-up line
+                        _debug($"Universalis {Describe(relative)} -> {code}, retry {attempt}/{MaxAttempts} in {delay.TotalSeconds:0.#}s");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex)
                 {
-                    _log($"Universalis {relative} attempt {attempt} failed: {ex.Message}");
+                    _debug($"Universalis {Describe(relative)} attempt {attempt} failed: {ex.Message}");
                 }
 
                 if (attempt == MaxAttempts) break;
@@ -290,7 +313,7 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
                 delay = TimeSpan.FromSeconds(Math.Min(30, delay.TotalSeconds * 2));
             }
             Failures++;
-            _log($"Universalis {relative} gave up after {MaxAttempts} attempts");
+            _warn($"Universalis {Describe(relative)} gave up after {MaxAttempts} attempts");
             return null;
         }
         finally
@@ -320,11 +343,11 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
                         _cache[e.Quote.ItemId] = new CachedQuote(e.Quote, e.FetchedAt);
             }
             if (!string.IsNullOrEmpty(file.Scope) && string.IsNullOrEmpty(Scope)) Scope = file.Scope;
-            _log($"Universalis disk cache: {CacheSize} fresh quotes loaded from {_cachePath}");
+            _debug($"Universalis disk cache: {CacheSize} fresh quotes loaded from {_cachePath}");
         }
         catch (Exception ex)
         {
-            _log($"Universalis disk cache unreadable; starting empty: {ex.Message}");
+            _warn($"Universalis disk cache unreadable; starting empty: {ex.Message}");
         }
     }
 
@@ -350,7 +373,7 @@ public sealed class UniversalisClient : IPriceSource, IDisposable
         }
         catch (Exception ex)
         {
-            _log($"Universalis disk cache write failed: {ex.Message}");
+            _warn($"Universalis disk cache write failed: {ex.Message}");
         }
     }
 

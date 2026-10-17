@@ -79,7 +79,8 @@ public sealed class Plugin : IDalamudPlugin
         Gbr = new GbrData(Log);
         Player = new PlayerState(pi, ClientState, PlayerStateSvc, Data, Log);
         Inventory = new AllaganInventory(pi, Framework, Log, Config.IsSourceEnabled);
-        Prices = new UniversalisClient(pi.ConfigDirectory.FullName, Version, line => Log.Warning("{Line}", line))
+        Prices = new UniversalisClient(pi.ConfigDirectory.FullName, Version,
+            line => Log.Warning("{Line}", line), line => Log.Debug("{Line}", line))
         {
             Ttl = TimeSpan.FromMinutes(Math.Max(1, Config.PriceCacheMinutes)),
         };

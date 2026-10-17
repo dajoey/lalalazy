@@ -57,6 +57,7 @@ foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.N
         foreach (var t in RunStageTests.Tests) yield return ("runstage", t.Name, t.Check);
         foreach (var t in SpecialShopTests.Tests) yield return ("currency", t.Name, t.Check);
         foreach (var t in KnightshopperTests.Tests) yield return ("knightshopper", t.Name, t.Check);
+        foreach (var t in UniversalisClientTests.Tests) yield return ("universalis", t.Name, t.Check);
     }
 
     private static int Main()
