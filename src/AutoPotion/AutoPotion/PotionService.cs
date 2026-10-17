@@ -374,6 +374,10 @@ internal class PotionService
         return row.ContentFinderCondition.Value.ContentType.RowId == DeepDungeonContentType;
     }
 
+    // One-line state summary for the /autopotion debug chat echo and the settings window's
+    // status line. The verbose dump stays in the plugin log (LogDebugState).
+    public string StatusLine => $"{(_plugin.Config.MasterEnable ? "enabled" : "disabled")}, last: {_lastSkipReason}";
+
     public void LogDebugState()
     {
         var cfg = _plugin.Config;

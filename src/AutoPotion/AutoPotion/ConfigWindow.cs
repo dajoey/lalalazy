@@ -23,6 +23,10 @@ internal class ConfigWindow : Window
         var c = _plugin.Config;
         var changed = false;
 
+        // Live state at a glance — the same summary /autopotion debug prints to chat.
+        ImGui.TextDisabled($"Status: {_plugin.Service.StatusLine}");
+        ImGui.Separator();
+
         var master = c.MasterEnable;
         if (ImGui.Checkbox("Enabled", ref master)) { c.MasterEnable = master; changed = true; }
         ImGui.Separator();

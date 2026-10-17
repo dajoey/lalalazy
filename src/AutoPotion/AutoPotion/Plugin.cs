@@ -27,6 +27,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Config { get; }
 
+    // The settings window reads the live status line through this.
+    internal PotionService Service => _service;
+
     private readonly PotionService _service;
     private readonly WindowSystem _windows = new("AutoPotion");
     private readonly ConfigWindow _configWindow;
@@ -71,7 +74,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the AutoPotion settings window. /autopotion changelog shows what's new, /autopotion telemetry toggles the diagnostic log."
+            HelpMessage = "Open the AutoPotion settings window. /autopotion debug prints a state summary, /autopotion changelog shows what's new, /autopotion telemetry toggles the diagnostic log."
         });
 
         // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
@@ -96,6 +99,7 @@ public sealed class Plugin : IDalamudPlugin
         if (arg.Equals("debug", StringComparison.OrdinalIgnoreCase))
         {
             _service.LogDebugState();
+            ChatGui.Print($"[AutoPotion] {_service.StatusLine} (full dump in the plugin log).");
             return;
         }
         if (arg.Equals("changelog", StringComparison.OrdinalIgnoreCase) ||
