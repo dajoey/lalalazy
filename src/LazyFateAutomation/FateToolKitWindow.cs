@@ -477,7 +477,8 @@ public class FateToolKitWindow : MinimisableWindow {
         ImGuiEx.TextV("Format:");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(400f);
-        ImGui.InputText("###DisplayNameFormat", ref _tweak.Config.DisplayNameFormat, 256);
+        if (ImGui.InputText("###DisplayNameFormat", ref _tweak.Config.DisplayNameFormat, 256))
+            _tweak.Config.Save();
         ImGuiComponents.HelpMarker("Available tokens: {Level}, {Name}, {Id}, {Progress}, {TimeRemaining}, {Distance}, {State}");
         ImGui.Spacing();
 
@@ -498,6 +499,7 @@ public class FateToolKitWindow : MinimisableWindow {
                     insertIndex--;
                 sortOrder.Insert(insertIndex, dragged);
                 _tweak.Config.SortOrder = sortOrder;
+                _tweak.Config.Save();
             });
 
             ImGui.TooltipOnHover("Drag to change priority order");
@@ -511,6 +513,7 @@ public class FateToolKitWindow : MinimisableWindow {
                         if (ImGui.Selectable(crit.ToString().Replace("_", " "), crit == criteria)) {
                             item.Criteria = crit;
                             _tweak.Config.SortOrder[i] = item;
+                            _tweak.Config.Save();
                         }
                     }
                 }
@@ -521,6 +524,7 @@ public class FateToolKitWindow : MinimisableWindow {
             if (ImGuiComponents.IconButton($"###Dir{i}", arrowIcon)) {
                 item.Descending = !item.Descending;
                 _tweak.Config.SortOrder[i] = item;
+                _tweak.Config.Save();
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(item.Descending ? "Descending (highest first)" : "Ascending (lowest first)");
@@ -529,6 +533,7 @@ public class FateToolKitWindow : MinimisableWindow {
             if (ImGuiComponents.IconButton($"###Remove{i}", FontAwesomeIcon.Trash)) {
                 sortOrder.RemoveAt(i);
                 _tweak.Config.SortOrder = sortOrder;
+                _tweak.Config.Save();
                 i--;
                 continue;
             }
@@ -546,6 +551,7 @@ public class FateToolKitWindow : MinimisableWindow {
                     if (ImGui.Selectable(crit.ToString().Replace("_", " "))) {
                         sortOrder.Add(new FateSortOrder { Criteria = crit, Descending = true });
                         _tweak.Config.SortOrder = sortOrder;
+                        _tweak.Config.Save();
                     }
                 }
             }
@@ -553,14 +559,8 @@ public class FateToolKitWindow : MinimisableWindow {
 
         ImGui.SameLine();
         if (ImGui.Button("Reset to Default")) {
-            _tweak.Config.SortOrder =
-            [
-                new() { Criteria = FateSortCriteria.HasBonusWithTwist, Descending = true },
-                    new() { Criteria = FateSortCriteria.Progress, Descending = true },
-                    new() { Criteria = FateSortCriteria.HasBonus, Descending = true },
-                    new() { Criteria = FateSortCriteria.TimeRemainingUrgent, Descending = false },
-                    new() { Criteria = FateSortCriteria.Distance, Descending = false },
-            ];
+            _tweak.Config.SortOrder = Configuration.DefaultSortOrder();
+            _tweak.Config.Save();
         }
 
         ImGui.Spacing();
