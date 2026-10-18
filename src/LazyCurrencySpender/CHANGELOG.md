@@ -1,5 +1,11 @@
 ﻿# Changelog - Lazy Currency Spender
 
+## v1.3.1.3 (2026-10-17) [testing]
+### Fixed
+- The configuration wizard's auto-open step now sets the actual auto-open setting instead of toggling the sellables table.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.3.1.2 (2026-10-08) [testing]
 ### Added
 - Added a map location for the Faux Commander (the Faux Hollows vendor in Idyllshire). Its Flag and TP buttons now draw like every other listed shop, and the plugin no longer logs a `Missing location: 1033921` error once at every startup.
