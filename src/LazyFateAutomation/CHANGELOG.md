@@ -1,5 +1,12 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.9 (2026-10-18) [testing]
+### Fixed
+- **Display name format and sort order changes are now saved.** Edits in the FATE tracker's "Sorting & Display" settings previously lived only in memory and reverted on the next plugin load; every change now persists immediately.
+- **Reset to Default restores the actual default sort order.** The reset button dropped the Time Remaining criterion and put Time Remaining Urgent in ascending order (urgent FATEs last); it now restores the shipped six-entry default, shared with the config's own default so the two cannot drift apart.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.0.3.8 (2026-10-13) [testing]
 ### Fixed
 - **BossMod Reborn no longer runs its own job rotations beside Gluttony Combo during FATEs.** The FATE grind creates and uses its own BossMod preset, "LazyFateAutomation", holding only the movement, FATE-targeting, level-sync and stay-close-to-target modules (melee and tanks close in, other roles hold at 10 yalms), and rewrites it each time the grind starts so an old or edited copy cannot bring job rotations back.
