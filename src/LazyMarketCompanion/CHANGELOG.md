@@ -1,3 +1,10 @@
+## v0.2.8.16 (2026-10-17) [testing]
+### Fixed
+- **Fresh installs no longer show an import notice for a plugin that was never installed.** A leftover line in the configuration loader set the "imported from Dagobert Price Matcher" flag true on every load that created a new configuration, so a brand-new install showed the import notice and the uninstall hint even though no settings were ever imported. The flag now keeps its false default; a genuine import from a found Dagobert configuration still sets it, and the load log's imported= field reports the real value.
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.15 (2026-10-10) [testing]
 ### Changed
 - **The Auto-Market panel's two filter dropdowns remember their setting between sessions.** The status filter (every stack / on the list / not on the list / excluded) and the market-category filter used to reset to "every stack, every category" every time the plugin loaded or the game restarted; they now save as soon as they are changed and come back that way. A saved category the current bags do not contain still shows as "every category" instead of silently hiding everything, and the saved choice comes back when the bags hold that category again.
