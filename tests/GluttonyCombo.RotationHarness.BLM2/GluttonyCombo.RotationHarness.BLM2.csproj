@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RotationHarness.BLM2 (2026-10-18, PotD behemoth gap-close round): offline harness for the
+       real BLM_Helper.UseManaward gate. RotationHarness.BLM owns the AoETargetGate cases; this
+       second harness (same pattern as MCH2/AST2) compiles the REAL, UNCHANGED BLM_Helper.cs
+       (the BLM partial: mana/movement/opener helpers + UseManaward) against a harness-owned fake
+       of the game boundary, and drives the private UseManaward through reflection. Nothing under
+       src/ is edited by the harness.
+         dotnet build tests/GluttonyCombo.RotationHarness.BLM2 -c Release
+         dotnet tests/GluttonyCombo.RotationHarness.BLM2/bin/Release/net10.0-windows7.0/GluttonyCombo.RotationHarness.BLM2.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and exits 0
+       only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.RotationHarness.BLM2</RootNamespace>
+    <AssemblyName>GluttonyCombo.RotationHarness.BLM2</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <Compile Include="FakeGame.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real Black Mage helper file, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BLM\BLM_Helper.cs" Link="BLM\BLM_Helper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Common">
+      <HintPath>$(DalamudLibPath)Dalamud.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ECommons is compiled from source; no ECommons code runs in the tested paths. -->
+    <ProjectReference Include="..\..\src\GluttonyCombo\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+</Project>
