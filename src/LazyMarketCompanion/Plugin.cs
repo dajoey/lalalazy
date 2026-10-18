@@ -284,7 +284,6 @@ public sealed class Plugin : IDalamudPlugin
       config = new Configuration();
     }
 
-    config.ImportedFromDagobert = config.ImportedFromDagobert || true;
     PluginInterface.SavePluginConfig(config);
     return config;
   }
