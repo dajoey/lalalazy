@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Gauge;
 using System;
 using System.Collections.Generic;
 using GluttonyCombo.Combos.PvE.ALL;
+using GluttonyCombo.Combos.PvE.Content.DeepDungeons;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
@@ -541,7 +542,8 @@ internal partial class SMN
             #region Radiant Aegis Overcap
             if (radiantAegisEnabled && 
                 !HasStatusEffect(Buffs.SearingLight) && !HasStatusEffect(Buffs.TitansFavor) && // Dont use in window or when titan needs to do the mountainbuster
-                GetRemainingCharges(RadiantAegis) == 2 && ActionReady(RadiantAegis)) // The shield is super long so no waiting on raidwide
+                GetRemainingCharges(RadiantAegis) == 2 && ActionReady(RadiantAegis) &&
+                !DeepDungeons.BehemothMeteorHold()) // PotD behemoth (DeepDungeon_Behemoth.cs): bank the 2nd charge for Ecliptic Meteor
             {
                 actionID = RadiantAegis;
                 return true;
@@ -554,7 +556,8 @@ internal partial class SMN
             // Two charges naturally bank during downtime.
             if (radiantAegisMaintainEnabled &&
                 InCombat() &&
-                PlayerHealthPercentageHp() <= radiantAegisMaintainHP &&
+                (PlayerHealthPercentageHp() <= radiantAegisMaintainHP ||
+                 DeepDungeons.BehemothMeteorWindow()) && // PotD behemoth: keep the shield up through the meteor window above the slider
                 !HasStatusEffect(Buffs.RadiantAegis) &&
                 GetRemainingCharges(RadiantAegis) >= 1 &&
                 ActionReady(RadiantAegis))
