@@ -27,7 +27,11 @@ internal static partial class DeepDungeons
     {
         potionId = 0;
 
-        if (IsEnabled(Preset.PoTD_SustainingPotion) && Items.ItemReady(PoTDSustainingPotion) && !LocalPlayer.HasStatus(Buffs.Rehabilitation) && PlayerHealthPercentageHp() <= Config.PoTD_SustainingPotion_HP)
+        // PoTD: during a behemoth's Ecliptic Meteor window the potion rolls regardless of the HP
+        // slider (the F180 meteor takes ~80% Max HP; surviving it beats banking the potion).
+        // Still gated on the preset, item readiness and no Rehabilitation. (DeepDungeon_Behemoth.cs)
+        if (IsEnabled(Preset.PoTD_SustainingPotion) && Items.ItemReady(PoTDSustainingPotion) && !LocalPlayer.HasStatus(Buffs.Rehabilitation) &&
+            (PlayerHealthPercentageHp() <= Config.PoTD_SustainingPotion_HP || BehemothMeteorWindow()))
         {
             potionId = PoTDSustainingPotion;
             return true;
