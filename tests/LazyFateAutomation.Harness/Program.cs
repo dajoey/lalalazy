@@ -22,6 +22,9 @@ namespace LazyFateAutomation.Harness;
 ///     7. approaching FATE mobs: the preset carries BMR's move-to-target module (MiscAI.StayCloseToTarget) with a
 ///        role range in BMR's option format, and the vnavmesh stuck fallback stays armed as a backstop while
 ///        the preset is active.
+///     8. sort-order parity: the settings window's "Reset to Default" list equals the shipped default
+///        sort order (same entries, same order, same directions) - the pre-fix reset dropped the
+///        TimeRemaining criterion and sorted TimeRemainingUrgent ascending (urgent FATEs last).
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -110,6 +113,7 @@ internal static class Program {
         BossModPresetTests();
         BossModReleaseTests();
         ApproachTests();
+        SortOrderResetTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
         if (_fail == 0) Console.WriteLine("OK");
@@ -465,7 +469,9 @@ internal static class Program {
         Check("every role range is a valid BMR option",
             new byte[] { 0, 1, 2, 3, 4 }.All(r => FateBossModPreset.StayCloseRange(r) is { } v && options.Contains(v)));
 
-        var grindSrc = File.ReadAllText(FindSource("FateGrind.cs"));
+        // Line endings normalized: the method-body extraction below matches "\n    }\n", which a CRLF
+        // (Windows) checkout of FateGrind.cs never contains.
+        var grindSrc = File.ReadAllText(FindSource("FateGrind.cs")).Replace("\r\n", "\n");
         Check("FateGrind sets the role range on StayCloseToTarget each FATE",
             Regex.IsMatch(grindSrc, @"SetTransient\(\s*""BossMod\.Autorotation\.MiscAI\.StayCloseToTarget""\s*,\s*""range""\s*,\s*FateBossModPreset\.StayCloseRange\("));
 
@@ -491,6 +497,60 @@ internal static class Program {
         Check("HandleCombatStuckDetection no longer bails out while the preset is active",
             stuckBody.Length > 0 && !stuckBody.Contains("if (FateBossModControl.IsOwnActive())"));
         Check("HandleCombatStuckDetection decides through FateStuckBackstop.IsStuck", stuckBody.Contains("FateStuckBackstop.IsStuck("));
+    }
+
+    /// <summary>
+    ///     The settings window's "Reset to Default" must restore exactly the shipped default sort
+    ///     order. The shipped default is pinned here as data; the window's reset list is read from
+    ///     FateToolKitWindow.cs source - resolved through the shared provider when the reset delegates
+    ///     to one (via reflection, so this harness still compiles against a Configuration without it),
+    ///     parsed out of the button's inline list otherwise. The pre-fix reset (5 entries, no
+    ///     TimeRemaining criterion, TimeRemainingUrgent ascending) fails the parity check.
+    /// </summary>
+    private static void SortOrderResetTests() {
+        Console.WriteLine("-- sort order: window Reset to Default == shipped default --");
+
+        (FateSortCriteria Criteria, bool Descending)[] expected =
+        [
+            (FateSortCriteria.HasBonusWithTwist, true),
+            (FateSortCriteria.Progress, true),
+            (FateSortCriteria.HasBonus, true),
+            (FateSortCriteria.TimeRemainingUrgent, true),
+            (FateSortCriteria.TimeRemaining, false),
+            (FateSortCriteria.Distance, false),
+        ];
+
+        static string Describe(IEnumerable<(FateSortCriteria Criteria, bool Descending)> list)
+            => string.Join(", ", list.Select(e => $"{e.Criteria}:{(e.Descending ? "desc" : "asc")}"));
+
+        var shipped = new Configuration().SortOrder.Select(e => (e.Criteria, e.Descending)).ToList();
+        Check("shipped default sort order is the pinned six-entry list",
+            shipped.SequenceEqual(expected), Describe(shipped));
+
+        var windowSrc = File.ReadAllText(FindSource("FateToolKitWindow.cs"));
+        List<(FateSortCriteria Criteria, bool Descending)>? reset = null;
+        var source = "inline list in the reset button";
+        if (windowSrc.Contains("DefaultSortOrder")) {
+            source = "shared default provider";
+            var provider = typeof(Configuration).GetMethod("DefaultSortOrder",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+            if (provider?.Invoke(null, null) is List<FateSortOrder> provided)
+                reset = provided.Select(e => (e.Criteria, e.Descending)).ToList();
+        }
+        else {
+            var block = Regex.Match(windowSrc, @"Reset to Default""\)\s*\)\s*\{(?<body>.*?)\]\s*;", RegexOptions.Singleline);
+            if (block.Success)
+                reset = Regex.Matches(block.Groups["body"].Value,
+                        @"Criteria\s*=\s*FateSortCriteria\.(?<crit>\w+)\s*,\s*Descending\s*=\s*(?<dir>true|false)")
+                    .Select(m => ((FateSortCriteria)Enum.Parse(typeof(FateSortCriteria), m.Groups["crit"].Value),
+                        m.Groups["dir"].Value == "true"))
+                    .ToList();
+        }
+
+        Check("the window's reset list could be read from source", reset != null, source);
+        Check("Reset to Default restores exactly the shipped default (same entries, same order, same directions)",
+            reset != null && reset.SequenceEqual(expected),
+            reset == null ? "<unreadable>" : $"{source}: {Describe(reset)}");
     }
 
     private static string FindSource(string file) {

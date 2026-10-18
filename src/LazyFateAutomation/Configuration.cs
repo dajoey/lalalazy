@@ -27,7 +27,14 @@ public class Configuration : IPluginConfiguration {
     // are consecutive and identical, but pure waste. DedupeSortOrder() below cleans up configs that
     // already grew before this fix; this attribute stops it from growing again.
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
-    public List<FateSortOrder> SortOrder =
+    public List<FateSortOrder> SortOrder = DefaultSortOrder();
+
+    /// <summary>
+    /// The shipped default sort order. Both the SortOrder initializer above and the settings window's
+    /// "Reset to Default" take their list from here, so the two can never drift apart again. Returns a
+    /// fresh list on every call: callers mutate the result.
+    /// </summary>
+    public static List<FateSortOrder> DefaultSortOrder() =>
     [
         new() { Criteria = FateSortCriteria.HasBonusWithTwist, Descending = true },
         new() { Criteria = FateSortCriteria.Progress, Descending = true },
