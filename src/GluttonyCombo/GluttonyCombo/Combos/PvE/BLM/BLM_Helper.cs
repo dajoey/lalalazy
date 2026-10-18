@@ -6,6 +6,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using GluttonyCombo.Combos.PvE.ALL;
+using GluttonyCombo.Combos.PvE.Content.DeepDungeons;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
@@ -413,10 +414,10 @@ internal partial class BLM
         bool soloOption = false) =>
         ActionReady(Manaward) && !LocalPlayer!.HasShield() &&
         (simpleLogic
-            ? PlayerHealthPercentageHp() < hpThreshold && !IsInParty() || GroupDamageIncoming()
+            ? !DeepDungeons.BehemothMeteorHold() && PlayerHealthPercentageHp() < hpThreshold && !IsInParty() || GroupDamageIncoming() // PotD behemoth (DeepDungeon_Behemoth.cs): bank Manaward for Ecliptic Meteor; the cast itself still fires via GroupDamageIncoming
             : triggerMode == 0 && PlayerHealthPercentageHp() <= hpThreshold && GroupDamageIncoming() ||
               (triggerMode == 1 || triggerMode == 0 && soloOption && !IsInParty()) &&
-              PlayerHealthPercentageHp() <= hpThreshold ||
+              !DeepDungeons.BehemothMeteorHold() && PlayerHealthPercentageHp() <= hpThreshold ||
               triggerMode == 2 && GroupDamageIncoming());
 
     private static bool UseAddle() =>

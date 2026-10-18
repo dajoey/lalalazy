@@ -116,10 +116,62 @@ internal static class Program
         Check($"SMN-2-unchanged: EnhancedDreadwyrmTrance not learned: Invoke(Ruin) returns " +
               $"Searing Light ({Smn.SearingLight})", got8 == Smn.SearingLight, $"returned {got8}");
 
+        // ---- SMN-3: PotD behemoth meteor bank/press on Radiant Aegis (red-first 2026-10-18) ----
+        // The overcap branch force-spends the 2nd Aegis charge the moment it caps
+        // (SMN_Helper.cs "Radiant Aegis Overcap"), so the shield is down when the behemoth's
+        // Ecliptic Meteor lands; the maintain branch only answers the own-HP slider. Desired:
+        // bank the charge inside the pre-meteor band, and keep/press the shield through the
+        // window regardless of the slider. The DeepDungeonHarness owns the real window
+        // predicate; this harness owns the SMN wiring of its two calls.
+        SetAegisState(playerHp: 95f, hold: true, window: false, aegisCharges: 2);
+        uint gotAegisHold = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check("SMN-3 hold: overcap branch, behemoth in the pre-meteor band, player 95% HP (above the maintain slider), " +
+              "2 charges banked: Radiant Aegis (25799) is BANKED, not force-spent",
+            gotAegisHold != Smn.RadiantAegis, $"returned {gotAegisHold}");
+
+        SetAegisState(playerHp: 90f, hold: false, window: false, aegisCharges: 2);
+        uint gotAegisCap = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check("SMN-3 unchanged: overcap branch, no behemoth state, 2 charges: today's cap-avoiding spend is preserved",
+            gotAegisCap == Smn.RadiantAegis, $"returned {gotAegisCap}");
+
+        SetAegisState(playerHp: 95f, hold: false, window: true, aegisCharges: 1);
+        uint gotAegisWindow = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check("SMN-3 window: meteor window open, player 95% HP above the maintain slider, 1 charge, shield down: " +
+              $"Radiant Aegis ({Smn.RadiantAegis}) PRESSES for the window",
+            gotAegisWindow == Smn.RadiantAegis, $"returned {gotAegisWindow}");
+
+        SetAegisState(playerHp: 95f, hold: true, window: false, aegisCharges: 1);
+        uint gotAegisQuiet = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check("SMN-3 negative: band but only 1 charge (no overcap risk), no window, 95% HP: no Aegis press",
+            gotAegisQuiet != Smn.RadiantAegis, $"returned {gotAegisQuiet}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    ///     The Radiant Aegis decision state: Radiant + RadiantMaintain sub-presets on, weave window
+    ///     open, no Searing Light / Titan's Favor on the player, Aegis buff down unless stated,
+    ///     the given charge count, and the PotD behemoth meteor knobs set as the state under test.
+    /// </summary>
+    private static void SetAegisState(float playerHp, bool hold, bool window, int aegisCharges)
+    {
+        FakeGame.Reset();
+        FakeGame.CanWeave = true;
+        FakeGame.PartyInCombat = true;
+        FakeGame.PlayerHealthPercentageHp = playerHp;
+        FakeGame.BehemothMeteorHold = hold;
+        FakeGame.BehemothMeteorWindow = window;
+        FakeGame.EnabledPresets.Add(Preset.SMN_ST_Advanced_Combo);
+        FakeGame.EnabledPresets.Add(Preset.SMN_ST_Advanced_Combo_Radiant);
+        FakeGame.EnabledPresets.Add(Preset.SMN_ST_Advanced_Combo_RadiantMaintain);
+
+        var aegis = FakeGame.Cooldown(Smn.RadiantAegis);
+        aegis.RemainingCharges = (uint)aegisCharges;
+        if (aegisCharges == 0)
+            aegis.IsCooldown = true;
     }
 
     /// <summary>

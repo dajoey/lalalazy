@@ -22,6 +22,10 @@ internal static class FakeGame
     public static bool InMeleeRange = true;
     public static bool HasPetPresent = true;             // true => NeedToSummon stays false
     public static bool GroupDamageIncoming = false;
+
+    /// <summary>PotD behemoth meteor knobs (the harness fake of DeepDungeon_Behemoth.cs).</summary>
+    public static bool BehemothMeteorWindow = false;
+    public static bool BehemothMeteorHold = false;
     public static float TargetDistance = 3f;
     public static float PlayerHealthPercentageHp = 100f;
 
@@ -79,6 +83,8 @@ internal static class FakeGame
         InMeleeRange = true;
         HasPetPresent = true;
         GroupDamageIncoming = false;
+        BehemothMeteorWindow = false;
+        BehemothMeteorHold = false;
         TargetDistance = 3f;
         PlayerHealthPercentageHp = 100f;
         ComboActionId = 0;

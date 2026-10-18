@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- DeepDungeonHarness (2026-10-18, PotD behemoth gap-close round): offline harness for the real
+       DeepDungeon potion gate and the new PotD behemoth meteor-state predicate (DeepDungeon_Behemoth.cs).
+       Same approach as the per-job RotationHarnesses: the REAL, UNCHANGED module source
+       (DeepDungeon.cs + DeepDungeon_Config.cs + DeepDungeon_Behemoth.cs) is Compile-Included as links
+       and tested against a harness-owned fake of the game boundary. DeepDungeon_Helper.cs is NOT
+       compiled (its pomander paths read EventFramework/ActionManager, un-fakeable offline); the
+       harness supplies the mirrored consts/enum and stub pomander overloads via the same partial
+       class instead. Nothing under src/ is edited by the harness.
+         dotnet build tests/GluttonyCombo.DeepDungeonHarness -c Release
+         dotnet tests/GluttonyCombo.DeepDungeonHarness/bin/Release/net10.0-windows7.0/GluttonyCombo.DeepDungeonHarness.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and exits 0
+       only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.DeepDungeonHarness</RootNamespace>
+    <AssemblyName>GluttonyCombo.DeepDungeonHarness</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <Compile Include="FakeGame.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real DeepDungeon module files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\Content\DeepDungeon\DeepDungeon.cs" Link="DeepDungeon\DeepDungeon.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\Content\DeepDungeon\DeepDungeon_Config.cs" Link="DeepDungeon\DeepDungeon_Config.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\Content\DeepDungeon\DeepDungeon_Behemoth.cs" Link="DeepDungeon\DeepDungeon_Behemoth.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Common">
+      <HintPath>$(DalamudLibPath)Dalamud.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

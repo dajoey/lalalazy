@@ -1,5 +1,6 @@
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
+using GluttonyCombo.Combos.PvE.Content.DeepDungeons;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Native;
@@ -92,7 +93,12 @@ internal partial class NIN : Melee
                 if (Role.CanSecondWind(40))
                     return Role.SecondWind;
 
-                if (ActionReady(ShadeShift) && (PlayerHealthPercentageHp() < 60 || GroupDamageIncoming()))
+                // PotD behemoth meteors (DeepDungeon_Behemoth.cs): bank the shield while the boss
+                // nears its meteor threshold, press it for the window itself.
+                if (ActionReady(ShadeShift) &&
+                    (DeepDungeons.BehemothMeteorWindow() ||
+                     !DeepDungeons.BehemothMeteorHold() &&
+                     (PlayerHealthPercentageHp() < 60 || GroupDamageIncoming())))
                     return ShadeShift;
 
                 if (Role.CanBloodBath(40))
@@ -219,7 +225,11 @@ internal partial class NIN : Melee
                 if (Role.CanSecondWind(40))
                     return Role.SecondWind;
 
-                if (ActionReady(ShadeShift) && (PlayerHealthPercentageHp() < 60 || GroupDamageIncoming()))
+                // PotD behemoth meteors: same bank/press shape as the ST Simple mode above.
+                if (ActionReady(ShadeShift) &&
+                    (DeepDungeons.BehemothMeteorWindow() ||
+                     !DeepDungeons.BehemothMeteorHold() &&
+                     (PlayerHealthPercentageHp() < 60 || GroupDamageIncoming())))
                     return ShadeShift;
 
                 if (Role.CanBloodBath(40))
@@ -380,9 +390,12 @@ internal partial class NIN : Melee
                     Role.CanSecondWind(NIN_ST_AdvancedMode_SecondWindThreshold))
                     return Role.SecondWind;
 
+                // PotD behemoth meteors: same bank/press shape as the Simple mode above.
                 if (IsEnabled(Preset.NIN_ST_AdvancedMode_ShadeShift) && ActionReady(ShadeShift) &&
-                    (PlayerHealthPercentageHp() < NIN_ST_AdvancedMode_ShadeShiftThreshold ||
-                     NIN_ST_AdvancedMode_ShadeShiftRaidwide && GroupDamageIncoming()))
+                    (DeepDungeons.BehemothMeteorWindow() ||
+                     !DeepDungeons.BehemothMeteorHold() &&
+                     (PlayerHealthPercentageHp() < NIN_ST_AdvancedMode_ShadeShiftThreshold ||
+                      NIN_ST_AdvancedMode_ShadeShiftRaidwide && GroupDamageIncoming())))
                     return ShadeShift;
 
                 if (IsEnabled(Preset.NIN_ST_AdvancedMode_Bloodbath) &&
@@ -536,9 +549,12 @@ internal partial class NIN : Melee
                     Role.CanSecondWind(NIN_AoE_AdvancedMode_SecondWindThreshold))
                     return Role.SecondWind;
 
+                // PotD behemoth meteors: same bank/press shape as the ST modes above.
                 if (IsEnabled(Preset.NIN_AoE_AdvancedMode_ShadeShift) && ActionReady(ShadeShift) &&
-                    (PlayerHealthPercentageHp() < NIN_AoE_AdvancedMode_ShadeShiftThreshold ||
-                     NIN_AoE_AdvancedMode_ShadeShiftRaidwide && GroupDamageIncoming()))
+                    (DeepDungeons.BehemothMeteorWindow() ||
+                     !DeepDungeons.BehemothMeteorHold() &&
+                     (PlayerHealthPercentageHp() < NIN_AoE_AdvancedMode_ShadeShiftThreshold ||
+                      NIN_AoE_AdvancedMode_ShadeShiftRaidwide && GroupDamageIncoming())))
                     return ShadeShift;
 
                 if (IsEnabled(Preset.NIN_AoE_AdvancedMode_Bloodbath) &&
