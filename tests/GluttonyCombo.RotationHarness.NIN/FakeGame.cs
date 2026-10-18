@@ -23,6 +23,10 @@ internal static class FakeGame
     public static bool TargetIsBoss = false;
     public static bool InBossEncounter = false;
     public static bool GroupDamageIncoming = false;
+
+    /// <summary>PotD behemoth meteor knobs (the harness fake of DeepDungeon_Behemoth.cs).</summary>
+    public static bool BehemothMeteorWindow = false;
+    public static bool BehemothMeteorHold = false;
     public static float TargetHPPercent = 100f;
     public static float HealthPercent = 100f;            // PlayerHealthPercentageHp()
     public static float TargetDistance = 3f;             // GetTargetDistance()
@@ -113,6 +117,8 @@ internal static class FakeGame
         TargetIsBoss = false;
         InBossEncounter = false;
         GroupDamageIncoming = false;
+        BehemothMeteorWindow = false;
+        BehemothMeteorHold = false;
         TargetHPPercent = 100f;
         HealthPercent = 100f;
         TargetDistance = 3f;

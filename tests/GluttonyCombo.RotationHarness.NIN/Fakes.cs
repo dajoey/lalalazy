@@ -155,6 +155,23 @@ namespace GluttonyCombo.Combos.PvE
 }
 
 // ======================================================================================
+namespace GluttonyCombo.Combos.PvE.Content.DeepDungeons
+{
+    /// <summary>
+    ///     FAKE of Combos/PvE/Content/DeepDungeon/DeepDungeon_Behemoth.cs: the two PotD behemoth
+    ///     meteor-state calls the Ninja selfcare region makes, as knobs on FakeGame. The real
+    ///     predicate (NameId/cast/HP matching) is under test in GluttonyCombo.DeepDungeonHarness;
+    ///     this harness tests the Ninja WIRING of those calls.
+    /// </summary>
+    internal static class DeepDungeons
+    {
+        public static bool BehemothMeteorWindow() => GluttonyCombo.RotationHarness.NIN.FakeGame.BehemothMeteorWindow;
+
+        public static bool BehemothMeteorHold() => GluttonyCombo.RotationHarness.NIN.FakeGame.BehemothMeteorHold;
+    }
+}
+
+// ======================================================================================
 namespace GluttonyCombo.Combos.PvE.ALL
 {
     /// <summary>FAKE of ALL/Items.cs: only the two members opener lambdas compile against.</summary>

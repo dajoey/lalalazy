@@ -108,6 +108,47 @@ internal static class Program
               $"Invoke(SpinningEdge) still presses Raiton's mudra ({Nin.Ten}); 3+ belongs to the AoE preset",
             gotDoton3 == Nin.Ten, $"returned {gotDoton3}");
 
+        // ---- NIN-4: PotD behemoth meteor bank/press on ShadeShift (red-first 2026-10-18) ----
+        // Floor 80 Gudanna / Floor 180 Dendainsonne both open an Ecliptic Meteor window at a boss-HP
+        // threshold (notebook Projects/PotD Behemoth 2026-10/Fight Baseline). Desired behaviour:
+        // inside the pre-meteor band the own-HP trigger BANKS the shield instead of burning it on
+        // chip damage, and inside the window the shield PRESSES regardless of own HP even with no
+        // raidwide classified and the HP trigger unmet. The DeepDungeonHarness owns the real
+        // window predicate; this harness owns the Ninja wiring of its two calls.
+        SetMeteorState(50f, hold: true, window: false);
+        uint gotHold = new Nin.NIN_ST_SimpleMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 hold: Simple ST, behemoth in the pre-meteor band, player 50% HP from chip damage: " +
+              $"ShadeShift ({Nin.ShadeShift}) is BANKED, not burned",
+            gotHold != Nin.ShadeShift, $"returned {gotHold}");
+
+        SetMeteorState(50f, hold: false, window: false);
+        uint gotChip = new Nin.NIN_ST_SimpleMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 unchanged: Simple ST, no behemoth state, player 50% HP: today's chip-damage press is preserved",
+            gotChip == Nin.ShadeShift, $"returned {gotChip}");
+
+        SetMeteorState(95f, hold: false, window: true);
+        uint gotWindow = new Nin.NIN_ST_SimpleMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 window: Simple ST, meteor window open, player 95% HP, no raidwide classified: " +
+              $"ShadeShift ({Nin.ShadeShift}) PRESSES for the window",
+            gotWindow == Nin.ShadeShift, $"returned {gotWindow}");
+
+        SetMeteorStateAdvanced(15f, hold: true, window: false);
+        uint gotAdvHold = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 hold (advanced): ST Advanced with the ShadeShift sub-preset, behemoth in the band, " +
+              $"player at 15% (under the default 20 slider): ShadeShift ({Nin.ShadeShift}) is BANKED",
+            gotAdvHold != Nin.ShadeShift, $"returned {gotAdvHold}");
+
+        SetMeteorStateAdvanced(15f, hold: false, window: false);
+        uint gotAdvChip = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 unchanged (advanced): no behemoth state, player 15% under the slider: today's press is preserved",
+            gotAdvChip == Nin.ShadeShift, $"returned {gotAdvChip}");
+
+        SetMeteorStateAdvanced(95f, hold: false, window: true);
+        uint gotAdvWindow = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check("NIN-4 window (advanced): meteor window open, player 95% HP, raidwide toggle off: " +
+              $"ShadeShift ({Nin.ShadeShift}) PRESSES for the window",
+            gotAdvWindow == Nin.ShadeShift, $"returned {gotAdvWindow}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -223,6 +264,46 @@ internal static class Program
     }
 
 
+
+    /// <summary>
+    ///     The NIN-4 Simple-mode state: level-100 Ninja mid-fight out of any mudra, weave open,
+    ///     Simple preset on, SecondWind/Bloodbath declined by HP, ShadeShift ready, no raidwide
+    ///     classified, and the PotD behemoth meteor knobs (<paramref name="hold"/>/
+    ///     <paramref name="window"/>) set as the state under test.
+    /// </summary>
+    private static void SetMeteorState(float playerHp, bool hold, bool window)
+    {
+        FakeGame.Reset();
+        FakeGame.CanWeave = true;
+        FakeGame.LastAction = Nin.SpinningEdge; // out of any mudra
+        FakeGame.HealthPercent = playerHp;      // SecondWind/Bloodbath decline above 40
+        FakeGame.BehemothMeteorHold = hold;
+        FakeGame.BehemothMeteorWindow = window;
+        FakeGame.GroupDamageIncoming = false;
+        FakeGame.PutOnCooldown(Nin.Ten, 10f);   // mudra charge spent: CanUse* all decline, so Invoke reaches selfcare
+        FakeGame.RoleActionReady = false;       // Feint/SecondWind/Bloodbath declined (their fake knob; HP gates are separate)
+        FakeGame.EnabledPresets.Add(NinPreset.NIN_ST_SimpleMode);
+    }
+
+    /// <summary>
+    ///     The NIN-4 Advanced-mode state: like <see cref="SetMeteorState"/> but on the Advanced
+    ///     preset with only the ShadeShift sub-preset enabled (threshold at its default 20, the
+    ///     raidwide toggle off), Ninki 0 and the oGCDs that outrank selfcare on cooldown.
+    /// </summary>
+    private static void SetMeteorStateAdvanced(float playerHp, bool hold, bool window)
+    {
+        SetMeteorState(playerHp, hold, window);
+        FakeGame.EnabledPresets.Clear();
+        FakeGame.EnabledPresets.Add(NinPreset.NIN_ST_AdvancedMode);
+        FakeGame.EnabledPresets.Add(NinPreset.NIN_ST_AdvancedMode_ShadeShift);
+        FakeGame.PutOnCooldown(Nin.Kassatsu, 50f);
+        FakeGame.PutOnCooldown(Nin.Bunshin, 40f);
+        FakeGame.PutOnCooldown(Nin.TenChiJin, 50f);
+        FakeGame.PutOnCooldown(Nin.Assassinate, 50f);
+        FakeGame.PutOnCooldown(Nin.TrickAttack, 55f);
+        FakeGame.PutOnCooldown(Nin.Mug, 55f);
+        FakeGame.PutOnCooldown(Nin.Meisui, 50f);
+    }
 
     private static void Check(string desc, bool ok, string detail = "")
     {
