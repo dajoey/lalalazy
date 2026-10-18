@@ -14,8 +14,8 @@ namespace LazyFateAutomation;
 /// character to be available (the window itself is only drawn then). Turning it on asks for a confirmation in the hub.
 ///
 /// The grind mode can change the zone pool and equip items on the next zone swap, so it is only editable while the
-/// bot is stopped. The window never saved its display settings, so they are left out, as are the zone sets and the
-/// blacklist. No lease is registered with Gluttony from here: FateToolKit already manages its own.
+/// bot is stopped. The window saves its display settings itself; they are left out here all the same, as are the
+/// zone sets and the blacklist. No lease is registered with Gluttony from here: FateToolKit already manages its own.
 ///
 /// The three FATE filters (max duration, min time left, max progress) have no control in the plugin's window, only in
 /// its config file, so the ranges here are limited to values that still let FATEs through (an extreme value makes every
