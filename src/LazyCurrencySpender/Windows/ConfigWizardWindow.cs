@@ -263,7 +263,7 @@ internal class ConfigWizardWindow : Window
         {
             case 1:
                 ImGui.TextWrapped("Open Currency Spender automatically when you open the ingame Currency window:");
-                ImGui.Checkbox("Open automatically with the Currency window", ref C.ShowSellables);
+                ImGui.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
                 break;
 
         }
