@@ -1,5 +1,11 @@
 # Changelog - PvP Solver
 
+## v0.1.2.3 (2026-10-18) [testing]
+### Changed
+- **All 21 PvP rotations declare game version 7.57**, and their source-code metadata points to the current rotation paths.
+- **Paladin Guardian uses only the configured general-ability checks.** Duplicate attack-ability triggers that could bypass the HP and Hallowed Ground settings are removed.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.2 (2026-10-13) [testing]
 ### Fixed
 - **When BossModReborn is unloaded, its timeline data (upcoming raidwides, tankbusters, knockbacks) is cleared once**, so proactive mitigation no longer acts on countdowns left over from before the unload.

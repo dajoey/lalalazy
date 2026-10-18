@@ -1,12 +1,10 @@
-using System.Text.RegularExpressions;
-
 namespace PvPSolver.RotationHarness.Cases;
 
 /// <summary>
-///     Change 10, PLD-THRESHOLD (PLD-1). T2: AttackAbility's Hallowed Ground Guardian branch must apply the
-///     <c>HallowedGuardianThreshold</c> HP test to the ally Guardian chose (<c>GuardianPvP.Target.Target</c>,
-///     read after <c>CanUse</c>), as the GeneralAbility branch already does. Without it Guardian fires at any HP
-///     whenever an enemy is in range.
+///     Change 10, PLD-THRESHOLD (PLD-1), updated for the 7.57 upstream sync. T2: Guardian is
+///     deduplicated into GeneralAbility, where both the free and Hallowed Ground paths apply
+///     their configured HP thresholds to the chosen ally. AttackAbility must not retain the
+///     older duplicate calls, one of which bypassed GuardianThreshold entirely.
 /// </summary>
 internal static class PldThreshold
 {
@@ -14,30 +12,32 @@ internal static class PldThreshold
     {
         Console.WriteLine("-- change 10 PLD-THRESHOLD (T2) --");
 
-        var m = SourceFiles.OverrideMethod("PLD_Default.PVP.cs", "AttackAbility");
-        var at = Regex.Match(m.Body, @"if\s*\(\s*StatusHelper\.PlayerHasStatus\(\s*true\s*,\s*StatusID\.HallowedGround_1302\s*\)\s*\)\s*\{");
-        Harness.Case("PLD AttackAbility has a Hallowed Ground branch", at.Success);
-        if (!at.Success) return;
+        var attack = SourceFiles.OverrideMethod("PLD_Default.PVP.cs", "AttackAbility");
+        Harness.Case("PLD AttackAbility has no duplicate Guardian calls",
+            !attack.Body.Contains("GuardianPvP.CanUse("));
+        Harness.Case("PLD AttackAbility has no duplicate Hallowed Ground branch",
+            !attack.Body.Contains("StatusID.HallowedGround_1302"));
 
-        var open = at.Index + at.Length - 1;
-        var inner = m.Body.Substring(open + 1, CsSource.Match(m.Body, open) - open - 1);
-        var conds = CsSource.IfConditions(inner).Where(c => c.Contains("GuardianPvP.CanUse(")).ToList();
-        Harness.Case("Hallowed Ground branch has exactly one Guardian use", conds.Count == 1, $"{conds.Count} found");
-        if (conds.Count != 1) return;
-
-        var cond = conds[0];
-        var canUse = cond.IndexOf("GuardianPvP.CanUse(", StringComparison.Ordinal);
-        var test = Regex.Match(cond, @"GuardianPvP\.Target\.Target\.GetHealthRatio\(\)\s*<=\s*HallowedGuardianThreshold\b");
-        Harness.Case("Hallowed Ground Guardian is held until the chosen ally is <= HallowedGuardianThreshold",
-            test.Success && test.Index > canUse, cond);
-
-        // The existing GeneralAbility branch is the model and must still carry the same test.
         var general = SourceFiles.OverrideMethod("PLD_Default.PVP.cs", "GeneralAbility");
-        Harness.Case("GeneralAbility Hallowed Guardian branch still carries the threshold",
-            CsSource.IfConditions(general.Body).Any(c => c.Contains("GuardianPvP.CanUse(") && c.Contains("<= HallowedGuardianThreshold")));
+        var conds = CsSource.IfConditions(general.Body).Where(c => c.Contains("GuardianPvP.CanUse(")).ToList();
+        Harness.Case("GeneralAbility has exactly the free and Hallowed Guardian uses", conds.Count == 2, $"{conds.Count} found");
+        Harness.Case("GeneralAbility free Guardian carries GuardianThreshold",
+            conds.Any(c => c.Contains("<= GuardianThreshold")));
+        Harness.Case("GeneralAbility Hallowed Guardian carries HallowedGuardianThreshold",
+            conds.Any(c => c.Contains("<= HallowedGuardianThreshold")));
+        Harness.Case("GeneralAbility Hallowed Guardian respects HallowedGuardianFree",
+            general.Body.Contains("if (HallowedGuardianFree)") && general.Body.Contains("StatusID.HallowedGround_1302"));
+        Harness.Case("GeneralAbility thresholds read the ally Guardian chose after CanUse",
+            conds.Count == 2 && conds.All(c =>
+            {
+                var canUse = c.IndexOf("GuardianPvP.CanUse(", StringComparison.Ordinal);
+                var target = c.IndexOf("GuardianPvP.Target.Target.GetHealthRatio()", StringComparison.Ordinal);
+                return canUse >= 0 && target > canUse;
+            }));
 
-        // Canary: the old AttackAbility condition (CanUse only) is not a threshold-gated one.
-        const string old = "GuardianPvP.CanUse(out action, targetOverride: TargetType.LowHP)";
-        Harness.Canary("old Hallowed Ground Guardian condition carries the HP threshold", old.Contains("HallowedGuardianThreshold"));
+        // Canary: the old duplicate AttackAbility call must fail the new no-Guardian assertion.
+        const string oldAttack = "GuardianPvP.CanUse(out action, targetOverride: TargetType.LowHP)";
+        Harness.Canary("old duplicate AttackAbility call passes the no-Guardian check",
+            !oldAttack.Contains("GuardianPvP.CanUse("));
     }
 }
