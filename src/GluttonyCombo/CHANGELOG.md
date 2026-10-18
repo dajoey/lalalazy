@@ -1,3 +1,12 @@
+## v1.0.4.311 (2026-10-18) [testing]
+### Changed
+- **Deep Dungeon (Palace of the Dead): the sustaining potion is spent inside a behemoth's Ecliptic Meteor window whatever the health slider says.** The floor-180 meteor takes roughly 80% of maximum health, so a potion held back for after the hit is wasted. The gate now treats the meteor window itself as a heal window and rolls the potion in it; the preset toggle, item readiness and the no-Rehabilitation check all still apply, and the health slider keeps ruling everywhere else. A behemoth tracker recognises the two floor-180 behemoths by name and watches the boss's cast and health for the meteor threshold, exposing a hold band (while the cast nears the threshold) and the window (the cast itself) to the job modules below.
+- **Ninja: Shade Shift is banked for the Ecliptic Meteor and pressed in the window.** While the behemoth nears its meteor threshold the shield is no longer spent on its own health or incoming-damage triggers; in the window itself it presses even at full health.
+- **Summoner: Radiant Aegis banks and presses around the Ecliptic Meteor.** The overcap rule holds the second charge while the behemoth nears the threshold instead of burning it early; the maintain rule keeps a shield up through the window even above its health slider.
+- **Black Mage: Manaward is banked for the Ecliptic Meteor in solo play.** The own-health trigger is held while the behemoth nears the threshold; the incoming-damage trigger still presses the ward for the cast itself, so the window stays covered.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.310 (2026-10-17)
 
 - NIN: fixed a Kassatsu sync issue.
