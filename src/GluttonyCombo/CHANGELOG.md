@@ -1,3 +1,9 @@
+## v1.0.4.312 (2026-10-19) [testing]
+### Fixed
+- **White Mage and Astrologian: the timed raidwide AoE regen (Medica II/Medica III, Aspected Helios/Helios Conjunction) now casts once per raidwide.** The scheduled cast that follows the raidwide's damage burst is the only one: while that cast is timed up, the earlier auto-detection no longer fires the same heal as well, and a cast that landed before the burst is not followed by the same regen again while its heal-over-time is still active. After the regen expires, the heal is available as before. Scholar and Sage raidwide shields are unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.311 (2026-10-18) [testing]
 ### Changed
 - **Deep Dungeon (Palace of the Dead): the sustaining potion is spent inside a behemoth's Ecliptic Meteor window whatever the health slider says.** The floor-180 meteor takes roughly 80% of maximum health, so a potion held back for after the hit is wasted. The gate now treats the meteor window itself as a heal window and rolls the potion in it; the preset toggle, item readiness and the no-Rehabilitation check all still apply, and the health slider keeps ruling everywhere else. A behemoth tracker recognises the two floor-180 behemoths by name and watches the boss's cast and health for the meteor threshold, exposing a hold band (while the cast nears the threshold) and the window (the cast itself) to the job modules below.
