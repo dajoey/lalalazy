@@ -22,6 +22,7 @@
 
 using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Combos;
 
@@ -129,6 +130,40 @@ internal static class Program
         CheckCanary($"CANARY (expected to FAIL): identical CHAR state, asserting Invoke(FallMalefic) " +
                     $"does NOT return Divination", gotCanary != AST.Divination, $"returned {gotCanary}");
 
+        // ==== RAIDWIDE (2026-10-19 report): the timed AoE HoT heal fires once per raidwide ====
+        // The autorot timed lock (AutoRotationController, not compiled here) arms at raidwide
+        // bar-detect and owns the scheduling; the combo's early RaidwideAspectedHelios feature must
+        // stand down while the lock holds the timing (one cast, completing after the bar), and the
+        // whole Aspected Helios/Helios Conjunction family must stand down while a committed timed
+        // cast's own HoT is live (plain Helios is the substitute).
+
+        SetRaidwideHealState();
+        TimedRegenGate.Arm(TimeSpan.FromSeconds(15));   // the lock scheduled the cast off the live bar
+        uint gotRwArmed = InvokeRaidwideHeal();
+        Check("RAIDWIDE-ARMED: raidwide incoming + timed lock armed (bar in hand): " +
+              $"Invoke(Helios) does NOT return the Aspected HoT ({AST.HeliosConjuction}) — the early " +
+              "combo feature stands down; the lock's post-bar cast is the only one",
+            gotRwArmed is not (AST.AspectedHelios or AST.HeliosConjuction), $"returned {gotRwArmed}");
+
+        SetRaidwideHealState();
+        uint gotRwFree = InvokeRaidwideHeal();
+        Check("RAIDWIDE control: same state, no arm, no committed cast: " +
+              $"Invoke(Helios) returns the Aspected HoT ({AST.HeliosConjuction}) — the raidwide feature still fires",
+            gotRwFree == AST.HeliosConjuction, $"returned {gotRwFree}");
+
+        SetRaidwideHealState(raidwideIncoming: false, partyHP: 40f);
+        TimedRegenGate.MarkCast(TimeSpan.FromSeconds(17));  // an early committed cast; its HoT is live
+        uint gotRwOwned = InvokeRaidwideHeal();
+        Check("RAIDWIDE-OWNED: raidwide resolved + party hurt + a committed cast's HoT live: " +
+              $"Invoke(Helios) returns plain Helios ({AST.Helios}) — the same HoT is not recast while it ticks",
+            gotRwOwned == AST.Helios, $"returned {gotRwOwned}");
+
+        SetRaidwideHealState(raidwideIncoming: false, partyHP: 40f);
+        uint gotRwOwnedFree = InvokeRaidwideHeal();
+        Check("RAIDWIDE control: same hurt party, no committed cast: " +
+              $"Invoke(Helios) returns the Aspected HoT ({AST.HeliosConjuction}) — the HoT heal is available again",
+            gotRwOwnedFree == AST.HeliosConjuction, $"returned {gotRwOwnedFree}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -181,6 +216,39 @@ internal static class Program
     }
 
     private static uint InvokeSt() => new AST.AST_ST_DPS().RunInvoke(AST.FallMalefic);
+
+    /// <summary>
+    ///     The raidwide heal state: AST_AoE_Heals with the Aspected sub-preset on and
+    ///     AST_Raidwide_AspectedHelios on, level 100 (Helios Conjunction via the OriginalHook map),
+    ///     in combat, weave window open, standing still, no Aspected HoT on the player, raidwide
+    ///     detection and party average HP case-set. The TimedRegenGate state starts empty.
+    /// </summary>
+    private static void SetRaidwideHealState(bool raidwideIncoming = true, float partyHP = 100f)
+    {
+        FakeGame.Reset();
+        TimedRegenGate.Reset();
+
+        foreach (var p in new[]
+                 {
+                     Preset.AST_AoE_Heals, Preset.AST_AoE_Heals_Aspected, Preset.AST_Raidwide_AspectedHelios,
+                 })
+            FakeGame.EnabledPresets.Add(p);
+
+        FakeGame.InCombat = true;
+        FakeGame.PartyInCombatFlag = true;
+        FakeGame.InBossEncounter = true;
+        FakeGame.CanWeave = true;
+        FakeGame.IsMovingFlag = false;
+        FakeGame.TimeStoodStillSeconds = 5f;
+        FakeGame.GroupDamageIncoming = raidwideIncoming;
+        FakeGame.PartyAvgHP = partyHP;
+        FakeGame.NumberOfGcdsUsed = 0;
+
+        // level-100 hook: Aspected Helios -> Helios Conjunction
+        FakeGame.HookOverrides[AST.AspectedHelios] = AST.HeliosConjuction;
+    }
+
+    private static uint InvokeRaidwideHeal() => new AST.AST_AoE_Heals().RunInvoke(AST.Helios);
 
     private static void Check(string desc, bool ok, string detail = "")
     {

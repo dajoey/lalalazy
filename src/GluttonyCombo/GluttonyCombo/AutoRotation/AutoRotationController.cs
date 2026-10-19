@@ -1357,6 +1357,7 @@ internal unsafe class AutoRotationController
         bool gates = IsEnabled(Preset.WHM_Raidwide_Medica) &&
                      ActionLearned(WHM.Medica2) &&
                      !RaidwideShieldOnCooldown &&
+                     !TimedRegenGate.LiveFromCast &&
                      GetPartyBuffPercent(hot) <= 50;
 
         // ARM: raidwide bar is up and the gates pass -> schedule the fire time
@@ -1366,6 +1367,10 @@ internal unsafe class AutoRotationController
             float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
             _whmRegenArmed = true;
             _whmRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
+            // This lock owns the raidwide's scheduling: the combo's early RaidwideMedica feature
+            // and the generic AoE-heal priority list stand down while we hold the bar (2026-10-19
+            // report: the same AoE HoT heal went out twice for one raidwide).
+            TimedRegenGate.Arm(TimeSpan.FromSeconds(15));
         }
 
         // Disarm if the bar vanished before the fire time (interrupted / resolved early) or the
@@ -1374,6 +1379,7 @@ internal unsafe class AutoRotationController
             ((rem is null && DateTime.UtcNow < _whmRegenFireAt) || GetPartyBuffPercent(hot) > 50))
         {
             _whmRegenArmed = false;
+            TimedRegenGate.Disarm();
             return false;
         }
 
@@ -1398,6 +1404,10 @@ internal unsafe class AutoRotationController
             _whmSawRegenCast = false;
             _whmRegenPending = false;
             _whmRegenArmed = false;
+            TimedRegenGate.Disarm();
+            // The cast went out: its own HoT now owns this raidwide until it would have ended
+            // (~15s regen, cast already completed by this point).
+            TimedRegenGate.MarkCast(TimeSpan.FromSeconds(15));
             MarkRaidwideShieldUsed();
             return false;
         }
@@ -1449,6 +1459,7 @@ internal unsafe class AutoRotationController
         bool gates = IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
                      ActionLearned(AST.AspectedHelios) &&
                      !RaidwideShieldOnCooldown &&
+                     !TimedRegenGate.LiveFromCast &&
                      partyNeedsIt;
 
         // ARM: raidwide bar is up and the gates pass -> schedule the fire time.
@@ -1457,6 +1468,10 @@ internal unsafe class AutoRotationController
             float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
             _astRegenArmed = true;
             _astRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
+            // This lock owns the raidwide's scheduling: the combo's early RaidwideAspectedHelios
+            // feature and the generic AoE-heal priority list stand down while we hold the bar
+            // (2026-10-19 report: the same AoE HoT heal went out twice for one raidwide).
+            TimedRegenGate.Arm(TimeSpan.FromSeconds(15));
         }
 
         // Disarm if the bar vanished early or the party got covered while we waited.
@@ -1464,6 +1479,7 @@ internal unsafe class AutoRotationController
             ((rem is null && DateTime.UtcNow < _astRegenFireAt) || !partyNeedsIt))
         {
             _astRegenArmed = false;
+            TimedRegenGate.Disarm();
             return false;
         }
 
@@ -1488,6 +1504,10 @@ internal unsafe class AutoRotationController
             _astSawRegenCast = false;
             _astRegenPending = false;
             _astRegenArmed = false;
+            TimedRegenGate.Disarm();
+            // The cast went out: its own HoT now owns this raidwide until it would have ended.
+            // Neutral Sect's Conjunction regen runs ~3s longer than the base Aspected HoT.
+            TimedRegenGate.MarkCast(TimeSpan.FromSeconds(HasStatusEffect(AST.Buffs.NeutralSect) ? 18.0 : 15.0));
             MarkRaidwideShieldUsed();
             return false;
         }
@@ -2361,11 +2381,19 @@ internal unsafe class AutoRotationController
                     if (MovementBlocksCastStart(castTime, orbwalking))
                         return false;
 
+                    // One owner per raidwide (2026-10-19 report): while the timed lock holds the
+                    // scheduling, or a committed timed cast's own HoT is live, this resolved action
+                    // would be the same AoE HoT heal a second time - stand down.
+                    if (TimedRegenGate.Owned && IsTimedRegenAction(outAct))
+                        return false;
+
                     var targetId = player.GameObjectId;
                     var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith);
                     WouldLikeToGroundTarget = ActionSheet.TryGetValue(outAct, out var s) && s.TargetArea;
                     var ret = ActionManager.Instance()->UseAction(ActionType.Action, Service.Configuration.ActionChanging ? gameAct : outAct, targetId);
                     WouldLikeToGroundTarget = false;
+                    if (ret && IsTimedRegenAction(outAct))
+                        TimedRegenGate.MarkCast(TimeSpan.FromSeconds(castTime / 1000f + 15f));
 
                     return true;
                 }
@@ -2696,8 +2724,14 @@ internal unsafe class AutoRotationController
                 var actToSend = Service.Configuration.ActionChanging && !resolvedFriendlyOnly
                     ? gameAct
                     : outAct;
+                // One owner per raidwide (2026-10-19 report): same stand-down as the AoE path -
+                // the timed lock or a committed cast's live HoT owns the AoE HoT heal.
+                if (isHeal && TimedRegenGate.Owned && IsTimedRegenAction(outAct))
+                    return false;
                 var ret = ActionManager.Instance()->UseAction(ActionType.Action, actToSend, targetId);
                 WouldLikeToGroundTarget = false;
+                if (ret && isHeal && IsTimedRegenAction(outAct))
+                    TimedRegenGate.MarkCast(TimeSpan.FromSeconds(castTime / 1000f + 15f));
 
                 if (NIN.MudraSigns.Contains(outAct))
                     _lockedST = true;
@@ -2713,6 +2747,17 @@ internal unsafe class AutoRotationController
         /// <summary> Shared cast gate for ExecuteST, ExecuteAoE and the heal path: a cast cannot start while the character is moving (unless orbwalking). </summary>
         private static bool MovementBlocksCastStart(float castTime, bool orbwalking) =>
             castTime > 0f && TimeMoving.TotalMilliseconds > 0 && !orbwalking;
+
+        /// <summary>True when <paramref name="act"/> resolves to the job's timed raidwide AoE regen
+        ///     (WHM Medica II/III, AST Aspected Helios/Helios Conjunction). The TimedRegenGate uses
+        ///     it to keep one owner per raidwide across the lock, the combo feature and the generic
+        ///     heal paths (2026-10-19 report).</summary>
+        private static bool IsTimedRegenAction(uint act) => Player.Job switch
+        {
+            Job.WHM => Combos.PvE.WHM.IsTimedRegenHot(act),
+            Job.AST => Combos.PvE.AST.IsTimedRegenHot(act),
+            _ => false,
+        };
 
         private static bool SwitchOnDChole(PresetStorage.PresetData attributes, uint outAct, ref IBattleChara? newtarget)
         {

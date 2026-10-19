@@ -637,8 +637,13 @@ internal partial class WHM : Healer
                 var config = GetMatchingConfigAoE(index, healTarget,
                     out var spell, out var enabled);
 
+                // One owner per raidwide (2026-10-19 report): while the autorotation timed lock
+                // holds the scheduling, or a committed timed cast's own HoT is still live, the
+                // Medica II/III family stands down here too - a second caster of the same AoE HoT
+                // heal would double-cast it.
                 if (enabled && GetPartyAvgHPPercent() <= config &&
-                    ActionReady(spell))
+                    ActionReady(spell) &&
+                    !(TimedRegenGate.Owned && IsTimedRegenHot(spell)))
                 {
                     if (IsEnabled(Preset.WHM_AoEHeals_ThinAir) && canThinAir && spell is Cure3 or Medica2 or Medica3)
                         return ThinAir;

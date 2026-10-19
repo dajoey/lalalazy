@@ -24,6 +24,7 @@
 //   dotnet tests\GluttonyCombo.RotationHarness.WHM\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.WHM.dll
 
 using Dalamud.Game.ClientState.JobGauge.Types;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Combos;
 
@@ -132,6 +133,39 @@ internal static class Program
               $"Invoke(Holy3) returns Holy ({WHM.Holy3}) - no Assize, no weave",
             gotWhmOoc == WHM.Holy3, $"returned {gotWhmOoc}");
 
+        // ==== RAIDWIDE (2026-10-19 report): the timed AoE HoT heal fires once per raidwide ====
+        // The autorot timed lock (AutoRotationController, not compiled here) arms at raidwide
+        // bar-detect and owns the scheduling; the combo's early RaidwideMedica feature must stand
+        // down while the lock holds the timing (one cast, completing after the bar), and the whole
+        // Medica II/III family must stand down while a committed timed cast's own HoT is live.
+
+        SetRaidwideHealState();
+        TimedRegenGate.Arm(TimeSpan.FromSeconds(15));   // the lock scheduled the cast off the live bar
+        uint gotRwArmed = InvokeRaidwideHeal();
+        Check("RAIDWIDE-ARMED: raidwide incoming + timed lock armed (bar in hand): " +
+              $"Invoke(Medica1) does NOT return the Medica HoT ({WHM.Medica3}) — the early combo " +
+              "feature stands down; the lock's post-bar cast is the only one",
+            gotRwArmed is not (WHM.Medica2 or WHM.Medica3), $"returned {gotRwArmed}");
+
+        SetRaidwideHealState();
+        uint gotRwFree = InvokeRaidwideHeal();
+        Check("RAIDWIDE control: same state, no arm, no committed cast: " +
+              $"Invoke(Medica1) returns the Medica HoT ({WHM.Medica3}) — the raidwide feature still fires",
+            gotRwFree == WHM.Medica3, $"returned {gotRwFree}");
+
+        SetRaidwideHealState(raidwideIncoming: false, partyHP: 40f);
+        TimedRegenGate.MarkCast(TimeSpan.FromSeconds(17));  // an early committed cast; its HoT is live
+        uint gotRwOwned = InvokeRaidwideHeal();
+        Check("RAIDWIDE-OWNED: raidwide resolved + party hurt + a committed cast's HoT live: " +
+              $"Invoke(Medica1) returns Medica I ({WHM.Medica1}) — the same HoT is not recast while it ticks",
+            gotRwOwned == WHM.Medica1, $"returned {gotRwOwned}");
+
+        SetRaidwideHealState(raidwideIncoming: false, partyHP: 40f);
+        uint gotRwOwnedFree = InvokeRaidwideHeal();
+        Check("RAIDWIDE control: same hurt party, no committed cast: " +
+              $"Invoke(Medica1) returns the Medica HoT ({WHM.Medica3}) — the HoT heal is available again",
+            gotRwOwnedFree == WHM.Medica3, $"returned {gotRwOwnedFree}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -198,6 +232,37 @@ internal static class Program
     private static uint InvokeMain() => new WHM.WHM_ST_MainCombo().RunInvoke(WHM.Stone1);
 
     private static uint InvokeAoe() => new WHM.WHM_AoE_Simple_DPS().RunInvoke(WHM.Holy3);
+
+    /// <summary>
+    ///     The raidwide heal state: WHM_AoEHeals with the Medica II sub-preset on (the timed AoE
+    ///     regen slot) and WHM_Raidwide_Medica on, level 100 (Medica III via the OriginalHook map),
+    ///     in combat, standing still, no Medica HoT on the player, raidwide detection and party
+    ///     average HP case-set. The TimedRegenGate state starts empty.
+    /// </summary>
+    private static void SetRaidwideHealState(bool raidwideIncoming = true, float partyHP = 100f)
+    {
+        FakeGame.Reset();
+        TimedRegenGate.Reset();
+
+        foreach (var p in new[]
+                 {
+                     Preset.WHM_AoEHeals, Preset.WHM_AoEHeals_Medica2, Preset.WHM_Raidwide_Medica,
+                 })
+            FakeGame.EnabledPresets.Add(p);
+
+        FakeGame.InCombat = true;
+        FakeGame.PartyInCombatFlag = true;
+        FakeGame.IsMovingFlag = false;
+        FakeGame.TimeStoodStillSeconds = 5f;
+        FakeGame.GroupDamageIncoming = raidwideIncoming;
+        FakeGame.PartyAvgHP = partyHP;
+        FakeGame.NumberOfGcdsUsed = 0;
+
+        // level-100 hook: Medica II -> Medica III
+        FakeGame.HookOverrides[WHM.Medica2] = WHM.Medica3;
+    }
+
+    private static uint InvokeRaidwideHeal() => new WHM.WHM_AoEHeals().RunInvoke(WHM.Medica1);
 
     /// <summary>
     ///     The AoE damage weave state for the out-of-combat cases: WHM_AoE_Simple_DPS with Assize

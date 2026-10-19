@@ -4,6 +4,7 @@ using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using System.Linq;
 using GluttonyCombo.Core;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
@@ -715,12 +716,15 @@ internal partial class AST : Healer
                 int index = AST_AoE_SimpleHeals_Priority.IndexOf(i + 1);
                 int config = GetMatchingConfigAoE(index, out uint spell, out bool enabled);
 
-                if (enabled && averagePartyHP <= config && ActionReady(spell))
+                if (enabled && averagePartyHP <= config && ActionReady(spell) &&
+                    !(TimedRegenGate.Owned && IsTimedRegenHot(spell)))
                     return spell;
             }
 
+            // One owner per raidwide (2026-10-19 report): while the timed regen's own HoT is live
+            // the fallback is the pure AoE heal (Helios), not another cast of the same HoT.
             return
-                nonAspectedMode ? Helios : OriginalHook(AspectedHelios);
+                nonAspectedMode || TimedRegenGate.Owned ? Helios : OriginalHook(AspectedHelios);
         }
     }
     #endregion

@@ -313,9 +313,19 @@ internal partial class WHM
             return false;
         if (!GroupDamageIncoming(2.5f))
             return false;
+        // One owner per raidwide (2026-10-19 report): while the autorotation timed lock holds the
+        // scheduling, or a committed timed cast's own HoT is still live, this early feature stands
+        // down - the same AoE HoT heal must not go out a second time.
+        if (TimedRegenGate.Owned)
+            return false;
         ushort hot = ActionLearned(Medica3) ? Buffs.Medica3 : Buffs.Medica2;
         return GetPartyBuffPercent(hot) <= 50;
     }
+
+    /// <summary>The timed raidwide AoE regen family of this job (Medica II / Medica III).
+    ///     The TimedRegenGate keeps one owner per raidwide across the autorotation lock, this
+    ///     early feature and the generic AoE-heal priority list (2026-10-19 report).</summary>
+    internal static bool IsTimedRegenHot(uint spell) => spell is Medica2 or Medica3;
 
     #endregion
 

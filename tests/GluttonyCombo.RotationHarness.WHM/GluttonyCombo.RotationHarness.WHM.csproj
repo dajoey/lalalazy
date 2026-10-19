@@ -30,6 +30,8 @@
     <!-- ==== THE CODE UNDER TEST: the real White Mage job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\WHM\WHM.cs" Link="WHM\WHM.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\WHM\WHM_Helper.cs" Link="WHM\WHM_Helper.cs" />
+    <!-- The shared one-owner-per-raidwide timed-regen gate, REAL and unchanged (pure clock state). -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\TimedRegenGate.cs" Link="AutoRotation\TimedRegenGate.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">

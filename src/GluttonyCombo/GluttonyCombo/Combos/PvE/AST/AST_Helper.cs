@@ -122,6 +122,12 @@ internal partial class AST
             !GroupDamageIncoming(1.5f))
             return false;
 
+        // One owner per raidwide (2026-10-19 report): while the autorotation timed lock holds the
+        // scheduling, or a committed timed cast's own HoT is still live, this early feature stands
+        // down - the same AoE HoT heal must not go out a second time.
+        if (TimedRegenGate.Owned)
+            return false;
+
         // Under Neutral Sect, fire for the enhanced shield+regen when the party lacks it.
         if (HasStatusEffect(Buffs.NeutralSect))
             return !HasStatusEffect(Buffs.NeutralSectShield);
@@ -129,6 +135,11 @@ internal partial class AST
         // Otherwise fire as the recovery regen when the party isn't already under the HoT.
         return GetPartyBuffPercent(Buffs.AspectedHelios) <= 50 && GetPartyBuffPercent(Buffs.HeliosConjunction) <= 50;
     }
+
+    /// <summary>The timed raidwide AoE regen family of this job (Aspected Helios / Helios
+    ///     Conjunction). The TimedRegenGate keeps one owner per raidwide across the autorotation
+    ///     lock, this early feature and the generic AoE-heal priority list (2026-10-19 report).</summary>
+    internal static bool IsTimedRegenHot(uint spell) => spell is AspectedHelios or HeliosConjuction;
 
     #endregion
 
