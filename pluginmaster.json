@@ -108,7 +108,7 @@
     "DalamudApiLevel": 15,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.315/GluttonyCombo-testing.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/testing/testing.zip",
     "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.310/GluttonyCombo.zip",
     "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.310/GluttonyCombo.zip",
     "Tags": [
