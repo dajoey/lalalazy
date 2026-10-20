@@ -35,6 +35,20 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
     public bool AttackOutOfCombatWhileControlled =>
         config?.AttackOutOfCombatWhileControlled ?? true;
 
+    /// <summary>
+    ///     Fork (1.0.4.314): the plugin currently driving the auto-rotation state by lease
+    ///     (its name, as the lease registered it), or null when no lease holds the rotation
+    ///     state on. The FATE-grind reflect skip's externally-driven gate reads this.
+    /// </summary>
+    public string? ExternalRotationDriver
+    {
+        get
+        {
+            var controlled = GluttonyCombo.P?.UIHelper.AutoRotationStateControlled();
+            return controlled is { } state && state.state ? state.controllers : null;
+        }
+    }
+
     public DPSRotationMode DPSRotationMode
     {
         get

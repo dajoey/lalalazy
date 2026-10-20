@@ -62,6 +62,38 @@ Case("empty statuses do not stop", Array.Empty<uint>(), true, false);
 Case("null statuses do not stop", null, true, false);
 Case("null statuses do not stop outside the Crucible", null, false, false);
 
+// The FATE-grind reflect skip (tasks-20261020-lazyfate-smn-rotation-stuck-01): while an
+// external controller (Lazy Fate Automation) drives the rotation with FATE priority inside
+// an overworld FATE, spikes on PART of the pack must not freeze the whole rotation - the
+// picker takes the rest of the pack and the full stop never arms. 2026-10-20 18:35-18:38
+// ET: seven 20-26 s frozen=1 windows back to back in one FATE, ~85% of 163 s with zero
+// presses, while attackable non-carrier trash stood in the same pack.
+var fate = new EnemyReflectStop.FateGrindSkipContext(
+    ExternallyDriven: true, FatePriorityTargeting: true, PlayerInFate: true, ForayTerritory: false);
+
+void FateCase(string name, int carrierCount, int candidateCount, EnemyReflectStop.FateGrindSkipContext context, bool expected)
+{
+    total++;
+    var actual = EnemyReflectStop.FateGrindSkipsCarriers(carrierCount, candidateCount, context);
+    var ok = actual == expected;
+    if (!ok) failures++;
+    Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name,-76} => {actual}, expected {expected}");
+}
+
+Console.WriteLine();
+Console.WriteLine("== Group 5: the FATE-grind reflect skip - part of the pack spikes, the grind keeps pressing ==");
+FateCase("one spiked mob of five in a driven FATE skips instead of freezing", 1, 5, fate, true);
+FateCase("four spiked mobs of five in a driven FATE still skip", 4, 5, fate, true);
+
+Console.WriteLine();
+Console.WriteLine("== Group 6: the skip never weakens the full stop ==");
+FateCase("the whole pack spiked still takes the full stop", 5, 5, fate, false);
+FateCase("no spiked mob arms no skip", 0, 5, fate, false);
+FateCase("manual play in a FATE keeps the full stop", 1, 5, fate with { ExternallyDriven = false }, false);
+FateCase("driven play without FATE priority keeps the full stop", 1, 5, fate with { FatePriorityTargeting = false }, false);
+FateCase("driven play outside a FATE keeps the full stop", 1, 5, fate with { PlayerInFate = false }, false);
+FateCase("a foray territory (Eureka) keeps the full stop", 1, 5, fate with { ForayTerritory = true }, false);
+
 Console.WriteLine();
 if (failures == 0)
 {

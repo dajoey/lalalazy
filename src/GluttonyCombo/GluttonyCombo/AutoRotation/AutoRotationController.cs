@@ -904,12 +904,42 @@ internal unsafe class AutoRotationController
         // zero presses, 2026-10-04 20:17-20:22, where the unstopped evenings removed the same stance in
         // under a second). The stance hold already keeps the attacks off the carrier.
         var crucible = Combos.PvE.BST.CrucibleTargetingActive;
-        if (!DPSTargeting.BaseSelection.Any(x =>
-                EnemyReflectStop.StopsRotation(
+
+        List<IBattleChara>? reflectCarriers = null;
+        var candidateCount = 0;
+        foreach (var x in DPSTargeting.BaseSelection)
+        {
+            candidateCount++;
+            if (EnemyReflectStop.StopsRotation(
                     x.SafeStatusList?.Select(s => s.StatusId),
                     StatusCache.PausingStatuses.EnemyReflects,
                     Combos.PvE.BST.CrucibleDispellableStances,
-                    crucible)))
+                    crucible))
+                (reflectCarriers ??= []).Add(x);
+        }
+
+        // Fork (1.0.4.314): the FATE-grind reflect skip. While an external controller (Lazy Fate
+        // Automation) drives the rotation with FATE priority inside an overworld FATE, spikes on
+        // PART of the pack must not freeze the whole rotation: the 2026-10-20 grind stall was seven
+        // 20-26 s frozen=1 windows back to back (~85% of 163 s, zero presses) because one spiked
+        // trash mob kept the stop armed while attackable non-carriers stood in the same pack. When
+        // the decision core says skip, the carriers go to ReflectSkip for the rest of the tick,
+        // BaseSelection hands the picker the rest of the pack, and no self-target/cancel fires.
+        // The full stop keeps everything it ever covered: manual play, foray territories (the
+        // Eureka spikes kill), and a pack that reflects as a whole.
+        var skipContext = new EnemyReflectStop.FateGrindSkipContext(
+            cfg.ExternalRotationDriver is not null,
+            cfg.DPSSettings.FATEPriority,
+            InFATE(),
+            IsForayTerritory(CurrentTerritoryIntendedUse));
+        if (EnemyReflectStop.FateGrindSkipsCarriers(reflectCarriers?.Count ?? 0, candidateCount, skipContext))
+        {
+            ReflectSkipArm(reflectCarriers!);
+            return false;
+        }
+        ReflectSkipDisarm();
+
+        if (reflectCarriers is null)
             return false;
 
         // Stop and target self, mirroring the Pyretic handling but for enemy reflects.
@@ -926,6 +956,46 @@ internal unsafe class AutoRotationController
             UIState.Instance()->Hotbar.CancelCast();
         return true;
     }
+
+    // Fork (1.0.4.314): the FATE-grind reflect skip's per-tick verdict, decided once in
+    // EnemyHasReflectPenalty() (which runs at the top of every auto-rotation tick, before any
+    // targeting) and consumed by DPSTargeting.BaseSelection for the rest of the tick. Not a
+    // stored target list: the ids are matched against live game objects on every consume.
+    private static bool _reflectSkipActive;
+    private static readonly HashSet<ulong> ReflectSkipIds = [];
+
+    /// <summary>Whether this tick's FATE-grind reflect skip is armed (see EnemyHasReflectPenalty).</summary>
+    private static bool ReflectSkipActive => _reflectSkipActive;
+
+    private static void ReflectSkipArm(List<IBattleChara> carriers)
+    {
+        ReflectSkipIds.Clear();
+        foreach (var carrier in carriers)
+            ReflectSkipIds.Add(carrier.GameObjectId);
+        _reflectSkipActive = true;
+    }
+
+    private static void ReflectSkipDisarm()
+    {
+        if (!_reflectSkipActive)
+            return;
+        _reflectSkipActive = false;
+        ReflectSkipIds.Clear();
+    }
+
+    /// <summary>Whether <paramref name="gameObjectId"/> is a reflect carrier this tick's skip set holds.</summary>
+    internal static bool ReflectSkipContains(ulong gameObjectId) =>
+        _reflectSkipActive && ReflectSkipIds.Contains(gameObjectId);
+
+    /// <summary>
+    ///     Fork (1.0.4.314): foray TerritoryIntendedUse values - Eureka 41, Diadem 47, Bozja 48,
+    ///     Cosmic Exploration 60, Occult Crescent 61 (LazyFateAutomation FateZoneLogic, the sheet-
+    ///     derived classification). The spikes there can be lethal (Eureka's Gelid/Static Charge),
+    ///     so the full enemy-reflect stop always applies in a foray; only overworld FATE zones
+    ///     take the skip.
+    /// </summary>
+    private static bool IsForayTerritory(uint intendedUse) =>
+        intendedUse is 41 or 47 or 48 or 60 or 61;
 
     internal static void Run()
     {
@@ -2904,6 +2974,13 @@ internal unsafe class AutoRotationController
                 // Fork: Beastmaster in the Crucible of the Unbroken (no eggs / morphos, stances last, priority adds, paired kills).
                 if (Combos.PvE.BST.CrucibleTargetingActive)
                     validTargets = Combos.PvE.BST.RestrictCrucibleTargets(validTargets);
+
+                // Fork (1.0.4.314): the FATE-grind reflect skip - while an external controller drives
+                // the rotation inside a FATE, this tick's skipped reflect carriers are not picked;
+                // the kill goes to the rest of the pack first. The full stop (manual play, forays,
+                // the whole pack reflecting) never arms the skip.
+                if (ReflectSkipActive)
+                    validTargets = validTargets.Where(x => !ReflectSkipContains(x.GameObjectId)).ToList();
 
                 return validTargets;
             }

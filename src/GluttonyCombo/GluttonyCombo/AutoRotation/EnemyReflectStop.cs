@@ -47,4 +47,34 @@ internal static class EnemyReflectStop
         return statusIds.Any(id => reflects.Contains(id)
             && !(crucibleTargeting && crucibleDispellableStances.Contains(id)));
     }
+
+    /// <summary>
+    ///     Inputs of the FATE-grind reflect skip, decided once per tick by the controller
+    ///     (tasks-20261020-lazyfate-smn-rotation-stuck-01).
+    /// </summary>
+    internal readonly record struct FateGrindSkipContext(
+        bool ExternallyDriven,
+        bool FatePriorityTargeting,
+        bool PlayerInFate,
+        bool ForayTerritory);
+
+    /// <summary>
+    ///     Whether the FATE-grind reflect skip applies this tick: an external controller (Lazy
+    ///     Fate Automation) is driving the rotation, FATE-priority targeting is on, the player
+    ///     stands in a FATE, the territory is not a foray (Eureka and friends keep the lethal
+    ///     full stop), and PART of the priority set carries a reflect - at least one attackable
+    ///     non-carrier remains, so the rotation kills something else instead of freezing
+    ///     (tasks-20261020-lazyfate-smn-rotation-stuck-01). When the whole set reflects the
+    ///     answer is no and the full stop applies as before.
+    /// </summary>
+    /// <param name="carrierCount">How many of the priority-set candidates carry an applicable reflect.</param>
+    /// <param name="candidateCount">How many candidates the priority set holds in total.</param>
+    /// <param name="context">The per-tick gate inputs the controller reads from live state.</param>
+    internal static bool FateGrindSkipsCarriers(int carrierCount, int candidateCount, FateGrindSkipContext context) =>
+        context.ExternallyDriven
+        && context.FatePriorityTargeting
+        && context.PlayerInFate
+        && !context.ForayTerritory
+        && carrierCount > 0
+        && carrierCount < candidateCount;
 }
