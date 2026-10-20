@@ -1,3 +1,9 @@
+## v1.0.4.314 (2026-10-20) [testing]
+### Fixed
+- **The enemy-reflect stop no longer freezes a FATE grind over spikes on part of the pack.** While another plugin drives the rotation with FATE priority inside a FATE, a mob carrying a reflect or counter-stance status (Ice Spikes, Shock Spikes, Blaze Spikes, the Counter stances) no longer stops every press for the status's full duration: the rotation attacks the rest of the pack first and leaves the carrier alone. The full stop keeps everything it covered before - manual play, foray territories (Eureka's charged spikes kill), and a pack where every target reflects - and still targets the player and cancels casts there. Every job the grind drives had the same stall, not only Summoner.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.313 (2026-10-20) [testing]
 ### Changed
 - **Ninja: merged the upstream ninjutsu rework (WrathCombo 95211afb8).** The mudra casts (Fuma Shuriken, Raiton, Katon, Suiton, Huton, Doton, Hyosho Ranryu, Goka Mekkyaku) now track the mudra already pressed as flags and finish the jutsu from that record, replacing the last-action switch; the standalone Fuma Shuriken readiness check is removed, so Fuma is offered whenever the higher jutsu is not yet learned; Hyosho Ranryu and Goka Mekkyaku no longer require Ten to be ready on top of Kassatsu.
