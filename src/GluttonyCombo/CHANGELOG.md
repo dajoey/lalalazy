@@ -1,3 +1,9 @@
+## v1.0.4.313 (2026-10-20) [testing]
+### Changed
+- **Ninja: merged the upstream ninjutsu rework (WrathCombo 95211afb8).** The mudra casts (Fuma Shuriken, Raiton, Katon, Suiton, Huton, Doton, Hyosho Ranryu, Goka Mekkyaku) now track the mudra already pressed as flags and finish the jutsu from that record, replacing the last-action switch; the standalone Fuma Shuriken readiness check is removed, so Fuma is offered whenever the higher jutsu is not yet learned; Hyosho Ranryu and Goka Mekkyaku no longer require Ten to be ready on top of Kassatsu.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.312 (2026-10-19) [testing]
 ### Fixed
 - **White Mage and Astrologian: the timed raidwide AoE regen (Medica II/Medica III, Aspected Helios/Helios Conjunction) now casts once per raidwide.** The scheduled cast that follows the raidwide's damage burst is the only one: while that cast is timed up, the earlier auto-detection no longer fires the same heal as well, and a cast that landed before the burst is not followed by the same regen again while its heal-over-time is still active. After the regen expires, the heal is available as before. Scholar and Sage raidwide shields are unchanged.
