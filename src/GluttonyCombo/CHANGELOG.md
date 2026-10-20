@@ -1,3 +1,9 @@
+## v1.0.4.315 (2026-10-20) [testing]
+### Fixed
+- **The FATE-grind spike skip now stays on.** The first testing build of the part-of-pack spike skip (v1.0.4.314) checked for spiked mobs through its own skip list: with a skip armed, the next check saw the spiked mobs already hidden, believed none were left and switched the skip off, so the spiked mob could be targeted again on alternating ticks. The check now reads the full pack every tick, the skip stays armed while a spiked mob lives, and a pack that decays to only spiked mobs takes the full stop as before.
+### Notes
+- Testing channel only; the production channel is unchanged. Supersedes the v1.0.4.314 testing build. Not verified in play yet.
+
 ## v1.0.4.314 (2026-10-20) [testing]
 ### Fixed
 - **The enemy-reflect stop no longer freezes a FATE grind over spikes on part of the pack.** While another plugin drives the rotation with FATE priority inside a FATE, a mob carrying a reflect or counter-stance status (Ice Spikes, Shock Spikes, Blaze Spikes, the Counter stances) no longer stops every press for the status's full duration: the rotation attacks the rest of the pack first and leaves the carrier alone. The full stop keeps everything it covered before - manual play, foray territories (Eureka's charged spikes kill), and a pack where every target reflects - and still targets the player and cancels casts there. Every job the grind drives had the same stall, not only Summoner.
