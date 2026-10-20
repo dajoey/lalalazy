@@ -907,7 +907,12 @@ internal unsafe class AutoRotationController
 
         List<IBattleChara>? reflectCarriers = null;
         var candidateCount = 0;
-        foreach (var x in DPSTargeting.BaseSelection)
+        // Fork (1.0.4.315): the detector counts the RAW priority pack (BaseSelectionUnfiltered).
+        // Counting the picker's filtered view instead - the 1.0.4.314 defect the risk review
+        // returned - let this tick's armed skip remove the carriers from the detector's own
+        // next-tick input: tick N armed, tick N+1 counted 0 and disarmed, and the same tick's
+        // picker saw the spiked carrier again (press/stop oscillation). Harness Group 7 pins this.
+        foreach (var x in DPSTargeting.BaseSelectionUnfiltered)
         {
             candidateCount++;
             if (EnemyReflectStop.StopsRotation(
@@ -2948,42 +2953,48 @@ internal unsafe class AutoRotationController
             return rc is 0 or 565 && ActionManager.CanUseActionOnTarget(action, enemy.GameObject());
         }
 
-        public static IEnumerable<IBattleChara> BaseSelection
+        public static IEnumerable<IBattleChara> BaseSelection => BaseSelectionCore(applyReflectSkipFilter: true);
+
+        // Fork (1.0.4.315): the same priority pipeline minus this tick's reflect-skip filter - the
+        // detector's view, and the detector's alone. EnemyHasReflectPenalty() must count carriers
+        // over a set the skip's own output cannot shrink (harness Group 7): a filtered count
+        // disarms an armed skip on the next tick and hands the carrier back to the picker.
+        internal static IEnumerable<IBattleChara> BaseSelectionUnfiltered => BaseSelectionCore(applyReflectSkipFilter: false);
+
+        private static IEnumerable<IBattleChara> BaseSelectionCore(bool applyReflectSkipFilter)
         {
-            get
+            var validTargets = ValidTargets();
+
+            if (cfg.DPSSettings.FATEPriority || cfg.DPSSettings.QuestPriority)
             {
-                var validTargets = ValidTargets();
+                bool playerInFate = cfg.DPSSettings.FATEPriority && InFATE();
 
-                if (cfg.DPSSettings.FATEPriority || cfg.DPSSettings.QuestPriority)
-                {
-                    bool playerInFate = cfg.DPSSettings.FATEPriority && InFATE();
+                var priorityMatches = validTargets
+                    .Where(x =>
+                        (playerInFate && x.Struct()->FateId != 0) ||
+                        (cfg.DPSSettings.QuestPriority && IsQuestMob(x)))
+                    .ToList();
 
-                    var priorityMatches = validTargets
-                        .Where(x =>
-                            (playerInFate && x.Struct()->FateId != 0) ||
-                            (cfg.DPSSettings.QuestPriority && IsQuestMob(x)))
-                        .ToList();
-
-                    if (priorityMatches.Count > 0)
-                        validTargets = priorityMatches;
-                }
-
-                if (cfg.DPSSettings.TreasureHuntPriority)
-                    validTargets = RestrictToTreasureHuntKillOrder(validTargets);
-
-                // Fork: Beastmaster in the Crucible of the Unbroken (no eggs / morphos, stances last, priority adds, paired kills).
-                if (Combos.PvE.BST.CrucibleTargetingActive)
-                    validTargets = Combos.PvE.BST.RestrictCrucibleTargets(validTargets);
-
-                // Fork (1.0.4.314): the FATE-grind reflect skip - while an external controller drives
-                // the rotation inside a FATE, this tick's skipped reflect carriers are not picked;
-                // the kill goes to the rest of the pack first. The full stop (manual play, forays,
-                // the whole pack reflecting) never arms the skip.
-                if (ReflectSkipActive)
-                    validTargets = validTargets.Where(x => !ReflectSkipContains(x.GameObjectId)).ToList();
-
-                return validTargets;
+                if (priorityMatches.Count > 0)
+                    validTargets = priorityMatches;
             }
+
+            if (cfg.DPSSettings.TreasureHuntPriority)
+                validTargets = RestrictToTreasureHuntKillOrder(validTargets);
+
+            // Fork: Beastmaster in the Crucible of the Unbroken (no eggs / morphos, stances last, priority adds, paired kills).
+            if (Combos.PvE.BST.CrucibleTargetingActive)
+                validTargets = Combos.PvE.BST.RestrictCrucibleTargets(validTargets);
+
+            // Fork (1.0.4.314): the FATE-grind reflect skip - while an external controller drives
+            // the rotation inside a FATE, this tick's skipped reflect carriers are not picked;
+            // the kill goes to the rest of the pack first. The full stop (manual play, forays,
+            // the whole pack reflecting) never arms the skip. Picker view only: the detector
+            // counts BaseSelectionUnfiltered, never this (1.0.4.315).
+            if (applyReflectSkipFilter && ReflectSkipActive)
+                validTargets = validTargets.Where(x => !ReflectSkipContains(x.GameObjectId)).ToList();
+
+            return validTargets;
         }
 
         private static List<IBattleChara> RestrictToTreasureHuntKillOrder(List<IBattleChara> targets)

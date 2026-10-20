@@ -11,6 +11,9 @@
 //   dotnet build tests\GluttonyCombo.EnemyReflectStopHarness -c Release
 //   dotnet tests\GluttonyCombo.EnemyReflectStopHarness\bin\Release\net10.0\GluttonyCombo.EnemyReflectStopHarness.dll
 //
+// Group 7 models the controller's two-tick skip loop (detector input vs picker view) - see the
+// Group 7 block below for the wiring it pins.
+//
 // Prints PASS/FAIL per case, "OK" and exit 0 when every case passes.
 
 using System.Collections.Frozen;
@@ -93,6 +96,64 @@ FateCase("manual play in a FATE keeps the full stop", 1, 5, fate with { External
 FateCase("driven play without FATE priority keeps the full stop", 1, 5, fate with { FatePriorityTargeting = false }, false);
 FateCase("driven play outside a FATE keeps the full stop", 1, 5, fate with { PlayerInFate = false }, false);
 FateCase("a foray territory (Eureka) keeps the full stop", 1, 5, fate with { ForayTerritory = true }, false);
+
+// Group 7: the wiring loop the controller runs around the core (review finding on 1.0.4.314).
+// The skip verdict must be computed from the RAW priority pack on every tick; the picker's
+// filtered view (this tick's armed carriers removed) sits strictly DOWNSTREAM of the decision.
+// 1.0.4.314's detector enumerated the picker's filtered view instead, so an armed skip removed
+// the carriers from the detector's own input: tick N armed, tick N+1 counted 0 of 4 and
+// disarmed, and the same tick's picker - unfiltered again - saw the spiked carrier: press/
+// stop oscillation with the carrier pickable on every other tick. AutoRotationController's
+// EnemyHasReflectPenalty() is the detector and DPSTargeting.BaseSelection is the picker view;
+// which of the two feeds the detector is the wiring under test here.
+//
+// TwoTickLoop walks two ticks over a fixed world (spiked flags, pack of `total`) and returns
+// the two verdicts plus how many spiked mobs the tick-2 picker could actually pick. The core
+// function called is the one that ships.
+static (bool armed1, bool armed2, int pickerCarriers2) TwoTickLoop(
+    int spiked, int total, bool detectorSeesPickerView, EnemyReflectStop.FateGrindSkipContext ctx)
+{
+    var world = Enumerable.Range(0, total).Select(i => i < spiked).ToList();
+    var armed1 = EnemyReflectStop.FateGrindSkipsCarriers(world.Count(s => s), world.Count, ctx);
+    // the picker's view once tick 1's verdict applied: while armed the carriers are not pickable
+    var pickerAfterTick1 = armed1 ? world.Where(s => !s).ToList() : world;
+    // the detector's tick-2 input: the raw pack (fixed wiring) or the picker's view (1.0.4.314)
+    var detectorView2 = detectorSeesPickerView ? pickerAfterTick1 : world;
+    var armed2 = EnemyReflectStop.FateGrindSkipsCarriers(detectorView2.Count(s => s), detectorView2.Count, ctx);
+    var picker2 = armed2 ? world.Where(s => !s).ToList() : world;
+    return (armed1, armed2, picker2.Count(s => s));
+}
+
+void LoopCase(string name, int spiked, int packSize, bool detectorSeesPickerView,
+    (bool armed1, bool armed2, int pickerCarriers2) expected)
+{
+    total++;
+    var actual = TwoTickLoop(spiked, packSize, detectorSeesPickerView, fate);
+    var ok = actual == expected;
+    if (!ok) failures++;
+    Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name,-76} => {actual}, expected {expected}");
+}
+
+Console.WriteLine();
+Console.WriteLine("== Group 7: the detector counts the raw pack, never the picker's filtered view ==");
+// The contract the wiring must satisfy: armed stays armed while the carrier lives and the
+// tick-2 picker never sees a carrier. This is the case that FAILED against the 1.0.4.314
+// wiring (detector fed the filtered view: armed2 false, the carrier back in the picker).
+LoopCase("fixed wiring: an armed skip stays armed and the picker never sees the carrier", 1, 5,
+    detectorSeesPickerView: false, expected: (armed1: true, armed2: true, pickerCarriers2: 0));
+// The reproduced defect, kept as documentation: feeding the detector the picker's filtered
+// view oscillates - the core cannot save a caller that filters its own input.
+LoopCase("1.0.4.314 wiring reproduced: the filtered input disarms tick 2 and the carrier returns", 1, 5,
+    detectorSeesPickerView: true, expected: (armed1: true, armed2: false, pickerCarriers2: 1));
+// Decay while armed, raw wiring: every non-carrier dies -> the raw count is 1 of 1 -> no skip.
+// False here is the FULL STOP (the world still carries a spike; the controller's stop covers
+// the carrier: self-target, no presses), never an unarmed picker staring at the carrier.
+LoopCase("decay to a spiked-only pack takes the full stop, not an unarmed picker", 1, 1,
+    detectorSeesPickerView: false, expected: (armed1: false, armed2: false, pickerCarriers2: 1));
+// Carrier dies while armed, raw wiring: the raw count is 0 of 4 -> clean disarm, the rest of
+// the pack resumes with nothing skipped.
+LoopCase("a dead carrier disarms cleanly and the rest of the pack resumes", 0, 4,
+    detectorSeesPickerView: false, expected: (armed1: false, armed2: false, pickerCarriers2: 0));
 
 Console.WriteLine();
 if (failures == 0)

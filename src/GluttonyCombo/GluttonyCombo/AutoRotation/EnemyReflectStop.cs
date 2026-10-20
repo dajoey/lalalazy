@@ -70,6 +70,13 @@ internal static class EnemyReflectStop
     /// <param name="carrierCount">How many of the priority-set candidates carry an applicable reflect.</param>
     /// <param name="candidateCount">How many candidates the priority set holds in total.</param>
     /// <param name="context">The per-tick gate inputs the controller reads from live state.</param>
+    /// <remarks>
+    ///     Caller contract (1.0.4.315 review rework): both counts MUST come from the raw priority
+    ///     set, never from a view this skip's own filter has already narrowed - an armed skip
+    ///     removing the carriers from the detector's input disarms the skip on the next tick and
+    ///     hands the carriers back to the picker (the 1.0.4.314 press/stop oscillation; harness
+    ///     Group 7 pins the loop).
+    /// </remarks>
     internal static bool FateGrindSkipsCarriers(int carrierCount, int candidateCount, FateGrindSkipContext context) =>
         context.ExternallyDriven
         && context.FatePriorityTargeting
