@@ -640,15 +640,6 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to After movement stops, wait this many seconds before the auto-rotation begins a spell that has a cast bar. At 0 a spell begins the instant movement stops, so dodging means riding every cast bar out to its slide-cast window. A short window keeps a brief stop from gluing a fresh cast bar onto you while you move out of danger; instants, orbwalker-driven movement and slide-casting at the tail of a cast are unaffected, and once the window has passed the rotation casts exactly as before..
-        /// </summary>
-        internal static string HelpText_CastStartStillness {
-            get {
-                return ResourceManager.GetString("HelpText_CastStartStillness", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to You typically want to set this lower than the above setting..
         /// </summary>
         internal static string HelpText_SingleTargetExcogHPP {
@@ -763,15 +754,6 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         internal static string Input_QueueWindow {
             get {
                 return ResourceManager.GetString("Input_QueueWindow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Cast-Start Stillness (s).
-        /// </summary>
-        internal static string Input_CastStartStillness {
-            get {
-                return ResourceManager.GetString("Input_CastStartStillness", resourceCulture);
             }
         }
         

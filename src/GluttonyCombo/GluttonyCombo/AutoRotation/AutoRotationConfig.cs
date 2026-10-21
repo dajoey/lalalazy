@@ -35,18 +35,6 @@ public class AutoRotationConfig
     public int Throttler = 50;
     public bool OrbwalkerIntegration;
     public float QueueWindow = 0.3f;
-
-    /// <summary>
-    ///     Fork (1.0.4.316): seconds the player must have been stationary before
-    ///     the auto-rotation may begin a spell with a cast time. 0 (default)
-    ///     keeps the shipped behavior - a spell starts the instant movement
-    ///     stops, so dodging means riding every cast bar out to its slide-cast
-    ///     window. Raised, a brief stop never glues a fresh cast onto the
-    ///     player: movement out of danger always wins, instants and
-    ///     orbwalker-driven movement are unaffected, and once the window has
-    ///     passed the rotation casts and slide-casting works exactly as before.
-    /// </summary>
-    public float CastStartStillness;
     public bool PauseWhenNoTarget;
 }
 

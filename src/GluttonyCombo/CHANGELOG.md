@@ -1,9 +1,3 @@
-## v1.0.4.316 (2026-10-21) [testing]
-### Added
-- **Auto-Rotation: "Cast-Start Stillness" (0-3 s, default 0).** While the auto-rotation drives a job, a spell with a cast bar now waits this many seconds after movement stops before it may begin. At the default 0 nothing changes: a spell begins the instant movement stops, which meant every dodge out of danger meant standing in a fresh cast bar until its slide-cast window. With a window set, a brief stop no longer glues a cast onto the player - moving out of danger always wins. Instants, orbwalker-driven movement and slide-casting at the tail of a cast are unchanged, and once the window has passed the rotation casts exactly as before. The setting sits next to Queue Window on the Auto-Rotation tab.
-### Notes
-- Testing channel only; the production channel is unchanged. Not verified in play yet.
-
 ## v1.0.4.315 (2026-10-20) [testing]
 ### Fixed
 - **The FATE-grind spike skip now stays on.** The first testing build of the part-of-pack spike skip (v1.0.4.314) checked for spiked mobs through its own skip list: with a skip armed, the next check saw the spiked mobs already hidden, believed none were left and switched the skip off, so the spiked mob could be targeted again on alternating ticks. The check now reads the full pack every tick, the skip stays armed while a spiked mob lives, and a pack that decays to only spiked mobs takes the full stop as before.

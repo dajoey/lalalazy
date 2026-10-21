@@ -101,15 +101,6 @@ internal class AutoRotationTab : ConfigWindow
         if (cfg.QueueWindow < 0)
             cfg.QueueWindow = 0;
 
-        ImGuiEx.SetNextItemWidthScaled(100);
-        changed |= ImGuiEx.SliderFloat(AutoRotationUI.Input_CastStartStillness, ref cfg.CastStartStillness, 0f, 3f, $"{cfg.CastStartStillness:N1}");
-        cfg.CastStartStillness = (float)Math.Round(cfg.CastStartStillness, 1);
-        ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_CastStartStillness);
-        if (cfg.CastStartStillness > 3f)
-            cfg.CastStartStillness = 3f;
-        if (cfg.CastStartStillness < 0)
-            cfg.CastStartStillness = 0;
-
         changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
             "Pause Actions from Combos When No Target Selected", ref cfg.PauseWhenNoTarget);
 

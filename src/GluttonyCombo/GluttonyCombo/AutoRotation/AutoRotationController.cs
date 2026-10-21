@@ -2821,7 +2821,7 @@ internal unsafe class AutoRotationController
 
         /// <summary> Shared cast gate for ExecuteST, ExecuteAoE and the heal path: a cast cannot start while the character is moving (unless orbwalking). </summary>
         private static bool MovementBlocksCastStart(float castTime, bool orbwalking) =>
-            CastStartGate.Blocks(castTime, orbwalking, TimeMoving, TimeStoodStill, cfg?.CastStartStillness ?? 0f);
+            castTime > 0f && TimeMoving.TotalMilliseconds > 0 && !orbwalking;
 
         /// <summary>True when <paramref name="act"/> resolves to the job's timed raidwide AoE regen
         ///     (WHM Medica II/III, AST Aspected Helios/Helios Conjunction). The TimedRegenGate uses
