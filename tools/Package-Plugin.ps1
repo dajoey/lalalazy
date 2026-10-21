@@ -574,6 +574,34 @@ function Invoke-GitRaw([string[]]$GitArgs) {
     return @{ Code = $code; Lines = @($out); Text = ($out -join "`n") }
 }
 
+function Get-ReleasePushFailureMessage {
+    # A failed push must report its real cause: only a rejection naming non-fast-forward /
+    # fetch-first gets the rebase recovery text; anything else (credentials, network)
+    # quotes git's actual output, so the operator never re-runs an identical failing
+    # command on a wrong diagnosis (2026-10-20: a no-credentials push was misreported as
+    # origin/main having moved ahead).
+    param($Push, [Parameter(Mandatory)][string]$PluginName, [Parameter(Mandatory)][string]$Channel)
+    $pushText = ($Push.Lines -join "`n")
+    if ($pushText -match '\[rejected\]|non-fast-forward|fetch first') {
+        return @"
+Push of the release commit to origin/main was rejected - origin/main moved ahead (another
+release landed while this one was packaged), so this push is not a fast-forward:
+$pushText
+Nothing was published to GitHub and the feed on origin is untouched. Recover inside this
+worktree:  git fetch origin ; git rebase origin/main
+(keep BOTH releases' pluginmaster.json changes when resolving; a textual merge usually
+succeeds), then re-run with -PluginName $PluginName -Channel $Channel -Republish.
+"@
+    }
+    return @"
+Push of the release commit to origin/main failed - git's own output:
+$pushText
+Nothing was published to GitHub and the feed on origin is untouched. The cause is what git
+reports above (on this host usually: no GitHub credentials available for the push, or the
+remote was unreachable) - fix that cause, then re-run with -PluginName $PluginName -Channel $Channel -Republish.
+"@
+}
+
 $repoCheck = Invoke-GitRaw @('rev-parse', '--is-inside-work-tree')
 if ($repoCheck.Code -ne 0) { throw "$RepoRoot is not a git work tree; the release-commit step (fix 2026-10-04) requires one." }
 
@@ -615,16 +643,7 @@ if ($dirtyLines.Count -gt 0) {
 # Push the release commit; the release's tag will name exactly this SHA (step 6 publish).
 $push = Invoke-GitRaw @('push', 'origin', 'HEAD:main')
 if ($push.Code -ne 0) {
-    $pushText = $push.Text
-    throw @"
-Push of the release commit to origin/main was rejected - origin/main moved ahead (another
-release landed while this one was packaged), so this push is not a fast-forward:
-$pushText
-Nothing was published to GitHub and the feed on origin is untouched. Recover inside this
-worktree:  git fetch origin ; git rebase origin/main
-(keep BOTH releases' pluginmaster.json changes when resolving; a textual merge usually
-succeeds), then re-run with -PluginName $PluginName -Channel $Channel -Republish.
-"@
+    throw (Get-ReleasePushFailureMessage -Push $push -PluginName $PluginName -Channel $Channel)
 }
 $pushedSha = [string](Invoke-GitChecked @('rev-parse', 'HEAD') | Select-Object -First 1)
 $remoteMain = [string]((Invoke-GitChecked @('ls-remote', 'origin', 'refs/heads/main')) -split "`t" | Select-Object -First 1)

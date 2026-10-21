@@ -68,7 +68,12 @@ function Get-ReleaseGitHubToken {
     # GITHUB_TOKEN from the environment wins; otherwise fetch /infra/GITHUB_TOKEN from
     # Infisical with this host's read-only agent identity (wiki APIs/Infisical).
     if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
-    $idFile = Join-Path $env:USERPROFILE '.credentials\infisical-agents.env'
+    $homeDir = $env:USERPROFILE
+    if (-not $homeDir) { $homeDir = $env:HOME }  # Linux pwsh sets HOME, never USERPROFILE
+    # Nested Join-Path so the separator is per-platform: a literal '.credentials\...' would
+    # be one broken filename on Linux (2026-10-20: null USERPROFILE threw null-Path here and
+    # the release publish degraded to the raw download link).
+    $idFile = Join-Path (Join-Path $homeDir '.credentials') 'infisical-agents.env'
     if (-not (Test-Path $idFile)) { throw "No GITHUB_TOKEN in the environment and no Infisical identity at $idFile." }
     $cfg = @{}
     foreach ($line in [System.IO.File]::ReadAllLines($idFile)) {
