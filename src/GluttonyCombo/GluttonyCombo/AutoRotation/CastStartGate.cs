@@ -36,9 +36,26 @@ internal static class CastStartGate
     /// </summary>
     internal static bool Blocks(float castTime, bool orbwalking, TimeSpan timeMoving, TimeSpan timeStill, float stillnessSeconds)
     {
-        // Stub (commit 1): the shipped 1.0.4.315 semantics. The stillness window
-        // is accepted but not applied yet - the harness's new-behavior cases fail
-        // on exactly this until the next commit applies it.
-        return castTime > 0f && timeMoving > TimeSpan.Zero && !orbwalking;
+        // Instants are never held: they never root the player, so there is
+        // nothing for the gate to protect.
+        if (castTime <= 0f)
+            return false;
+
+        // The orbwalker integration owns movement and the slide-cast window
+        // itself; holding spells here would only fight it (shipped behavior).
+        if (orbwalking)
+            return false;
+
+        // Movement always wins: while the player is moving no spell with a cast
+        // bar begins (shipped behavior).
+        if (timeMoving > TimeSpan.Zero)
+            return true;
+
+        // The stillness window: after movement stops, hold the spell until the
+        // player has been stationary long enough that a fresh cast bar cannot
+        // glue onto a dodge. 0 (the default) means no hold - the shipped
+        // behavior where the spell begins the instant movement stops. The clamp
+        // keeps a negative value from becoming a permanent hold.
+        return timeStill < TimeSpan.FromSeconds(Math.Max(0f, stillnessSeconds));
     }
 }

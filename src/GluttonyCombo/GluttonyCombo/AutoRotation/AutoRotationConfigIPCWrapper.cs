@@ -124,6 +124,12 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
 
     public float QueueWindow => config.QueueWindow;
 
+    /// <summary>
+    ///     Fork (1.0.4.316): the cast-start stillness window, in seconds. See
+    ///     <see cref="AutoRotationConfig.CastStartStillness"/>.
+    /// </summary>
+    public float CastStartStillness => config.CastStartStillness;
+
     public bool PauseWhenNoTarget => config.PauseWhenNoTarget;
 
     #endregion
