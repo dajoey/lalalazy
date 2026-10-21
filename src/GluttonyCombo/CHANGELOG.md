@@ -1,3 +1,9 @@
+## v1.0.4.317 (2026-10-21) [testing]
+### Removed
+- **The Cast-Start Stillness setting is removed, together with the v1.0.4.316 testing build it shipped in.** That build held a fresh cast bar for a moment after movement stopped to keep the bar from being glued onto a dodge, but casting into a stop is normal cast mechanics, not a stuck slide-cast, so the hold answered a problem the game does not have. Cast-start movement behaviour is again exactly the v1.0.4.315 behaviour: moving always blocks a new cast start, instant casts and orbwalker-driven movement never block, and a stopped player casts immediately. The v1.0.4.315 FATE-grind spike skip is untouched. A settings file that still carries the old key loads unchanged; the key is ignored and disappears at the next save.
+### Notes
+- Testing channel only; the production channel is unchanged. Supersedes the v1.0.4.316 testing build, which is withdrawn. Not verified in play yet.
+
 ## v1.0.4.315 (2026-10-20) [testing]
 ### Fixed
 - **The FATE-grind spike skip now stays on.** The first testing build of the part-of-pack spike skip (v1.0.4.314) checked for spiked mobs through its own skip list: with a skip armed, the next check saw the spiked mobs already hidden, believed none were left and switched the skip off, so the spiked mob could be targeted again on alternating ticks. The check now reads the full pack every tick, the skip stays armed while a spiked mob lives, and a pack that decays to only spiked mobs takes the full stop as before.
