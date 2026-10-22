@@ -1,5 +1,10 @@
 # Changelog - PvP Solver
 
+## v0.1.2.4 (2026-10-22) [testing]
+### Changed
+- **All 21 PvP rotations declare the upstream "Reborn" rotation type** (RotationSolverReborn 79f60d87c), upstream's tag for rotations written for the pre-Evercold job kits. Metadata only; rotations load and behave as before.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.3 (2026-10-18) [testing]
 ### Changed
 - **All 21 PvP rotations declare game version 7.57**, and their source-code metadata points to the current rotation paths.
