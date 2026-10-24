@@ -38,14 +38,14 @@ internal static class Program
         Check("shipped assembly exists on disk", File.Exists(dll), dll);
 
         // ---- life 1: load, verdicts, arm in-flight state ----
-        var life1 = new PluginLoadContext();
-        var (gate1, guard1) = (ResolveGate(life1, dll, "CleanseGate"), ResolveGate(life1, dll, "CleanseFrameGuard"));
+        PluginLoadContext? life1 = new();
+        Assembly? asm1 = life1.LoadFromAssemblyPath(dll);        var (gate1, guard1) = (ResolveType(asm1, "CleanseGate"), ResolveType(asm1, "CleanseFrameGuard"));
         Check("life 1: CleanseGate type resolves from the shipped assembly", gate1 is not null);
         Check("life 1: CleanseFrameGuard type resolves from the shipped assembly", guard1 is not null);
 
         var t0 = DateTime.UtcNow;
         var sev = (int)gate1!.GetMethod("SeverityOf", [typeof(uint)]!)!.Invoke(null, [18u])!;
-        Check("life 1: SeverityOf(Poison 18) = Moderate (the captured debuff's verdict works)", sev == 2, $"got {sev}");
+        Check("life 1: SeverityOf(Poison 18) = Moderate (the captured debuff's verdict works)", sev == (int)CleanseSeverityRef.Moderate, $"got {sev}");
 
         gate1.GetMethod("NoteSent", [typeof(ulong), typeof(DateTime)])!.Invoke(null, [7ul, t0]);
         var inflight1 = (bool)gate1.GetMethod("IsInFlight", [typeof(ulong), typeof(DateTime)])!.Invoke(null, [7ul, t0.AddSeconds(1)])!;
@@ -56,22 +56,22 @@ internal static class Program
         Check("life 1: the guard init fence refuses a scan right after load", !entered1);
 
         // ---- the swap: drop every reference, collect, unload ----
-        gate1 = null; guard1 = null; // no managed handle roots the context
+        var asm1Weak = new WeakReference(asm1);
+        gate1 = null; guard1 = null; asm1 = null; // no managed handle roots the context
         var unloadSw = System.Diagnostics.Stopwatch.StartNew();
-        life1.Unload();
+        life1!.Unload();
+        life1 = null;
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
         GC.WaitForPendingFinalizers();
-        var collected = true;
-        try { life1.EnsureUnloaded(); }
-        catch (InvalidOperationException) { collected = false; } // rooted somewhere; the reload still proves the swap
+        var collected = !asm1Weak.IsAlive;
         unloadSw.Stop();
         Check($"life 1: load context unloaded (collected: {collected}, {unloadSw.Elapsed.TotalMilliseconds:F0}ms)", unloadSw.Elapsed.TotalSeconds < 20, "unload took too long");
 
         // ---- life 2: reload (the hot-reload analogue), verdicts again, state must be fresh ----
-        var life2 = new PluginLoadContext();
-        var (gate2, guard2) = (ResolveGate(life2, dll, "CleanseGate"), ResolveGate(life2, dll, "CleanseFrameGuard"));
+        PluginLoadContext? life2 = new();
+        Assembly? asm2 = life2.LoadFromAssemblyPath(dll);        var (gate2, guard2) = (ResolveType(asm2, "CleanseGate"), ResolveType(asm2, "CleanseFrameGuard"));
         Check("life 2: CleanseGate type resolves from the reloaded assembly", gate2 is not null);
         Check("life 2: CleanseFrameGuard type resolves from the reloaded assembly", guard2 is not null);
 
@@ -79,7 +79,7 @@ internal static class Program
         Check("life 2: the in-flight window is FRESH - life 1's NoteSent did not survive the swap", !inflight2);
 
         var sev2 = (int)gate2.GetMethod("SeverityOf", [typeof(uint)]!)!.Invoke(null, [14u])!;
-        Check("life 2: SeverityOf(Heavy 14) = High after the swap", sev2 == 1, $"got {sev2}");
+        Check("life 2: SeverityOf(Heavy 14) = High after the swap", sev2 == (int)CleanseSeverityRef.High, $"got {sev2}");
 
         var tReload = t0.AddSeconds(InitOffsetSeconds + 1);
         var entered2 = (bool)guard2!.GetMethod("EnterTick", [typeof(DateTime)])!.Invoke(null, [tReload])!;
@@ -88,7 +88,8 @@ internal static class Program
         var overruns2 = (int)guard2.GetMethod("get_OverrunCount", Type.EmptyTypes)!.Invoke(null, [])!;
         Check("life 2: after the init fence the scan enters and overrun state is fresh", entered2b && overruns2 == 0, $"entered={entered2b} overruns={overruns2}");
 
-        life2.Unload();
+        life2!.Unload();
+        life2 = null;
         GC.Collect();
         GC.WaitForPendingFinalizers();
 
@@ -106,8 +107,16 @@ internal static class Program
     private const double InitOffsetSeconds = 11.0;
     private const double InitFenceBufferSeconds = 20.0;
 
-    private static Type? ResolveGate(PluginLoadContext alc, string dll, string typeName) =>
-        alc.LoadFromAssemblyPath(dll).GetType($"GluttonyCombo.AutoRotation.{typeName}", throwOnError: false);
+    /// <summary>Enum-member names of the plugin's CleanseSeverity, for readable assertions only.</summary>
+    private enum CleanseSeverityRef
+    {
+        Trivial = 0,
+        Moderate = 1,
+        High = 2,
+    }
+
+    private static Type? ResolveType(Assembly asm, string typeName) =>
+        asm.GetType($"GluttonyCombo.AutoRotation.{typeName}", throwOnError: false);
 
     /// <summary>A collectible context for the plugin assembly; other assemblies resolve from the default context.</summary>
     private sealed class PluginLoadContext : AssemblyLoadContext
