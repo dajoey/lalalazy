@@ -1,3 +1,9 @@
+## v1.0.4.320 (2026-10-24) [testing]
+### Fixed
+- **The v1.0.4.318 automatic-cleanse change is back, now fenced so the cleanse scan can never hang or spin a frame.** Same cleanse behaviour as before the withdrawal: dispellable debuffs are graded by worth (movement- and action-locking debuffs cleanse first, damage-over-time debuffs cleanse while the healer can spare the cast, damage-taken amplifiers and resist downs never take one, doom always, the dead never), hostile objects can no longer resolve as cleanse candidates anywhere, and one debuff can never consume two casts. New in this build, the cleanse scan runs behind a frame guard: it pauses right after a plugin reload and right after any territory change (the two windows the withdrawn build ran into trouble in), can never re-enter itself, and if a single scan ever costs more than a frame the plugin logs the managed call stack at the slow point and stands the scan down for two seconds instead of repeating next tick.
+### Notes
+- Testing channel only; the production channel is unchanged. Supersedes the v1.0.4.319 withdrawal build. Not verified in play yet.
+
 ## v1.0.4.319 (2026-10-24) [testing]
 ### Removed
 - **The v1.0.4.318 automatic-cleanse change is withdrawn; cleanse behaviour is again exactly the v1.0.4.317 behaviour.** The change graded dispellable debuffs by worth, required friendly targets along the Esuna retargeting chain and held a second cleanse back while a first was still resolving, but a full game freeze was reported with the build present, the main thread spinning inside the plugin's own managed code, and the exact looping path could not be established from the captured evidence. The whole change comes out rather than leave a suspected hazard on the heal path: the retargeting chain, the worth checks and the double-cast window of v1.0.4.317 are restored as they were.
