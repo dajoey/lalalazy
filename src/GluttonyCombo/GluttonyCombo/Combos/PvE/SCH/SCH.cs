@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImPlot;
+using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
@@ -142,13 +143,24 @@ internal partial class SCH : Healer
             if (EndAetherpact)
                 return DissolveUnion;
             
-            bool cleansableTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
-                healTarget.HasCleansableDebuff;
+            IGameObject? cleanseTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
+                : healTarget.HasCleansableDebuff ? healTarget
+                : null;
             
             if (ActionReady(Role.Esuna) && GetTargetHPPercent(healTarget) >= 40 &&
-                cleansableTarget)
+                cleanseTarget is { } cleansed &&
+                CleanseGate.MayCleanse(
+                    cleansed.GameObjectId,
+                    cleansed.DispellableStatusIds(),
+                    cleansed.HasCleansableDoom,
+                    GetTargetHPPercent(cleansed),
+                    PlayerHealthPercentageHp(),
+                    DateTime.Now))
+            {
+                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
                 return Role.Esuna.RetargetIfEnabled(actionID);
+            }
             
             if (ActionReady(Aetherflow) && !HasAetherflow &&
                 InCombat())
@@ -465,15 +477,27 @@ internal partial class SCH : Healer
 
             #region Priority Cleansing
             
-            bool cleansableTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
-                healTarget.HasCleansableDebuff;
+            IGameObject? cleanseTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
+                : healTarget.HasCleansableDebuff ? healTarget
+                : null;
 
             if (IsEnabled(Preset.SCH_ST_Heal_Esuna) &&
-                ActionReady(Role.Esuna) && cleansableTarget &&
-                GetTargetHPPercent(healTarget, SCH_ST_Heal_IncludeShields) >= SCH_ST_Heal_EsunaOption)
+                ActionReady(Role.Esuna) &&
+                cleanseTarget is { } cleansed &&
+                GetTargetHPPercent(healTarget, SCH_ST_Heal_IncludeShields) >= SCH_ST_Heal_EsunaOption &&
+                CleanseGate.MayCleanse(
+                    cleansed.GameObjectId,
+                    cleansed.DispellableStatusIds(),
+                    cleansed.HasCleansableDoom,
+                    GetTargetHPPercent(cleansed),
+                    PlayerHealthPercentageHp(),
+                    DateTime.Now))
+            {
+                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
                 return Role.Esuna
                     .RetargetIfEnabled(actionID);
+            }
 
             #endregion
 
