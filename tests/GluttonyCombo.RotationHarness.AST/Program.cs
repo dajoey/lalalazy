@@ -257,6 +257,60 @@ internal static class Program
             !CleanseGate.IsInFlight(7, sentAt.AddSeconds(CleanseGate.InFlightWindowSeconds + 0.5)) &&
             !CleanseGate.IsInFlight(8, sentAt), "window verdict wrong");
 
+        // ---- CLEANSE-GUARD (2026-10-24 return round): the frame-boundary fences that let the
+        // cleanse change come back. The captured freeze hit inside the plugin's own managed code
+        // +4 s after a territory change, minutes after a mid-session reload, in a live state the
+        // fake game boundary cannot reproduce by construction; these pin the guard behaviour that
+        // fences exactly those windows. Reset() is the reload analogue everywhere below.
+        var gSw = System.Diagnostics.Stopwatch.StartNew();
+        SetFrozenScenarioState([18u]); // Poison: the captured decision shape
+        _ = InvokeHeal();
+        gSw.Stop();
+        Check("CLEANSE-GUARD: the frozen-scenario cleanse decision completes within the frame budget",
+            gSw.Elapsed.TotalMilliseconds <= CleanseFrameGuard.FrameBudgetMs, $"took {gSw.Elapsed.TotalMilliseconds:F1}ms");
+
+        CleanseFrameGuard.Reset();
+        var gT0 = DateTime.UtcNow;
+        Check("CLEANSE-GUARD: the first tick after a (re)load arms the init fence - no scan in the swap window",
+            !CleanseFrameGuard.EnterTick(gT0), "scan entered during the init fence");
+        Check("CLEANSE-GUARD: the scan releases after the init fence",
+            CleanseFrameGuard.EnterTick(gT0.AddSeconds(CleanseFrameGuard.InitFenceSeconds + 1)), "scan still fenced");
+        Check("CLEANSE-GUARD: a running scan can never be re-entered",
+            !CleanseFrameGuard.EnterTick(gT0.AddSeconds(CleanseFrameGuard.InitFenceSeconds + 2)), "nested scan entered");
+        CleanseFrameGuard.ExitTick();
+
+        CleanseFrameGuard.Reset();
+        CleanseFrameGuard.EnterTick(gT0); // load: init fence armed
+        CleanseFrameGuard.ExitTick();
+        var gLive = gT0.AddSeconds(CleanseFrameGuard.InitFenceSeconds + 1);
+        CleanseFrameGuard.NoteTerritoryChanged(135, gLive); // housing district, as captured
+        Check("CLEANSE-GUARD: the captured freeze window (+4 s after a territory change) stays fenced",
+            !CleanseFrameGuard.EnterTick(gLive.AddSeconds(4)), "scan entered the transition fence");
+        Check("CLEANSE-GUARD: the scan releases after the transition fence",
+            CleanseFrameGuard.EnterTick(gLive.AddSeconds(CleanseFrameGuard.TransitionFenceSeconds + 1)), "scan still fenced after transition");
+        CleanseFrameGuard.ExitTick();
+
+        CleanseFrameGuard.Reset();
+        Check("CLEANSE-GUARD: a scan over the frame budget is an overrun, one under it is not",
+            CleanseFrameGuard.IsOverBudget(CleanseFrameGuard.FrameBudgetMs + 1) &&
+            !CleanseFrameGuard.IsOverBudget(CleanseFrameGuard.FrameBudgetMs - 1), "budget verdict wrong");
+
+        CleanseFrameGuard.Reset();
+        CleanseFrameGuard.EnterTick(gT0); // load: init fence armed
+        CleanseFrameGuard.ExitTick();
+        var gRun = gT0.AddSeconds(CleanseFrameGuard.InitFenceSeconds + 1);
+        CleanseFrameGuard.NoteOverrun(CleanseFrameGuard.FrameBudgetMs + 10, gRun);
+        Check("CLEANSE-GUARD: an overrun stands the scan down for the cooldown, then it returns",
+            !CleanseFrameGuard.EnterTick(gRun.AddSeconds(1)) &&
+            CleanseFrameGuard.EnterTick(gRun.AddSeconds(CleanseFrameGuard.OverrunCooldownSeconds + 1)), "overrun stand-down wrong");
+        CleanseFrameGuard.ExitTick();
+
+        // Reload analogue: the whole guard state dies with the assembly and comes back fenced.
+        CleanseFrameGuard.Reset();
+        Check("CLEANSE-GUARD: after a reset (the reload analogue) the scan is fenced again from the first tick",
+            !CleanseFrameGuard.EnterTick(gT0) && CleanseFrameGuard.OverrunCount == 0, "reload analogue state leaked");
+        CleanseFrameGuard.Reset();
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");

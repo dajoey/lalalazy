@@ -369,6 +369,7 @@ internal unsafe class AutoRotationController
             {
                 _intendedUse = (uint)ExcelTerritoryHelper.GetTerritoryIntendedUse(territory);
                 _intendedUseTerritory = territory;
+                CleanseFrameGuard.NoteTerritoryChanged(territory, DateTime.UtcNow);
             }
 
             return _intendedUse;
@@ -2059,29 +2060,59 @@ internal unsafe class AutoRotationController
 
     private static void CleanseParty()
     {
-        if (Player.Object is not { } || !EzThrottler.Throttle("CleanseThrottle", 50)) return;
-
-        uint cleanseSpell = Player.Job is Job.BLU ? BLU.Exuviation : RoleActions.Healer.Esuna;
-        if (Player.Job is Job.BLU && !IsSpellActive(BLU.Exuviation))
-            return;
-
-        if (SimpleTarget.Stack.AllyToEsuna is IBattleChara memberBC)
+        // The frame guard fences the captured hazard windows (just after a reload, just after a
+        // territory change), keeps the scan non-reentrant, and stands it down after any overrun.
+        var nowUtc = DateTime.UtcNow;
+        if (!CleanseFrameGuard.EnterTick(nowUtc)) return;
+        try
         {
-            var res = ActionManager.GetActionInRangeOrLoS(cleanseSpell, Player.GameObject, memberBC.GameObject());
-            if (res is 0 or 565 &&
-                CleanseGate.MayCleanse(
-                    memberBC.GameObjectId,
-                    memberBC.DispellableStatusIds(),
-                    memberBC.HasCleansableDoom,
-                    memberBC.CurrentHp * 100f / Math.Max(1u, memberBC.MaxHp),
-                    Player.Object.CurrentHp * 100f / Math.Max(1u, Player.Object.MaxHp),
-                    DateTime.Now))
+            if (Player.Object is not { } || !EzThrottler.Throttle("CleanseThrottle", 50)) return;
+
+            uint cleanseSpell = Player.Job is Job.BLU ? BLU.Exuviation : RoleActions.Healer.Esuna;
+            if (Player.Job is Job.BLU && !IsSpellActive(BLU.Exuviation))
+                return;
+
+            var scan = System.Diagnostics.Stopwatch.StartNew();
+            if (SimpleTarget.Stack.AllyToEsuna is IBattleChara memberBC)
             {
-                Svc.Log.Debug($"Cleansing {memberBC.Name}");
-                ActionManager.Instance()->UseAction(ActionType.Action, cleanseSpell.Retarget(memberBC), memberBC.GameObjectId);
-                CleanseGate.NoteSent(memberBC.GameObjectId, DateTime.Now);
+                if (scan.Elapsed.TotalMilliseconds > CleanseFrameGuard.FrameBudgetMs)
+                {
+                    WarnCleanseOverrun(scan.Elapsed.TotalMilliseconds, "target-stack resolve", nowUtc);
+                    return;
+                }
+
+                var res = ActionManager.GetActionInRangeOrLoS(cleanseSpell, Player.GameObject, memberBC.GameObject());
+                if (res is 0 or 565 &&
+                    CleanseGate.MayCleanse(
+                        memberBC.GameObjectId,
+                        memberBC.DispellableStatusIds(),
+                        memberBC.HasCleansableDoom,
+                        memberBC.CurrentHp * 100f / Math.Max(1u, memberBC.MaxHp),
+                        Player.Object.CurrentHp * 100f / Math.Max(1u, Player.Object.MaxHp),
+                        DateTime.Now))
+                {
+                    Svc.Log.Debug($"Cleansing {memberBC.Name}");
+                    ActionManager.Instance()->UseAction(ActionType.Action, cleanseSpell.Retarget(memberBC), memberBC.GameObjectId);
+                    CleanseGate.NoteSent(memberBC.GameObjectId, DateTime.Now);
+                }
             }
+
+            if (scan.Elapsed.TotalMilliseconds > CleanseFrameGuard.FrameBudgetMs)
+                WarnCleanseOverrun(scan.Elapsed.TotalMilliseconds, "cleanse verdict", nowUtc);
         }
+        finally
+        {
+            CleanseFrameGuard.ExitTick();
+        }
+    }
+
+    // The managed stack in this warning is the evidence the 2026-10-24 captures could not give:
+    // if a cleanse scan ever costs a frame again, the log names the stage and the stack it was in,
+    // and the scan stands down instead of repeating next tick.
+    private static void WarnCleanseOverrun(double elapsedMs, string stage, DateTime nowUtc)
+    {
+        CleanseFrameGuard.NoteOverrun(elapsedMs, nowUtc);
+        Svc.Log.Warning($"Cleanse scan overrun: {stage} took {elapsedMs:F1}ms (budget {CleanseFrameGuard.FrameBudgetMs:F0}ms); standing down {CleanseFrameGuard.OverrunCooldownSeconds:F0}s\n{Environment.StackTrace}");
     }
 
     // Note: Not entirely sure what to do when the Kardia standalone retargeting is on since it doesn't follow this ruleset so this will be untouched for now but

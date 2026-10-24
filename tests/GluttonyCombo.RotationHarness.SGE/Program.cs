@@ -340,6 +340,24 @@ internal static class Program
               "Invoke(heal) does NOT return Esuna",
             gotTrivial != 7568, $"returned {gotTrivial}");
 
+        // CLEANSE-GUARD (2026-10-24 return round): the frame fences around the cleanse scan, compact.
+        // The captured freeze hit +4 s after a territory change, minutes after a mid-session reload;
+        // the guard fences both windows, never re-enters a running scan, and stands down on overrun.
+        CleanseFrameGuard.Reset();
+        var gT0 = DateTime.UtcNow;
+        CleanseFrameGuard.EnterTick(gT0); // load: init fence armed
+        CleanseFrameGuard.ExitTick();
+        var gLive = gT0.AddSeconds(CleanseFrameGuard.InitFenceSeconds + 1);
+        CleanseFrameGuard.NoteTerritoryChanged(135, gLive);
+        Check("CLEANSE-GUARD: transition fence refuses the captured +4 s window and releases after; " +
+              "a running scan refuses re-entry; over budget is an overrun",
+            !CleanseFrameGuard.EnterTick(gLive.AddSeconds(4)) &&
+            CleanseFrameGuard.EnterTick(gLive.AddSeconds(CleanseFrameGuard.TransitionFenceSeconds + 1)) &&
+            !CleanseFrameGuard.EnterTick(gLive.AddSeconds(CleanseFrameGuard.TransitionFenceSeconds + 2)) &&
+            CleanseFrameGuard.IsOverBudget(CleanseFrameGuard.FrameBudgetMs + 1), "guard verdict wrong");
+        CleanseFrameGuard.ExitTick();
+        CleanseFrameGuard.Reset();
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");

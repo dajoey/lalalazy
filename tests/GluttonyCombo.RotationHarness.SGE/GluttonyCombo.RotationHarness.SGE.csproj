@@ -35,6 +35,7 @@
          to the exact OutOfCombatGate.MayDetectIncomingDamage that ships. -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\OutOfCombatGate.cs" Link="OutOfCombatGate.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseFrameGuard.cs" Link="AutoRotation\CleanseFrameGuard.cs" />
     <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
 
   </ItemGroup>

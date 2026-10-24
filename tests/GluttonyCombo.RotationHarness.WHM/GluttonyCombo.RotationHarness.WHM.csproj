@@ -33,6 +33,7 @@
     <!-- The shared one-owner-per-raidwide timed-regen gate, REAL and unchanged (pure clock state). -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\TimedRegenGate.cs" Link="AutoRotation\TimedRegenGate.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseFrameGuard.cs" Link="AutoRotation\CleanseFrameGuard.cs" />
     <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
 
   </ItemGroup>

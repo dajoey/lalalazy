@@ -31,6 +31,7 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH.cs" Link="SCH\SCH.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH_Helper.cs" Link="SCH\SCH_Helper.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseFrameGuard.cs" Link="AutoRotation\CleanseFrameGuard.cs" />
     <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
 
   </ItemGroup>
