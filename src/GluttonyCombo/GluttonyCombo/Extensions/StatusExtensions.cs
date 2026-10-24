@@ -137,6 +137,27 @@ namespace GluttonyCombo.Extensions
             public bool HasRaiseStatus => chara.HasStatusInCacheList(RaiseStatuses);
             public bool HasCleansableDebuff => chara.HasStatusInCacheList(DispellableStatuses);
             public bool HasCleansableDoom => chara.HasStatusInCacheList(CleansableDoomStatuses);
+
+            /// <summary>
+            ///     The dispellable statuses (the CanDispel rows of the Status sheet) currently on
+            ///     this character, for the cleanse worth gate. Empty when none or unknown.
+            /// </summary>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public uint[] DispellableStatusIds()
+            {
+                var statuses = chara?.SafeStatusList;
+                if (statuses is null)
+                    return [];
+
+                List<uint>? ids = null;
+                foreach (var s in statuses)
+                {
+                    if (DispellableStatuses.Contains(s.StatusId))
+                        (ids ??= []).Add(s.StatusId);
+                }
+
+                return ids is null ? [] : [.. ids];
+            }
             public bool HasBeneficialStatus => chara.HasStatusInCacheList(BeneficialStatuses);
             public bool HasPhantomDispelStatus => chara.HasDamageUp || chara.HasEvasionUp || chara.HasStatus(OCDarkDefensesStatusId) || chara.IsInvincible;
 
@@ -304,6 +325,7 @@ namespace GluttonyCombo.Extensions
             public bool HasRaiseStatus => (obj as IBattleChara).HasRaiseStatus;
             public bool HasCleansableDebuff => (obj as IBattleChara).HasCleansableDebuff;
             public bool HasCleansableDoom => (obj as IBattleChara).HasCleansableDoom;
+            public uint[] DispellableStatusIds() => (obj as IBattleChara).DispellableStatusIds();
             public bool HasBeneficialStatus => (obj as IBattleChara).HasBeneficialStatus;
             public bool HasPhantomDispelStatus => (obj as IBattleChara).HasPhantomDispelStatus;
             public bool IsInvincible => (obj as IBattleChara).IsInvincible;

@@ -42,6 +42,14 @@ internal static class FakeGame
     public static bool OccultDualcast = false;
     public static float PartyAvgHP = 100f;
 
+    // Cleanse-gate knobs (Esuna worth/in-flight cases, 2026-10-24 FATE report).
+    public static bool RetargetingOn = false;
+    public static Dalamud.Game.ClientState.Objects.Types.IGameObject? CleanseTarget;
+    public static uint[] CleanseTargetStatusIds = [];
+    public static bool CleanseTargetDoom = false;
+    public static float PlayerHPPercent = 100f;
+    public static float CleanseTargetHpPct = 100f;
+
     // ---- combo / cooldowns / weave bookkeeping ----
     public static float ComboTimer = 0f;
     public static uint ComboActionId = 0;
@@ -140,6 +148,12 @@ internal static class FakeGame
         OccultInstantCast = false;
         OccultDualcast = false;
         PartyAvgHP = 100f;
+        RetargetingOn = false;
+        CleanseTarget = null;
+        CleanseTargetStatusIds = [];
+        CleanseTargetDoom = false;
+        PlayerHPPercent = 100f;
+        CleanseTargetHpPct = 100f;
         ComboTimer = 0f;
         ComboActionId = 0;
         CountdownActive = false;

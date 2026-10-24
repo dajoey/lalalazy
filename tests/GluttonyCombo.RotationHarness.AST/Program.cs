@@ -164,6 +164,79 @@ internal static class Program
               $"Invoke(Helios) returns the Aspected HoT ({AST.HeliosConjuction}) — the HoT heal is available again",
             gotRwOwnedFree == AST.HeliosConjuction, $"returned {gotRwOwnedFree}");
 
+        // ==== CLEANSE (2026-10-24 FATE report): Esuna only when the debuff is worth the cast, and once ====
+        // Recorded scenario (CT 2026-10-24 13:29:56.507): solo FATE grind, the heal combo chose
+        // Esuna (7568) 21 times in 3 minutes; every decision saw the mob's own Combust III
+        // (status 1881), and the WHM twin-cast it at 0% HP on 10-20. Nothing gated severity,
+        // danger, or a cast already in flight. The candidate here is the party member (the
+        // friendliness fix lives in the stack/retarget code, outside this harness); the worth
+        // decision under test is the shared CleanseGate the branch must consult.
+
+        SetCleanseState([18u]); // Poison: moderate DoT, healer healthy at the recorded 69.8%
+        uint gotCleanse = InvokeHeal();
+        Check("CLEANSE control: party member carries Poison (moderate) + healer at 69.8%: " +
+              $"Invoke(Benefic II) returns Esuna (7568)",
+            gotCleanse == 7568, $"returned {gotCleanse}");
+
+        SetCleanseState([64u]); // Vulnerability Up: falls off on its own, never worth the GCD
+        uint gotTrivial = InvokeHeal();
+        Check("CLEANSE-TRIVIAL: party member carries only Vulnerability Up (trivial): " +
+              $"Invoke(Benefic II) does NOT return Esuna — attacking continues",
+            gotTrivial != 7568, $"returned {gotTrivial}");
+
+        SetCleanseState([18u]);
+        CleanseGate.NoteSent(FakeCleanseAlly.Instance.GameObjectId, DateTime.Now); // the first cast is in flight
+        uint gotInFlight = InvokeHeal();
+        Check("CLEANSE-INFLIGHT: the same debuff already has a cleanse resolving (status list still lags): " +
+              $"Invoke(Benefic II) does NOT return Esuna again — one debuff, one cast",
+            gotInFlight != 7568, $"returned {gotInFlight}");
+
+        SetCleanseState([18u], playerHp: 20f);
+        uint gotHealFirst = InvokeHeal();
+        Check("CLEANSE-HEALFIRST: Poison (moderate) + healer at 20% HP (danger): " +
+              $"Invoke(Benefic II) does NOT return Esuna — heal first",
+            gotHealFirst != 7568, $"returned {gotHealFirst}");
+
+        SetCleanseState([14u]); // Heavy: movement lock, healthy healer
+        uint gotHeavy = InvokeHeal();
+        Check("CLEANSE control: party member Heavied (movement lock) + healer at 69.8%: " +
+              $"Invoke(Benefic II) returns Esuna — cleansing it IS the dodge",
+            gotHeavy == 7568, $"returned {gotHeavy}");
+
+        SetCleanseState([14u], playerHp: 20f);
+        uint gotHeavyDanger = InvokeHeal();
+        Check("CLEANSE-HEAVY-DANGER: Heavy + healer at 20% HP (danger): " +
+              $"Invoke(Benefic II) does NOT return Esuna — heal first even for a movement lock",
+            gotHeavyDanger != 7568, $"returned {gotHeavyDanger}");
+
+        SetCleanseState([64u], playerHp: 10f, doom: true);
+        uint gotDoom = InvokeHeal();
+        Check("CLEANSE-DOOM: cleansable doom + healer at 10% HP: " +
+              $"Invoke(Benefic II) returns Esuna — doom kills outright, always worth the cast",
+            gotDoom == 7568, $"returned {gotDoom}");
+
+        // Gate units: the severity table and the in-flight window, direct.
+        SetCleanseState([]);
+        Check("CLEANSE-GATE: SeverityOf table pins (14 Heavy=High, 64 Vuln Up=Trivial, 18 Poison=Moderate, unlisted=Moderate)",
+            CleanseGate.SeverityOf(14) == CleanseSeverity.High &&
+            CleanseGate.SeverityOf(64) == CleanseSeverity.Trivial &&
+            CleanseGate.SeverityOf(18) == CleanseSeverity.Moderate &&
+            CleanseGate.SeverityOf(999999) == CleanseSeverity.Moderate,
+            $"got {CleanseGate.SeverityOf(14)}/{CleanseGate.SeverityOf(64)}/{CleanseGate.SeverityOf(18)}/{CleanseGate.SeverityOf(999999)}");
+
+        Check("CLEANSE-GATE: nothing dispellable on the candidate -> never cast",
+            !CleanseGate.MayCleanse(1, [], false, 100f, 100f, DateTime.Now), "returned true");
+
+        Check("CLEANSE-GATE: dead candidate -> never cast",
+            !CleanseGate.MayCleanse(1, [18u], false, 0f, 100f, DateTime.Now), "returned true");
+
+        var sentAt = DateTime.Now;
+        CleanseGate.NoteSent(7, sentAt);
+        Check("CLEANSE-GATE: in-flight window suppresses the same target, expires after it",
+            CleanseGate.IsInFlight(7, sentAt.AddSeconds(CleanseGate.InFlightWindowSeconds - 0.5)) &&
+            !CleanseGate.IsInFlight(7, sentAt.AddSeconds(CleanseGate.InFlightWindowSeconds + 0.5)) &&
+            !CleanseGate.IsInFlight(8, sentAt), "window verdict wrong");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -216,6 +289,25 @@ internal static class Program
     }
 
     private static uint InvokeSt() => new AST.AST_ST_DPS().RunInvoke(AST.FallMalefic);
+
+    /// <summary>The cleanse-case state: ST heal combo + its Esuna sub-preset, retargeting on,
+    /// a party member carrying the given dispellable statuses, healer HP case-set.</summary>
+    private static void SetCleanseState(uint[] statusIds, float playerHp = 69.8f, bool doom = false)
+    {
+        FakeGame.Reset();
+        TimedRegenGate.Reset();
+        CleanseGate.Reset();
+
+        FakeGame.EnabledPresets.Add(Preset.AST_ST_Heals);
+        FakeGame.EnabledPresets.Add(Preset.AST_ST_Heals_Esuna);
+        FakeGame.RetargetingOn = true;
+        FakeGame.CleanseTarget = FakeCleanseAlly.Instance;
+        FakeGame.CleanseTargetStatusIds = statusIds;
+        FakeGame.CleanseTargetDoom = doom;
+        FakeGame.PlayerHPPercent = playerHp;
+    }
+
+    private static uint InvokeHeal() => new AST.AST_ST_Heals().RunInvoke(AST.Benefic2);
 
     /// <summary>
     ///     The raidwide heal state: AST_AoE_Heals with the Aspected sub-preset on and
