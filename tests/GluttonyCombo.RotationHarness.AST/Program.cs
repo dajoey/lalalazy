@@ -214,6 +214,26 @@ internal static class Program
         Check("CLEANSE-DOOM: cleansable doom + healer at 10% HP: " +
               $"Invoke(Benefic II) returns Esuna — doom kills outright, always worth the cast",
             gotDoom == 7568, $"returned {gotDoom}");
+        // ---- FROZEN-SCN (2026-10-24 freeze): the captured scenario's decision shape ----
+        // Solo AST (no party), out of combat in a housing territory after leaving PvP, retargeting
+        // on and the only possible cleanse candidate resolving (in the live game the stack falls
+        // through to AnyCleansableAlly onto the player themself). The stack/retargeting and
+        // status-list surfaces are harness fakes with fixed answers, so the live hang cannot
+        // reproduce in this harness by construction (and the changed diff holds no unbounded loop);
+        // these cases pin the branch decision that ran at freeze time and must keep completing.
+        SetFrozenScenarioState([18u]); // Poison: moderate DoT, the healer full HP
+        uint gotFrozen = InvokeHeal();
+        Check("FROZEN-SCN control: solo + out of combat + retarget on + the only candidate carries " +
+              $"Poison (moderate): Invoke(Benefic II) returns Esuna (7568) - the captured decision " +
+              "completes and cleanses",
+            gotFrozen == 7568, $"returned {gotFrozen}");
+
+        SetFrozenScenarioState([]);    // nothing dispellable anywhere: the stack scan comes up empty
+        uint gotFrozenEmpty = InvokeHeal();
+        Check("FROZEN-SCN paired: same solo out-of-combat state, nothing dispellable: " +
+              $"Invoke(Benefic II) does NOT return Esuna",
+            gotFrozenEmpty != 7568, $"returned {gotFrozenEmpty}");
+
 
         // Gate units: the severity table and the in-flight window, direct.
         SetCleanseState([]);
@@ -305,6 +325,17 @@ internal static class Program
         FakeGame.CleanseTargetStatusIds = statusIds;
         FakeGame.CleanseTargetDoom = doom;
         FakeGame.PlayerHPPercent = playerHp;
+    }
+
+    
+    /// <summary>The freeze-scenario state: the CLEANSE case state, but solo and out of combat
+    /// (housing territory after leaving PvP); the candidate is the only possible cleanse target.</summary>
+    private static void SetFrozenScenarioState(uint[] statusIds)
+    {
+        SetCleanseState(statusIds, playerHp: 100f);
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        FakeGame.IsInPartyFlag = false;
     }
 
     private static uint InvokeHeal() => new AST.AST_ST_Heals().RunInvoke(AST.Benefic2);
