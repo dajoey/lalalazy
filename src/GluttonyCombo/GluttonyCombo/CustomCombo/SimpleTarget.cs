@@ -117,7 +117,7 @@ internal static class SimpleTarget
         /// </summary>
         public static IGameObject? AllyToEsuna =>
             GetStack(logicForEachEntryInStack:
-                target => target.IfFriendly().IfHasCleansable()) ??
+                target => target.IfHasCleansable()) ??
             AnyCleansableAlly;
 
         /// <summary>

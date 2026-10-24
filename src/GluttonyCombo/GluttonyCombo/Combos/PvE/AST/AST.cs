@@ -1,4 +1,3 @@
-using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons;
 using ECommons.DalamudServices;
@@ -505,26 +504,14 @@ internal partial class AST : Healer
                 return OriginalHook(AstralDraw);
 
             IGameObject? healTarget = SimpleTarget.Stack.OneButtonHealLogic;
-
-            IGameObject? cleanseTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
-                : healTarget.HasCleansableDebuff ? healTarget
-                : null;
+            bool cleansableTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
+                healTarget.HasCleansableDebuff;
 
             if (ActionReady(Role.Esuna) &&
                 GetTargetHPPercent(healTarget) >= 40 &&
-                cleanseTarget is { } cleansed &&
-                CleanseGate.MayCleanse(
-                    cleansed.GameObjectId,
-                    cleansed.DispellableStatusIds(),
-                    cleansed.HasCleansableDoom,
-                    GetTargetHPPercent(cleansed),
-                    PlayerHealthPercentageHp(),
-                    DateTime.Now))
-            {
-                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
+                cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
-            }
 
             if (Role.CanLucidDream(6500))
                 return Role.LucidDreaming;
@@ -649,26 +636,15 @@ internal partial class AST : Healer
 
             IGameObject? healTarget = SimpleTarget.Stack.OneButtonHealLogic;
 
-            IGameObject? cleanseTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
-                : healTarget.HasCleansableDebuff ? healTarget
-                : null;
+            bool cleansableTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
+                healTarget.HasCleansableDebuff;
 
             if (IsEnabled(Preset.AST_ST_Heals_Esuna) &&
                 ActionReady(Role.Esuna) &&
                 GetTargetHPPercent(healTarget, AST_ST_SimpleHeals_IncludeShields) >= AST_ST_SimpleHeals_Esuna &&
-                cleanseTarget is { } cleansed &&
-                CleanseGate.MayCleanse(
-                    cleansed.GameObjectId,
-                    cleansed.DispellableStatusIds(),
-                    cleansed.HasCleansableDoom,
-                    GetTargetHPPercent(cleansed),
-                    PlayerHealthPercentageHp(),
-                    DateTime.Now))
-            {
-                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
+                cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
-            }
 
             if (IsEnabled(Preset.AST_ST_Heals_Lucid) &&
                 Role.CanLucidDream(AST_ST_Heals_LucidDreaming))

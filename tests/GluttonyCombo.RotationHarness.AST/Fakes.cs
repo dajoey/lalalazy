@@ -154,10 +154,10 @@ namespace GluttonyCombo.Combos.PvE
         }
     }
 
-    /// <summary>FAKE of Combos/PvE/ALL/HealRetargeting.cs: retargeting follows the FakeGame knob, ids pass through.</summary>
+    /// <summary>FAKE of Combos/PvE/ALL/HealRetargeting.cs: retargeting off, ids pass through.</summary>
     public static class HealRetargeting
     {
-        internal static bool RetargetSettingOn => GluttonyCombo.RotationHarness.FakeGame.RetargetingOn;
+        internal static bool RetargetSettingOn => false;
 
         public static uint RetargetIfEnabled(this uint actionID) => actionID;
 
@@ -352,8 +352,6 @@ namespace GluttonyCombo.CustomComboNS.Functions
         public static float GetTargetHPPercent(IGameObject? optionalTarget = null, bool includeShield = false, bool forceUsePending = false) =>
             GluttonyCombo.RotationHarness.FakeGame.TargetHPPercent;
 
-        public static float PlayerHealthPercentageHp() => GluttonyCombo.RotationHarness.FakeGame.PlayerHPPercent;
-
         public static bool InMeleeRange() => GluttonyCombo.RotationHarness.FakeGame.InMeleeRange;
 
         public static bool InActionRange(uint actionID) =>
@@ -502,7 +500,7 @@ namespace GluttonyCombo.CustomComboNS
 
             public static IGameObject? OneButtonHealLogic => null;
 
-            public static IGameObject? AllyToEsuna => GluttonyCombo.RotationHarness.FakeGame.CleanseTarget;
+            public static IGameObject? AllyToEsuna => null;
 
             public static IGameObject? AllyToRaise => null;
 
@@ -614,10 +612,6 @@ namespace GluttonyCombo.Extensions
             public CombatRole Role => CombatRole.NonCombat;
 
             public bool HasCleansableDebuff => false;
-
-            public bool HasCleansableDoom => GluttonyCombo.RotationHarness.FakeGame.CleanseTargetDoom;
-
-            public uint[] DispellableStatusIds() => GluttonyCombo.RotationHarness.FakeGame.CleanseTargetStatusIds;
 
             public bool HasDamageDown => false;
 

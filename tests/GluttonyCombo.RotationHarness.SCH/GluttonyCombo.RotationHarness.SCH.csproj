@@ -30,9 +30,6 @@
     <!-- ==== THE CODE UNDER TEST: the real Scholar job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH.cs" Link="SCH\SCH.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH_Helper.cs" Link="SCH\SCH_Helper.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
-    <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
-
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">

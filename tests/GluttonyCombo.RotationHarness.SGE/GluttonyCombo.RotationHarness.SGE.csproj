@@ -34,9 +34,6 @@
     <!-- The real pure out-of-combat gate: the GroupDamageIncoming fake delegates its combat rule
          to the exact OutOfCombatGate.MayDetectIncomingDamage that ships. -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\OutOfCombatGate.cs" Link="OutOfCombatGate.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
-    <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
-
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">

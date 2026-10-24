@@ -40,14 +40,6 @@ internal static class FakeGame
     public static bool OccultInstantCast = false;
     public static bool OccultDualcast = false;
     public static float PartyAvgHP = 100f;
-
-    // Cleanse-gate knobs (Esuna worth/in-flight cases, 2026-10-24 FATE report).
-    public static bool RetargetingOn = false;
-    public static Dalamud.Game.ClientState.Objects.Types.IGameObject? CleanseTarget;
-    public static uint[] CleanseTargetStatusIds = [];
-    public static bool CleanseTargetDoom = false;
-    public static float PlayerHPPercent = 100f;
-    public static float CleanseTargetHpPct = 100f;
     public static int AlliesInRange = 0;                 // NumberOfAlliesInRange fake
     public static uint PlayerMp = 10000;                 // FakePlayer.CurrentMp backing
     public static bool InConfiguredContent = false;      // ContentCheck.IsInConfiguredContent fake
@@ -146,12 +138,6 @@ internal static class FakeGame
         OccultInstantCast = false;
         OccultDualcast = false;
         PartyAvgHP = 100f;
-        RetargetingOn = false;
-        CleanseTarget = null;
-        CleanseTargetStatusIds = [];
-        CleanseTargetDoom = false;
-        PlayerHPPercent = 100f;
-        CleanseTargetHpPct = 100f;
         AlliesInRange = 0;
         PlayerMp = 10000;
         InConfiguredContent = false;

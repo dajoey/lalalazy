@@ -33,9 +33,6 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\AST\AST.cs" Link="AST\AST.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\AST\AST_Helper.cs" Link="AST\AST_Helper.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\TimedRegenGate.cs" Link="AutoRotation\TimedRegenGate.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
-    <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
-
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">

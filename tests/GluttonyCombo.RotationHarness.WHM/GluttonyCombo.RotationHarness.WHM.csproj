@@ -32,9 +32,6 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\WHM\WHM_Helper.cs" Link="WHM\WHM_Helper.cs" />
     <!-- The shared one-owner-per-raidwide timed-regen gate, REAL and unchanged (pure clock state). -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\TimedRegenGate.cs" Link="AutoRotation\TimedRegenGate.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\CleanseGate.cs" Link="AutoRotation\CleanseGate.cs" />
-    <Compile Include="..\HarnessShared\FakeCleanseAlly.cs" Link="FakeCleanseAlly.cs" />
-
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">

@@ -175,10 +175,10 @@ internal partial class All
             if (actionID is not RoleActions.Healer.Esuna)
                 return actionID;
 
-            IGameObject? target = SimpleTarget.UIMouseOverTarget.IfFriendly().IfHasCleansable() ??
-                                  SimpleTarget.ModelMouseOverTarget.IfFriendly().IfHasCleansable() ??
-                                  SimpleTarget.HardTarget.IfFriendly().IfHasCleansable() ??
-                                  GetPartyMembers().FirstOrDefault(x => x.BattleChara.IfFriendly().IfHasCleansable() != null)?.BattleChara;
+            IGameObject? target = SimpleTarget.UIMouseOverTarget.IfHasCleansable() ??
+                                  SimpleTarget.ModelMouseOverTarget.IfHasCleansable() ??
+                                  SimpleTarget.HardTarget.IfHasCleansable() ??
+                                  GetPartyMembers().FirstOrDefault(x => x.BattleChara.IfHasCleansable() != null)?.BattleChara;
 
             return RoleActions.Healer.Esuna.Retarget(target);
         }

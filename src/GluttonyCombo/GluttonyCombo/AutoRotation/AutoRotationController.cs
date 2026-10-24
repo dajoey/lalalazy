@@ -2068,18 +2068,10 @@ internal unsafe class AutoRotationController
         if (SimpleTarget.Stack.AllyToEsuna is IBattleChara memberBC)
         {
             var res = ActionManager.GetActionInRangeOrLoS(cleanseSpell, Player.GameObject, memberBC.GameObject());
-            if (res is 0 or 565 &&
-                CleanseGate.MayCleanse(
-                    memberBC.GameObjectId,
-                    memberBC.DispellableStatusIds(),
-                    memberBC.HasCleansableDoom,
-                    memberBC.CurrentHp * 100f / Math.Max(1u, memberBC.MaxHp),
-                    Player.Object.CurrentHp * 100f / Math.Max(1u, Player.Object.MaxHp),
-                    DateTime.Now))
+            if (res is 0 or 565)
             {
                 Svc.Log.Debug($"Cleansing {memberBC.Name}");
                 ActionManager.Instance()->UseAction(ActionType.Action, cleanseSpell.Retarget(memberBC), memberBC.GameObjectId);
-                CleanseGate.NoteSent(memberBC.GameObjectId, DateTime.Now);
             }
         }
     }

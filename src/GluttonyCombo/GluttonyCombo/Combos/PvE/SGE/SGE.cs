@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameFunctions;
@@ -281,10 +280,9 @@ internal partial class SGE : Healer
 
             var healTarget = SimpleTarget.Stack.OneButtonHealLogic;
 
-            IGameObject? cleanseTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
-                : healTarget.HasCleansableDebuff ? healTarget
-                : null;
+            bool cleansableTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
+                healTarget.HasCleansableDebuff;
 
             if (ActionLearned(Kardia) &&
                 !LocalPlayer.HasStatus(Buffs.Kardia))
@@ -295,18 +293,8 @@ internal partial class SGE : Healer
 
             if (ActionReady(Role.Esuna) &&
                 GetTargetHPPercent(healTarget) >= 40 &&
-                cleanseTarget is { } cleansed &&
-                CleanseGate.MayCleanse(
-                    cleansed.GameObjectId,
-                    cleansed.DispellableStatusIds(),
-                    cleansed.HasCleansableDoom,
-                    GetTargetHPPercent(cleansed),
-                    PlayerHealthPercentageHp(),
-                    DateTime.Now))
-            {
-                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
+                cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
-            }
 
             if (CanWeave())
             {
@@ -435,10 +423,9 @@ internal partial class SGE : Healer
 
             var healTarget = SimpleTarget.Stack.OneButtonHealLogic;
 
-            IGameObject? cleanseTarget =
-                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is { } retargetedAlly ? retargetedAlly
-                : healTarget.HasCleansableDebuff ? healTarget
-                : null;
+            bool cleansableTarget =
+                HealRetargeting.RetargetSettingOn && SimpleTarget.Stack.AllyToEsuna is not null ||
+                healTarget.HasCleansableDebuff;
 
             if (IsEnabled(Preset.SGE_ST_Adv_Heal_Kardia) &&
                 ActionLearned(Kardia) &&
@@ -455,18 +442,8 @@ internal partial class SGE : Healer
             if (IsEnabled(Preset.SGE_ST_Adv_Heal_Esuna) &&
                 ActionReady(Role.Esuna) &&
                 GetTargetHPPercent(healTarget, SGE_ST_Adv_Heal_IncludeShields) >= SGE_ST_Adv_Heal_Esuna &&
-                cleanseTarget is { } cleansed &&
-                CleanseGate.MayCleanse(
-                    cleansed.GameObjectId,
-                    cleansed.DispellableStatusIds(),
-                    cleansed.HasCleansableDoom,
-                    GetTargetHPPercent(cleansed),
-                    PlayerHealthPercentageHp(),
-                    DateTime.Now))
-            {
-                CleanseGate.NoteSent(cleansed.GameObjectId, DateTime.Now);
+                cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
-            }
 
             if (CanWeave())
             {

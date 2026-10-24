@@ -166,23 +166,6 @@ internal static class Program
               $"Invoke(Medica1) returns the Medica HoT ({WHM.Medica3}) — the HoT heal is available again",
             gotRwOwnedFree == WHM.Medica3, $"returned {gotRwOwnedFree}");
 
-
-        // ==== CLEANSE wiring (2026-10-24 FATE report): this job's Esuna branch must consult the
-        // shared CleanseGate — control (worth it) and refusal (trivial debuff, never worth it).
-        // The full case set lives in the AST harness; here the branch is the code under test.
-
-        SetCleanseState([18u]); // Poison: moderate DoT, healer healthy
-        uint gotCleanse = InvokeHeal();
-        Check("CLEANSE control: party member carries Poison (moderate) + healer at 69.8%: " +
-              $"Invoke(heal) returns Esuna (7568)",
-            gotCleanse == 7568, $"returned {gotCleanse}");
-
-        SetCleanseState([64u]); // Vulnerability Up: falls off on its own, never worth the GCD
-        uint gotTrivial = InvokeHeal();
-        Check("CLEANSE-TRIVIAL: party member carries only Vulnerability Up (trivial): " +
-              "Invoke(heal) does NOT return Esuna",
-            gotTrivial != 7568, $"returned {gotTrivial}");
-
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -355,22 +338,4 @@ internal static class Program
             return File.Exists(file) ? ctx.LoadFromAssemblyPath(file) : null;
         };
     }
-
-    /// <summary>The cleanse-case state: ST heal combo + its Esuna sub-preset, retargeting on,
-    /// a party member carrying the given dispellable statuses, healer HP case-set.</summary>
-    private static void SetCleanseState(uint[] statusIds, float playerHp = 69.8f)
-    {
-        FakeGame.Reset();
-        CleanseGate.Reset();
-
-        FakeGame.EnabledPresets.Add(Preset.WHM_STHeals);
-        FakeGame.EnabledPresets.Add(Preset.WHM_STHeals_Esuna);
-        FakeGame.RetargetingOn = true;
-        FakeGame.CleanseTarget = FakeCleanseAlly.Instance;
-        FakeGame.CleanseTargetStatusIds = statusIds;
-        FakeGame.PlayerHPPercent = playerHp;
-    }
-
-    private static uint InvokeHeal() => new WHM.WHM_ST_Heals().RunInvoke(WHM.Cure);
-
 }
