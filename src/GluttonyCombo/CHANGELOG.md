@@ -1,3 +1,9 @@
+## v1.0.4.321 (2026-10-27) [testing]
+### Fixed
+- **BossMod conflict detection works with current BossMod builds again.** BossMod moved its rotation manager and action-module queue underneath a new window object, so the checks that read the original BossMod's active preset, AI targeting and manual-queue setting found nothing and the preset, AI-targeting and manual-queue verdicts silently came back empty. Those reflection reads now follow the new location, and upstream WrathCombo's matching fix (54e36f2f) is merged; BossMod Reborn keeps being read through its own IPC and is unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.320 (2026-10-24) [testing]
 ### Fixed
 - **The v1.0.4.318 automatic-cleanse change is back, now fenced so the cleanse scan can never hang or spin a frame.** Same cleanse behaviour as before the withdrawal: dispellable debuffs are graded by worth (movement- and action-locking debuffs cleanse first, damage-over-time debuffs cleanse while the healer can spare the cast, damage-taken amplifiers and resist downs never take one, doom always, the dead never), hostile objects can no longer resolve as cleanse candidates anywhere, and one debuff can never consume two casts. New in this build, the cleanse scan runs behind a frame guard: it pauses right after a plugin reload and right after any territory change (the two windows the withdrawn build ran into trouble in), can never re-enter itself, and if a single scan ever costs more than a frame the plugin logs the managed call stack at the slow point and stands the scan down for two seconds instead of repeating next tick.
