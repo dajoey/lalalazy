@@ -1,3 +1,9 @@
+## v1.0.4.322 (2026-10-28) [testing]
+### Fixed
+- **BossMod status checks survive a missing or half-loaded BossMod.** Upstream WrathCombo reorganized its BossMod IPC into shared helpers with null-safe fallbacks; that rework (d9c63e468) is merged, so the active-preset module walk, autorotation, custom-queueing, smart-target and AI-targeting checks answer false cleanly when BossMod's rotation window or action queue is absent, instead of erroring partway through the walk.
+- BossMod Reborn keeps being read through its own IPC (active preset verdict, AI targeting, manual-queue setting); those reads are unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v1.0.4.321 (2026-10-27) [testing]
 ### Fixed
 - **BossMod conflict detection works with current BossMod builds again.** BossMod moved its rotation manager and action-module queue underneath a new window object, so the checks that read the original BossMod's active preset, AI targeting and manual-queue setting found nothing and the preset, AI-targeting and manual-queue verdicts silently came back empty. Those reflection reads now follow the new location, and upstream WrathCombo's matching fix (54e36f2f) is merged; BossMod Reborn keeps being read through its own IPC and is unchanged.
