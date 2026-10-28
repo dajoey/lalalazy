@@ -24,7 +24,17 @@ internal sealed class BossModIPC(
     Version validVersion)
     : ReusableIPC(pluginName, validVersion)
 {
-    public bool HasAutomaticActionsQueued()
+    private bool IsPluginLoaded()
+    {
+        if (PluginIsLoaded)
+            return true;
+
+        PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
+                        $"Plugin is not loaded.");
+        return false;
+    }
+
+    private bool HasAutomaticActionsQueuedCore()
     {
         if (!IsEnabled)
         {
@@ -49,6 +59,74 @@ internal sealed class BossModIPC(
             return false;
         }
     }
+
+    private object? GetRotationManager(bool isReborn)
+    {
+        var entryPoint = isReborn ? Plugin : GetTickService();
+        var wndRotation = entryPoint?.GetFoP("_wndRotation");
+        var rotationManager = isReborn
+            ? entryPoint?.GetFoP("_rotation")
+            : wndRotation?.GetFoP("_mgr");
+
+        if (rotationManager is not null)
+            return rotationManager;
+
+        PluginLog.Debug(
+            $"[ConflictingPlugins] [{PluginName}] Could not access RotationManager");
+        return null;
+    }
+
+    private static IEnumerable<object?> GetIndexedItems(object collection)
+    {
+        var collectionType = collection.GetType();
+        var count = (int)collectionType.GetProperty("Count")!.GetValue(collection)!;
+        var itemProperty = collectionType.GetProperty("Item")!;
+
+        for (var index = 0; index < count; index++)
+            yield return itemProperty.GetValue(collection, [index]);
+    }
+
+    private object? GetManualQueueConfig(object? amex)
+    {
+        if (amex is null)
+        {
+            PluginLog.Debug(
+                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx field");
+            return null;
+        }
+
+        var manualQueue = amex.GetFoP("_manualQueue");
+        if (manualQueue is null)
+        {
+            PluginLog.Debug(
+                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual field");
+            return null;
+        }
+
+        var manualQueueConfig = manualQueue.GetFoP("_config");
+        if (manualQueueConfig is null)
+            PluginLog.Debug(
+                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual.Config field");
+
+        return manualQueueConfig;
+    }
+
+    private bool IsManualQueueSettingEnabled(
+        object? amex,
+        string settingName,
+        string settingLogName)
+    {
+        var manualQueueConfig = GetManualQueueConfig(amex);
+        if (manualQueueConfig is null)
+            return false;
+
+        var enabled = manualQueueConfig.GetFoP<bool>(settingName);
+        PluginLog.Verbose(
+            $"[ConflictingPlugins] [{PluginName}] `{settingLogName}`: {enabled}");
+        return enabled;
+    }
+
+    public bool HasAutomaticActionsQueued() => HasAutomaticActionsQueuedCore();
 
     private object? GetTickService()
     {
@@ -92,53 +170,29 @@ internal sealed class BossModIPC(
     // stock BMR does not have and threw on every check while a preset was active (bst1013).
     private IEnumerable<object?> GetModules()
     {
-        var entryPoint = GetTickService();
-        if (entryPoint is null)
-        {
-            PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access entry point");
-            yield break;
-        }
-
-        var wndRotation = entryPoint.GetFoP("_wndRotation");
-
-        var rotationManager = wndRotation?.GetFoP("_mgr");
+        var rotationManager = GetRotationManager(false);
         if (rotationManager is null)
-        {
-            PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access RotationManager");
             yield break;
-        }
 
         var presets = rotationManager.GetFoP("Presets");
         if (presets is null)
         {
             PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
+                $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
             yield break;
         }
 
-
-        var count = (int)presets.GetType().GetProperty("Count")!.GetValue(presets)!;
-        for (int i = 0; i < count; i++)
+        foreach (var item in GetIndexedItems(presets))
         {
-            var item = presets.GetType().GetProperty("Item")!.GetValue(presets, new object[] { i });
             if (item is null)
                 continue;
 
-            var modules = item?.GetFoP("Modules");
+            var modules = item.GetFoP("Modules");
             if (modules is null)
-            {
                 continue;
-            }
 
-            var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
-
-            for (int p = 0; p < modCount; p++)
-            {
-                var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
+            foreach (var module in GetIndexedItems(modules))
                 yield return module;
-            }
         }
     }
 
@@ -146,46 +200,36 @@ internal sealed class BossModIPC(
     {
         foreach (var module in GetModules())
         {
-            var moduleType = module.GetType().GetProperty("Type").GetValue(module);
+            if (module is null)
+                continue;
+
+            var moduleType = module.GetType().GetProperty("Type")?.GetValue(module);
             yield return moduleType;
         }
     }
 
     private IEnumerable<object?> GetPresets()
     {
-        var entryPoint = GetTickService();
-        if (entryPoint is null)
-        {
-            PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access entry point");
-            yield break;
-        }
-
-        var wndRotation = entryPoint.GetFoP("_wndRotation");
-
-        var rotationManager = wndRotation?.GetFoP("_mgr");
+        var rotationManager = GetRotationManager(false);
         if (rotationManager is null)
-        {
-            PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access RotationManager [GetPresets]");
             yield break;
-        }
 
         var presets = rotationManager.GetFoP("Presets");
         if (presets is null)
         {
             PluginLog.Debug(
-                    $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
+                $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
             yield break;
         }
 
+        foreach (var preset in GetIndexedItems(presets))
+            yield return preset;
+    }
 
-        var count = (int)presets.GetType().GetProperty("Count")!.GetValue(presets)!;
-        for (int i = 0; i < count; i++)
-        {
-            var item = presets.GetType().GetProperty("Item")!.GetValue(presets, new object[] { i });
-            yield return item;
-        }
+    private static bool IsAutoTargetModule(object? module)
+    {
+        var moduleType = module?.GetType().GetProperty("Type")?.GetValue(module);
+        return moduleType is Type type && type.FullName.Contains("AutoTarget");
     }
 
     // ------------------------------------------------------------------ BossMod Reborn: stock preset IPC
@@ -238,12 +282,8 @@ internal sealed class BossModIPC(
 
     public bool IsAutoTargetingEnabled(bool isReborn)
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
         if (isReborn)
             return ActivePresetVerdict().AutoTarget;
@@ -251,24 +291,16 @@ internal sealed class BossModIPC(
         var presets = GetPresets();
         foreach (var preset in presets)
         {
-            if (preset.GetFoP<string>("Name") == "VBM Multibox")
+            if (preset is null || preset.GetFoP<string>("Name") == "VBM Multibox")
                 continue;
 
-            var modules = preset?.GetFoP("Modules");
+            var modules = preset.GetFoP("Modules");
             if (modules is null)
-            {
                 continue;
-            }
 
-            var modCount = (int)modules.GetType().GetProperty("Count").GetValue(modules)!;
-
-            for (int p = 0; p < modCount; p++)
-            {
-                var module = modules.GetType().GetProperty("Item")!.GetValue(modules, new object[] { p });
-                var moduleType = module.GetType().GetProperty("Type").GetValue(module);
-                if (moduleType is Type t && t.FullName.Contains("AutoTarget"))
+            foreach (var module in GetIndexedItems(modules))
+                if (IsAutoTargetModule(module))
                     return true;
-            }
         }
 
         return false;
@@ -276,57 +308,18 @@ internal sealed class BossModIPC(
 
     public bool IsUsingCustomQueuing()
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
-        var tickServiceValue = GetTickService();
-
-        var wndRotation = tickServiceValue.GetFoP("_wndRotation");
-
-        var amex = wndRotation.GetFoP("_amex");
-        if (amex == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx field");
-            return false;
-        }
-
-        var manualQueue = amex.GetFoP("_manualQueue");
-        if (manualQueue == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual field");
-            return false;
-        }
-
-        var manualQueueConfig = manualQueue.GetFoP("_config");
-        if (manualQueueConfig == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual.Config field");
-            return false;
-        }
-
-        var customQueuingEnabled = manualQueueConfig.GetFoP<bool>("UseManualQueue");
-
-        PluginLog.Verbose(
-            $"[ConflictingPlugins] [{PluginName}] `ManualQueue.Enabled`: {customQueuingEnabled}");
-
-        return customQueuingEnabled;
+        var wndRotation = GetTickService()?.GetFoP("_wndRotation");
+        var amex = wndRotation?.GetFoP("_amex");
+        return IsManualQueueSettingEnabled(amex, "UseManualQueue", "ManualQueue.Enabled");
     }
 
     public bool IsUsingAutorotation(bool isReborn)
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
         if (isReborn)
             return ActivePresetVerdict().Autorotation;
@@ -341,31 +334,7 @@ internal sealed class BossModIPC(
         return false;
     }
 
-    public bool HasAutomaticActionsQueuedReborn()
-    {
-        if (!IsEnabled)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"IPC is not enabled.");
-            return false;
-        }
-
-        try
-        {
-            var hasEntries = IpcStallTrace.Time("ActionQueue.HasEntries", _hasEntries);
-            PluginLog.Verbose(
-                $"[ConflictingPlugins] [{PluginName}] `ActionQueue.HasEntries`: " +
-                hasEntries);
-            return hasEntries;
-        }
-        catch (Exception e)
-        {
-            PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] " +
-                              $"`ActionQueue.HasEntries` failed:" +
-                              e.ToStringFull());
-            return false;
-        }
-    }
+    public bool HasAutomaticActionsQueuedReborn() => HasAutomaticActionsQueuedCore();
 
     /// <summary>
     ///     Fork (bst1013): BossMod Reborn's "Use custom queueing for manually pressed actions", read through the
@@ -374,12 +343,8 @@ internal sealed class BossModIPC(
     /// </summary>
     public bool IsUsingCustomQueuingReborn()
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
         var reply = IpcStallTrace.Time("Configuration",
             () => _configuration(["ActionTweaksConfig", "UseManualQueue"], false));
@@ -393,12 +358,8 @@ internal sealed class BossModIPC(
 
     public bool IsAITargetingEnabled(bool isReborn)
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
         var entryPoint = isReborn ? Plugin : GetTickService();
         if (isReborn)
@@ -428,7 +389,7 @@ internal sealed class BossModIPC(
                 return false;
             }
 
-            var ai = isReborn ? Plugin.GetFoP("_aiConfig") : rotationManager.GetFoP("_aiConfig");
+            var ai = rotationManager.GetFoP("_aiConfig");
 
             var enabled = ai.GetFoP<bool>("Enabled");
             var target = ai.GetFoP<bool>("ForbidActions");
@@ -534,43 +495,11 @@ internal sealed class BossModIPC(
 
     internal bool IsSmartTargetEnabled()
     {
-        if (!PluginIsLoaded)
-        {
-            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
-                            $"Plugin is not loaded.");
+        if (!IsPluginLoaded())
             return false;
-        }
 
-        var amex = Plugin.GetFoP("_amex");
-        if (amex == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx field");
-            return false;
-        }
-
-        var manualQueue = amex.GetFoP("_manualQueue");
-        if (manualQueue == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual field");
-            return false;
-        }
-
-        var manualQueueConfig = manualQueue.GetFoP("_config");
-        if (manualQueueConfig == null)
-        {
-            PluginLog.Debug(
-                $"[ConflictingPlugins] [{PluginName}] Could not access AMEx.Manual.Config field");
-            return false;
-        }
-
-        var smartTargetEnabled = manualQueueConfig.GetFoP<bool>("SmartTargeting");
-
-        PluginLog.Verbose(
-            $"[ConflictingPlugins] [{PluginName}] `SmartTarget.Enabled`: {smartTargetEnabled}");
-
-        return smartTargetEnabled;
+        return IsManualQueueSettingEnabled(
+            Plugin.GetFoP("_amex"), "SmartTargeting", "SmartTarget.Enabled");
     }
 
     private readonly IpcEndpointLatch _priorityTargetLatch = new();
