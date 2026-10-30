@@ -1,5 +1,11 @@
 # Changelog - PvP Solver
 
+## v0.1.2.5 (2026-10-29) [testing]
+### Added
+- **"Let Jev call the shots"** (Targeting tab, off by default). About once a second in a PvP fight, a snapshot of jobs, HP, distance, Guard, invulnerability and crowd control (never player names) goes to a decision relay on the home network. Jev, a decision model, picks the enemy to focus; that enemy is attacked first whenever it is a legal target, after the stay-on-my-debuff-target rule. Jev may also hold a ready Limit Break it judges wasted (every enemy healthy or under Guard). It never fires a Limit Break itself.
+- When the relay is slow, down or unsure, nothing changes: an answer older than three seconds is ignored and the usual targeting order and Limit Break logic apply.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.4 (2026-10-22) [testing]
 ### Changed
 - **All 21 PvP rotations declare the upstream "Reborn" rotation type** (RotationSolverReborn 79f60d87c), upstream's tag for rotations written for the pre-Evercold job kits. Metadata only; rotations load and behave as before.
