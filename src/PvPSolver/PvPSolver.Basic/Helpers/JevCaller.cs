@@ -28,6 +28,28 @@ public static class JevCaller
     private static double _fireUntil = double.MinValue;
     private static ulong? _fireTarget;
     private static int _inFlight;
+    private static readonly object UsedLock = new();
+    private static readonly List<JevUsed> UsedSinceSnapshot = [];
+
+    /// <summary>
+    /// Called when the game reports an action the player used (PvP Solver's Watcher): kept until the next snapshot,
+    /// so the relay log shows what was actually cast, and on whom, next to Jev's pick. Nothing is kept with the switch off.
+    /// </summary>
+    public static void NoteActionUsed(uint actionId, ulong? targetId)
+    {
+        if (!Service.Config.JevCallsShots || !DataCenter.IsPvP)
+        {
+            return;
+        }
+
+        lock (UsedLock)
+        {
+            if (UsedSinceSnapshot.Count < 16)
+            {
+                UsedSinceSnapshot.Add(new JevUsed(actionId, targetId is null or 0 or NoTarget ? null : targetId));
+            }
+        }
+    }
 
     /// <summary>The relay's latest answer (may be stale; the readers check freshness).</summary>
     public static JevAnswer? Latest => Volatile.Read(ref _latest);
@@ -138,16 +160,49 @@ public static class JevCaller
                 skipAoeCheck: true, skipTTKCheck: true))
         {
             act = null;
+            SkipOnce("canuse");
             return false;
         }
 
+        // Line, cone and splash Limit Breaks pick their own "most enemies" target; Jev chose one, and the game has
+        // just confirmed the Limit Break is usable on it, so aim there (Use() fires at Target as set here).
         if (aim != null && !limitBreak.Info.TargetAreaAction && limitBreak.Target.Target?.GameObjectId != aim)
         {
-            act = null;
-            return false;
+            IBattleChara? chosen = null;
+            foreach (IBattleChara b in DataCenter.AllHostileTargets)
+            {
+                if (b != null && b.GameObjectId == aim && !b.IsDead)
+                {
+                    chosen = b;
+                    break;
+                }
+            }
+
+            if (chosen == null)
+            {
+                act = null;
+                SkipOnce("target-gone");
+                return false;
+            }
+
+            limitBreak.Target = new TargetResult(chosen, [chosen], chosen.Position);
         }
 
         return true;
+    }
+
+    private static double _skipLoggedFor = double.MinValue;
+
+    /// <summary>One line per fire window when the Limit Break could not be offered, so a miss explains itself.</summary>
+    private static void SkipOnce(string reason)
+    {
+        if (_skipLoggedFor == _fireUntil)
+        {
+            return;
+        }
+
+        _skipLoggedFor = _fireUntil;
+        PluginLog.Information($"[JevCaller] JV|lb-fire-skip reason={reason}");
     }
 
     private static async Task SendAsync(string body, string url)
@@ -245,8 +300,17 @@ public static class JevCaller
                 hostiles.Count(b => b.TargetObjectId == a.GameObjectId)));
         }
 
+        JevUsed[] used;
+        lock (UsedLock)
+        {
+            used = [.. UsedSinceSnapshot];
+            UsedSinceSnapshot.Clear();
+        }
+
+        ulong myTarget = me.TargetObjectId;
         var self = new JevSelf(me.ClassJob.Value.Abbreviation.ToString(), me.GetHealthRatio(), me.CurrentHp, me.Rotation,
-            me.HasStatus(false, StatusID.Heavy_1344, StatusID.Bind_1345), selfOk);
+            me.HasStatus(false, StatusID.Heavy_1344, StatusID.Bind_1345), selfOk,
+            myTarget is 0 or NoTarget ? null : myTarget, used);
         return JevCall.SnapshotJson(self, enemies, allies);
     }
 

@@ -1,5 +1,13 @@
 # Changelog - PvP Solver
 
+## v0.1.2.7 (2026-10-29) [testing]
+### Changed
+- **"Let Jev call the shots" reports what actually happened.** Each snapshot also carries the player's current target and the actions actually used since the last one (action and target only), so each of Jev's picks can be checked against what PvP Solver did and whether that enemy went down.
+- Jev's focus pick is kept steady: it moves to another enemy only when that one is clearly the better pick.
+### Fixed
+- **A line, cone or splash Limit Break that Jev called could be skipped** because the action kept its own "most enemies" target. It is now aimed at the enemy Jev chose, which the game has just confirmed as a valid target. A skipped fire writes one reason line to the log.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.6 (2026-10-29) [testing]
 ### Added
 - **"Let Jev call the shots" now fires the PvP Limit Break.** When the Limit Break is ready, Jev is asked about this job's own Limit Break (what it does, from the game's description) with the facts that decide it: the damage against each enemy's remaining HP, Guard, Kuzushi and low-HP executes, how many enemies a line, cone or area would catch, and which allies are hurt or under attack. It fires when that wins a kill, catches several enemies, or saves the player or an ally, and holds otherwise. Only enemies the game says the Limit Break can be used on right now are offered, and the game is asked again just before firing.

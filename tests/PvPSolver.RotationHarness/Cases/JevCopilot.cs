@@ -68,9 +68,20 @@ internal static class JevCopilot
         var keys = sent[0].EnumerateObject().Select(o => o.Name).ToArray();
         Harness.Case("each enemy carries exactly the relay's fields (no names)",
             keys.SequenceEqual(["id", "job", "hp", "hp_now", "dist", "dx", "dz", "guard", "invuln", "cc", "on_me", "allies_on", "kuzushi", "lb_ok"]), string.Join(",", keys));
-        Harness.Case("the snapshot is v2 with v, job, hp, hp_now, facing, me_cc, lb, enemies, allies",
+        Harness.Case("the snapshot is v2 with v, job, hp, hp_now, facing, me_cc, my_target, used, lb, enemies, allies",
             root.GetProperty("v").GetInt32() == 2
-            && root.EnumerateObject().Select(o => o.Name).SequenceEqual(["v", "job", "hp", "hp_now", "facing", "me_cc", "lb", "enemies", "allies"]));
+            && root.EnumerateObject().Select(o => o.Name).SequenceEqual(["v", "job", "hp", "hp_now", "facing", "me_cc", "my_target", "used", "lb", "enemies", "allies"]));
+        Harness.Case("with nothing recorded, my_target is null and used is empty",
+            root.GetProperty("my_target").ValueKind == JsonValueKind.Null && root.GetProperty("used").GetArrayLength() == 0);
+        var withUse = self with { MyTarget = 1001UL, Used = [new JevUsed(29400u, 1001UL), new JevUsed(29401u, null)] };
+        using (var s2 = JsonDocument.Parse(JevCall.SnapshotJson(withUse, enemies, allies)))
+        {
+            var used = s2.RootElement.GetProperty("used").EnumerateArray().ToList();
+            Harness.Case("used actions carry the action id and its target (null when none), and my_target the player's target",
+                s2.RootElement.GetProperty("my_target").GetUInt64() == 1001UL && used.Count == 2
+                && used[0].GetProperty("a").GetUInt32() == 29400u && used[0].GetProperty("t").GetUInt64() == 1001UL
+                && used[1].GetProperty("t").ValueKind == JsonValueKind.Null);
+        }
         Harness.Case("each ally carries job, hp, dist, dx, dz, enemies_on",
             root.GetProperty("allies")[0].EnumerateObject().Select(o => o.Name).SequenceEqual(["job", "hp", "dist", "dx", "dz", "enemies_on"]));
         Harness.Canary("canary: a stale answer still firing would be caught", JevCall.ShouldFireLimitBreak(a, 200.0, double.MinValue, out _));
@@ -107,8 +118,12 @@ internal static class JevCopilot
             should > 0 && window > should && gap > window && usable > gap && canUse > usable);
         Harness.Case("TryLimitBreak: the window closes as soon as the Limit Break is used or unusable",
             Regex.IsMatch(caller, @"if\s*\(!LimitBreakUsable\(limitBreak, aim \?\? Player\.Object\.GameObjectId\)\)\s*\{\s*_fireUntil\s*=\s*now;"));
-        Harness.Case("TryLimitBreak: an enemy-targeted fire is dropped unless the action's chosen target is Jev's target",
-            Regex.IsMatch(caller, @"limitBreak\.Target\.Target\?\.GameObjectId\s*!=\s*aim"));
+        Harness.Case("TryLimitBreak: an enemy-targeted fire is aimed at Jev's enemy when the action picked another (Use fires at Target)",
+            Regex.IsMatch(caller, @"limitBreak\.Target\.Target\?\.GameObjectId\s*!=\s*aim")
+            && Regex.IsMatch(caller, @"limitBreak\.Target\s*=\s*new TargetResult\(chosen, \[chosen\], chosen\.Position\);")
+            && Regex.IsMatch(caller, @"b\.GameObjectId == aim && !b\.IsDead"));
+        Harness.Case("TryLimitBreak: a skipped fire logs one reason line per window (canuse or target-gone)",
+            caller.Contains("SkipOnce(\"canuse\")") && caller.Contains("SkipOnce(\"target-gone\")") && caller.Contains("JV|lb-fire-skip reason="));
         Harness.Case("LimitBreakUsable: not once the Limit Break has turned into its follow-up action (AdjustedID != ID)",
             Regex.IsMatch(caller, @"limitBreak\.Info\.AdjustedID\s*!=\s*limitBreak\.ID"));
         Harness.Case("LimitBreakUsable: the game check ignores casting and the GCD, and a placed Limit Break is checked with no target",
@@ -128,6 +143,15 @@ internal static class JevCopilot
         Harness.Case("caller: the HTTP call starts on a pool thread and the client never looks up a proxy",
             Regex.IsMatch(caller, @"Task\.Run\(\s*\(\)\s*=>\s*SendAsync\(") && Regex.IsMatch(caller, @"UseProxy\s*=\s*false"));
         Harness.Case("caller: sends no names", !Regex.IsMatch(caller, @"\.Name\b"));
+
+        var watcher = Src("PvPSolver", "Watcher.cs");
+        Harness.Case("Watcher records each used action and its target for the snapshot, right after AddActionRec",
+            Regex.IsMatch(watcher, @"DataCenter\.AddActionRec\(action!\.Value\);\s*JevCaller\.NoteActionUsed\(action\.Value\.RowId, tar\?\.GameObjectId\);")
+            && Regex.Matches(watcher, @"JevCaller\.NoteActionUsed\(").Count == 1);
+        Harness.Case("NoteActionUsed keeps nothing with the switch off or outside PvP, and at most 16 per snapshot",
+            Regex.IsMatch(caller, @"public static void NoteActionUsed\(uint actionId, ulong\? targetId\)\s*\{\s*if\s*\(!Service\.Config\.JevCallsShots\s*\|\|\s*!DataCenter\.IsPvP\)")
+            && caller.Contains("UsedSinceSnapshot.Count < 16"));
+        Harness.Case("the snapshot drains the used list under its lock", Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*used = \[\.\. UsedSinceSnapshot\];\s*UsedSinceSnapshot\.Clear\(\);"));
 
         var actions = Src("PvPSolver.Basic", "Rotations", "CustomRotation_Actions.cs");
         Harness.Case("the rotation exposes its PvP Limit Break to the caller (internal accessor)",

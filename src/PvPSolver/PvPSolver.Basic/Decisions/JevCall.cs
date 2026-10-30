@@ -12,8 +12,16 @@ public sealed record JevEnemy(ulong Id, string Job, float Hp, uint HpNow, float 
 /// <summary>One ally near the player in the snapshot, with how many enemies are attacking it.</summary>
 public sealed record JevAlly(string Job, float Hp, float Distance, float Dx, float Dz, int EnemiesOn);
 
-/// <summary>The player's side of the snapshot.</summary>
-public sealed record JevSelf(string Job, float Hp, uint HpNow, float Facing, bool Controlled, bool LimitBreakSelfOk);
+/// <summary>One action the player actually used since the last snapshot, and on whom (null: no target).</summary>
+public sealed record JevUsed(uint Action, ulong? Target);
+
+/// <summary>
+/// The player's side of the snapshot. <paramref name="MyTarget"/> is the player's current target and
+/// <paramref name="Used"/> the actions actually used since the last snapshot: what the payoff report checks
+/// Jev's picks against.
+/// </summary>
+public sealed record JevSelf(string Job, float Hp, uint HpNow, float Facing, bool Controlled, bool LimitBreakSelfOk,
+    ulong? MyTarget = null, IReadOnlyList<JevUsed>? Used = null);
 
 /// <summary>
 /// The relay's latest answer: an enemy to focus (or none), and whether to fire the Limit Break now and at which
@@ -73,6 +81,8 @@ public static class JevCall
             hp_now = self.HpNow,
             facing = MathF.Round(self.Facing, 3),
             me_cc = self.Controlled,
+            my_target = self.MyTarget,
+            used = (self.Used ?? []).Take(16).Select(u => new { a = u.Action, t = u.Target }).ToArray(),
             lb = new { ready = self.LimitBreakSelfOk || near.Any(e => e.LimitBreakOk), self_ok = self.LimitBreakSelfOk },
             enemies = near.Select(e => new
             {

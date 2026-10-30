@@ -7,6 +7,7 @@ using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel.Sheets;
 using RotationSolver.Basic.Configuration;
+using RotationSolver.Basic.Helpers;
 using System.Text.RegularExpressions;
 
 namespace RotationSolver;
@@ -198,6 +199,7 @@ public static class Watcher
 			// Record
 			//PluginLog.Debug($"ActionFromSelf: ActionType is {set.Header.ActionType}.");
 			DataCenter.AddActionRec(action!.Value);
+			JevCaller.NoteActionUsed(action.Value.RowId, tar?.GameObjectId);
 			ShowStrSelf = set.ToString();
 
 			DataCenter.HealHP = set.GetSpecificTypeEffect(ActionEffectType.Heal);
