@@ -308,8 +308,8 @@ internal static class SettingsCoreCases
     {
         IReadOnlyList<SettingSpec> all = PvpSettingsCatalog.All;
         string[] tabs = [PvpSettingsCatalog.Match, PvpSettingsCatalog.Survival, PvpSettingsCatalog.Targeting, PvpSettingsCatalog.Display, PvpSettingsCatalog.Advanced];
-        Harness.Case("the catalog holds 39 global settings with unique property names on the five tabs that use it",
-            all.Count == 39 && all.Select(s => s.Property).Distinct().Count() == 39 && all.All(s => tabs.Contains(s.Tab)), all.Count.ToString());
+        Harness.Case("the catalog holds 40 global settings with unique property names on the five tabs that use it",
+            all.Count == 40 && all.Select(s => s.Property).Distinct().Count() == 40 && all.All(s => tabs.Contains(s.Tab)), all.Count.ToString());
         Harness.Case("every setting has a plain label and a help line that is a full sentence (the help is printed under the control, not only in a tooltip)",
             all.All(s => s.Label.Trim().Length >= 3 && s.Help.Trim().Length >= 15 && s.Help.TrimEnd().EndsWith('.') && s.Section.Length > 0));
         Harness.Case("labels are unique inside their section", all.GroupBy(s => (s.Tab, s.Section)).All(g => g.Select(s => s.Label).Distinct().Count() == g.Count()));
@@ -337,8 +337,8 @@ internal static class SettingsCoreCases
         Harness.Case("exactly one setting is stored per job (IgnorePvPInvincibility) and the Targeting tab draws it",
             all.Count(s => s.PerJob) == 1 && all.Single(s => s.PerJob).Property == "IgnorePvPInvincibility" && all.Single(s => s.PerJob).Tab == PvpSettingsCatalog.Targeting);
         Harness.Case("Of finds a setting by property and null for an unknown one", PvpSettingsCatalog.Of("HealthForGuard")?.Control == SettingControl.Percent && PvpSettingsCatalog.Of("Nope") == null);
-        Harness.Case("settings per tab: Match 6, Survival 11, Targeting 7, Display 14, Advanced 1",
-            tabs.Select(t => PvpSettingsCatalog.ForTab(t).Count()).SequenceEqual([6, 11, 7, 14, 1]), string.Join(",", tabs.Select(t => PvpSettingsCatalog.ForTab(t).Count())));
+        Harness.Case("settings per tab: Match 6, Survival 11, Targeting 8, Display 14, Advanced 1",
+            tabs.Select(t => PvpSettingsCatalog.ForTab(t).Count()).SequenceEqual([6, 11, 8, 14, 1]), string.Join(",", tabs.Select(t => PvpSettingsCatalog.ForTab(t).Count())));
         Harness.Canary("a duplicated property name passes the unique check", all.Concat([all[0]]).Select(s => s.Property).Distinct().Count() == all.Count + 1);
     }
 }
