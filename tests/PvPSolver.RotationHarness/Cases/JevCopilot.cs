@@ -109,6 +109,8 @@ internal static class JevCopilot
         Harness.Case("no Jev code in BasicCheck: Jev never blocks an action", !basic.Contains("Jev"));
 
         var caller = Src("PvPSolver.Basic", "Helpers", "JevCaller.cs");
+        // String literals are blanked by Sanitize; the log-line checks read the raw file.
+        var callerRaw = File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Helpers", "JevCaller.cs"));
         int should = caller.IndexOf("JevCall.ShouldFireLimitBreak(Latest, now, _lastFireAttempt, out ulong? target)", StringComparison.Ordinal);
         int window = caller.IndexOf("_fireUntil = now + FireWindowSeconds;", StringComparison.Ordinal);
         int gap = caller.IndexOf("_lastFireAttempt = _fireUntil;", StringComparison.Ordinal);
@@ -123,7 +125,7 @@ internal static class JevCopilot
             && Regex.IsMatch(caller, @"limitBreak\.Target\s*=\s*new TargetResult\(chosen, \[chosen\], chosen\.Position\);")
             && Regex.IsMatch(caller, @"b\.GameObjectId == aim && !b\.IsDead"));
         Harness.Case("TryLimitBreak: a skipped fire logs one reason line per window (canuse or target-gone)",
-            caller.Contains("SkipOnce(\"canuse\")") && caller.Contains("SkipOnce(\"target-gone\")") && caller.Contains("JV|lb-fire-skip reason="));
+            callerRaw.Contains("SkipOnce(\"canuse\")") && callerRaw.Contains("SkipOnce(\"target-gone\")") && callerRaw.Contains("JV|lb-fire-skip reason="));
         Harness.Case("LimitBreakUsable: not once the Limit Break has turned into its follow-up action (AdjustedID != ID)",
             Regex.IsMatch(caller, @"limitBreak\.Info\.AdjustedID\s*!=\s*limitBreak\.ID"));
         Harness.Case("LimitBreakUsable: the game check ignores casting and the GCD, and a placed Limit Break is checked with no target",
