@@ -302,4 +302,10 @@ public partial class SamuraiRotation : CustomRotation
 	{
 		return StatusHelper.PlayerHasStatus(true, StatusID.Fugetsu) && StatusHelper.PlayerHasStatus(true, StatusID.Fuka);
 	}
+
+	static partial void ModifyZantetsukenPvP(ref ActionSetting setting)
+	{
+		// Zantetsuken ignores Guard when dealing damage (game text).
+		setting.IgnoreGuard = true;
+	}
 }

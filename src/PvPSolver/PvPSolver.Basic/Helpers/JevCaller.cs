@@ -25,6 +25,8 @@ public static class JevCaller
     private static JevAnswer? _latest;
     private static double _lastSent = double.MinValue;
     private static double _lastFireAttempt = double.MinValue;
+    private static double _fireUntil = double.MinValue;
+    private static ulong? _fireTarget;
     private static int _inFlight;
 
     /// <summary>The relay's latest answer (may be stale; the readers check freshness).</summary>
@@ -69,30 +71,67 @@ public static class JevCaller
         _ = Task.Run(() => SendAsync(body, url));
     }
 
+    /// <summary>How long one Jev "fire" stays live: the rotation only gets some frames to act, so a single frame is not enough.</summary>
+    public const double FireWindowSeconds = 1.0;
+
+    /// <summary>The enemy a live Jev Limit Break fire is aimed at (null when none, or the Limit Break has no enemy target).</summary>
+    public static ulong? PendingLimitBreakTarget => Now < _fireUntil ? _fireTarget : null;
+
     /// <summary>
-    /// Called by the rotation before it picks its next action: when Jev's fresh answer says fire the PvP Limit Break,
-    /// and the game confirms it can be used on that exact target right now, hand it back as the next action. One
-    /// attempt per <see cref="JevCall.FireRetrySeconds"/> at most, so a use the game rejects never stalls the rotation.
+    /// The job's PvP Limit Break is usable as itself (not turned into its follow-up action) on this target, by the game's
+    /// own check. Casting and the GCD do not count against it: PvP Solver's action timing handles those. A placed
+    /// (ground) Limit Break is checked with no target, as the game does for placed actions.
     /// </summary>
-    public static unsafe bool TryLimitBreak(IBaseAction? limitBreak, out IAction? act)
+    public static unsafe bool LimitBreakUsable(IBaseAction? limitBreak, ulong targetId)
+    {
+        ActionManager* manager = ActionManager.Instance();
+        if (limitBreak == null || manager == null || limitBreak.Info.AdjustedID != limitBreak.ID)
+        {
+            return false;
+        }
+
+        ulong onWhom = limitBreak.Info.TargetAreaAction ? NoTarget : targetId;
+        return manager->GetActionStatus(ActionType.Action, limitBreak.ID, onWhom, checkRecastActive: false, checkCastingActive: false) == 0;
+    }
+
+    private const ulong NoTarget = 0xE0000000;
+
+    /// <summary>
+    /// Called by the rotation before it picks its next action. A fresh Jev "fire" opens a window of
+    /// <see cref="FireWindowSeconds"/>: on every frame of it, while the game says the Limit Break is usable on Jev's
+    /// target, it is handed back as the next action (PvP Solver's own timing decides the frame it goes off). The window
+    /// closes as soon as the Limit Break is used or unusable, and the next window opens no sooner than
+    /// <see cref="JevCall.FireRetrySeconds"/> after it, so a use the game rejects never stalls the rotation.
+    /// </summary>
+    public static bool TryLimitBreak(IBaseAction? limitBreak, out IAction? act)
     {
         act = null;
         double now = Now;
-        if (limitBreak == null || Player.Object == null
-            || !JevCall.ShouldFireLimitBreak(Latest, now, _lastFireAttempt, out ulong? target))
+        if (limitBreak == null || Player.Object == null)
         {
             return false;
         }
 
-        _lastFireAttempt = now;
-        ulong onWhom = limitBreak.Info.TargetAreaAction || target == null ? Player.Object.GameObjectId : target.Value;
-        ActionManager* manager = ActionManager.Instance();
-        if (manager == null || manager->GetActionStatus(ActionType.Action, limitBreak.Info.AdjustedID, onWhom) != 0)
+        if (now >= _fireUntil)
         {
+            if (!JevCall.ShouldFireLimitBreak(Latest, now, _lastFireAttempt, out ulong? target))
+            {
+                return false;
+            }
+
+            _fireUntil = now + FireWindowSeconds;
+            _fireTarget = target;
+            _lastFireAttempt = _fireUntil; // the retry gap counts from the end of this window
+        }
+
+        ulong? aim = _fireTarget;
+        if (!LimitBreakUsable(limitBreak, aim ?? Player.Object.GameObjectId))
+        {
+            _fireUntil = now; // used (it turned into its follow-up, or the gauge emptied) or not usable: close the window
             return false;
         }
 
-        // The relay sends the Limit Break target as the focus too, so the action's own targeting picks it first.
+        // The relay sends the Limit Break target as the focus too, and FindHostileRaw puts a pending target first.
         if (!limitBreak.CanUse(out act, skipStatusProvideCheck: true, skipTargetStatusNeedCheck: true, usedUp: true,
                 skipAoeCheck: true, skipTTKCheck: true))
         {
@@ -100,13 +139,12 @@ public static class JevCaller
             return false;
         }
 
-        if (target != null && !limitBreak.Info.TargetAreaAction && limitBreak.Target.Target?.GameObjectId != target)
+        if (aim != null && !limitBreak.Info.TargetAreaAction && limitBreak.Target.Target?.GameObjectId != aim)
         {
             act = null;
             return false;
         }
 
-        PluginLog.Debug($"[JevCaller] firing Limit Break {limitBreak.ID} on {(target == null ? "self/area" : "Jev's target")}");
         return true;
     }
 
@@ -137,7 +175,7 @@ public static class JevCaller
         }
     }
 
-    private static unsafe string? BuildSnapshot()
+    private static string? BuildSnapshot()
     {
         IBattleChara? me = Player.Object;
         if (me == null)
@@ -146,8 +184,7 @@ public static class JevCaller
         }
 
         IBaseAction? lb = (DataCenter.CurrentRotation as CustomRotation)?.JevLimitBreak;
-        ActionManager* manager = ActionManager.Instance();
-        bool LbOk(ulong id) => lb != null && manager != null && manager->GetActionStatus(ActionType.Action, lb.Info.AdjustedID, id) == 0;
+        bool LbOk(ulong id) => LimitBreakUsable(lb, id);
         bool selfOk = LbOk(me.GameObjectId);
         bool areaLb = lb?.Info.TargetAreaAction ?? false;
         float lbRange = lb?.TargetInfo.Range ?? 0f;

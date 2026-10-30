@@ -98,14 +98,32 @@ internal static class JevCopilot
         Harness.Case("no Jev code in BasicCheck: Jev never blocks an action", !basic.Contains("Jev"));
 
         var caller = Src("PvPSolver.Basic", "Helpers", "JevCaller.cs");
-        int should = caller.IndexOf("JevCall.ShouldFireLimitBreak(", StringComparison.Ordinal);
-        int stamp = caller.IndexOf("_lastFireAttempt = now;", StringComparison.Ordinal);
-        int status = caller.IndexOf("GetActionStatus(ActionType.Action, limitBreak.Info.AdjustedID, onWhom) != 0", StringComparison.Ordinal);
+        int should = caller.IndexOf("JevCall.ShouldFireLimitBreak(Latest, now, _lastFireAttempt, out ulong? target)", StringComparison.Ordinal);
+        int window = caller.IndexOf("_fireUntil = now + FireWindowSeconds;", StringComparison.Ordinal);
+        int gap = caller.IndexOf("_lastFireAttempt = _fireUntil;", StringComparison.Ordinal);
+        int usable = caller.IndexOf("if (!LimitBreakUsable(limitBreak, aim ?? Player.Object.GameObjectId))", StringComparison.Ordinal);
         int canUse = caller.IndexOf("limitBreak.CanUse(", StringComparison.Ordinal);
-        Harness.Case("TryLimitBreak: fresh answer, then the attempt stamp, then the game's own check on that target, then CanUse",
-            should > 0 && stamp > should && status > stamp && canUse > status);
+        Harness.Case("TryLimitBreak: a fresh answer opens a window, the retry gap counts from its end, the game's check runs every frame before CanUse",
+            should > 0 && window > should && gap > window && usable > gap && canUse > usable);
+        Harness.Case("TryLimitBreak: the window closes as soon as the Limit Break is used or unusable",
+            Regex.IsMatch(caller, @"if\s*\(!LimitBreakUsable\(limitBreak, aim \?\? Player\.Object\.GameObjectId\)\)\s*\{\s*_fireUntil\s*=\s*now;"));
         Harness.Case("TryLimitBreak: an enemy-targeted fire is dropped unless the action's chosen target is Jev's target",
-            Regex.IsMatch(caller, @"limitBreak\.Target\.Target\?\.GameObjectId\s*!=\s*target"));
+            Regex.IsMatch(caller, @"limitBreak\.Target\.Target\?\.GameObjectId\s*!=\s*aim"));
+        Harness.Case("LimitBreakUsable: not once the Limit Break has turned into its follow-up action (AdjustedID != ID)",
+            Regex.IsMatch(caller, @"limitBreak\.Info\.AdjustedID\s*!=\s*limitBreak\.ID"));
+        Harness.Case("LimitBreakUsable: the game check ignores casting and the GCD, and a placed Limit Break is checked with no target",
+            Regex.IsMatch(caller, @"GetActionStatus\(ActionType\.Action, limitBreak\.ID, onWhom, checkRecastActive: false, checkCastingActive: false\)\s*==\s*0")
+            && Regex.IsMatch(caller, @"limitBreak\.Info\.TargetAreaAction \? NoTarget : targetId") && caller.Contains("NoTarget = 0xE0000000"));
+        Harness.Case("snapshot readiness uses the same check as firing", caller.Contains("bool LbOk(ulong id) => LimitBreakUsable(lb, id);"));
+        int pending = target.IndexOf("JevCaller.PendingLimitBreakTarget is ulong jevLimitBreak", StringComparison.Ordinal);
+        Harness.Case("target order: a pending Limit Break target goes first, even before the sticky-target hold",
+            pending > 0 && sticky > pending);
+        foreach (var (file, method) in new[] { ("MonkRotation.cs", "ModifyMeteodrivePvP"), ("NinjaRotation.cs", "ModifySeitonTenchuPvP"), ("SamuraiRotation.cs", "ModifyZantetsukenPvP") })
+        {
+            var rot = Src("PvPSolver.Basic", "Rotations", "Basic", file);
+            Harness.Case($"{method}: the Guard-piercing Limit Break may target a Guarded enemy (IgnoreGuard)",
+                Regex.IsMatch(rot, @"static partial void " + method + @"\(ref ActionSetting setting\)\s*\{\s*setting\.IgnoreGuard\s*=\s*true;\s*\}"));
+        }
         Harness.Case("caller: off unless the switch, PvP and combat", Regex.IsMatch(caller, @"!Service\.Config\.JevCallsShots\s*\|\|\s*!DataCenter\.IsPvP\s*\|\|\s*!DataCenter\.InCombat"));
         Harness.Case("caller: the HTTP call starts on a pool thread and the client never looks up a proxy",
             Regex.IsMatch(caller, @"Task\.Run\(\s*\(\)\s*=>\s*SendAsync\(") && Regex.IsMatch(caller, @"UseProxy\s*=\s*false"));

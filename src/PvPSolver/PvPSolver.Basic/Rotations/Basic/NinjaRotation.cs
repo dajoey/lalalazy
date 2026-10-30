@@ -226,4 +226,10 @@ public partial class NinjaRotation : CustomRotation
 	{
 		return base.DefenseSingleAbility(nextGCD, out act);
 	}
+
+	static partial void ModifySeitonTenchuPvP(ref ActionSetting setting)
+	{
+		// Seiton Tenchu ignores Guard when dealing damage (game text).
+		setting.IgnoreGuard = true;
+	}
 }

@@ -290,4 +290,10 @@ public partial class MonkRotation : CustomRotation
 
 
 	#endregion
+
+	static partial void ModifyMeteodrivePvP(ref ActionSetting setting)
+	{
+		// Meteodrive removes the target's Guard (game text), so a Guarded enemy is a valid target.
+		setting.IgnoreGuard = true;
+	}
 }
