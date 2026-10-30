@@ -1,4 +1,3 @@
-using RotationSolver.Decisions;
 ﻿using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
@@ -388,12 +387,6 @@ public readonly struct ActionBasicInfo
 		}
 
 		if (!EnoughLevel)
-		{
-			return false;
-		}
-
-		// "Let Jev call the shots": Jev may veto a PvP Limit Break it judges wasted right now; it never fires one.
-		if (IsPvPLimitBreak && DataCenter.IsPvP && Service.Config.JevCallsShots && JevCall.HoldLimitBreak(JevCaller.Latest, JevCaller.Now))
 		{
 			return false;
 		}

@@ -1,5 +1,5 @@
-using RotationSolver.Decisions;
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+﻿using RotationSolver.Decisions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameFunctions;
@@ -3536,7 +3536,7 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 
 			// "Let Jev call the shots" (Projects/PvP Jev Co-pilot): a fresh Jev focus call goes first when that
-			// enemy is still a legal target for this action; otherwise the configured order stands.
+			// enemy is among this action's candidates under the current targeting mode; otherwise the order stands.
 			if (Service.Config.JevCallsShots && DataCenter.IsPvP && JevCall.FocusPick(JevCaller.Latest, JevCaller.Now) is ulong jevFocus)
 			{
 				foreach (var obj in filtered)

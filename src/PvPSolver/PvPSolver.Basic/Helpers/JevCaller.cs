@@ -2,20 +2,24 @@ using System.Net.Http;
 using System.Text;
 using ECommons.GameHelpers;
 using ECommons.Logging;
-using FFXIVClientStructs.FFXIV.Client.Game;
 using RotationSolver.Decisions;
 
 namespace RotationSolver.Basic.Helpers;
 
 /// <summary>
 /// "Let Jev call the shots": once a second in a PvP fight, send a jobs-and-numbers snapshot to the PvP Jev
-/// relay and keep its latest answer for <see cref="JevCall.FocusPick"/> and <see cref="JevCall.HoldLimitBreak"/>.
-/// Off unless <c>JevCallsShots</c> is on. One request in flight at a time, never awaited on the game thread;
-/// any failure just leaves the previous answer to go stale, so PvP Solver falls back to its own logic.
+/// relay and keep its latest answer for <see cref="JevCall.FocusPick"/>. Off unless <c>JevCallsShots</c> is on.
+/// One request in flight at a time, started on a pool thread (so no part of the HTTP call, proxy lookup
+/// included, runs on the game thread); any failure just leaves the previous answer to go stale, so PvP
+/// Solver falls back to its own logic.
 /// </summary>
 public static class JevCaller
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMilliseconds(1500) };
+    // The relay is a LAN address: no proxy, so Windows proxy auto-detection (WPAD) never runs for it.
+    private static readonly HttpClient Http = new(new SocketsHttpHandler { UseProxy = false, ConnectTimeout = TimeSpan.FromMilliseconds(800) })
+    {
+        Timeout = TimeSpan.FromMilliseconds(1500),
+    };
     private static JevAnswer? _latest;
     private static double _lastSent = double.MinValue;
     private static int _inFlight;
@@ -58,7 +62,8 @@ public static class JevCaller
             return;
         }
 
-        _ = SendAsync(body, Service.Config.JevRelayUrl);
+        string url = Service.Config.JevRelayUrl;
+        _ = Task.Run(() => SendAsync(body, url));
     }
 
     private static async Task SendAsync(string body, string url)
@@ -131,7 +136,7 @@ public static class JevCaller
             allies.Add(new JevAlly(a.ClassJob.Value.Abbreviation.ToString(), a.GetHealthRatio(), a.DistanceToPlayer()));
         }
 
-        return JevCall.SnapshotJson(me.ClassJob.Value.Abbreviation.ToString(), me.GetHealthRatio(), LimitBreakReady(), enemies, allies);
+        return JevCall.SnapshotJson(me.ClassJob.Value.Abbreviation.ToString(), me.GetHealthRatio(), enemies, allies);
     }
 
     private static bool HasInvincibleStatus(IBattleChara b)
@@ -144,30 +149,6 @@ public static class JevCaller
         foreach (var status in b.StatusList)
         {
             if (status != null && status.IsInvincible())
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Whether the job's PvP Limit Break is usable, asked of the game's action manager directly. This must not
-    /// go through PvP Solver's own checks: those consult the Jev veto, and a held Limit Break would then read
-    /// as not ready, the relay would stop asking, and the veto would drop on the next answer.
-    /// </summary>
-    private static unsafe bool LimitBreakReady()
-    {
-        ActionManager* manager = ActionManager.Instance();
-        if (manager == null || DataCenter.CurrentRotation == null)
-        {
-            return false;
-        }
-
-        foreach (IBaseAction action in DataCenter.CurrentRotation.AllBaseActions)
-        {
-            if (action.Info.IsPvPLimitBreak && manager->GetActionStatus(ActionType.Action, action.Info.AdjustedID) == 0)
             {
                 return true;
             }

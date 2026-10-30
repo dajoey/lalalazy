@@ -8,15 +8,15 @@ public sealed record JevEnemy(ulong Id, string Job, float Hp, float Distance, bo
 /// <summary>One ally near the player in the snapshot.</summary>
 public sealed record JevAlly(string Job, float Hp, float Distance);
 
-/// <summary>The relay's latest answer: an enemy to focus (or none) and whether to hold the Limit Break.</summary>
-public sealed record JevAnswer(ulong? Focus, bool HoldLimitBreak, double ReceivedAt);
+/// <summary>The relay's latest answer: an enemy to focus, or none.</summary>
+public sealed record JevAnswer(ulong? Focus, double ReceivedAt);
 
 /// <summary>
 /// "Let Jev call the shots": the pure part. The plugin sends a fight snapshot to the PvP Jev relay on
-/// the home network about once a second; the relay asks Jev who to focus and whether a ready Limit
-/// Break would be wasted. Jev may move one enemy to the front of the attack order and may veto a
-/// Limit Break; it never fires one. An answer older than <see cref="FreshSeconds"/> counts as no answer,
-/// so a slow or missing relay leaves PvP Solver on its own logic.
+/// the home network about once a second; the relay asks Jev which enemy to focus. Jev may move that one
+/// enemy to the front of the attack order, among the enemies the current targeting mode allows. An answer
+/// older than <see cref="FreshSeconds"/> counts as no answer, so a slow or missing relay leaves PvP Solver
+/// on its own logic. (PvP Solver never fires a PvP Limit Break, so Jev has no Limit Break to call.)
 /// </summary>
 public static class JevCall
 {
@@ -31,21 +31,16 @@ public static class JevCall
     public static ulong? FocusPick(JevAnswer? answer, double now) =>
         answer != null && Fresh(answer, now) ? answer.Focus : null;
 
-    /// <summary>True when a fresh answer says the ready Limit Break would be wasted right now.</summary>
-    public static bool HoldLimitBreak(JevAnswer? answer, double now) =>
-        answer != null && Fresh(answer, now) && answer.HoldLimitBreak;
-
     private static bool Fresh(JevAnswer answer, double now) => now >= answer.ReceivedAt && now - answer.ReceivedAt <= FreshSeconds;
 
     /// <summary>The request body for the relay; the nearest <see cref="MaxEnemies"/> enemies, rounded numbers.</summary>
-    public static string SnapshotJson(string job, float hp, bool limitBreakReady, IEnumerable<JevEnemy> enemies, IEnumerable<JevAlly> allies)
+    public static string SnapshotJson(string job, float hp, IEnumerable<JevEnemy> enemies, IEnumerable<JevAlly> allies)
     {
         var body = new
         {
             v = 1,
             job,
             hp = Round(hp),
-            lb = limitBreakReady ? 1.0f : 0.0f,
             enemies = enemies.OrderBy(e => e.Distance).Take(MaxEnemies).Select(e => new
             {
                 id = e.Id,
@@ -75,8 +70,7 @@ public static class JevCall
             }
 
             ulong? focus = root.TryGetProperty("focus", out var f) && f.ValueKind == Stj.JsonValueKind.Number && f.TryGetUInt64(out var id) ? id : null;
-            bool hold = root.TryGetProperty("lb", out var lb) && lb.ValueKind == Stj.JsonValueKind.String && lb.GetString() == "hold";
-            return new JevAnswer(focus, hold, now);
+            return new JevAnswer(focus, now);
         }
         catch (Stj.JsonException)
         {
