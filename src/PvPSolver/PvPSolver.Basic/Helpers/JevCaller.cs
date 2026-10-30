@@ -122,6 +122,8 @@ public static class JevCaller
             _fireUntil = now + FireWindowSeconds;
             _fireTarget = target;
             _lastFireAttempt = _fireUntil; // the retry gap counts from the end of this window
+            // One line per window (at most one per FireRetrySeconds), for the post-play check in dalamud.log / ffxivdb.
+            PluginLog.Information($"[JevCaller] JV|lb-fire-window action={limitBreak.ID} target={(target == null ? "none" : "enemy")}");
         }
 
         ulong? aim = _fireTarget;
