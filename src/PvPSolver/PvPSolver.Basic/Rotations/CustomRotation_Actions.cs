@@ -174,6 +174,9 @@ public partial class CustomRotation
 	private protected virtual IBaseAction? LimitBreak3 => null;
 	private protected virtual IBaseAction? LimitBreakPvP => null;
 
+	/// <summary>The job's PvP Limit Break, for "Let Jev call the shots" (JevCaller).</summary>
+	internal IBaseAction? JevLimitBreak => LimitBreakPvP;
+
 	/// <summary>
 	/// All actions of this rotation.
 	/// </summary>

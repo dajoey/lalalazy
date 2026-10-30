@@ -139,7 +139,7 @@ public static class PvpSettingsCatalog
         Toggle(Targeting, "Staying on a target", "StickyTarget", "Stay on my target while my own debuff is ticking",
             "Keeps targeting an enemy that holds a timed debuff applied by the character (Wildfire and similar), instead of jumping to another enemy.", true),
         Toggle(Targeting, "Jev", "JevCallsShots", "Let Jev call the shots",
-            "Jev, a decision model reached through a relay on the home network, picks the enemy to focus; it is attacked first whenever the current targeting mode allows it. Only jobs and numbers are sent, never names. If the relay is slow or down, the usual order applies.", false),
+            "Jev, a decision model reached through a relay on the home network, picks the enemy to focus (attacked first whenever the current targeting mode allows it) and fires your PvP Limit Break when it judges the moment right. Only jobs, numbers and positions are sent, never names. If the relay is slow or down, the usual order applies and no Limit Break is fired.", false),
         Seconds(Targeting, "Staying on a target", "StickyTargetMaxRemaining", "Ignore my debuffs with more than this many seconds left",
             "A debuff with more time left than this does not hold the target.", 30f, 1f, 60f, parent: "StickyTarget"),
         Toggle(Targeting, "Invulnerable enemies and The Shatter", "IgnorePvPInvincibility", "Keep attacking invulnerable enemies",

@@ -220,6 +220,13 @@ public partial class CustomRotation
 			// Reset target override
 			IBaseAction.TargetOverride = null;
 
+			// "Let Jev call the shots" (Projects/PvP Jev Co-pilot): fire the PvP Limit Break when Jev's fresh answer
+			// says so and the game confirms it can be used on that target now. PvP Solver never fires one otherwise.
+			if (DataCenter.IsPvP && Service.Config.JevCallsShots && JevCaller.TryLimitBreak(LimitBreakPvP, out IAction? jevLimitBreak))
+			{
+				return jevLimitBreak;
+			}
+
 			// Attempt to get the GCD action
 			gcdAction = GCD();
 			IBaseAction.IgnoreClipping = false;

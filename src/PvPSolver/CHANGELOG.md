@@ -1,5 +1,12 @@
 # Changelog - PvP Solver
 
+## v0.1.2.6 (2026-10-29) [testing]
+### Added
+- **"Let Jev call the shots" now fires the PvP Limit Break.** When the Limit Break is ready, Jev is asked about this job's own Limit Break (what it does, from the game's description) with the facts that decide it: the damage against each enemy's remaining HP, Guard, Kuzushi and low-HP executes, how many enemies a line, cone or area would catch, and which allies are hurt or under attack. It fires when that wins a kill, catches several enemies, or saves the player or an ally, and holds otherwise. Only enemies the game says the Limit Break can be used on right now are offered, and the game is asked again just before firing.
+- The focus pick also weighs each enemy's remaining HP and how many allies are already attacking it.
+- With the setting off, or the relay slow or down, no Limit Break is fired (as before).
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.5 (2026-10-29) [testing]
 ### Added
 - **"Let Jev call the shots"** (Targeting tab, off by default). About once a second in a PvP fight, a snapshot of jobs, HP, distance, Guard, invulnerability and crowd control (never player names) goes to a decision relay on the home network. Jev, a decision model, picks the enemy to focus; that enemy is attacked first whenever the current targeting mode allows it, after the stay-on-my-debuff-target rule.

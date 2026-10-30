@@ -1187,7 +1187,7 @@ internal partial class Configs : IPluginConfiguration
 	private static readonly bool _stickyTarget = true;
 
 	[ConditionBool, UI("PvP: let Jev call the shots",
-		Description = "Sends a fight snapshot (jobs and numbers, no names) to the PvP Jev relay on the home network about once a second. Jev picks the enemy to focus, which is attacked first whenever the current targeting mode allows it. A slow or missing relay leaves PvP Solver on its own logic.",
+		Description = "Sends a fight snapshot (jobs, numbers and positions, no names) to the PvP Jev relay on the home network about once a second. Jev picks the enemy to focus, which is attacked first whenever the current targeting mode allows it, and fires the job's PvP Limit Break when it judges the moment right, once the game confirms it can be used on that target. A slow or missing relay leaves PvP Solver on its own logic, which never fires a PvP Limit Break.",
 		Filter = TargetConfig)]
 	private static readonly bool _jevCallsShots = false;
 
