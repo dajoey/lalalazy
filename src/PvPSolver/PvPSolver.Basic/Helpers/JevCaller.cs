@@ -62,6 +62,7 @@ public static class JevCaller
     {
         if (!Service.Config.JevCallsShots || !DataCenter.IsPvP || !DataCenter.InCombat || Player.Object == null)
         {
+            DropUsed();
             return;
         }
 
@@ -185,10 +186,33 @@ public static class JevCaller
                 return false;
             }
 
+            // The game's usable check ignores range; the enemy may have moved since Jev's snapshot.
+            if (!InRangeAndSight(limitBreak.AdjustedID, chosen))
+            {
+                act = null;
+                SkipOnce("out-of-range");
+                return false;
+            }
+
             limitBreak.Target = new TargetResult(chosen, [chosen], chosen.Position);
         }
 
         return true;
+    }
+
+    /// <summary>Range and line of sight from the player to the target, as TargetHelper checks it (565: facing only).</summary>
+    private static unsafe bool InRangeAndSight(uint actionId, IBattleChara target)
+    {
+        IBattleChara? me = Player.Object;
+        if (me == null || target.Address == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        uint err = ActionManager.GetActionInRangeOrLoS(actionId,
+            (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)me.Address,
+            (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)target.Address);
+        return err == 0 || err == 565;
     }
 
     private static double _skipLoggedFor = double.MinValue;
@@ -203,6 +227,14 @@ public static class JevCaller
 
         _skipLoggedFor = _fireUntil;
         PluginLog.Information($"[JevCaller] JV|lb-fire-skip reason={reason}");
+    }
+
+    private static void DropUsed()
+    {
+        lock (UsedLock)
+        {
+            UsedSinceSnapshot.Clear();
+        }
     }
 
     private static async Task SendAsync(string body, string url)
@@ -238,6 +270,14 @@ public static class JevCaller
         if (me == null)
         {
             return null;
+        }
+
+        // Drained first, so casts from a second with no snapshot (no enemy in view) are never matched to a later pick.
+        JevUsed[] used;
+        lock (UsedLock)
+        {
+            used = [.. UsedSinceSnapshot];
+            UsedSinceSnapshot.Clear();
         }
 
         IBaseAction? lb = (DataCenter.CurrentRotation as CustomRotation)?.JevLimitBreak;
@@ -300,12 +340,6 @@ public static class JevCaller
                 hostiles.Count(b => b.TargetObjectId == a.GameObjectId)));
         }
 
-        JevUsed[] used;
-        lock (UsedLock)
-        {
-            used = [.. UsedSinceSnapshot];
-            UsedSinceSnapshot.Clear();
-        }
 
         ulong myTarget = me.TargetObjectId;
         var self = new JevSelf(me.ClassJob.Value.Abbreviation.ToString(), me.GetHealthRatio(), me.CurrentHp, me.Rotation,

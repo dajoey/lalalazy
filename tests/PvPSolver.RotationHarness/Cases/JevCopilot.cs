@@ -153,7 +153,15 @@ internal static class JevCopilot
         Harness.Case("NoteActionUsed keeps nothing with the switch off or outside PvP, and at most 16 per snapshot",
             Regex.IsMatch(caller, @"public static void NoteActionUsed\(uint actionId, ulong\? targetId\)\s*\{\s*if\s*\(!Service\.Config\.JevCallsShots\s*\|\|\s*!DataCenter\.IsPvP\)")
             && caller.Contains("UsedSinceSnapshot.Count < 16"));
-        Harness.Case("the snapshot drains the used list under its lock", Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*used = \[\.\. UsedSinceSnapshot\];\s*UsedSinceSnapshot\.Clear\(\);"));
+        Harness.Case("the snapshot drains the used list under its lock, before any early return",
+            Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*used = \[\.\. UsedSinceSnapshot\];\s*UsedSinceSnapshot\.Clear\(\);")
+            && caller.IndexOf("used = [.. UsedSinceSnapshot];", StringComparison.Ordinal) < caller.IndexOf("if (hostiles.Count == 0)", StringComparison.Ordinal));
+        Harness.Case("no snapshot this frame (switch off, not PvP, not in combat): recorded casts are dropped",
+            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);\s*return;"));
+        Harness.Case("TryLimitBreak: a re-aimed Limit Break must be in range and sight of the chosen enemy (the usable check ignores range)",
+            Regex.IsMatch(caller, @"if\s*\(!InRangeAndSight\(limitBreak\.AdjustedID, chosen\)\)")
+            && caller.IndexOf("InRangeAndSight(limitBreak.AdjustedID, chosen)", StringComparison.Ordinal) < caller.IndexOf("limitBreak.Target = new TargetResult(", StringComparison.Ordinal)
+            && callerRaw.Contains("SkipOnce(\"out-of-range\")") && caller.Contains("return err == 0 || err == 565;"));
 
         var actions = Src("PvPSolver.Basic", "Rotations", "CustomRotation_Actions.cs");
         Harness.Case("the rotation exposes its PvP Limit Break to the caller (internal accessor)",
