@@ -156,6 +156,14 @@ internal static class JevCopilot
             && JevCall.ShouldFireLimitBreak(JevCall.KeepLastPick(good, unsure with { FireLimitBreak = true }, Hostile), 101.5, double.MinValue, out _));
         Harness.Case("keep pick: no previous answer, nothing to keep",
             JevCall.FocusPick(JevCall.KeepLastPick(null, unsure, Hostile), 101.5) == null);
+        // A relay that owns keeping (its reply carries "kept_why") already dropped the old pick on purpose (Guarded,
+        // out of reach, too old): the plugin must not bring it back.
+        Harness.Case("keep pick: a reply from a relay that keeps picks itself (kept_why present) is never overridden",
+            JevCall.FocusPick(JevCall.KeepLastPick(good, unsure with { RelayKeeps = true }, Hostile), 101.5) == null);
+        Harness.Case("keep pick: Parse marks a reply that carries kept_why (null or text) as relay-kept, and an old reply as not",
+            JevCall.Parse("{\"focus\":null,\"kept_why\":null}", 1.0) is { RelayKeeps: true }
+            && JevCall.Parse("{\"focus\":5,\"kept\":true,\"kept_why\":\"steady\"}", 1.0) is { RelayKeeps: true, Focus: 5UL }
+            && JevCall.Parse("{\"focus\":null}", 1.0) is { RelayKeeps: false });
 
         // ---- T1: Fix 5, the game reports each action twice; the same action on the same target within 1.5 s counts once
         var uses = new JevRecentUses();

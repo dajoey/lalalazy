@@ -3,7 +3,7 @@
 ## v0.1.2.8 (2026-10-31) [testing]
 ### Fixed
 - **"Let Jev call the shots" now sees real HP.** The player's and allies' HP sent to Jev is the current HP out of the maximum, no longer PvP Solver's predicted HP, which counts heals still on the way. In one match Jev was told 84% one second before a death at about 40%.
-- **Jev's pick no longer drops when Jev is briefly unsure.** An answer with no pick keeps the last pick for up to three seconds after Jev gave it, while that enemy is still a valid target. A different pick, or the three seconds running out, replaces it.
+- **Jev's pick no longer drops when Jev is briefly unsure.** The relay now keeps the last pick itself while that enemy is still hittable, and drops it on purpose when the enemy goes under Guard, out of reach or stale. PvP Solver follows the relay's call and never brings a dropped pick back. Only with an older relay does PvP Solver keep the last pick, for up to three seconds after Jev gave it, while that enemy is still a valid target.
 - **The Limit Break log matches what happened.** `JV|lb-fired` is written once when the Limit Break goes off in a fire window. `JV|lb-fire-skip` is written only when a window closes without it, with the reason: unusable, follow-up, out-of-range, no-target or timeout. A report of the use that arrives up to two seconds late still counts as fired. Before, a skip line could appear in windows that then fired, and windows that really failed wrote nothing.
 - **Each action used is reported once.** The game reports each action twice; the same action on the same target within 1.5 seconds now counts once in the snapshot.
 ### Changed

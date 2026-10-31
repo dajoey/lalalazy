@@ -32,10 +32,11 @@ public sealed record JevSelf(string Job, uint HpNow, uint HpMax, float Facing, b
 /// The relay's latest answer: an enemy to focus (or none), and whether to fire the Limit Break now and at which
 /// enemy (<see cref="LimitBreakTarget"/> null means a Limit Break with no enemy target). <see cref="Heal"/> is the
 /// optional healer call ("self", "attack", "guard" or an ally's object id), logged only. <see cref="FocusReceivedAt"/> is set
-/// when the focus was kept from an earlier answer, so a kept focus ages from the moment Jev gave it.
+/// when the focus was kept from an earlier answer, so a kept focus ages from the moment Jev gave it. <see cref="RelayKeeps"/>:
+/// the reply came from a relay that keeps picks itself (it carries "kept_why"), so the plugin never re-keeps one.
 /// </summary>
 public sealed record JevAnswer(ulong? Focus, bool FireLimitBreak, ulong? LimitBreakTarget, double ReceivedAt,
-    string? Heal = null, double? FocusReceivedAt = null)
+    string? Heal = null, double? FocusReceivedAt = null, bool RelayKeeps = false)
 {
     /// <summary>When Jev gave the focus in this answer.</summary>
     public double FocusAt => FocusReceivedAt ?? ReceivedAt;
@@ -97,12 +98,14 @@ public static class JevCall
     /// The answer to keep when <paramref name="incoming"/> arrives. An unsure answer (no focus) keeps the previous focus
     /// while that focus is fresh (aged from when Jev gave it) and <paramref name="stillHostile"/> says it is still a
     /// valid hostile target; an answer with a focus, or a stale or gone previous focus, replaces it. The Limit Break
-    /// call and the heal call always come from <paramref name="incoming"/>.
+    /// call and the heal call always come from <paramref name="incoming"/>. A reply from a relay that keeps picks itself
+    /// (<see cref="JevAnswer.RelayKeeps"/>) is used as is: that relay already dropped the old pick on purpose (Guarded,
+    /// out of reach or too old), and only an older relay needs this fallback.
     /// </summary>
     public static JevAnswer KeepLastPick(JevAnswer? previous, JevAnswer incoming, Func<ulong, bool> stillHostile)
     {
-        if (incoming.Focus != null || previous?.Focus is not ulong kept || !Fresh(previous.FocusAt, incoming.ReceivedAt)
-            || !stillHostile(kept))
+        if (incoming.RelayKeeps || incoming.Focus != null || previous?.Focus is not ulong kept
+            || !Fresh(previous.FocusAt, incoming.ReceivedAt) || !stillHostile(kept))
         {
             return incoming;
         }
@@ -183,7 +186,8 @@ public static class JevCall
 
             ulong? focus = Id(root, "focus");
             bool fire = root.TryGetProperty("lb", out var lb) && Text(lb) == "fire";
-            return new JevAnswer(focus, fire, fire ? Id(root, "lb_target") : null, now, HealCall(root));
+            return new JevAnswer(focus, fire, fire ? Id(root, "lb_target") : null, now, HealCall(root),
+                RelayKeeps: root.TryGetProperty("kept_why", out _));
         }
         catch (Exception ex) when (ex is Stj.JsonException or InvalidOperationException)
         {
