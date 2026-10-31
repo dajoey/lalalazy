@@ -1,5 +1,18 @@
 # Changelog - PvP Solver
 
+## v0.1.2.8 (2026-10-31) [testing]
+### Fixed
+- **"Let Jev call the shots" now sees real HP.** The player's and allies' HP sent to Jev is the current HP out of the maximum, no longer PvP Solver's predicted HP, which counts heals still on the way. In one match Jev was told 84% one second before a death at about 40%.
+- **Jev's pick no longer drops when Jev is briefly unsure.** An answer with no pick keeps the last pick for up to three seconds after Jev gave it, while that enemy is still a valid target. A different pick, or the three seconds running out, replaces it.
+- **The Limit Break log matches what happened.** `JV|lb-fired` is written once when the Limit Break goes off in a fire window. `JV|lb-fire-skip` is written only when a window closes without it, with the reason: unusable, out-of-range, no-target or timeout. Before, a skip line could appear in windows that then fired, and windows that really failed wrote nothing.
+- **Each action used is reported once.** The game reports each action twice; the same action on the same target within 1.5 seconds now counts once in the snapshot.
+### Changed
+- **Alliance members are included (Frontline).** After the party members, the nearest alliance members are sent too, marked as alliance, up to eight allies in all. Each ally now carries its object id, so Jev can name an ally to heal.
+- **Healer call, logged only.** When Jev suggests whom a healer should heal (an ally, self, attack or Guard), the suggestion is written as one `JV|heal-shadow` log line each time it changes. Nothing acts on it yet.
+- **Relay failures are visible in the log.** One summary line per fight (when combat ends, or every 60 seconds while calls fail) counts calls that succeeded, timed out, got an error reply or failed. No line per call.
+- PvP Solver still never moves the character.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.7 (2026-10-29) [testing]
 ### Changed
 - **"Let Jev call the shots" reports what actually happened.** Each snapshot also carries the player's current target and the actions actually used since the last one (action and target only), so each of Jev's picks can be checked against what PvP Solver did and whether that enemy went down.

@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.GameHelpers;
 using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -13,7 +14,7 @@ namespace RotationSolver.Basic.Helpers;
 /// and <see cref="TryLimitBreak"/> for firing the job's PvP Limit Break. Off unless <c>JevCallsShots</c> is on.
 /// One request in flight at a time, started on a pool thread (so no part of the HTTP call, proxy lookup included,
 /// runs on the game thread); any failure just leaves the previous answer to go stale, so PvP Solver falls back to
-/// its own logic.
+/// its own logic. Failures are counted and summed up in one log line per fight. Nothing here moves the character.
 /// </summary>
 public static class JevCaller
 {
@@ -30,6 +31,11 @@ public static class JevCaller
     private static int _inFlight;
     private static readonly object UsedLock = new();
     private static readonly List<JevUsed> UsedSinceSnapshot = [];
+    private static readonly JevRecentUses RecentUses = new();
+    private static readonly object FireLogLock = new();
+    private static readonly JevFireLog FireLog = new();
+    private static readonly JevCallStats Stats = new();
+    private static string? _lastHeal;
 
     /// <summary>
     /// Called when the game reports an action the player used (PvP Solver's Watcher): kept until the next snapshot,
@@ -42,12 +48,43 @@ public static class JevCaller
             return;
         }
 
+        ulong? target = targetId is null or 0 or NoTarget ? null : targetId;
+        double now = Now;
+        // The game reports each action twice: the same action on the same target within 1.5 s is recorded once.
         lock (UsedLock)
         {
-            if (UsedSinceSnapshot.Count < 16)
+            if (UsedSinceSnapshot.Count < 16 && RecentUses.IsNew(actionId, target, now))
             {
-                UsedSinceSnapshot.Add(new JevUsed(actionId, targetId is null or 0 or NoTarget ? null : targetId));
+                UsedSinceSnapshot.Add(new JevUsed(actionId, target));
             }
+        }
+    }
+
+    /// <summary>
+    /// Called for every effect of an action the player used (PvP Solver's Watcher), before any filtering: when it is
+    /// the Limit Break of an open Jev fire window, the log says it fired.
+    /// </summary>
+    public static void NoteActionEffect(uint actionId)
+    {
+        if (!Service.Config.JevCallsShots || !DataCenter.IsPvP)
+        {
+            return;
+        }
+
+        string? line;
+        lock (FireLogLock)
+        {
+            line = FireLog.Used(actionId, Now);
+        }
+
+        LogFire(line);
+    }
+
+    private static void LogFire(string? line)
+    {
+        if (line != null)
+        {
+            PluginLog.Information($"[JevCaller] {line}");
         }
     }
 
@@ -60,13 +97,27 @@ public static class JevCaller
     /// <summary>Called from the plugin's frame update.</summary>
     public static void Update()
     {
+        double now = Now;
+        bool fighting = Service.Config.JevCallsShots && DataCenter.IsPvP && DataCenter.InCombat;
+        // Every frame, before the gate: a fire window's verdict and the relay summary are written even after the fight ends.
+        string? fireLine;
+        lock (FireLogLock)
+        {
+            fireLine = FireLog.Tick(now);
+        }
+
+        LogFire(fireLine);
+        if (Stats.Tick(now, fighting) is { } summary)
+        {
+            PluginLog.Information($"[JevCaller] {summary}");
+        }
+
         if (!Service.Config.JevCallsShots || !DataCenter.IsPvP || !DataCenter.InCombat || Player.Object == null)
         {
             DropUsed();
             return;
         }
 
-        double now = Now;
         if (now - _lastSent < JevCall.IntervalSeconds || Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
         {
             return;
@@ -74,12 +125,14 @@ public static class JevCaller
 
         _lastSent = now;
         string? body;
+        HashSet<ulong> hostileIds = [];
         try
         {
-            body = BuildSnapshot();
+            body = BuildSnapshot(hostileIds);
         }
         catch (Exception ex)
         {
+            Stats.Count(JevCallOutcome.Error);
             PluginLog.Debug($"[JevCaller] snapshot failed: {ex.Message}");
             body = null;
         }
@@ -91,7 +144,7 @@ public static class JevCaller
         }
 
         string url = Service.Config.JevRelayUrl;
-        _ = Task.Run(() => SendAsync(body, url));
+        _ = Task.Run(() => SendAsync(body, url, hostileIds));
     }
 
     /// <summary>How long one Jev "fire" stays live: the rotation only gets some frames to act, so a single frame is not enough.</summary>
@@ -124,7 +177,8 @@ public static class JevCaller
     /// <see cref="FireWindowSeconds"/>: on every frame of it, while the game says the Limit Break is usable on Jev's
     /// target, it is handed back as the next action (PvP Solver's own timing decides the frame it goes off). The window
     /// closes as soon as the Limit Break is used or unusable, and the next window opens no sooner than
-    /// <see cref="JevCall.FireRetrySeconds"/> after it, so a use the game rejects never stalls the rotation.
+    /// <see cref="JevCall.FireRetrySeconds"/> after it, so a use the game rejects never stalls the rotation. The log says
+    /// once per window whether the Limit Break fired or why the window closed without it (<see cref="JevFireLog"/>).
     /// </summary>
     public static bool TryLimitBreak(IBaseAction? limitBreak, out IAction? act)
     {
@@ -147,12 +201,25 @@ public static class JevCaller
             _lastFireAttempt = _fireUntil; // the retry gap counts from the end of this window
             // One line per window (at most one per FireRetrySeconds), for the post-play check in dalamud.log / ffxivdb.
             PluginLog.Information($"[JevCaller] JV|lb-fire-window action={limitBreak.ID} target={(target == null ? "none" : "enemy")}");
+            string? flushed;
+            lock (FireLogLock)
+            {
+                flushed = FireLog.Open(limitBreak.ID, now, _fireUntil);
+            }
+
+            LogFire(flushed);
         }
 
         ulong? aim = _fireTarget;
         if (!LimitBreakUsable(limitBreak, aim ?? Player.Object.GameObjectId))
         {
             _fireUntil = now; // used (it turned into its follow-up, or the gauge emptied) or not usable: close the window
+            // Which of the two it was is told by the game's report of the use (NoteActionEffect), within the grace.
+            lock (FireLogLock)
+            {
+                FireLog.Close(now, "unusable");
+            }
+
             return false;
         }
 
@@ -161,7 +228,7 @@ public static class JevCaller
                 skipAoeCheck: true, skipTTKCheck: true))
         {
             act = null;
-            SkipOnce("canuse");
+            FrameWithoutReason(); // PvP Solver's own timing: a later frame of the window may still fire
             return false;
         }
 
@@ -182,7 +249,11 @@ public static class JevCaller
             if (chosen == null)
             {
                 act = null;
-                SkipOnce("target-gone");
+                lock (FireLogLock)
+                {
+                    FireLog.Refused("no-target");
+                }
+
                 return false;
             }
 
@@ -190,14 +261,28 @@ public static class JevCaller
             if (!InRangeAndSight(limitBreak.AdjustedID, chosen))
             {
                 act = null;
-                SkipOnce("out-of-range");
+                lock (FireLogLock)
+                {
+                    FireLog.Refused("out-of-range");
+                }
+
                 return false;
             }
 
             limitBreak.Target = new TargetResult(chosen, [chosen], chosen.Position);
         }
 
+        FrameWithoutReason();
         return true;
+    }
+
+    /// <summary>A frame of the fire window with no reason to report (offered, or held back by PvP Solver's timing).</summary>
+    private static void FrameWithoutReason()
+    {
+        lock (FireLogLock)
+        {
+            FireLog.Refused(null);
+        }
     }
 
     /// <summary>Range and line of sight from the player to the target, as TargetHelper checks it (565: facing only).</summary>
@@ -215,20 +300,6 @@ public static class JevCaller
         return err == 0 || err == 565;
     }
 
-    private static double _skipLoggedFor = double.MinValue;
-
-    /// <summary>One line per fire window when the Limit Break could not be offered, so a miss explains itself.</summary>
-    private static void SkipOnce(string reason)
-    {
-        if (_skipLoggedFor == _fireUntil)
-        {
-            return;
-        }
-
-        _skipLoggedFor = _fireUntil;
-        PluginLog.Information($"[JevCaller] JV|lb-fire-skip reason={reason}");
-    }
-
     private static void DropUsed()
     {
         lock (UsedLock)
@@ -237,7 +308,7 @@ public static class JevCaller
         }
     }
 
-    private static async Task SendAsync(string body, string url)
+    private static async Task SendAsync(string body, string url, HashSet<ulong> hostileIds)
     {
         try
         {
@@ -245,17 +316,33 @@ public static class JevCaller
             using var response = await Http.PostAsync(url, content).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
+                Stats.Count(JevCallOutcome.Non200);
+                PluginLog.Debug($"[JevCaller] relay replied {(int)response.StatusCode}");
                 return;
             }
 
             string json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (JevCall.Parse(json, Now) is { } answer)
+            if (JevCall.Parse(json, Now) is not { } answer)
             {
-                Volatile.Write(ref _latest, answer);
+                Stats.Count(JevCallOutcome.Error);
+                PluginLog.Debug("[JevCaller] relay reply did not parse");
+                return;
             }
+
+            Stats.Count(JevCallOutcome.Ok);
+            // Shadow only in this version: the heal call is logged once per change and nothing acts on it.
+            if (JevCall.HealShadowLine(_lastHeal, answer.Heal) is { } healLine)
+            {
+                PluginLog.Information($"[JevCaller] {healLine}");
+            }
+
+            _lastHeal = answer.Heal;
+            // An unsure answer keeps the last good pick while it is fresh and still hostile (as of this snapshot).
+            Volatile.Write(ref _latest, JevCall.KeepLastPick(Volatile.Read(ref _latest), answer, hostileIds.Contains));
         }
         catch (Exception ex)
         {
+            Stats.Count(JevCall.Classify(ex));
             PluginLog.Debug($"[JevCaller] relay call failed: {ex.Message}");
         }
         finally
@@ -264,7 +351,7 @@ public static class JevCaller
         }
     }
 
-    private static string? BuildSnapshot()
+    private static string? BuildSnapshot(HashSet<ulong> hostileIds)
     {
         IBattleChara? me = Player.Object;
         if (me == null)
@@ -288,11 +375,13 @@ public static class JevCaller
         bool sam = me.ClassJob.Value.Abbreviation.ToString() == "SAM";
 
         var party = new List<IBattleChara>();
+        var partyIds = new HashSet<ulong> { me.GameObjectId };
         foreach (IBattleChara a in DataCenter.PartyMembers)
         {
             if (a != null && a.GameObjectId != me.GameObjectId && !a.IsDead && a.MaxHp != 0)
             {
                 party.Add(a);
+                _ = partyIds.Add(a.GameObjectId);
             }
         }
 
@@ -302,12 +391,24 @@ public static class JevCaller
             if (b != null && !b.IsDead && b.MaxHp != 0)
             {
                 hostiles.Add(b);
+                _ = hostileIds.Add(b.GameObjectId);
             }
         }
 
         if (hostiles.Count == 0)
         {
             return null;
+        }
+
+        // Alliance members (Frontline): the friendly player characters outside the party. PvP Solver's own alliance
+        // list is empty in PvP, so they are read from every target in view.
+        var allianceMembers = new List<IBattleChara>();
+        foreach (IBattleChara a in DataCenter.AllTargets)
+        {
+            if (a is IPlayerCharacter && !partyIds.Contains(a.GameObjectId) && !a.IsDead && a.MaxHp != 0 && !a.IsEnemy())
+            {
+                allianceMembers.Add(a);
+            }
         }
 
         var enemies = new List<JevEnemy>(hostiles.Count);
@@ -332,17 +433,24 @@ public static class JevCaller
                 areaLb ? selfOk && dist <= lbRange : LbOk(b.GameObjectId)));
         }
 
-        var allies = new List<JevAlly>(party.Count);
+        // Real HP (CurrentHp/MaxHp) for the player and allies: GetHealthRatio adds heals still in flight.
+        var allies = new List<JevAlly>(party.Count + allianceMembers.Count);
         foreach (IBattleChara a in party)
         {
-            allies.Add(new JevAlly(a.ClassJob.Value.Abbreviation.ToString(), a.GetHealthRatio(), a.DistanceToPlayer(),
-                a.Position.X - me.Position.X, a.Position.Z - me.Position.Z,
-                hostiles.Count(b => b.TargetObjectId == a.GameObjectId)));
+            allies.Add(Ally(a, alliance: false));
         }
 
+        foreach (IBattleChara a in allianceMembers)
+        {
+            allies.Add(Ally(a, alliance: true));
+        }
+
+        JevAlly Ally(IBattleChara a, bool alliance) =>
+            new JevAlly(a.GameObjectId, a.ClassJob.Value.Abbreviation.ToString(), a.CurrentHp, a.MaxHp, a.DistanceToPlayer(),
+                a.Position.X - me.Position.X, a.Position.Z - me.Position.Z, hostiles.Count(b => b.TargetObjectId == a.GameObjectId), alliance);
 
         ulong myTarget = me.TargetObjectId;
-        var self = new JevSelf(me.ClassJob.Value.Abbreviation.ToString(), me.GetHealthRatio(), me.CurrentHp, me.Rotation,
+        var self = new JevSelf(me.ClassJob.Value.Abbreviation.ToString(), me.CurrentHp, me.MaxHp, me.Rotation,
             me.HasStatus(false, StatusID.Heavy_1344, StatusID.Bind_1345), selfOk,
             myTarget is 0 or NoTarget ? null : myTarget, used);
         return JevCall.SnapshotJson(self, enemies, allies);
