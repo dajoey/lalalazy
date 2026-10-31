@@ -1,5 +1,11 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.10 (2026-10-31) [testing]
+### Fixed
+- **The FATE grind no longer starts FATEs above your level.** Level sync only lowers your level to match a FATE, it never raises it, so a FATE above your level could not be contributed to and walking to it only wasted time. FATEs above your level are now skipped; the tracker's unavailable list shows "FATE level N is above your level M". FATEs at or below your level run exactly as before.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.0.3.9 (2026-10-18) [testing]
 ### Fixed
 - **Display name format and sort order changes are now saved.** Edits in the FATE tracker's "Sorting & Display" settings previously lived only in memory and reverted on the next plugin load; every change now persists immediately.
