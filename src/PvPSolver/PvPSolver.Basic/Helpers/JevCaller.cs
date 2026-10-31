@@ -35,7 +35,7 @@ public static class JevCaller
     private static readonly object FireLogLock = new();
     private static readonly JevFireLog FireLog = new();
     private static readonly JevCallStats Stats = new();
-    private static string? _lastHeal;
+    private static readonly JevHealShadow HealShadow = new();
 
     /// <summary>
     /// Called when the game reports an action the player used (PvP Solver's Watcher): kept until the next snapshot,
@@ -115,6 +115,7 @@ public static class JevCaller
         if (!Service.Config.JevCallsShots || !DataCenter.IsPvP || !DataCenter.InCombat || Player.Object == null)
         {
             DropUsed();
+            HealShadow.Reset();
             return;
         }
 
@@ -214,10 +215,11 @@ public static class JevCaller
         if (!LimitBreakUsable(limitBreak, aim ?? Player.Object.GameObjectId))
         {
             _fireUntil = now; // used (it turned into its follow-up, or the gauge emptied) or not usable: close the window
-            // Which of the two it was is told by the game's report of the use (NoteActionEffect), within the grace.
+            // Whether it fired is told by the game's report of the use (NoteActionEffect), within the grace; a Limit Break
+            // in its follow-up state was used, so a skip then says follow-up (the report did not match), not unusable.
             lock (FireLogLock)
             {
-                FireLog.Close(now, "unusable");
+                FireLog.Close(now, limitBreak.Info.AdjustedID != limitBreak.ID ? "follow-up" : "unusable");
             }
 
             return false;
@@ -330,13 +332,13 @@ public static class JevCaller
             }
 
             Stats.Count(JevCallOutcome.Ok);
-            // Shadow only in this version: the heal call is logged once per change and nothing acts on it.
-            if (JevCall.HealShadowLine(_lastHeal, answer.Heal) is { } healLine)
+            // Shadow only in this version: the heal call is logged once per change (a fight's first call included) and
+            // nothing acts on it.
+            if (HealShadow.Next(answer.Heal) is { } healLine)
             {
                 PluginLog.Information($"[JevCaller] {healLine}");
             }
 
-            _lastHeal = answer.Heal;
             // An unsure answer keeps the last good pick while it is fresh and still hostile (as of this snapshot).
             Volatile.Write(ref _latest, JevCall.KeepLastPick(Volatile.Read(ref _latest), answer, hostileIds.Contains));
         }

@@ -222,6 +222,13 @@ internal static class JevCopilot
         string? flushed = fr.Open(29255u, 80.5, 81.5);
         Harness.Case("lb log: a new window opening before the old verdict flushes the old one as a skip",
             flushed == "JV|lb-fire-skip reason=timeout", flushed ?? "null");
+        Harness.Case("lb log: GraceSeconds is 2.0, still below the 2.5 s retry gap (the next window never opens inside a grace)",
+            JevFireLog.GraceSeconds == 2.0 && JevFireLog.GraceSeconds < JevCall.FireRetrySeconds);
+        var fl2 = new JevFireLog();
+        fl2.Open(29255u, 90.0, 91.0);
+        fl2.Close(90.2, "unusable");
+        Harness.Case("lb log: a use report 1.5 s after the close (a lag spike) still logs fired, not a skip",
+            fl2.Tick(91.5) == null && fl2.Used(29255u, 91.7) is { } f3 && f3.StartsWith("JV|lb-fired", StringComparison.Ordinal) && fl2.Tick(95.0) == null);
 
         // ---- T1: Fix 6, the optional heal answer (healer jobs): parsed, logged as a shadow, never acted on ---------
         Harness.Case("heal: an object id, \"self\", \"attack\" or \"guard\" parse; a missing or null heal is none",
@@ -235,13 +242,36 @@ internal static class JevCopilot
             && JevCall.Parse("{\"focus\": 3, \"heal\": 1.5}", 1.0) is { Heal: null, Focus: 3UL }
             && JevCall.Parse("{\"focus\": 3, \"heal\": {\"id\": 1}}", 1.0) is { Heal: null, Focus: 3UL }
             && JevCall.Parse("{\"focus\": 3, \"heal\": true}", 1.0) is { Heal: null, Focus: 3UL });
+        JevAnswer? SafeParse(string json)
+        {
+            try
+            {
+                return JevCall.Parse(json, 1.0);
+            }
+            catch (Exception)
+            {
+                return new JevAnswer(999UL, false, null, -1.0, "threw");
+            }
+        }
+
+        Harness.Case("reply: a broken text escape in heal is none, never throws, and focus and Limit Break still parse",
+            SafeParse("{\"focus\": 5, \"lb\": \"fire\", \"heal\": \"\\udc00x\"}") is { Focus: 5UL, FireLimitBreak: true, Heal: null });
+        Harness.Case("reply: a broken text escape in lb is no fire, never throws, and the focus still parses",
+            SafeParse("{\"focus\": 5, \"lb\": \"\\ud800\", \"heal\": \"self\"}") is { Focus: 5UL, FireLimitBreak: false, Heal: "self" });
         Harness.Case("unknown answer fields (numbers, strings, arrays, objects) never break parsing",
             JevCall.Parse("{\"focus\": 9, \"focus_conf\": 0.91, \"lb\": \"fire\", \"lb_target\": null, \"lb_hold_p\": 0.2, \"kept\": true, \"ms\": 184, \"probs\": {\"9\": 0.9}, \"why\": [\"low\", 1], \"new_thing\": \"x\"}", 2.0)
                 is { Focus: 9UL, FireLimitBreak: true, LimitBreakTarget: null, Heal: null });
+        var hs = new JevHealShadow();
         Harness.Case("heal shadow: one JV|heal-shadow line per change, none for the same call or for none",
-            JevCall.HealShadowLine(null, "self") == "JV|heal-shadow heal=self" && JevCall.HealShadowLine("self", "self") == null
-            && JevCall.HealShadowLine("self", "4242") == "JV|heal-shadow heal=4242" && JevCall.HealShadowLine("4242", null) == null
-            && JevCall.HealShadowLine(null, null) == null);
+            hs.Next("self") == "JV|heal-shadow heal=self" && hs.Next("self") == null
+            && hs.Next("4242") == "JV|heal-shadow heal=4242" && hs.Next(null) == null && hs.Next(null) == null);
+        var flap = new JevHealShadow();
+        int flapLines = new[] { "4242", null, "4242", null, "4242", null, "4242" }.Count(h => flap.Next(h) != null);
+        Harness.Case("heal shadow: an answer with no heal call is not a change (7 answers flapping on one ally log once)",
+            flapLines == 1, flapLines + " lines");
+        flap.Reset();
+        Harness.Case("heal shadow: after a fight ends, the next fight's first call is logged even when it matches the last one",
+            flap.Next("4242") == "JV|heal-shadow heal=4242");
 
         // ---- T1: Fix 7, relay failures are visible: one Information summary per fight or per 60 s of failures -----
         var st = new JevCallStats();
@@ -262,6 +292,24 @@ internal static class JevCopilot
         Harness.Case("stats: leaving combat writes the fight's summary even with no failure",
             end != null && end.StartsWith("JV|relay-calls ok=1 timeout=0 non200=0 error=0", StringComparison.Ordinal), end ?? "null");
         Harness.Case("stats: out of combat with nothing counted, nothing is written", st.Tick(127.0, false) == null && st.Tick(500.0, false) == null);
+        var sl = new JevCallStats();
+        _ = sl.Tick(200.0, true);
+        sl.Count(JevCallOutcome.Ok);
+        string? fightEnd = sl.Tick(210.0, false);
+        sl.Count(JevCallOutcome.Timeout); // a call still in flight when combat ended lands after the fight's summary
+        Harness.Case("stats: a call landing after the fight's summary writes nothing out of combat",
+            fightEnd != null && fightEnd.StartsWith("JV|relay-calls ok=1 timeout=0", StringComparison.Ordinal) && sl.Tick(211.0, false) == null, fightEnd ?? "null");
+        _ = sl.Tick(300.0, true);
+        for (int i = 0; i < 59; i++)
+        {
+            sl.Count(JevCallOutcome.Ok);
+        }
+
+        string? quietMinute = sl.Tick(360.0, true);
+        string? nextEnd = sl.Tick(361.0, false);
+        Harness.Case("stats: counts never leak into the next fight (a late call from the last fight is dropped when the next starts)",
+            quietMinute == null && nextEnd != null && nextEnd.StartsWith("JV|relay-calls ok=59 timeout=0 non200=0 error=0", StringComparison.Ordinal),
+            (quietMinute ?? "null") + " / " + (nextEnd ?? "null"));
         Harness.Case("stats: an HTTP timeout or cancel counts as timeout, anything else as error",
             JevCall.Classify(new TaskCanceledException("t", new TimeoutException())) == JevCallOutcome.Timeout
             && JevCall.Classify(new OperationCanceledException()) == JevCallOutcome.Timeout
@@ -313,9 +361,9 @@ internal static class JevCopilot
             && Regex.IsMatch(caller, @"b\.GameObjectId == aim && !b\.IsDead"));
         Harness.Case("TryLimitBreak: no reason line on the first failed frame any more (SkipOnce is gone; the fire log decides at window close)",
             !caller.Contains("SkipOnce(") && !callerRaw.Contains("SkipOnce(\"canuse\")"));
-        Harness.Case("TryLimitBreak: the window opens the fire log; unusable closes it; out-of-range and a gone target are recorded as reasons",
+        Harness.Case("TryLimitBreak: the window opens the fire log; unusable (or follow-up) closes it; out-of-range and a gone target are recorded as reasons",
             Regex.IsMatch(caller, @"FireLog\.Open\(limitBreak\.ID, now, _fireUntil\)")
-            && Regex.IsMatch(callerRaw, @"_fireUntil\s*=\s*now;[^}]*FireLog\.Close\(now, ""unusable""\)", RegexOptions.Singleline)
+            && Regex.IsMatch(callerRaw, @"_fireUntil\s*=\s*now;[^}]*FireLog\.Close\(now, [^;]*""unusable""\);", RegexOptions.Singleline)
             && callerRaw.Contains("FireLog.Refused(\"out-of-range\")") && callerRaw.Contains("FireLog.Refused(\"no-target\")")
             && !callerRaw.Contains("\"target-gone\""));
         Harness.Case("caller: the fire log and the relay summary are ticked every frame, before the switch/PvP/combat gate, and log at Information",
@@ -359,7 +407,7 @@ internal static class JevCopilot
             Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*used = \[\.\. UsedSinceSnapshot\];\s*UsedSinceSnapshot\.Clear\(\);")
             && caller.IndexOf("used = [.. UsedSinceSnapshot];", StringComparison.Ordinal) < caller.IndexOf("if (hostiles.Count == 0)", StringComparison.Ordinal));
         Harness.Case("no snapshot this frame (switch off, not PvP, not in combat): recorded casts are dropped",
-            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);\s*return;"));
+            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);(\s*HealShadow\.Reset\(\);)?\s*return;"));
         Harness.Case("TryLimitBreak: a re-aimed Limit Break must be in range and sight of the chosen enemy (the usable check ignores range)",
             Regex.IsMatch(caller, @"if\s*\(!InRangeAndSight\(limitBreak\.AdjustedID, chosen\)\)")
             && caller.IndexOf("InRangeAndSight(limitBreak.AdjustedID, chosen)", StringComparison.Ordinal) < caller.IndexOf("limitBreak.Target = new TargetResult(", StringComparison.Ordinal)
@@ -383,10 +431,16 @@ internal static class JevCopilot
         Harness.Case("NoteActionUsed: the same action on the same target within 1.5 s is recorded once (RecentUses under the lock)",
             Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*if\s*\(UsedSinceSnapshot\.Count < 16 && RecentUses\.IsNew\(actionId, target, now\)\)"));
         Harness.Case("relay reply: the heal field is logged as JV|heal-shadow at Information, once per change, and nothing acts on it",
-            Regex.IsMatch(caller, @"JevCall\.HealShadowLine\(_lastHeal, answer\.Heal\) is \{\s*\} healLine")
+            Regex.IsMatch(caller, @"HealShadow\.Next\(answer\.Heal\) is \{\s*\} healLine")
             && callerRaw.Contains("PluginLog.Information($\"[JevCaller] {healLine}\")")
-            && Regex.Matches(caller, @"\.Heal\b").Count == 2 && caller.Contains("_lastHeal = answer.Heal;")
+            && Regex.Matches(caller, @"\.Heal\b").Count == 1 && !caller.Contains("_lastHeal")
             && !Regex.IsMatch(target + invoke, @"Latest\??\.Heal\b"));
+        Harness.Case("relay reply: the heal shadow restarts whenever no Jev fight is on (frame update, out-of-fight gate)",
+            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);\s*HealShadow\.Reset\(\);\s*return;")
+            && Regex.Matches(caller, @"HealShadow\.Reset\(\)").Count == 1);
+        Harness.Case("TryLimitBreak: a window closed because the Limit Break turned into its follow-up says follow-up, not unusable",
+            callerRaw.Contains("FireLog.Close(now, limitBreak.Info.AdjustedID != limitBreak.ID ? \"follow-up\" : \"unusable\");")
+            && Regex.Matches(caller, @"FireLog\.Close\(").Count == 1);
         Harness.Case("relay reply: every call is counted (ok, timeout, non-200, error); per-call detail stays at Debug",
             Regex.IsMatch(caller, @"Stats\.Count\(JevCallOutcome\.Non200\)") && Regex.IsMatch(caller, @"Stats\.Count\(JevCallOutcome\.Ok\)")
             && Regex.IsMatch(caller, @"Stats\.Count\(JevCall\.Classify\(ex\)\)") && Regex.Matches(caller, @"Stats\.Count\(JevCallOutcome\.Error\)").Count >= 2

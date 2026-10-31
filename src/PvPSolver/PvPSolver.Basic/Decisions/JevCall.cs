@@ -182,10 +182,28 @@ public static class JevCall
             }
 
             ulong? focus = Id(root, "focus");
-            bool fire = root.TryGetProperty("lb", out var lb) && lb.ValueKind == Stj.JsonValueKind.String && lb.GetString() == "fire";
+            bool fire = root.TryGetProperty("lb", out var lb) && Text(lb) == "fire";
             return new JevAnswer(focus, fire, fire ? Id(root, "lb_target") : null, now, HealCall(root));
         }
-        catch (Stj.JsonException)
+        catch (Exception ex) when (ex is Stj.JsonException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>A string field's text; null when it is not a string or its text cannot be read (a broken escape such as a lone surrogate).</summary>
+    private static string? Text(Stj.JsonElement value)
+    {
+        if (value.ValueKind != Stj.JsonValueKind.String)
+        {
+            return null;
+        }
+
+        try
+        {
+            return value.GetString();
+        }
+        catch (InvalidOperationException)
         {
             return null;
         }
@@ -199,20 +217,14 @@ public static class JevCall
             return null;
         }
 
-        return heal.ValueKind switch
+        if (heal.ValueKind == Stj.JsonValueKind.Number)
         {
-            Stj.JsonValueKind.Number when heal.TryGetUInt64(out ulong id) => id.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            Stj.JsonValueKind.String when heal.GetString() is "self" or "attack" or "guard" => heal.GetString(),
-            _ => null,
-        };
-    }
+            return heal.TryGetUInt64(out ulong id) ? id.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+        }
 
-    /// <summary>
-    /// The shadow log line for Jev's heal call: one line when the call changes to a new value, none when it stays the
-    /// same or is none. Nothing acts on the call.
-    /// </summary>
-    public static string? HealShadowLine(string? previous, string? current) =>
-        current != null && current != previous ? "JV|heal-shadow heal=" + current : null;
+        string? text = Text(heal);
+        return text is "self" or "attack" or "guard" ? text : null;
+    }
 
     /// <summary>
     /// How a failed relay call is counted: an HTTP timeout or cancel (anywhere in the exception chain) is a timeout,
@@ -265,15 +277,16 @@ public sealed class JevRecentUses
 
 /// <summary>
 /// What the log says about one Jev Limit Break fire window: <c>JV|lb-fired</c> once when the Limit Break is actually
-/// used in it, or <c>JV|lb-fire-skip reason=...</c> once when it closed without firing (unusable, out-of-range,
-/// no-target, timeout). A frame refused by PvP Solver's own timing is not a reason: the next frame may fire. The
+/// used in it, or <c>JV|lb-fire-skip reason=...</c> once when it closed without firing (unusable, follow-up,
+/// out-of-range, no-target, timeout). A frame refused by PvP Solver's own timing is not a reason: the next frame may fire. The
 /// game's report of a use can land just after the window closed (using the Limit Break is what makes it unusable),
 /// so the verdict waits <see cref="GraceSeconds"/> after the close. Each method returns the line to log, or null.
 /// Not thread-safe; the caller holds its lock.
 /// </summary>
 public sealed class JevFireLog
 {
-    public const double GraceSeconds = 1.0;
+    /// <summary>Long enough for a use report delayed by a lag spike; below <see cref="JevCall.FireRetrySeconds"/>, so a verdict is always written before the next window opens.</summary>
+    public const double GraceSeconds = 2.0;
 
     private bool _pending;
     private bool _closed;
@@ -356,6 +369,40 @@ public sealed class JevFireLog
 }
 
 /// <summary>
+/// The shadow log for Jev's heal call: one <c>JV|heal-shadow</c> line when the call changes to a new value. An answer
+/// with no heal call is not a change (the last call stands), and <see cref="Reset"/> (no Jev fight on) starts over, so
+/// each fight's first call is logged. Nothing acts on the call. Thread-safe: answers arrive on pool threads.
+/// </summary>
+public sealed class JevHealShadow
+{
+    private readonly object _lock = new();
+    private string? _last;
+
+    /// <summary>The line to log for this answer's heal call, or null.</summary>
+    public string? Next(string? heal)
+    {
+        lock (_lock)
+        {
+            if (heal == null || heal == _last)
+            {
+                return null;
+            }
+
+            _last = heal;
+            return "JV|heal-shadow heal=" + heal;
+        }
+    }
+
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _last = null;
+        }
+    }
+}
+
+/// <summary>
 /// Relay call counts for the log: one summary line per fight (when combat ends) and, while failures occur, one every
 /// <see cref="ReportSeconds"/>; never a line per call. Thread-safe: calls are counted on pool threads.
 /// </summary>
@@ -395,6 +442,8 @@ public sealed class JevCallStats
             _fighting = fighting;
             if (started)
             {
+                // A call still in flight when the last fight ended is counted after its summary: it belongs to no fight.
+                _ok = _timeout = _non200 = _error = 0;
                 _since = now;
                 return null;
             }
