@@ -25,6 +25,9 @@ namespace LazyFateAutomation.Harness;
 ///     8. sort-order parity: the settings window's "Reset to Default" list equals the shipped default
 ///        sort order (same entries, same order, same directions) - the pre-fix reset dropped the
 ///        TimeRemaining criterion and sorted TimeRemainingUrgent ascending (urgent FATEs last).
+///     9. the level rule (0.0.3.10): a FATE above the player's level is never eligible — level sync
+///        only works downwards (consolegameswiki "Level Sync"), so a higher-level FATE cannot be
+///        contributed to and walking to it is a wasted trip.
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -211,6 +214,27 @@ internal static class Program {
         Check("blacklist and pending still apply",
             !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, true, false, FateRule.Normal, empty)
             && !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, true, FateRule.Normal, empty));
+
+        // Level rule (0.0.3.10): the automation must never select a FATE above the player's level.
+        // Level sync only works downwards (consolegameswiki "Level Sync", fetched 2026-10-31), so a
+        // higher-level FATE cannot be contributed to and is a wasted trip.
+        Check("a FATE above the player's level is never eligible",
+            !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 50, playerLevel: 30));
+        Check("the level rule also applies to collect FATEs",
+            !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Collect, empty, fateLevel: 50, playerLevel: 30));
+        Check("a FATE at the player's level stays eligible",
+            FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 30, playerLevel: 30));
+        Check("a FATE below the player's level stays eligible (that is what level sync is for)",
+            FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 5, playerLevel: 30));
+        Check("an unknown player level (0: not logged in / zoning) keeps the old behavior",
+            FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 50, playerLevel: 0));
+        Check("a FATE without a level row (0) is not filtered by the level rule",
+            FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 0, playerLevel: 30));
+
+        var levelFailed = new List<string>();
+        FateEligibility.AppendFailedConditions(levelFailed, 900, 900, 0, 90, 300, 120, false, false, FateRule.Normal, empty, fateLevel: 50, playerLevel: 30);
+        Check("the details report names the level gap",
+            levelFailed.Count == 1 && levelFailed[0] == "FATE level 50 is above your level 30", string.Join("; ", levelFailed));
     }
 
     /// <summary>
