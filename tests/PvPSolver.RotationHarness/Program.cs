@@ -67,9 +67,14 @@ internal static class Program
     // Dalamud dev folder the way the plugin build does so the real PvPSolver.Basic types load without a game.
     private static void AddDalamudResolver()
     {
-        var dir = Environment.GetEnvironmentVariable("DALAMUD_HOME")
-                  ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                      "XIVLauncher", "addon", "Hooks", "dev");
+        // Same folder as the plugin csproj's DalamudLibPath: DALAMUD_HOME, else the XIVLauncher (Windows), XLCore (Linux)
+        // or XIV on Mac dev folder.
+        var home = Environment.GetEnvironmentVariable("DALAMUD_HOME");
+        var user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var dir = !string.IsNullOrEmpty(home) ? home
+            : OperatingSystem.IsLinux() ? Path.Combine(user, ".xlcore", "dalamud", "Hooks", "dev")
+            : OperatingSystem.IsMacOS() ? Path.Combine(user, "Library", "Application Support", "XIV on Mac", "dalamud", "Hooks", "dev")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher", "addon", "Hooks", "dev");
         System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (ctx, name) =>
         {
             var file = Path.Combine(dir, name.Name + ".dll");
