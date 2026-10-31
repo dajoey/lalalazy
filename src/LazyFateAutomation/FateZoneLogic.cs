@@ -58,7 +58,17 @@ public static class FateZoneLogic {
 
 /// <summary>
 ///     Pure FATE eligibility decision, extracted from FateToolKit.FateConditions so the FATE-type
-///     filter is asserted offline against the same code the game runs. No Dalamud references.
+///     filter and the level rule are asserted offline against the same code the game runs.
+///     No Dalamud references.
+///
+///     Level rule (0.0.3.10): a FATE whose level is above the player's is never eligible. Level sync
+///     only works downwards ("Level Sync only works downwards, when the character is higher than that
+///     of the duty. Level Sync does not increase the level of characters that are too low to enter",
+///     consolegameswiki Level Sync, fetched 2026-10-31), so the automation cannot contribute to a
+///     higher-level FATE and walking to it is a wasted trip. FATEs at or below the player's level are
+///     untouched: syncing down to them is what the sync exists for. Both levels default to 0 = unknown
+///     (the game reports 0 for FATEs without a level row and the player object is absent while
+///     zoning), and an unknown side leaves the rule inert so behavior is unchanged there.
 /// </summary>
 public static class FateEligibility {
     public static bool IsEligible(
@@ -66,14 +76,16 @@ public static class FateEligibility {
         int progress, int maxProgress,
         float timeRemaining, int minTimeRemaining,
         bool blacklisted, bool isPending,
-        FateRule rule, IReadOnlySet<FateRule> excludedRules
+        FateRule rule, IReadOnlySet<FateRule> excludedRules,
+        int fateLevel = 0, int playerLevel = 0
     )
         => duration <= maxDuration
         && progress <= maxProgress
         && (timeRemaining < 0 || timeRemaining > minTimeRemaining)
         && !blacklisted
         && !isPending
-        && !excludedRules.Contains(rule);
+        && !excludedRules.Contains(rule)
+        && (playerLevel <= 0 || fateLevel <= 0 || fateLevel <= playerLevel);
 
     public static void AppendFailedConditions(
         List<string> failed,
@@ -81,7 +93,8 @@ public static class FateEligibility {
         int progress, int maxProgress,
         float timeRemaining, int minTimeRemaining,
         bool blacklisted, bool isPending,
-        FateRule rule, IReadOnlySet<FateRule> excludedRules
+        FateRule rule, IReadOnlySet<FateRule> excludedRules,
+        int fateLevel = 0, int playerLevel = 0
     ) {
         if (duration > maxDuration)
             failed.Add($"Duration {duration}s > MaxDuration {maxDuration}s");
@@ -100,6 +113,9 @@ public static class FateEligibility {
 
         if (excludedRules.Contains(rule))
             failed.Add($"{rule} FATEs are excluded in settings");
+
+        if (playerLevel > 0 && fateLevel > 0 && fateLevel > playerLevel)
+            failed.Add($"FATE level {fateLevel} is above your level {playerLevel}");
     }
 }
 

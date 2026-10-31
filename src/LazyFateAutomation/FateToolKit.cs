@@ -288,13 +288,20 @@ public class FateToolKit : IFateGrindRunState {
             set.Remove(f.Id);
     }
 
+    /// <summary>
+    ///     The local player's current job level; 0 when it cannot be read (not logged in / zoning),
+    ///     which leaves FateEligibility's level rule inert.
+    /// </summary>
+    internal static int PlayerLevel => (int)(Svc.Objects.LocalPlayer?.Level ?? 0);
+
     public bool FateConditions(PublicEvent f)
         => FateEligibility.IsEligible(
             f.Duration, Config.MaxDuration,
             f.Progress, Config.MaxProgress,
             f.TimeRemaining, Config.MinTimeRemaining,
             IsBlacklisted(f), f.IsPending,
-            f.Rule, Config.ExcludedFateRules);
+            f.Rule, Config.ExcludedFateRules,
+            f.Level, PlayerLevel);
 
     public (bool IsEligible, List<string> FailedConditions) GetFateConditionDetails(PublicEvent f) {
         var failed = new List<string>();
@@ -305,7 +312,8 @@ public class FateToolKit : IFateGrindRunState {
             f.Progress, Config.MaxProgress,
             f.TimeRemaining, Config.MinTimeRemaining,
             IsBlacklisted(f), f.IsPending,
-            f.Rule, Config.ExcludedFateRules);
+            f.Rule, Config.ExcludedFateRules,
+            f.Level, PlayerLevel);
 
         return (failed.Count == 0, failed);
     }
