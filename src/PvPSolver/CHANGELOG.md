@@ -1,5 +1,9 @@
 # Changelog - PvP Solver
 
+## v0.1.2.9 (2026-11-01) [testing]
+### Fixed
+- **Self-defence now reads real HP.** Guard, Recuperate and the generic defensive actions (the "use below X% HP" table) compared their thresholds against predicted HP, which counts heals still on the way; predicted can read 84% one second before a death at about 40% real HP, so nothing fired. All of them now compare against the current HP out of the maximum, the same real value the Jev snapshot uses. Thresholds and defaults are unchanged.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v0.1.2.8 (2026-10-31) [testing]
 ### Fixed
 - **"Let Jev call the shots" now sees real HP.** The player's and allies' HP sent to Jev is the current HP out of the maximum, no longer PvP Solver's predicted HP, which counts heals still on the way. In one match Jev was told 84% one second before a death at about 40%.

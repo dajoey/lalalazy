@@ -1,4 +1,5 @@
 using ECommons.DalamudServices;
+using RotationSolver.Decisions;
 
 namespace RotationSolver.Basic.Rotations;
 
@@ -541,7 +542,10 @@ public partial class CustomRotation
 				}
 			}
 
-			if (GuardPvP.CanUse(out act) && Player?.GetHealthRatio() <= Service.Config.HealthForGuard && !StatusHelper.PlayerHasStatus(true, StatusID.UndeadRedemption) && !StatusHelper.PlayerHasStatus(true, StatusID.InnerRelease_1303))
+			// Self-defence reads REAL HP (current over max): GetHealthRatio prefers the predicted
+			// value with pending heals added, which read 84% one second before a death at ~40% real
+			// HP, so Guard never fired. JevCall.HpRatio is the same real-HP read the v3 snapshot uses.
+			if (GuardPvP.CanUse(out act) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= Service.Config.HealthForGuard && !StatusHelper.PlayerHasStatus(true, StatusID.UndeadRedemption) && !StatusHelper.PlayerHasStatus(true, StatusID.InnerRelease_1303))
 			{
 				return true;
 			}

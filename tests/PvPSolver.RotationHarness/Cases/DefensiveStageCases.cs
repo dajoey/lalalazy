@@ -110,7 +110,7 @@ internal static class DefensiveStageCases
         int Idx(string s) => body.IndexOf(s, StringComparison.Ordinal);
         var master = Idx("config.PvpDefensivesMaster");
         var silence = Idx("DefensiveSilence.Silenced(CustomRotation.HasPVPGuard, HasAny(DefensiveTable.SilenceStatuses), DataCenter.HasHostilesInMaxRange, player.TimeAlive())");
-        var health = Idx("float health = player.GetHealthRatio();");
+        var health = Idx("float health = JevCall.HpRatio(player.CurrentHp, player.MaxHp);");
         var loop = Idx("foreach (DefensiveRow row in rows)");
         var modeSkip = Idx("row.Mode != DefensiveMode.Fire");
         var setting = Idx("if (!config.DefensiveActive(row))");
@@ -126,7 +126,7 @@ internal static class DefensiveStageCases
         Need(master >= 0 && (loop < 0 || master < loop), "the master switch is tested before the loop");
         Need(Idx("!DataCenter.IsPvP") >= 0, "the stage returns outside PvP");
         Need(silence >= 0 && (loop < 0 || silence < loop), "the silence rule (PvP Guard up, silencing statuses, no hostile in range, time alive) runs before the loop");
-        Need(health >= 0 && (loop < 0 || health < loop), "the HP is the character's own raw health ratio, read once before the loop");
+        Need(health >= 0 && (loop < 0 || health < loop), "the HP is the character's own real health ratio (JevCall.HpRatio, current over max), read once before the loop");
         Need(modeSkip >= 0, "rows that are not Fire are skipped");
         Need(setting >= 0 && (canUse < 0 || setting < canUse), "the setting test (DefensiveActive) precedes CanUse");
         Need(modeSkip >= 0 && setting >= 0 && modeSkip < setting, "the mode test precedes the setting test");

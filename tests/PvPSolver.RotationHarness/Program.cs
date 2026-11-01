@@ -45,6 +45,7 @@ internal static class Program
         RunGroup("SettingsReflectionCases", SettingsReflectionCases.Run);
         RunGroup("ConfigRoundTripCases", ConfigRoundTripCases.Run);
         RunGroup("JevCopilot", JevCopilot.Run);
+        RunGroup("RealHpGuard", RealHpGuard.Run);
 
         return Harness.Finish();
     }
