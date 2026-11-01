@@ -87,8 +87,7 @@ internal unsafe class AutoRotationController
     private static bool _shieldEukrasiaPending;
     private static DateTime _shieldLockExpiry = DateTime.MinValue;
     // SCH raidwide shield is a HARD cast (testing 2026-06-27): hold the lock through the whole cast
-    // and mark the shield done only when the cast COMPLETES. _schSawShieldCast = we watched it cast.
-    private static bool _schSawShieldCast;
+    // and mark the shield done only when the cast COMPLETES (the action registering as used).
     // Commit latch (mirrors SGE's _shieldEukrasiaPending): once we start the Succor cast, keep the
     // lock engaged until it completes even after GroupDamageIncoming() flips false. (testing 2026-06-27)
     private static bool _schShieldPending;
@@ -97,12 +96,11 @@ internal unsafe class AutoRotationController
     // --- WHM/AST timed AoE regen commit-latches (testing 2026-07-01) ---
     // Medica II/III and Aspected Helios / Helios Conjunction are HARD casts. Same pattern as the
     // SCH shield: once the cast is issued, hold the lock through the WHOLE cast and mark the gate
-    // only on COMPLETION, so the rotation can never cancel a half-started cast.
+    // only on COMPLETION (the action registering as used), so the rotation can never cancel a
+    // half-started cast.
     private static bool _whmRegenPending;
-    private static bool _whmSawRegenCast;
     private static DateTime _whmRegenExpiry = DateTime.MinValue;
     private static bool _astRegenPending;
-    private static bool _astSawRegenCast;
     private static DateTime _astRegenExpiry = DateTime.MinValue;
     // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. Raidwide
     // damage never applies at the bar - the effect packet lands ~0.6-1.5s later, and that delay is
@@ -1313,7 +1311,6 @@ internal unsafe class AutoRotationController
         if (_schShieldPending && DateTime.UtcNow > _schShieldExpiry)
         {
             _schShieldPending = false;
-            _schSawShieldCast = false;
         }
 
         bool wanted = _schShieldPending ||
@@ -1323,7 +1320,6 @@ internal unsafe class AutoRotationController
                        !RaidwideShieldOnCooldown);
         if (!wanted)
         {
-            _schSawShieldCast = false;
             return false;
         }
 
@@ -1335,12 +1331,14 @@ internal unsafe class AutoRotationController
 
         // Succor/Concitation is a ~2s HARD CAST (no instant version - Recitation only removes the
         // cost + crits, it does NOT make it instant). So we mark the shield gate only when the cast
-        // COMPLETES - never when it merely starts - then release so a mitigation weaves in. Completion
-        // is detected by having watched it cast (then stop), or the spell registering as just-used.
+        // COMPLETES - never when it merely starts - then release so a mitigation weaves in.
+        // Completion is ONLY the spell registering as just-used: a watched cast that then stopped
+        // may have been CANCELLED, and the interrupt cancels the used-action timestamp, so JustUsed
+        // stays false and the lock re-claims the GCD to re-cast (2026-10-31: cancelled casts were
+        // marked complete and the shield never re-cast).
         if (!castingShield &&
-            (_schSawShieldCast || JustUsed(SCH.Succor, 1.5f) || JustUsed(SCH.Concitation, 1.5f) || JustUsed(SCH.Accession, 1.5f)))
+            (JustUsed(SCH.Succor, 1.5f) || JustUsed(SCH.Concitation, 1.5f) || JustUsed(SCH.Accession, 1.5f)))
         {
-            _schSawShieldCast = false;
             _schShieldPending = false;
             MarkRaidwideShieldUsed();
             return false;
@@ -1350,7 +1348,6 @@ internal unsafe class AutoRotationController
         // never resumes mid-cast and nothing perturbs it. (v1.0.4.66 released the instant it started.)
         if (castingShield)
         {
-            _schSawShieldCast = true;
             _schShieldPending = true;
             return true;
         }
@@ -1423,7 +1420,6 @@ internal unsafe class AutoRotationController
         if (_whmRegenPending && DateTime.UtcNow > _whmRegenExpiry)
         {
             _whmRegenPending = false;
-            _whmSawRegenCast = false;
         }
 
         uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
@@ -1465,7 +1461,6 @@ internal unsafe class AutoRotationController
         bool wanted = _whmRegenPending || fireNow || vfxFire;
         if (!wanted)
         {
-            _whmSawRegenCast = false;
             return false;
         }
 
@@ -1474,10 +1469,12 @@ internal unsafe class AutoRotationController
                              LocalPlayer.CastActionId == WHM.Medica3);
 
         // Cast COMPLETE -> mark the gate + release (a mitigation can follow immediately).
+        // Completion is ONLY the action registering as just-used: a watched cast that then stopped
+        // may have been CANCELLED (2026-10-31: four cancelled Medica II casts were each marked
+        // complete, so the raidwide was owned and quiescent for 15 s and none was re-cast).
         if (!castingRegen &&
-            (_whmSawRegenCast || JustUsed(WHM.Medica2, 1.5f) || JustUsed(WHM.Medica3, 1.5f)))
+            (JustUsed(WHM.Medica2, 1.5f) || JustUsed(WHM.Medica3, 1.5f)))
         {
-            _whmSawRegenCast = false;
             _whmRegenPending = false;
             _whmRegenArmed = false;
             TimedRegenGate.Disarm();
@@ -1491,7 +1488,6 @@ internal unsafe class AutoRotationController
         // Currently hard-casting the regen -> HOLD the lock through the WHOLE cast.
         if (castingRegen)
         {
-            _whmSawRegenCast = true;
             _whmRegenPending = true;
             return true;
         }
@@ -1520,7 +1516,6 @@ internal unsafe class AutoRotationController
         if (_astRegenPending && DateTime.UtcNow > _astRegenExpiry)
         {
             _astRegenPending = false;
-            _astSawRegenCast = false;
         }
 
         uint regen = OriginalHook(AST.AspectedHelios);   // Aspected Helios -> Helios Conjunction (96+)
@@ -1565,7 +1560,6 @@ internal unsafe class AutoRotationController
         bool wanted = _astRegenPending || fireNow || vfxFire;
         if (!wanted)
         {
-            _astSawRegenCast = false;
             return false;
         }
 
@@ -1574,10 +1568,11 @@ internal unsafe class AutoRotationController
                              LocalPlayer.CastActionId == AST.HeliosConjuction);
 
         // Cast COMPLETE -> mark the gate + release.
+        // Completion is ONLY the action registering as just-used: a watched cast that then stopped
+        // may have been CANCELLED (same defect class as the WHM lock, 2026-10-31).
         if (!castingRegen &&
-            (_astSawRegenCast || JustUsed(AST.AspectedHelios, 1.5f) || JustUsed(AST.HeliosConjuction, 1.5f)))
+            (JustUsed(AST.AspectedHelios, 1.5f) || JustUsed(AST.HeliosConjuction, 1.5f)))
         {
-            _astSawRegenCast = false;
             _astRegenPending = false;
             _astRegenArmed = false;
             TimedRegenGate.Disarm();
@@ -1591,7 +1586,6 @@ internal unsafe class AutoRotationController
         // Currently hard-casting the regen -> HOLD the lock through the WHOLE cast.
         if (castingRegen)
         {
-            _astSawRegenCast = true;
             _astRegenPending = true;
             return true;
         }

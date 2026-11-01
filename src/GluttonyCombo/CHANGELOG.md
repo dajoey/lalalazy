@@ -1,3 +1,8 @@
+## v1.0.4.323 (2026-11-01) [testing]
+### Fixed
+- **A cancelled heal cast is no longer counted as a completed one.** The healer raidwide locks (White Mage Medica II/Medica III, Astrologian Aspected Helios/Helios Conjunction, Scholar Succor/Concitation) treated "the cast bar was up and then went away" as a finished cast: a cast cancelled a moment in marked the timed regen as owning that raidwide for its whole duration and started the raidwide-shield cooldown, so the heal was never re-cast for the hit. Completion is now the action actually registering as used, so a cancelled cast is claimed and re-cast, and a finished cast still releases the lock exactly as before.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v1.0.4.322 (2026-10-28) [testing]
 ### Fixed
 - **BossMod status checks survive a missing or half-loaded BossMod.** Upstream WrathCombo reorganized its BossMod IPC into shared helpers with null-safe fallbacks; that rework (d9c63e468) is merged, so the active-preset module walk, autorotation, custom-queueing, smart-target and AI-targeting checks answer false cleanly when BossMod's rotation window or action queue is absent, instead of erroring partway through the walk.

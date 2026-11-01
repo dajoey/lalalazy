@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- CancelledCastHarness (2026-11-01): a cancelled heal cast must not be counted as cast by the
+       healer raidwide locks. The live defect (2026-10-31, Ghimlyt Dark WHM): four Medica II casts
+       cancelled 0.18-0.45 s in were each treated as a FINISHED cast - the timed regen was marked
+       as owning the raidwide for 15 s and the shield cooldown started - so none was re-cast for
+       the party-wide hit. The locks read "completion" out of a saw-cast latch: we watched the cast
+       start, then the cast bar stopped. A cancelled cast stops the bar the same way.
+       WHAT IS REAL HERE: the shipped AutoRotationController.cs (the locks are compiled into no
+       harness - the job harnesses fake that class), plus the shipped Timer.cs / ActionWatching.cs
+       / Cooldown.cs that define the used-action source of truth the fix leans on. Pure source
+       read, no Dalamud.
+         dotnet build tests/GluttonyCombo.CancelledCastHarness -c Release
+         dotnet tests/GluttonyCombo.CancelledCastHarness/bin/Release/net10.0/GluttonyCombo.CancelledCastHarness.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and
+       exits 0 only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.CancelledCastHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>
