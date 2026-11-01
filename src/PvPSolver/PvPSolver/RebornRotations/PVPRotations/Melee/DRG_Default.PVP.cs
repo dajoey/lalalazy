@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Melee;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Melee;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Melee/DRG_Default.PVP.cs")]
@@ -21,7 +23,7 @@ public sealed class DRG_DefaultPvP : DragoonRotation
 	#region oGCDs
 	protected override bool EmergencyAbility(IAction nextGCD, out IAction? action)
 	{
-		if (BloodbathPvP.CanUse(out action) && Player?.GetHealthRatio() < BloodBathPvPPercent)
+		if (BloodbathPvP.CanUse(out action) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 		{
 			return true;
 		}

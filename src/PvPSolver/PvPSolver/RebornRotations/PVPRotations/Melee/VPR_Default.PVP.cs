@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Melee;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Melee;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Melee/VPR_Default.PVP.cs")]
@@ -44,7 +46,7 @@ public sealed class VPR_DefaultPvP : ViperRotation
 
 		if (BloodbathPvP.CanUse(out action))
 		{
-			if (Player?.GetHealthRatio() < BloodBathPvPPercent)
+			if (Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 			{
 				return true;
 			}

@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Healer;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Healer;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Healer/AST_Default.PVP.cs")]
@@ -27,12 +29,13 @@ public class AST_DefaultPVP : AstrologianRotation
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && LadyOfCrownsPvP.CanUse(out action))
+		var self = Player;
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && LadyOfCrownsPvP.CanUse(out action))
 		{
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Microcosmos) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Microcosmos) && MicrocosmosPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Microcosmos) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Microcosmos) && MicrocosmosPvP.CanUse(out action))
 		{
 			return true;
 		}

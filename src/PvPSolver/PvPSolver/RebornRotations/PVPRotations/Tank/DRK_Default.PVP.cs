@@ -1,3 +1,5 @@
+using RotationSolver.Decisions;
+
 namespace RotationSolver.RebornRotations.PVPRotations.Tank;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
@@ -60,7 +62,7 @@ public sealed class DRK_DefaultPvP : DarkKnightRotation
 			return true;
 		}
 
-		if (!StatusHelper.PlayerHasStatus(true, StatusID.Blackblood) && ((Player?.GetHealthRatio() * 100) > ShadowbringerThreshold || StatusHelper.PlayerHasStatus(true, StatusID.DarkArts_3034)) && ShadowbringerPvP.CanUse(out action))
+		if (!StatusHelper.PlayerHasStatus(true, StatusID.Blackblood) && Player is { } self && (JevCall.HpRatio(self.CurrentHp, self.MaxHp) * 100 > ShadowbringerThreshold || StatusHelper.PlayerHasStatus(true, StatusID.DarkArts_3034)) && ShadowbringerPvP.CanUse(out action))
 		{
 			return true;
 		}
@@ -82,7 +84,7 @@ public sealed class DRK_DefaultPvP : DarkKnightRotation
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Impalement) && (Player?.GetHealthRatio() * 100) < Service.Config.DefensivePercentPoints(RotationSolver.Decisions.DefensiveTable.Impalement) && ImpalementPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Impalement) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) * 100 < Service.Config.DefensivePercentPoints(RotationSolver.Decisions.DefensiveTable.Impalement) && ImpalementPvP.CanUse(out action))
 		{
 			return true;
 		}

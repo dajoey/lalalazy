@@ -1,3 +1,5 @@
+using RotationSolver.Decisions;
+
 namespace RotationSolver.RebornRotations.PVPRotations.Magical;
 
 [Rotation("Default PvP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
@@ -21,7 +23,7 @@ public class PCT_DefaultPvP : PictomancerRotation
 	#region oGCDs
 	protected override bool DefenseSingleAbility(IAction nextGCD, out IAction? action)
 	{
-		if (TemperaCoatPvP.CanUse(out action) && Player?.GetHealthRatio() <= TempuraThreshold)
+		if (TemperaCoatPvP.CanUse(out action) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= TempuraThreshold)
 		{
 			return true;
 		}

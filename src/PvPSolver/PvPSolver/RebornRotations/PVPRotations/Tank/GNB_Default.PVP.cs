@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Tank;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Tank;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Tank/GNB_Default.PVP.cs")]
@@ -75,7 +77,7 @@ public sealed class GNB_DefaultPvP : GunbreakerRotation
 	protected override bool EmergencyAbility(IAction nextGCD, out IAction? action)
 	{
 		//You WILL try to save yourself. Configs be damned!
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum) && HeartOfCorundumPvP.CanUse(out action, targetOverride: TargetType.Self) && Player?.GetHealthRatio() * 100 <= Service.Config.DefensivePercentPoints(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum) && HeartOfCorundumPvP.CanUse(out action, targetOverride: TargetType.Self) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) * 100 <= Service.Config.DefensivePercentPoints(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum))
 		{
 			return true;
 		}

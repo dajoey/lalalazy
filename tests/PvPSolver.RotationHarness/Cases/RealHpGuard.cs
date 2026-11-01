@@ -11,6 +11,11 @@ namespace PvPSolver.RotationHarness.Cases;
 ///     in 0.1.2.8 for exactly this reason).
 ///     T1: the real-HP helper's truth table. T2: each self-defence site reads it; RED on the old
 ///     <c>GetHealthRatio</c> text. Purify's block reads statuses only (no HP read), so it needs no change.
+///     T3: the per-job PvP overrides' own self-HP threshold rows (Heart of Corundum, Tempera Coat,
+///     Earth's Reply, Riddle of Earth, the Bloodbath family, Lady of Crowns, Microcosmos, Meisui,
+///     Impalement, Xenoglossy's HP arm, Shadowbringer's HP arm) read the same real HP (0.1.2.10):
+///     they gate the same save-the-body decisions. Reads of enemies and allies (Smite, Guardian,
+///     Blasting Zone, Perfectio, the PCT burst target) are not self reads and stay on GetHealthRatio.
 /// </summary>
 internal static class RealHpGuard
 {
@@ -86,6 +91,17 @@ internal static class RealHpGuard
         Harness.Case("ObjectHelper.GetHealthRatio still prefers DataCenter.RefinedHP (predicted HP): the self-defence sites above must not read it",
             ratio.Count() == 1,
             "the GetHealthRatio extension reads RefinedHP first");
+
+        // ---- T3: every per-job PvP self-HP threshold reads real HP -----------------------------------------------
+        var pvpRoot = Path.Combine(Program.SrcRoot, "PvPSolver", "RebornRotations", "PVPRotations");
+        var selfRead = new Regex(@"(?:\bPlayer\s*\?\s*\.|\bPlayer\s*\.|\bself\s*\.|\bSelf\s*\.)\s*GetHealthRatio\s*\(", RegexOptions.Compiled);
+        var stale = Directory.EnumerateFiles(pvpRoot, "*.cs", SearchOption.AllDirectories)
+            .SelectMany(file => File.ReadAllLines(file).Select((text, i) => (File: file, Line: i + 1, Text: text)))
+            .Where(t => selfRead.IsMatch(t.Text))
+            .ToList();
+        Harness.Case($"PVPRotations: every self-HP threshold reads real HP - no self GetHealthRatio left ({stale.Count} self reads found)",
+            stale.Count == 0,
+            stale.Count == 0 ? "every self read uses JevCall.HpRatio" : string.Join(" | ", stale.Select(t => $"{Path.GetFileName(t.File)}:{t.Line} {CsSource.Squash(t.Text)}")));
 
         // ---- canaries ---------------------------------------------------------------------------------------------
         const string oldGuard = "GuardPvP.CanUse(out act) && Player?.GetHealthRatio() <= Service.Config.HealthForGuard";

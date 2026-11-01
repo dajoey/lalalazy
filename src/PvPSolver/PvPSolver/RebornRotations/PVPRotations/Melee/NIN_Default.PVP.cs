@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Melee;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Melee;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Melee/NIN_Default.PVP.cs")]
@@ -23,7 +25,7 @@ public sealed class NIN_DefaultPvP : NinjaRotation
 			return base.EmergencyAbility(nextGCD, out action);
 		}
 
-		if (BloodbathPvP.CanUse(out action) && Player?.GetHealthRatio() < BloodBathPvPPercent)
+		if (BloodbathPvP.CanUse(out action) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 		{
 			return true;
 		}
@@ -90,7 +92,7 @@ public sealed class NIN_DefaultPvP : NinjaRotation
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Meisui) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Meisui))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Meisui) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Meisui))
 		{
 			if (MeisuiPvP.CanUse(out action))
 			{

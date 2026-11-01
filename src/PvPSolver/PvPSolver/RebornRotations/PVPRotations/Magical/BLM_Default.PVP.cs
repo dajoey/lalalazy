@@ -1,4 +1,6 @@
-﻿namespace RotationSolver.RebornRotations.PVPRotations.Magical;
+﻿using RotationSolver.Decisions;
+
+namespace RotationSolver.RebornRotations.PVPRotations.Magical;
 
 [Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Magical/BLM_Default.PVP.cs")]
@@ -88,7 +90,7 @@ public class BLM_DefaultPVP : BlackMageRotation
 		}
 
 		if (XenoglossyPvP.CanUse(out action, usedUp: true)
-			&& (Player?.GetHealthRatio() < XenoglossyLowHP || Player?.GetHealthRatio() > XenoglossyHighHP))
+			&& Player is { } self && (JevCall.HpRatio(self.CurrentHp, self.MaxHp) < XenoglossyLowHP || JevCall.HpRatio(self.CurrentHp, self.MaxHp) > XenoglossyHighHP))
 		{
 			return true;
 		}

@@ -1,5 +1,10 @@
 # Changelog - PvP Solver
 
+## v0.1.2.10 (2026-11-01) [testing]
+### Fixed
+- **The per-job defensive actions also read real HP.** Heart of Corundum, Tempera Coat, Earth's Reply, Riddle of Earth, the Bloodbath rows, Lady of Crowns, Microcosmos, Meisui, Impalement, Xenoglossy's low-HP arm and Shadowbringer's HP arm compared their "use below this HP" thresholds against predicted HP, which counts heals still on the way; predicted can read 84% one second before a death at about 40% real HP. They now compare against the current HP out of the maximum, the same real value Guard and the defensive table already use. Thresholds and defaults are unchanged, and reads of enemies' and allies' HP (Smite, Guardian, Blasting Zone, Perfectio, the burst target) are untouched.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v0.1.2.9 (2026-11-01) [testing]
 ### Fixed
 - **Self-defence now reads real HP.** Guard, Recuperate and the generic defensive actions (the "use below X% HP" table) compared their thresholds against predicted HP, which counts heals still on the way; predicted can read 84% one second before a death at about 40% real HP, so nothing fired. All of them now compare against the current HP out of the maximum, the same real value the Jev snapshot uses. Thresholds and defaults are unchanged.

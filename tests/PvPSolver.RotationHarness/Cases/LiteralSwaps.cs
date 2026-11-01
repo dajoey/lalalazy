@@ -5,7 +5,8 @@ namespace PvPSolver.RotationHarness.Cases;
 /// <summary>
 ///     Round 3, Part A, item 7: the six fixed HP numbers that became settings by literal swap (Heart of Corundum 30,
 ///     Riddle of Earth 0.8, Lady of Crowns 0.6, Microcosmos 0.6, Meisui 0.5, Impalement 60). T2 per branch: the
-///     method keeps exactly the conditions it had at origin/main 4d6d0e9f in the same order (same position), every
+///     method keeps exactly the conditions it had at origin/main 4d6d0e9f, with the self HP read switched to the
+///     real-HP read (JevCall.HpRatio, 0.1.2.10), in the same order (same position), every
 ///     one unchanged except the swapped ones, each swapped condition has an Enabled test in front and, with the
 ///     Enabled test removed and the accessor read put back to the old literal, is character for character the old
 ///     condition (so the comparison operator and every other condition are unchanged), and the number is read from
@@ -25,16 +26,16 @@ internal static class LiteralSwaps
     private static readonly Fixture[] Fixtures =
     [
         new("GNB_Default.PVP.cs", "EmergencyAbility",
-            ["HeartOfCorundumPvP.CanUse(out action, targetOverride: TargetType.Self) && Player?.GetHealthRatio() * 100 <= 30"],
+            ["HeartOfCorundumPvP.CanUse(out action, targetOverride: TargetType.Self) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) * 100 <= 30"],
             [new(0, "HeartOfCorundum", "DefensivePercentPoints", "30")]),
         new("MNK_Default.PVP.cs", "EmergencyAbility",
             [
                 "EarthsReplyStatusEnd && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance) && StatusHelper.PlayerWillStatusEndGCD(1, 0, true, StatusID.EarthResonance)",
                 "EarthsReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true, skipStatusNeed: true)",
-                "Player?.GetHealthRatio() <= EarthsReplyPercent && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance)",
+                "self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= EarthsReplyPercent && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance)",
                 "EarthsReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true, skipStatusNeed: true)",
-                "RiddleOfEarthPvP.CanUse(out action) && InCombat && Player?.GetHealthRatio() < 0.8",
-                "BloodbathPvP.CanUse(out action) && Player?.GetHealthRatio() < BloodBathPvPPercent",
+                "RiddleOfEarthPvP.CanUse(out action) && InCombat && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < 0.8",
+                "BloodbathPvP.CanUse(out action) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent",
                 "SwiftPvP.CanUse(out action)",
                 "SmitePvP.CanUse(out action, usedUp: true) && SmitePvP.Target.Target.GetHealthRatio() <= SmitePvPPercent",
             ],
@@ -44,14 +45,14 @@ internal static class LiteralSwaps
                 "StatusHelper.PlayerWillStatusEndGCD(1, 0, true, StatusID.Macrocosmos_3104) && MicrocosmosPvP.CanUse(out action)",
                 "StatusHelper.PlayerWillStatusEndGCD(1, 0, true, StatusID.LadyOfCrowns_4328) && LadyOfCrownsPvP.CanUse(out action)",
                 "AspectedBeneficPvP_29247.CanUse(out action, usedUp: true)",
-                "Player?.GetHealthRatio() < 0.6 && LadyOfCrownsPvP.CanUse(out action)",
-                "Player?.GetHealthRatio() < 0.6 && MicrocosmosPvP.CanUse(out action)",
+                "self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < 0.6 && LadyOfCrownsPvP.CanUse(out action)",
+                "self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < 0.6 && MicrocosmosPvP.CanUse(out action)",
                 "OraclePvP.CanUse(out action)",
             ],
             [new(3, "LadyOfCrowns", "DefensivePercent", "0.6"), new(4, "Microcosmos", "DefensivePercent", "0.6")]),
         new("NIN_Default.PVP.cs", "GeneralGCD",
             [
-                "HasHidden", "ZeshoMeppoPvP.CanUse(out action)", "Player?.GetHealthRatio() < .5", "MeisuiPvP.CanUse(out action)",
+                "HasHidden", "ZeshoMeppoPvP.CanUse(out action)", "Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < .5", "MeisuiPvP.CanUse(out action)",
                 "ForkedRaijuPvP.CanUse(out action)", "FleetingRaijuPvP.CanUse(out action)", "GokaMekkyakuPvP.CanUse(out action)",
                 "HyoshoRanryuPvP.CanUse(out action)", "StatusHelper.PlayerWillStatusEnd(1, true, StatusID.ThreeMudra) && HutonPvP.CanUse(out action)",
                 "FumaShurikenPvP.CanUse(out action, usedUp: true)", "AeolianEdgePvP.CanUse(out action)", "GustSlashPvP.CanUse(out action)",
@@ -60,7 +61,7 @@ internal static class LiteralSwaps
             [new(2, "Meisui", "DefensivePercent", ".5")]),
         new("DRK_Default.PVP.cs", "GeneralGCD",
             [
-                "DisesteemPvP.CanUse(out action)", "(Player?.GetHealthRatio() * 100) < 60 && ImpalementPvP.CanUse(out action)", "TorcleaverPvP.CanUse(out action)",
+                "DisesteemPvP.CanUse(out action)", "Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) * 100 < 60 && ImpalementPvP.CanUse(out action)", "TorcleaverPvP.CanUse(out action)",
                 "ComeuppancePvP.CanUse(out action)", "ScarletDeliriumPvP.CanUse(out action)", "SouleaterPvP.CanUse(out action)",
                 "SyphonStrikePvP.CanUse(out action)", "HardSlashPvP.CanUse(out action)",
             ],
