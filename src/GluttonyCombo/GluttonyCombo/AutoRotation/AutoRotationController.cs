@@ -2570,11 +2570,15 @@ internal unsafe class AutoRotationController
                 // behavior, and the plugin's own BypassBuffs prepull self-buff
                 // class (self-usable, recast under 5s) keeps firing.
                 // OutOfCombatGateHarness pins the semantics.
+                //
+                // Fork (1.0.4.324): while another plugin drives the rotation at a hostile
+                // target, the opener's self-buffs are part of the pull it is starting.
                 var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
                 if (NotInCombat && !OutOfCombatGate.MayFire(targetsHostile, canUseSelf, areaTargeted,
                         attributes.AutoAction!.IsHeal,
                         canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
-                        UserAllowsOutOfCombatAttacks))
+                        UserAllowsOutOfCombatAttacks,
+                        OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile())))
                     return false;
 
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -2787,10 +2791,16 @@ internal unsafe class AutoRotationController
             // keep their need-gated out-of-combat behavior, and the plugin's own
             // BypassBuffs prepull class (self-usable, recast under 5s: tank
             // stances) keeps firing. OutOfCombatGateHarness pins the semantics.
+            //
+            // Fork (1.0.4.324): while another plugin drives the rotation at a hostile
+            // target (Henchman's hunt mark in Manual mode), the opener's self-buffs -
+            // Machinist's Reassemble before the first shot - are part of the pull it is
+            // starting and fire too; refusing them left the pull waiting forever.
             if (NotInCombat && ActionSheet.TryGetValue(outAct, out var gateRow) && !OutOfCombatGate.MayFire(gateRow.CanTargetHostile, gateRow.CanTargetSelf, gateRow.TargetArea,
                     attributes.AutoAction!.IsHeal,
                     canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
-                    UserAllowsOutOfCombatAttacks))
+                    UserAllowsOutOfCombatAttacks,
+                    OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile())))
                 return false;
 
             // 1.0.4.281: the DPS hard-target write follows the user's out-of-combat attack settings;

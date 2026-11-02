@@ -1,3 +1,8 @@
+## v1.0.4.324 (2026-11-02) [testing]
+### Fixed
+- **A pull started by another plugin no longer stalls on the opener's first self-buff.** While a plugin such as Henchman, AutoDuty or Lazy Fate Automation drives the rotation, the out-of-combat restriction already lifted for attacks, but a self-only action with a long cooldown from a damage preset still waited for combat. When the opener's first step was one of those (Machinist's Reassemble or Flamethrower before the first shot), the rotation targeted the enemy and then waited for an action it was never allowed to press, so the character stood at the target until it was pressed by hand. Now, while another plugin is in control and the chosen target is hostile, those self-usable opener actions fire out of combat as part of the pull. With no plugin in control, or with no hostile target, the out-of-combat rule is unchanged: heal dumps, shields and other self-only actions from a damage preset still wait for combat.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v1.0.4.323 (2026-11-01) [testing]
 ### Fixed
 - **A cancelled heal cast is no longer counted as a completed one.** The healer raidwide locks (White Mage Medica II/Medica III, Astrologian Aspected Helios/Helios Conjunction, Scholar Succor/Concitation) treated "the cast bar was up and then went away" as a finished cast: a cast cancelled a moment in marked the timed regen as owning that raidwide for its whole duration and started the raidwide-shield cooldown, so the heal was never re-cast for the hit. Completion is now the action actually registering as used, so a cancelled cast is claimed and re-cast, and a finished cast still releases the lock exactly as before.

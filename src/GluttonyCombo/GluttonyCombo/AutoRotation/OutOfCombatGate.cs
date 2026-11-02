@@ -71,6 +71,11 @@ internal static class OutOfCombatGate
         if (fromHealPreset)
             return true;
 
+        // 1.0.4.324: another plugin is starting a pull at a hostile target - the
+        // opener's self-buffs (Reassemble before the first shot) are part of it.
+        if (externalPullAtHostile && canTargetSelf)
+            return true;
+
         return canTargetSelf && canTargetHostile;
     }
 
