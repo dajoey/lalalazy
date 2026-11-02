@@ -195,6 +195,11 @@ internal abstract partial class CustomComboFunctions
         if (GetAttackType(actionId) == ActionAttackType.Ability && HasAmnesia)
             return false;
 
+        // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, an action that
+        // can hit more than one enemy is not ready, so rotations move on to their next priority.
+        if (MandragoraHoldBlocks(actionId))
+            return false;
+
         return (HasCharges(actionId) || (GetAttackType(actionId) != ActionAttackType.Ability && GetCooldownRemainingTime(actionId) <= RemainingGCD + BaseActionQueue)) &&
             ActionManager.Instance()->GetActionStatus(ActionType.Action, actionId, checkRecastActive: recastCheck, checkCastingActive: castCheck) is 0 or 582 or 580;
     }

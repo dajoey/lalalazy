@@ -1,0 +1,136 @@
+// Offline proof for the treasure-dungeon mandragora AoE hold.
+//
+// Compiles the REAL src/GluttonyCombo/GluttonyCombo/AutoRotation/MandragoraHold.cs - the exact
+// file that ships - with no Dalamud and no ECommons. The treasure dungeons' five-piece mandragora
+// pack (onion, egg, garlic, tomato, queen) has to die one at a time, in order, for the full
+// reward; an AoE that hits the clumped pack breaks the order.
+//
+//   dotnet build tests\GluttonyCombo.MandragoraHoldHarness -c Release
+//   dotnet tests\GluttonyCombo.MandragoraHoldHarness\bin\Release\net10.0\GluttonyCombo.MandragoraHoldHarness.dll
+//
+// Action rows below are the live Action sheet values (CastType, EffectRange, hostile-effect flag
+// Unknown14) read from XIVAPI v2 on 2026-11-02.
+//
+// Prints PASS/FAIL per case, "OK" and exit 0 when every case passes.
+
+using GluttonyCombo.AutoRotation;
+using static GluttonyCombo.AutoRotation.MandragoraHold;
+
+var failures = 0;
+var total = 0;
+
+void Check<T>(string name, T actual, T expected)
+{
+    total++;
+    var ok = EqualityComparer<T>.Default.Equals(actual, expected);
+    if (!ok) failures++;
+    Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name,-82} => {actual}, expected {expected}");
+}
+
+Console.WriteLine("== Group 1: the pack is recognized in every treasure dungeon, by base id or name id ==");
+(uint Base, uint Name, string Label)[] packs =
+[
+    (0x1FCD, 6847, "canal onion (Hidden Canals of Uznair)"),
+    (0x254A, 7608, "altar queen (Shifting Altars of Uznair)"),
+    (0x2A08, 8686, "dungeon garlic (Dungeons of Lyhe Ghiah)"),
+    (0x3020, 9804, "secret tomato (Shifting Oubliettes of Lyhe Ghiah)"),
+    (0x3809, 10836, "exciting egg (Excitatron 6000)"),
+    (0x3D50, 12037, "gymnastic eggplant (Shifting Gymnasion Agonon)"),
+    (0x4304, 13246, "Tuligora queen (Cenote Ja Ja Gural)"),
+    (0x48B9, 14016, "vault onion (Vault Oneiron)"),
+];
+foreach (var p in packs)
+{
+    Check($"{p.Label} by base id", IsPackMember(p.Base, 0), true);
+    Check($"{p.Label} by name id", IsPackMember(0, p.Name), true);
+}
+Check("every family has five base ids (8 x 5)", PackBaseIds.Count, 40);
+Check("every family has five name ids (8 x 5)", PackNameIds.Count, 40);
+Check("Onion Prince (the field mandragora, 2827) is not the pack", IsPackMember(0, 2827), false);
+Check("Mandragora Queen (2831) is not the pack", IsPackMember(0, 2831), false);
+Check("a Crucible mandragora familiar (name 14531) is not the pack", IsPackMember(0, 14531), false);
+Check("an ordinary mob is not the pack", IsPackMember(0x2547 + 0x1000, 1234), false);
+
+Console.WriteLine();
+Console.WriteLine("== Group 2: the hold lasts until the whole pack is dead ==");
+Check("no npcs: no hold", IsHolding([]), false);
+Check("only ordinary mobs: no hold", IsHolding([(100u, 200u, false), (101u, 201u, false)]), false);
+Check("five live pack members: hold", IsHolding([(0x2546u, 7604u, false), (0x2547u, 7605u, false), (0x2548u, 7606u, false), (0x2549u, 7607u, false), (0x254Au, 7608u, false)]), true);
+Check("onion dead, four alive: hold", IsHolding([(0x2546u, 7604u, true), (0x2547u, 7605u, false), (0x2548u, 7606u, false), (0x2549u, 7607u, false), (0x254Au, 7608u, false)]), true);
+Check("only the queen alive: hold", IsHolding([(0x2546u, 7604u, true), (0x254Au, 7608u, false), (100u, 200u, false)]), true);
+Check("whole pack dead, other mobs alive: no hold", IsHolding([(0x2546u, 7604u, true), (0x2547u, 7605u, true), (0x254Au, 7608u, true), (100u, 200u, false)]), false);
+
+Console.WriteLine();
+Console.WriteLine("== Group 3: which actions can hit more than one enemy (live Action sheet rows) ==");
+// (id, name, CastType, EffectRange, Unknown14 hostile-effect flag, expected)
+(uint Id, string Name, byte Ct, byte Er, bool Hostile, bool Expected)[] rows =
+[
+    // multi-target damage: held
+    (23, "Circle of Scorn (self circle, physical)", 2, 5, true, true),
+    (41, "Overpower (self circle)", 2, 5, true, true),
+    (16159, "Bow Shock (self circle)", 2, 5, true, true),
+    (25760, "Double Down (self circle)", 2, 5, true, true),
+    (139, "Holy (self circle, magic)", 2, 8, true, true),
+    (3571, "Assize (self circle, damage and heal)", 2, 20, true, true),
+    (7444, "Lord of Crowns (self circle)", 2, 20, true, true),
+    (37009, "Glare IV (target circle)", 2, 5, true, true),
+    (24289, "Phlegma (target circle)", 2, 5, true, true),
+    (36989, "Flare Star (target circle)", 2, 5, true, true),
+    (7426, "Ruin IV (target circle)", 2, 5, true, true),
+    (16499, "Bioblaster (cone)", 3, 12, true, true),
+    (16487, "Shoha (line)", 4, 10, true, true),
+    (16196, "Quadruple Technical Finish (self circle)", 2, 15, true, true),
+    (36985, "Dance of the Dawn (target circle)", 2, 5, true, true),
+    (25874, "Macrocosmos (self circle)", 2, 20, true, true),
+    (2270, "Doton (ground area, unflagged)", 7, 5, false, true),
+    (3639, "Salted Earth (placed area, unflagged)", 2, 5, false, true),
+    (7418, "Flamethrower (channel, unflagged)", 1, 12, false, true),
+    // single-target damage: not held
+    (3538, "Goring Blade", 1, 0, true, false),
+    (16, "Shield Bash", 1, 0, true, false),
+    (7387, "Upheaval", 1, 0, true, false),
+    (25865, "Broil IV", 1, 0, true, false),
+    (25797, "Paradox", 1, 0, true, false),
+    (3643, "Carve and Spit", 1, 0, true, false),
+    (7436, "Chain Stratagem (single-target debuff)", 1, 0, true, false),
+    // heals, mitigation, party buffs: never held
+    (124, "Medica (heal)", 2, 20, false, false),
+    (133, "Medica II (heal)", 2, 20, false, false),
+    (131, "Cure III (heal)", 2, 10, false, false),
+    (3600, "Helios (heal)", 2, 20, false, false),
+    (16534, "Afflatus Rapture (heal)", 2, 20, false, false),
+    (7445, "Lady of Crowns (heal)", 2, 20, false, false),
+    (3540, "Divine Veil (party shield)", 2, 30, false, false),
+    (7388, "Shake It Off (party shield)", 2, 30, false, false),
+    (7385, "Passage of Arms (ground mitigation)", 7, 8, false, false),
+    (7396, "Brotherhood (party buff)", 2, 30, false, false),
+    (16553, "Celestial Opposition", 2, 20, false, false),
+    (7439, "Earthly Star", 7, 20, false, false),
+    (7531, "Rampart", 1, 0, false, false),
+    (7561, "Swiftcast", 1, 0, false, false),
+    (24394, "Enshroud", 1, 0, false, false),
+];
+foreach (var r in rows)
+    Check($"{r.Name} ({r.Id})", HitsSeveral(r.Id, r.Ct, r.Er, r.Hostile), r.Expected);
+
+Console.WriteLine();
+Console.WriteLine("== Group 4: what happens to a resolved action ==");
+Check("no hold: a multi-target GCD is kept", Decide(false, true, false, false, false), Outcome.Keep);
+Check("hold, single-target action: kept", Decide(true, false, false, false, false), Outcome.Keep);
+Check("hold, single-target weave: kept", Decide(true, false, true, false, false), Outcome.Keep);
+Check("hold, multi-target GCD (Glare IV) with a single-target button: button's own action", Decide(true, true, false, false, false), Outcome.Fallback);
+Check("hold, multi-target weave (Circle of Scorn): skipped, the GCD follows", Decide(true, true, true, false, false), Outcome.Skip);
+Check("hold, multi-target GCD on an AoE button (Overpower): skipped", Decide(true, true, false, true, false), Outcome.Skip);
+Check("hold, the button's own action is the held action: skipped", Decide(true, true, false, false, true), Outcome.Skip);
+
+Console.WriteLine();
+Console.WriteLine("== Group 5: auto-rotation presets while the hold is on ==");
+Check("no hold: AoE damage preset runs", MayRunPreset(false, true, false), true);
+Check("hold: AoE damage preset is off", MayRunPreset(true, true, false), false);
+Check("hold: single-target damage preset runs", MayRunPreset(true, false, false), true);
+Check("hold: AoE heal preset runs (heals are not damage)", MayRunPreset(true, true, true), true);
+Check("hold: single-target heal preset runs", MayRunPreset(true, false, true), true);
+
+Console.WriteLine();
+Console.WriteLine(failures == 0 ? $"OK ({total} cases)" : $"FAILED {failures} of {total}");
+return failures == 0 ? 0 : 1;

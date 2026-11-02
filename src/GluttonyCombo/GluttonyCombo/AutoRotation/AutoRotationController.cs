@@ -1674,12 +1674,17 @@ internal unsafe class AutoRotationController
 
     private static bool ProcessAutoActions(ref uint _, bool canHeal, bool stOnly)
     {
+        // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, AoE damage
+        // presets stay off; the single-target presets kill the pack one at a time.
+        var mandragoraHold = MandragoraHoldActive;
+
         // Pre-filter and cache attributes to avoid repeated lookups
         var filteredActions = _autoActions
             .Select(x => new { Preset = x.Key, Attributes = x.Key.Attributes() })
             .Where(x => x.Attributes is { AutoAction: not null, ReplaceSkill: not null })
             .Where(x => x.Attributes.AutoAction.IsHeal == canHeal)
             .Where(x => !stOnly || x.Attributes.AutoAction.IsAoE == false)
+            .Where(x => MandragoraHold.MayRunPreset(mandragoraHold, x.Attributes.AutoAction.IsAoE, x.Attributes.AutoAction.IsHeal))
             .Where(x => BluAutoActionAllowed(x.Attributes))
             .OrderByDescending(x => x.Attributes.AutoAction.IsAoE);
 
@@ -2724,6 +2729,18 @@ internal unsafe class AutoRotationController
                 Svc.Log.Debug($"Using item {outAct.ActionName()}");
                 ActionManager.Instance()->UseAction(ActionType.Action, outAct, extraParam: 0xFFFF);
                 return true;
+            }
+
+            // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, a single-target
+            // rotation's multi-target pick (Glare IV, Circle of Scorn, Flare Star...) never fires: a
+            // GCD becomes the button's own single-target action, a weave is skipped for the GCD.
+            switch (MandragoraHoldResolve(outAct, gameAct, out var holdFallback))
+            {
+                case MandragoraHold.Outcome.Skip:
+                    return false;
+                case MandragoraHold.Outcome.Fallback:
+                    outAct = holdFallback;
+                    break;
             }
 
             if (!ActionReady(outAct))

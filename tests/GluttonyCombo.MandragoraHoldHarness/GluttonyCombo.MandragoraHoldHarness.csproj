@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud and no ECommons. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/AutoRotation/MandragoraHold.cs - the pure
+       decision core of the treasure-dungeon mandragora AoE hold - so the semantics
+       that ship in the zip are the ones asserted here. Any game type leaking into that file breaks this build,
+       which is the point.
+         dotnet build tests\GluttonyCombo.MandragoraHoldHarness -c Release
+         dotnet tests\GluttonyCombo.MandragoraHoldHarness\bin\Release\net10.0\GluttonyCombo.MandragoraHoldHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.MandragoraHoldHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MandragoraHold.cs" Link="MandragoraHold.cs" />
+  </ItemGroup>
+</Project>

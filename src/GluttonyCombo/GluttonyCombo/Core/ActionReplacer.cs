@@ -168,6 +168,17 @@ internal sealed class ActionReplacer : IDisposable
                         return All.Cease;
                     }
 
+                    // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, a
+                    // combo that resolves an action able to hit several enemies hands the button
+                    // its own single-target action instead. A button whose own action hits several
+                    // (an AoE button pressed by hand) keeps the combo's pick: that is the player's call.
+                    // A held weave also shows the button's own action: the press queues the GCD.
+                    if (CustomComboFunctions.MandragoraHoldResolve(newActionID, actionID, out var holdFallback)
+                            is not global::GluttonyCombo.AutoRotation.MandragoraHold.Outcome.Keep
+                        && holdFallback != 0
+                        && !CustomComboFunctions.ActionHitsSeveral(holdFallback))
+                        return holdFallback;
+
                     return newActionID;
                 }
             }
