@@ -46,12 +46,15 @@ internal static class OutOfCombatGate
     ///     </para>
     ///     <para>
     ///         1.0.4.324: while another plugin drives the rotation and the chosen
-    ///         target is hostile (<paramref name="externalPullAtHostile" />, see
-    ///         <see cref="ExternalPullAtHostile" />), a self-usable action from a
+    ///         target is hostile and within reach (<paramref name="externalPullAtHostile" />,
+    ///         see <see cref="ExternalPullAtHostile" />), a self-usable action from a
     ///         damage preset is part of the pull that plugin is starting - the
     ///         Machinist opener's Reassemble before the first shot - and fires out
-    ///         of combat too. Without control or without a hostile target the
-    ///         1.0.4.278 rule is unchanged.
+    ///         of combat too. That covers every self-usable action a damage preset
+    ///         resolves, so a heal dump or shield the preset picks at that moment
+    ///         (Kerachole, The Blackest Night) fires too: a pull is starting. Without
+    ///         control, without a hostile target, or with the target out of reach,
+    ///         the 1.0.4.278 rule is unchanged.
     ///     </para>
     /// </summary>
     internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false, bool userAllowsOutOfCombatAttacks = false, bool externalPullAtHostile = false)
@@ -92,15 +95,26 @@ internal static class OutOfCombatGate
     internal static bool MayDetectIncomingDamage(bool inCombat) => inCombat;
 
     /// <summary>
+    ///     1.0.4.324: how close (hitbox-adjusted yalms, the GetTargetDistance
+    ///     measure) the chosen hostile target must be before an externally driven
+    ///     pull counts as starting - the longest ranged attack's reach. A target
+    ///     further out is one the controlling plugin is still travelling to (a
+    ///     Henchman mark across the zone, AutoDuty's next pack), and a self-buff
+    ///     fired then would run out before the first hit.
+    /// </summary>
+    internal const float ExternalPullReachYalms = 25f;
+
+    /// <summary>
     ///     1.0.4.324: whether this press belongs to a pull another plugin is
     ///     starting: external control is active (the user's setting is on and a
-    ///     lease is fresh) and the target the rotation chose is hostile. A
-    ///     training dummy never reaches here as the chosen target while a
-    ///     controller is present (ExternalControlHardTargetFilter and the enemy
-    ///     query drop it), so a dummy never opens this door.
+    ///     lease is fresh), the target the rotation chose is hostile, and it is
+    ///     within <see cref="ExternalPullReachYalms" />. A training dummy never
+    ///     reaches here as the chosen target while a controller is present
+    ///     (ExternalControlHardTargetFilter and the enemy query drop it), so a
+    ///     dummy never opens this door.
     /// </summary>
-    internal static bool ExternalPullAtHostile(bool externalControlActive, bool chosenTargetHostile)
-        => externalControlActive && chosenTargetHostile;
+    internal static bool ExternalPullAtHostile(bool externalControlActive, bool chosenTargetHostile, float chosenTargetDistance)
+        => externalControlActive && chosenTargetHostile && chosenTargetDistance <= ExternalPullReachYalms;
 
     /// <summary>
     ///     Whether the auto-rotation may write the player's hard target this

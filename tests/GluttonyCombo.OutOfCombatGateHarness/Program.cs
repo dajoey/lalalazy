@@ -307,25 +307,31 @@ Console.WriteLine("== Group 13: 1.0.4.324 - under external control the opener's 
 Console.WriteLine("   (2026-11-02, Henchman hunt marks on Machinist: the lease opened the out-of-combat doors, Manual mode held");
 Console.WriteLine("    the mark as the target, and the rotation's first pick was Reassemble - self-only, 55 s recast, so neither");
 Console.WriteLine("    hostile-only nor a sanctioned prepull buff. The gate refused it every tick and the pull never started:");
-Console.WriteLine("    9 s and 16 s standing at the mark until the player pressed it by hand)");
+Console.WriteLine("    3 s to 59 s standing at the mark until the player pressed it by hand). The door opens only within");
+Console.WriteLine("    reach of the chosen enemy, so a self-buff is not burnt while the controller is still travelling to it)");
 void PullFire(string name, bool canTargetHostile, bool canTargetSelf, bool targetArea, bool expected,
-    bool controlActive, bool targetHostile, bool fromHealPreset = false, bool sanctionedSelfBuff = false,
+    bool controlActive, bool targetHostile, float distance = 3f, bool fromHealPreset = false, bool sanctionedSelfBuff = false,
     bool savedOptIn = false)
 {
     var allowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: !savedOptIn, preferNonCombat: savedOptIn, externalControlActive: controlActive);
     Case(name, expected, OutOfCombatGate.MayFire(canTargetHostile, canTargetSelf, targetArea, fromHealPreset, sanctionedSelfBuff,
-        allowed, OutOfCombatGate.ExternalPullAtHostile(controlActive, targetHostile)));
+        allowed, OutOfCombatGate.ExternalPullAtHostile(controlActive, targetHostile, distance)));
 }
-Case("pull: control active + hostile target is a pull", true, OutOfCombatGate.ExternalPullAtHostile(true, true));
-Case("pull: control active, no hostile target is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(true, false));
-Case("pull: hostile target without control is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(false, true));
+Case("pull: control active + hostile target in reach is a pull", true, OutOfCombatGate.ExternalPullAtHostile(true, true, 3f));
+Case("pull: control active, no hostile target is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(true, false, 3f));
+Case("pull: hostile target without control is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(false, true, 3f));
+Case("pull: hostile target exactly at the 25 y reach is a pull", true, OutOfCombatGate.ExternalPullAtHostile(true, true, OutOfCombatGate.ExternalPullReachYalms));
+Case("pull: hostile target past the reach (40 y, still travelling) is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(true, true, 40f));
+Case("pull: no target at all (distance unknown) is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(true, false, float.MaxValue));
 PullFire("under control at a mark: Reassemble (self-only, 55 s) fires", false, true, false, true, controlActive: true, targetHostile: true);
-PullFire("under control at a mark: Flamethrower (self-only) fires", false, true, false, true, controlActive: true, targetHostile: true);
+PullFire("under control at a mark 20 y out (ranged opener): Reassemble fires", false, true, false, true, controlActive: true, targetHostile: true, distance: 20f);
+PullFire("under control, next pack 40 y out: Lance Charge-class self-buff waits", false, true, false, false, controlActive: true, targetHostile: true, distance: 40f);
 PullFire("under control at a mark: Chain Saw (hostile-only) still fires", true, false, false, true, controlActive: true, targetHostile: true);
 PullFire("under control at a mark: self+hostile action still fires", true, true, false, true, controlActive: true, targetHostile: true);
+PullFire("under control at a mark: a damage-preset heal dump fires too (Kerachole - a pull is starting)", false, true, false, true, controlActive: true, targetHostile: true);
 PullFire("under control, no hostile target: Reassemble waits", false, true, false, false, controlActive: true, targetHostile: false);
-PullFire("no control, hostile hard target: Reassemble waits (1.0.4.278 holds)", false, true, false, false, controlActive: false, targetHostile: true);
-PullFire("no control, hostile hard target: Kerachole dump waits (Sage idle in the field)", false, true, false, false, controlActive: false, targetHostile: true);
+PullFire("under control, no hostile target: Kerachole dump waits", false, true, false, false, controlActive: true, targetHostile: false);
+PullFire("no control, hostile hard target: self-only damage-preset action waits (1.0.4.278 holds)", false, true, false, false, controlActive: false, targetHostile: true);
 PullFire("saved opt-in only, hostile target: self-only damage-preset action still waits", false, true, false, false, controlActive: false, targetHostile: true, savedOptIn: true);
 PullFire("under control at a mark: zero target bits still waits", false, false, false, false, controlActive: true, targetHostile: true);
 PullFire("under control, no hostile target: heal-preset action unchanged", false, true, false, true, controlActive: true, targetHostile: false, fromHealPreset: true);
@@ -340,12 +346,12 @@ var reassembleSanctioned = true /* canUseSelf */ && true /* BypassBuffs */ && !(
 Case("e2e 12:48:18 Henchman tick: Reassemble at Flame Sergeant Dalvag is pressed", true,
     OutOfCombatGate.MayFire(canTargetHostile: false, canTargetSelf: true, targetArea: false, fromHealPreset: false,
         sanctionedSelfBuff: reassembleSanctioned, userAllowsOutOfCombatAttacks: henchmanAllowed,
-        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(henchmanControl, chosenTargetHostile: true)));
+        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(henchmanControl, chosenTargetHostile: true, chosenTargetDistance: 3f)));
 Case("e2e same tick after Henchman releases: Reassemble waits again", false,
     OutOfCombatGate.MayFire(canTargetHostile: false, canTargetSelf: true, targetArea: false, fromHealPreset: false,
         sanctionedSelfBuff: reassembleSanctioned,
         userAllowsOutOfCombatAttacks: OutOfCombatGate.OutOfCombatAttacksAllowed(false, false, externalControlActive: false),
-        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(false, chosenTargetHostile: true)));
+        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(false, chosenTargetHostile: true, chosenTargetDistance: 3f)));
 
 Console.WriteLine();
 if (failures == 0)

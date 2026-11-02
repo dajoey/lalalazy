@@ -2578,7 +2578,7 @@ internal unsafe class AutoRotationController
                         attributes.AutoAction!.IsHeal,
                         canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
                         UserAllowsOutOfCombatAttacks,
-                        OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile())))
+                        OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile(), target is null ? float.MaxValue : GetTargetDistance(target))))
                     return false;
 
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -2800,7 +2800,7 @@ internal unsafe class AutoRotationController
                     attributes.AutoAction!.IsHeal,
                     canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
                     UserAllowsOutOfCombatAttacks,
-                    OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile())))
+                    OutOfCombatGate.ExternalPullAtHostile(ExternalControlActive, target is not null && target.IsHostile(), target is null ? float.MaxValue : GetTargetDistance(target))))
                 return false;
 
             // 1.0.4.281: the DPS hard-target write follows the user's out-of-combat attack settings;
