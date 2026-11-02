@@ -8,21 +8,21 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 
 | Plugin | Description | Status |
 |--------|-------------|--------|
-| **Gluttony Combo** | XIVCombo for very lazy players. Condenses combos and mutually exclusive abilities onto a single button — and then some. Fork of Wrath Combo. | Active |
-| **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. Designed to run alongside Gluttony Combo. | Active |
-| **Lazy Market Companion** | Auto-lists your always-sell items through your retainers (bags + retainer inventory, configurable stack size / reserve), matches board prices, optional AutoRetainer hook. Successor to Dagobert Price Matcher. | Testing |
-| **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Active |
-| **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Active |
-| **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Active |
-| **Lazy Currency Spender** | Finds the best way to spend your tomestones, scrips, and Poetics — backed by live Universalis market prices. Surfaces tomestone gear and missing collectibles you can buy. Fork of CurrencySpender. | Active |
-| **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Active |
-| **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Active |
-| **LazyFoodBuff** | Auto-eats food in combat duties incl. deep dungeons. Per-job food selection, auto-select based on best stats, and a low-food (running-out) warning. | Active |
-| **LazyRetainerLive** | Serves the logged-in character's live retainer/venture table to the ffxiv dashboard over loopback HTTP, so venture countdowns stay current. Read-only AutoRetainer companion. | Testing |
-| **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Active |
-| **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Testing |
-| **LazyCrucible** | Beastmaster Crucible of the Unbroken helper. Fills the ten-familiar run roster at Bentbranch Meadows and the three Battlehorn slots before every fight with the familiars best suited to that fight's mechanics (weakness element, interrupts, crowd control, dispels), skipping knocked-out and badly hurt familiars. Every automation has its own toggle and manual edits always win. Includes a beast-pick advisor panel. Split out of Gluttony Combo, which keeps the Beastmaster rotation. | Testing |
-| **Lazy Hub** | One in-game window for the whole suite: a switch and the common settings for every plugin, Gluttony Combo's Auto-Rotation switch and hotbar buttons, and an Open button for each. Open it with /lazy. | Testing |
+| **Gluttony Combo** | XIVCombo for very lazy players. Condenses combos and mutually exclusive abilities onto a single button — and then some. Fork of Wrath Combo. | Production 1.0.4.320 · Testing 1.0.4.323 |
+| **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. Designed to run alongside Gluttony Combo. | Production 0.1.1.2 · Testing 0.1.2.10 |
+| **Lazy Market Companion** | Auto-lists your always-sell items through your retainers (bags + retainer inventory, configurable stack size / reserve), matches board prices, optional AutoRetainer hook. Successor to Dagobert Price Matcher. | Production 0.2.8.15 · Testing 0.2.8.16 |
+| **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Production 0.2.5.2 |
+| **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Production 0.5.7.0 |
+| **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Production 3.2.3.1 · Testing 3.2.3.2 |
+| **Lazy Currency Spender** | Finds the best way to spend your tomestones, scrips, and Poetics — backed by live Universalis market prices. Surfaces tomestone gear and missing collectibles you can buy. Fork of CurrencySpender. | Production 1.3.1.1 · Testing 1.3.1.3 |
+| **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Production 0.0.3.10 |
+| **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Production 0.0.3.0 · Testing 0.0.3.1 |
+| **LazyFoodBuff** | Auto-eats food in combat duties incl. deep dungeons. Per-job food selection, auto-select based on best stats, and a low-food (running-out) warning. | Production 0.1.5.1 |
+| **LazyRetainerLive** | Serves the logged-in character's live retainer/venture table to the ffxiv dashboard over loopback HTTP, so venture countdowns stay current. Read-only AutoRetainer companion. | Production 0.1.0.2 |
+| **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Production 0.1.7.8 · Testing 0.1.7.9 |
+| **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Production 0.1.5.1 |
+| **LazyCrucible** | Beastmaster Crucible of the Unbroken helper. Fills the ten-familiar run roster at Bentbranch Meadows and the three Battlehorn slots before every fight with the familiars best suited to that fight's mechanics (weakness element, interrupts, crowd control, dispels), skipping knocked-out and badly hurt familiars. Every automation has its own toggle and manual edits always win. Includes a beast-pick advisor panel. Split out of Gluttony Combo, which keeps the Beastmaster rotation. | Production 0.1.9.5 · Testing 0.1.9.16 |
+| **Lazy Hub** | One in-game window for the whole suite: a switch and the common settings for every plugin, Gluttony Combo's Auto-Rotation switch and hotbar buttons, and an Open button for each. Open it with /lazy. | Production 0.1.1.0 |
 
 ## Installation
 

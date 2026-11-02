@@ -633,11 +633,63 @@ $version is already registered for '$Channel'.
 "@
 }
 
+# The README plugin table's Status column follows the feed this release just wrote
+# (tools/readme_status.py), inside the same release commit. README.md was clean above (any
+# other dirt refuses the run), so only the generated cells are swept in. No Python: warn and
+# leave it to the readme-status workflow, which re-checks every push that changes the feed.
+$releasePaths = @("src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+# Catch up with origin/main first when that is a plain fast-forward (the readme-status workflow's
+# README commits, another worktree's release that touched none of this release's dirty files), so
+# the push below is not rejected for it. Anything else - offline, diverged, an overlapping dirty
+# file - leaves HEAD where it was and the push reports it as before.
+$fetch = Invoke-GitRaw @('fetch', '--quiet', 'origin', 'main')
+if ($fetch.Code -eq 0) {
+    $ff = Invoke-GitRaw @('merge', '--ff-only', '--quiet', 'origin/main')
+    if ($ff.Code -ne 0) { Write-Host "origin/main is not a fast-forward from here; the push will report it if it matters." }
+}
+$readmeTool = Join-Path $RepoRoot 'tools/readme_status.py'
+if (Test-Path $readmeTool) {
+    $python = $null
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        # the first candidate that really runs (on Windows `python3` can be the Store stub)
+        foreach ($candidate in @('py -3', 'python3', 'python')) {
+            $parts = @($candidate -split ' ')
+            if (-not (Get-Command $parts[0] -ErrorAction SilentlyContinue)) { continue }
+            $probeArgs = @($parts | Select-Object -Skip 1) + @('--version')
+            $null = @(& $parts[0] @probeArgs 2>&1)
+            if ($LASTEXITCODE -eq 0) { $python = $parts; break }
+        }
+    } finally { $ErrorActionPreference = $prev }
+    if ($python) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $pyArgs = @($python | Select-Object -Skip 1) + @($readmeTool, '--repo', $RepoRoot)
+            $readmeOut = @(& $python[0] @pyArgs 2>&1)
+            $readmeCode = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $prev }
+        if ($readmeCode -eq 0) {
+            Write-Host ($readmeOut -join "`n")
+            $readmeDirty = Invoke-GitRaw @('status', '--porcelain', '--', 'README.md')
+            if (@($readmeDirty.Lines | Where-Object { $_ }).Count -gt 0) {
+                $releasePaths += 'README.md'
+                $dirtyLines += $readmeDirty.Lines
+            }
+        } else {
+            Write-Warning "README status update failed (exit $readmeCode); the readme-status workflow will fix it:`n$($readmeOut -join "`n")"
+        }
+    } else {
+        Write-Warning "No Python found for tools/readme_status.py; the readme-status workflow will update the README."
+    }
+}
+
 if ($dirtyLines.Count -gt 0) {
-    Invoke-GitChecked @('add', '--', "src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+    Invoke-GitChecked (@('add', '--') + $releasePaths)
     Invoke-GitChecked @('commit', '-m', "release: $PluginName $version ($Channel) [packager]")
     $shortSha = [string](Invoke-GitChecked @('rev-parse', '--short', 'HEAD') | Select-Object -First 1)
-    Write-Host "Release commit $shortSha : src/$PluginName, plugins/$PluginName, pluginmaster.json"
+    Write-Host "Release commit $shortSha : $($releasePaths -join ', ')"
 }
 
 # Push the release commit; the release's tag will name exactly this SHA (step 6 publish).
