@@ -638,13 +638,30 @@ $version is already registered for '$Channel'.
 # other dirt refuses the run), so only the generated cells are swept in. No Python: warn and
 # leave it to the readme-status workflow, which re-checks every push that changes the feed.
 $releasePaths = @("src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+# Catch up with origin/main first when that is a plain fast-forward (the readme-status workflow's
+# README commits, another worktree's release that touched none of this release's dirty files), so
+# the push below is not rejected for it. Anything else - offline, diverged, an overlapping dirty
+# file - leaves HEAD where it was and the push reports it as before.
+$fetch = Invoke-GitRaw @('fetch', '--quiet', 'origin', 'main')
+if ($fetch.Code -eq 0) {
+    $ff = Invoke-GitRaw @('merge', '--ff-only', '--quiet', 'origin/main')
+    if ($ff.Code -ne 0) { Write-Host "origin/main is not a fast-forward from here; the push will report it if it matters." }
+}
 $readmeTool = Join-Path $RepoRoot 'tools/readme_status.py'
 if (Test-Path $readmeTool) {
     $python = $null
-    foreach ($candidate in @('py -3', 'python3', 'python')) {
-        $parts = $candidate -split ' '
-        if (Get-Command $parts[0] -ErrorAction SilentlyContinue) { $python = $parts; break }
-    }
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        # the first candidate that really runs (on Windows `python3` can be the Store stub)
+        foreach ($candidate in @('py -3', 'python3', 'python')) {
+            $parts = @($candidate -split ' ')
+            if (-not (Get-Command $parts[0] -ErrorAction SilentlyContinue)) { continue }
+            $probeArgs = @($parts | Select-Object -Skip 1) + @('--version')
+            $null = @(& $parts[0] @probeArgs 2>&1)
+            if ($LASTEXITCODE -eq 0) { $python = $parts; break }
+        }
+    } finally { $ErrorActionPreference = $prev }
     if ($python) {
         $prev = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'

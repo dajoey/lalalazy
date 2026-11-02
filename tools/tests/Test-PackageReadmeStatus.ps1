@@ -75,8 +75,9 @@ try {
 # 2. A release that does not change the README status: README is not part of the commit.
 $repo = New-ScratchRepo
 try {
-    & python3 (Join-Path $repo 'tools/readme_status.py') --repo $repo 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { & py -3 (Join-Path $repo 'tools/readme_status.py') --repo $repo 2>&1 | Out-Null }
+    # the README already matches the feed (the step itself writes it; no Python call here)
+    $current = $readme.Replace('| Testing |', '| Testing only 0.1.0.0 |')
+    [IO.File]::WriteAllText((Join-Path $repo 'README.md'), $current, $utf8)
     & git -C $repo commit -q -am "current readme" 2>&1 | Out-Null
     [IO.File]::WriteAllText((Join-Path $repo 'src/Probe/a.txt'), "c", $utf8)
     Invoke-ReleaseStep $repo
@@ -84,6 +85,30 @@ try {
     Assert (-not ($files -contains 'README.md')) "an unchanged README stays out of the release commit"
     Assert ($files -contains 'src/Probe/a.txt') "release paths still committed"
 } finally { Remove-Item -Recurse -Force $repo }
+
+# 3. origin/main gained a README-only commit (the workflow's): the release commit lands on top
+#    of it, so the push is a fast-forward.
+$repo = New-ScratchRepo
+$origin = $repo + '-origin.git'
+$other = $repo + '-other'
+try {
+    & git clone -q --bare $repo $origin 2>&1 | Out-Null
+    & git -C $repo remote add origin $origin
+    & git -C $repo fetch -q origin 2>&1 | Out-Null
+    & git clone -q $origin $other 2>&1 | Out-Null
+    [IO.File]::AppendAllText((Join-Path $other 'README.md'), "`nbot line`n", $utf8)
+    & git -C $other -c user.name=bot -c user.email=b@b commit -q -am "docs: README [readme-status]" 2>&1 | Out-Null
+    & git -C $other push -q origin HEAD:main 2>&1 | Out-Null
+    [IO.File]::WriteAllText((Join-Path $repo 'pluginmaster.json'),
+        '[{"Name":"Probe Plugin","InternalName":"Probe","AssemblyVersion":"0.1.0.0","TestingAssemblyVersion":"0.1.0.0"}]', $utf8)
+    Invoke-ReleaseStep $repo
+    $parent = (& git -C $repo log -1 --format=%s HEAD~1)
+    Assert ($parent -eq 'docs: README [readme-status]') "release commit sits on origin/main's README commit ($parent)"
+    $body = [IO.File]::ReadAllText((Join-Path $repo 'README.md'))
+    Assert ($body.Contains('bot line') -and $body.Contains('| Production 0.1.0.0 |')) "README keeps origin's line and gets the new status"
+    & git -C $repo push -q origin HEAD:main 2>&1 | Out-Null
+    Assert ($LASTEXITCODE -eq 0) "push is a fast-forward"
+} finally { Remove-Item -Recurse -Force $repo, $origin, $other -ErrorAction SilentlyContinue }
 
 if ($failures) { Write-Host "$failures failure(s)" -ForegroundColor Red; exit 1 }
 Write-Host "all README status packager checks passed"

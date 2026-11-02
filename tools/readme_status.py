@@ -59,12 +59,26 @@ def _table_span(lines: list[str]) -> tuple[int, int] | None:
     return None
 
 
-def _row_name(line: str) -> str:
-    parts = CELL_SPLIT.split(line.rstrip("\r\n"))
-    if len(parts) < 4:
-        return ""
-    m = NAME.match(parts[1].strip())
+def _cells(line: str) -> list[str]:
+    """A row split on unescaped pipes: ['', cell1, ..., cellN, ''] for a well-formed row."""
+    return CELL_SPLIT.split(line.rstrip("\r\n"))
+
+
+def _well_formed(parts: list[str]) -> bool:
+    return len(parts) >= 3 and not parts[0].strip() and not parts[-1].strip()
+
+
+def _row_name(parts: list[str]) -> str:
+    m = NAME.match(parts[1].strip()) if len(parts) > 2 else None
     return m.group(1).strip() if m else ""
+
+
+def _status_index(header: list[str]) -> int | None:
+    """The Status column's index in a split row, by its header name; None when absent."""
+    if not _well_formed(header):
+        return None
+    names = [c.strip().lower() for c in header]
+    return names.index("status") if "status" in names else None
 
 
 def plugin_rows(text: str) -> list[str]:
@@ -73,24 +87,31 @@ def plugin_rows(text: str) -> list[str]:
     span = _table_span(lines)
     if not span:
         return []
-    return [n for n in (_row_name(line) for line in lines[span[0]:span[1]]) if n]
+    return [n for n in (_row_name(_cells(line)) for line in lines[span[0]:span[1]]) if n]
 
 
 def rewrite(text: str, feed: list[dict]) -> str:
+    """Rewrite the Status cell of each Plugins-table row the feed lists. A row whose shape
+    differs from the header's (missing closing pipe, extra or missing cells) is left alone."""
     by_name = {str(p.get("Name") or "").strip(): p for p in feed if isinstance(p, dict)}
     lines = text.splitlines(keepends=True)
     span = _table_span(lines)
     if not span:
         return text
-    for i in range(*span):
-        entry = by_name.get(_row_name(lines[i]))
+    header = _cells(lines[span[0]])
+    col = _status_index(header)
+    if col is None:
+        return text
+    for i in range(span[0] + 1, span[1]):
+        parts = _cells(lines[i])
+        if len(parts) != len(header) or not _well_formed(parts):
+            continue
+        entry = by_name.get(_row_name(parts))
         if not entry:
             continue
         body = lines[i].rstrip("\r\n")
-        ending = lines[i][len(body):]
-        parts = CELL_SPLIT.split(body)
-        parts[-2] = f" {status_cell(entry)} "
-        lines[i] = "|".join(parts) + ending
+        parts[col] = f" {status_cell(entry)} "
+        lines[i] = "|".join(parts) + lines[i][len(body):]
     return "".join(lines)
 
 

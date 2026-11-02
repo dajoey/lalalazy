@@ -89,14 +89,35 @@ class ReadmeStatusTest(unittest.TestCase):
             raw = (repo / "README.md").read_bytes()
             self.assertNotIn(b"\r\n", raw)
 
-    def test_live_readme_matches_live_feed_rows(self):
-        # every plugin row in the repo's README names a plugin in the repo's feed
+    def test_malformed_rows_are_left_alone(self):
+        text = ("## Plugins\n\n| Plugin | Description | Status |\n|---|---|---|\n"
+                "| **Lazy Fish Sitter** | no closing pipe | Testing\n"
+                "| **Gluttony Combo** | extra | Active | stray |\n"
+                "| **LazyCrucible** | ok | Testing |  \n")
+        out = self.mod.rewrite(text, FEED)
+        self.assertIn("| **Lazy Fish Sitter** | no closing pipe | Testing\n", out)
+        self.assertIn("| **Gluttony Combo** | extra | Active | stray |\n", out)
+        self.assertIn("| **LazyCrucible** | ok | Testing only 0.1.9.16 |  \n", out, "trailing spaces kept")
+
+    def test_status_column_found_by_header_name(self):
+        text = ("## Plugins\n\n| Plugin | Status | Description |\n|---|---|---|\n"
+                "| **Lazy Fish Sitter** | Testing | sits \\| fishes |\n")
+        out = self.mod.rewrite(text, FEED)
+        self.assertIn("| **Lazy Fish Sitter** | Production 0.1.5.1 | sits \\| fishes |\n", out)
+        no_status = "## Plugins\n\n| Plugin | Description |\n|---|---|\n| **Lazy Fish Sitter** | d |\n"
+        self.assertEqual(no_status, self.mod.rewrite(no_status, FEED), "no Status column, no change")
+
+    def test_crlf_readme_keeps_its_line_endings(self):
+        crlf = README.replace("\n", "\r\n")
+        out = self.mod.rewrite(crlf, FEED)
+        self.assertIn("| **Lazy Fish Sitter** | Sits you down while you fish. | Production 0.1.5.1 |\r\n", out)
+        self.assertEqual(crlf.count("\r\n"), out.count("\r\n"))
+
+    def test_live_readme_has_a_plugins_table(self):
+        # a README row may name a plugin before its first release, so rows are not checked
+        # against the feed here (that would turn main red and stop README updates)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        feed = json.loads((ROOT / "pluginmaster.json").read_text(encoding="utf-8-sig"))
-        names = {p.get("Name") for p in feed}
-        rows = self.mod.plugin_rows(readme)
-        self.assertTrue(rows)
-        self.assertEqual([], [n for n in rows if n not in names])
+        self.assertTrue(self.mod.plugin_rows(readme))
 
 
 if __name__ == "__main__":

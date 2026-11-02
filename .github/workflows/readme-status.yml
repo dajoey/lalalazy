@@ -44,23 +44,22 @@ jobs:
       - name: Packager hook test (pwsh)
         shell: pwsh
         run: ./tools/tests/Test-PackageReadmeStatus.ps1
-      - name: Update the README status column from the feed
-        if: github.event_name != 'pull_request'
-        run: python3 tools/readme_status.py
-      - name: Commit when it changed
+      - name: Update the README status column from the latest feed and commit when it changed
         if: github.event_name != 'pull_request'
         run: |
-          if git diff --quiet -- README.md; then
-            echo "README status column already current"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "docs: README plugin status from pluginmaster.json [readme-status]"
-          # a release that lands meanwhile triggers its own run (queued by the concurrency group)
+          # every attempt starts from the newest main, so a queued run never writes an older feed
           for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git fetch --quiet origin main && git reset --quiet --hard origin/main || { sleep 5; continue; }
+            python3 tools/readme_status.py
+            if git diff --quiet -- README.md; then
+              echo "README status column already current"
+              exit 0
+            fi
+            git add README.md
+            git commit -q -m "docs: README plugin status from pluginmaster.json [readme-status]"
+            git push origin HEAD:main && exit 0
             sleep $((attempt * 5))
           done
           exit 1
