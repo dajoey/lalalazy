@@ -44,8 +44,17 @@ internal static class OutOfCombatGate
     ///         (can use on self, BypassBuffs enabled, recast under 5s: tank
     ///         stances, Eukrasia) keeps firing out of combat.
     ///     </para>
+    ///     <para>
+    ///         1.0.4.324: while another plugin drives the rotation and the chosen
+    ///         target is hostile (<paramref name="externalPullAtHostile" />, see
+    ///         <see cref="ExternalPullAtHostile" />), a self-usable action from a
+    ///         damage preset is part of the pull that plugin is starting - the
+    ///         Machinist opener's Reassemble before the first shot - and fires out
+    ///         of combat too. Without control or without a hostile target the
+    ///         1.0.4.278 rule is unchanged.
+    ///     </para>
     /// </summary>
-    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false, bool userAllowsOutOfCombatAttacks = false)
+    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false, bool userAllowsOutOfCombatAttacks = false, bool externalPullAtHostile = false)
     {
         if (targetArea)
             return true;
@@ -76,6 +85,17 @@ internal static class OutOfCombatGate
     ///     gate closes.
     /// </summary>
     internal static bool MayDetectIncomingDamage(bool inCombat) => inCombat;
+
+    /// <summary>
+    ///     1.0.4.324: whether this press belongs to a pull another plugin is
+    ///     starting: external control is active (the user's setting is on and a
+    ///     lease is fresh) and the target the rotation chose is hostile. A
+    ///     training dummy never reaches here as the chosen target while a
+    ///     controller is present (ExternalControlHardTargetFilter and the enemy
+    ///     query drop it), so a dummy never opens this door.
+    /// </summary>
+    internal static bool ExternalPullAtHostile(bool externalControlActive, bool chosenTargetHostile)
+        => externalControlActive && chosenTargetHostile;
 
     /// <summary>
     ///     Whether the auto-rotation may write the player's hard target this

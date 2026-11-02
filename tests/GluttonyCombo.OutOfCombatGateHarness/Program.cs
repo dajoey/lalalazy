@@ -303,6 +303,51 @@ Case("e2e duty, control active, dummy hard-targeted: no attack even with the out
 Case("e2e duty, control active, ordinary enemy hard-targeted: the rotation still attacks it", true, Decision(Dungeon, ("AutoDuty", 5)).MayAttackCurrentTarget(SomeEnemy));
 
 Console.WriteLine();
+Console.WriteLine("== Group 13: 1.0.4.324 - under external control the opener's self-buffs fire at a hostile target ==");
+Console.WriteLine("   (2026-11-02, Henchman hunt marks on Machinist: the lease opened the out-of-combat doors, Manual mode held");
+Console.WriteLine("    the mark as the target, and the rotation's first pick was Reassemble - self-only, 55 s recast, so neither");
+Console.WriteLine("    hostile-only nor a sanctioned prepull buff. The gate refused it every tick and the pull never started:");
+Console.WriteLine("    9 s and 16 s standing at the mark until the player pressed it by hand)");
+void PullFire(string name, bool canTargetHostile, bool canTargetSelf, bool targetArea, bool expected,
+    bool controlActive, bool targetHostile, bool fromHealPreset = false, bool sanctionedSelfBuff = false,
+    bool savedOptIn = false)
+{
+    var allowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: !savedOptIn, preferNonCombat: savedOptIn, externalControlActive: controlActive);
+    Case(name, expected, OutOfCombatGate.MayFire(canTargetHostile, canTargetSelf, targetArea, fromHealPreset, sanctionedSelfBuff,
+        allowed, OutOfCombatGate.ExternalPullAtHostile(controlActive, targetHostile)));
+}
+Case("pull: control active + hostile target is a pull", true, OutOfCombatGate.ExternalPullAtHostile(true, true));
+Case("pull: control active, no hostile target is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(true, false));
+Case("pull: hostile target without control is not a pull", false, OutOfCombatGate.ExternalPullAtHostile(false, true));
+PullFire("under control at a mark: Reassemble (self-only, 55 s) fires", false, true, false, true, controlActive: true, targetHostile: true);
+PullFire("under control at a mark: Flamethrower (self-only) fires", false, true, false, true, controlActive: true, targetHostile: true);
+PullFire("under control at a mark: Chain Saw (hostile-only) still fires", true, false, false, true, controlActive: true, targetHostile: true);
+PullFire("under control at a mark: self+hostile action still fires", true, true, false, true, controlActive: true, targetHostile: true);
+PullFire("under control, no hostile target: Reassemble waits", false, true, false, false, controlActive: true, targetHostile: false);
+PullFire("no control, hostile hard target: Reassemble waits (1.0.4.278 holds)", false, true, false, false, controlActive: false, targetHostile: true);
+PullFire("no control, hostile hard target: Kerachole dump waits (Sage idle in the field)", false, true, false, false, controlActive: false, targetHostile: true);
+PullFire("saved opt-in only, hostile target: self-only damage-preset action still waits", false, true, false, false, controlActive: false, targetHostile: true, savedOptIn: true);
+PullFire("under control at a mark: zero target bits still waits", false, false, false, false, controlActive: true, targetHostile: true);
+PullFire("under control, no hostile target: heal-preset action unchanged", false, true, false, true, controlActive: true, targetHostile: false, fromHealPreset: true);
+
+// End to end: the 12:48:18 ET tick replayed through the same calls ExecuteST makes - Henchman's fresh lease with the
+// setting on, Manual mode on the mark, the combo resolving Split Shot to Reassemble.
+var henchmanControl = OutOfCombatGate.ExternalControlAllowsOutOfCombatAttacks(true,
+    OutOfCombatGate.ExternalControlFresh(1, TimeSpan.Zero, OutOfCombatGate.ExternalControlStalenessWindow));
+var henchmanAllowed = OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: henchmanControl);
+const float reassembleRecast = 55f;
+var reassembleSanctioned = true /* canUseSelf */ && true /* BypassBuffs */ && !(reassembleRecast >= 5);
+Case("e2e 12:48:18 Henchman tick: Reassemble at Flame Sergeant Dalvag is pressed", true,
+    OutOfCombatGate.MayFire(canTargetHostile: false, canTargetSelf: true, targetArea: false, fromHealPreset: false,
+        sanctionedSelfBuff: reassembleSanctioned, userAllowsOutOfCombatAttacks: henchmanAllowed,
+        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(henchmanControl, chosenTargetHostile: true)));
+Case("e2e same tick after Henchman releases: Reassemble waits again", false,
+    OutOfCombatGate.MayFire(canTargetHostile: false, canTargetSelf: true, targetArea: false, fromHealPreset: false,
+        sanctionedSelfBuff: reassembleSanctioned,
+        userAllowsOutOfCombatAttacks: OutOfCombatGate.OutOfCombatAttacksAllowed(false, false, externalControlActive: false),
+        externalPullAtHostile: OutOfCombatGate.ExternalPullAtHostile(false, chosenTargetHostile: true)));
+
+Console.WriteLine();
 if (failures == 0)
 {
     Console.WriteLine($"OK ({total}/{total} cases pass)");
