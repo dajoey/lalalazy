@@ -1,0 +1,66 @@
+# README plugin table: the Status column is written from pluginmaster.json (tools/readme_status.py).
+# The packager writes it inside every release commit; on main this catches every other change to the
+# feed (hand-made multi-plugin releases and promotions) and commits the README only when it is out of
+# date. Pull requests run the tests only.
+name: README status
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pluginmaster.json'
+      - 'README.md'
+      - 'tools/readme_status.py'
+      - 'tools/tests/test_readme_status.py'
+      - 'tools/tests/Test-PackageReadmeStatus.ps1'
+      - 'tools/Package-Plugin.ps1'
+      - '.github/workflows/readme-status.yml'
+  pull_request:
+    paths:
+      - 'pluginmaster.json'
+      - 'README.md'
+      - 'tools/readme_status.py'
+      - 'tools/tests/test_readme_status.py'
+      - 'tools/tests/Test-PackageReadmeStatus.ps1'
+      - 'tools/Package-Plugin.ps1'
+      - '.github/workflows/readme-status.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-status-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  readme-status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generator tests
+        run: python3 -m unittest tools/tests/test_readme_status.py
+      - name: Packager hook test (pwsh)
+        shell: pwsh
+        run: ./tools/tests/Test-PackageReadmeStatus.ps1
+      - name: Update the README status column from the feed
+        if: github.event_name != 'pull_request'
+        run: python3 tools/readme_status.py
+      - name: Commit when it changed
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- README.md; then
+            echo "README status column already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: README plugin status from pluginmaster.json [readme-status]"
+          # a release that lands meanwhile triggers its own run (queued by the concurrency group)
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1

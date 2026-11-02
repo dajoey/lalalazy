@@ -633,11 +633,46 @@ $version is already registered for '$Channel'.
 "@
 }
 
+# The README plugin table's Status column follows the feed this release just wrote
+# (tools/readme_status.py), inside the same release commit. README.md was clean above (any
+# other dirt refuses the run), so only the generated cells are swept in. No Python: warn and
+# leave it to the readme-status workflow, which re-checks every push that changes the feed.
+$releasePaths = @("src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+$readmeTool = Join-Path $RepoRoot 'tools/readme_status.py'
+if (Test-Path $readmeTool) {
+    $python = $null
+    foreach ($candidate in @('py -3', 'python3', 'python')) {
+        $parts = $candidate -split ' '
+        if (Get-Command $parts[0] -ErrorAction SilentlyContinue) { $python = $parts; break }
+    }
+    if ($python) {
+        $prev = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $pyArgs = @($python | Select-Object -Skip 1) + @($readmeTool, '--repo', $RepoRoot)
+            $readmeOut = @(& $python[0] @pyArgs 2>&1)
+            $readmeCode = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $prev }
+        if ($readmeCode -eq 0) {
+            Write-Host ($readmeOut -join "`n")
+            $readmeDirty = Invoke-GitRaw @('status', '--porcelain', '--', 'README.md')
+            if (@($readmeDirty.Lines | Where-Object { $_ }).Count -gt 0) {
+                $releasePaths += 'README.md'
+                $dirtyLines += $readmeDirty.Lines
+            }
+        } else {
+            Write-Warning "README status update failed (exit $readmeCode); the readme-status workflow will fix it:`n$($readmeOut -join "`n")"
+        }
+    } else {
+        Write-Warning "No Python found for tools/readme_status.py; the readme-status workflow will update the README."
+    }
+}
+
 if ($dirtyLines.Count -gt 0) {
-    Invoke-GitChecked @('add', '--', "src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+    Invoke-GitChecked (@('add', '--') + $releasePaths)
     Invoke-GitChecked @('commit', '-m', "release: $PluginName $version ($Channel) [packager]")
     $shortSha = [string](Invoke-GitChecked @('rev-parse', '--short', 'HEAD') | Select-Object -First 1)
-    Write-Host "Release commit $shortSha : src/$PluginName, plugins/$PluginName, pluginmaster.json"
+    Write-Host "Release commit $shortSha : $($releasePaths -join ', ')"
 }
 
 # Push the release commit; the release's tag will name exactly this SHA (step 6 publish).
