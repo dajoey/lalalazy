@@ -3,6 +3,7 @@ using ECommons.DalamudServices;
 using System;
 using System.Linq;
 using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
 using static GluttonyCombo.Data.ActionWatching;
 
 namespace GluttonyCombo.CustomComboNS.Functions;
@@ -67,7 +68,7 @@ internal abstract partial class CustomComboFunctions
     /// <summary>
     ///     Applies the hold to an action a rotation resolved for <paramref name="button"/>.
     ///     <paramref name="fallback"/> is the single-target action to use instead (the button's
-    ///     current form, else its base action), 0 when there is none.
+    ///     current form), 0 when there is none.
     /// </summary>
     internal static MandragoraHold.Outcome MandragoraHoldResolve(uint resolved, uint button, out uint fallback)
     {
@@ -76,7 +77,7 @@ internal abstract partial class CustomComboFunctions
             return MandragoraHold.Outcome.Keep;
 
         var hooked = OriginalHook(button);
-        fallback = MandragoraHold.PickFallback(resolved, hooked, ActionHitsSeveral(hooked), button, ActionHitsSeveral(button));
+        fallback = MandragoraHold.PickFallback(resolved, hooked, ActionHitsSeveral(hooked));
         return MandragoraHold.Decide(
             holding: true,
             resolvedHitsSeveral: true,
@@ -86,13 +87,19 @@ internal abstract partial class CustomComboFunctions
 
     /// <summary>
     ///     What the action-replacer hook hands the game for <paramref name="button"/> while the
-    ///     hold may be on: the resolved action, or its single-target fallback when the resolved
-    ///     one is held (a held weave also shows the fallback: the press queues the GCD). With no
-    ///     single-target fallback (an AoE button) the resolved action stays: a hand press of an
-    ///     AoE button is the player's call.
+    ///     hold may be on: the resolved action; its single-target fallback when the resolved one
+    ///     is held (a held weave also shows the fallback: the press queues the GCD); nothing
+    ///     (<see cref="All.Cease"/>) when a single-target button has no single-target action to
+    ///     offer. An AoE button keeps its pick: a hand press of an AoE button is the player's call.
     /// </summary>
-    internal static uint MandragoraHoldForButton(uint resolved, uint button) =>
-        MandragoraHoldResolve(resolved, button, out var fallback) is not MandragoraHold.Outcome.Keep && fallback != 0
-            ? fallback
-            : resolved;
+    internal static uint MandragoraHoldForButton(uint resolved, uint button)
+    {
+        if (MandragoraHoldResolve(resolved, button, out var fallback) is MandragoraHold.Outcome.Keep)
+            return resolved;
+
+        if (fallback != 0)
+            return fallback;
+
+        return ActionHitsSeveral(button) ? resolved : All.Cease;
+    }
 }

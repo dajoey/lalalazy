@@ -111,19 +111,12 @@ internal static class MandragoraHold
     /// <summary>
     ///     The single-target action to use instead of a held one: the button's current form
     ///     (<paramref name="hookedButton"/>, the game's own upgrade of the pressed button) when
-    ///     that is single-target, otherwise the button's base action (<paramref name="button"/>:
-    ///     Jolt III while the game shows Grand Impact on it), otherwise 0 (none).
+    ///     that is single-target, otherwise 0 (none). The button's base action is never used:
+    ///     queued presses bypass the action-replacer hook and the game turns the base action
+    ///     straight back into its current form (Jolt III into Grand Impact).
     /// </summary>
-    internal static uint PickFallback(uint resolved, uint hookedButton, bool hookedHitsSeveral, uint button, bool buttonHitsSeveral)
-    {
-        if (hookedButton != 0 && hookedButton != resolved && !hookedHitsSeveral)
-            return hookedButton;
-
-        if (button != 0 && button != resolved && !buttonHitsSeveral)
-            return button;
-
-        return 0;
-    }
+    internal static uint PickFallback(uint resolved, uint hookedButton, bool hookedHitsSeveral) =>
+        hookedButton != 0 && hookedButton != resolved && !hookedHitsSeveral ? hookedButton : 0;
 
     /// <summary>What to do with an action a rotation resolved while the hold may be on.</summary>
     internal enum Outcome

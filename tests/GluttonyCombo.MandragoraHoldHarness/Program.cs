@@ -133,11 +133,11 @@ Console.WriteLine();
 Console.WriteLine("== Group 4: the single-target fallback and what happens to a resolved action ==");
 // ids: Glare III 25859 / Glare IV 37009; Jolt III 37004 shown as Grand Impact 37006; Overpower 41;
 // Mythril Tempest 16462; Cascade 15989; Standard Step 15997.
-Check("Glare IV from the Stone button: fallback is the button's form (Glare III)", PickFallback(37009, 25859, false, 119, false), 25859u);
-Check("Grand Impact on the Jolt button (the game shows Grand Impact): fallback is Jolt III itself", PickFallback(37006, 37006, true, 37004, false), 37004u);
-Check("Mythril Tempest from the Overpower button: no single-target fallback", PickFallback(16462, 41, true, 41, true), 0u);
-Check("Standard Step from the Cascade button: fallback is Cascade", PickFallback(15997, 15989, false, 15989, false), 15989u);
-Check("fallback never equals the held action", PickFallback(41, 41, false, 41, false), 0u);
+Check("Glare IV from the Stone button: fallback is the button's form (Glare III)", PickFallback(37009, 25859, false), 25859u);
+Check("Grand Impact on the Jolt button: no fallback (a queued Jolt III becomes Grand Impact again)", PickFallback(37006, 37006, true), 0u);
+Check("Mythril Tempest from the Overpower button: no single-target fallback", PickFallback(16462, 41, true), 0u);
+Check("Standard Step from the Cascade button: fallback is Cascade", PickFallback(15997, 15989, false), 15989u);
+Check("fallback never equals the held action", PickFallback(41, 41, false), 0u);
 Check("no hold: a multi-target GCD is kept", Decide(false, true, false, true), Outcome.Keep);
 Check("hold, single-target action: kept", Decide(true, false, false, true), Outcome.Keep);
 Check("hold, single-target weave: kept", Decide(true, false, true, true), Outcome.Keep);
