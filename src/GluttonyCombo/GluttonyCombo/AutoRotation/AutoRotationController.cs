@@ -2734,12 +2734,14 @@ internal unsafe class AutoRotationController
             // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, a single-target
             // rotation's multi-target pick (Glare IV, Circle of Scorn, Flare Star...) never fires: a
             // GCD becomes the button's own single-target action, a weave is skipped for the GCD.
+            var mandragoraSwapped = false;
             switch (MandragoraHoldResolve(outAct, gameAct, out var holdFallback))
             {
                 case MandragoraHold.Outcome.Skip:
                     return false;
                 case MandragoraHold.Outcome.Fallback:
                     outAct = holdFallback;
+                    mandragoraSwapped = true;
                     break;
             }
 
@@ -2856,7 +2858,9 @@ internal unsafe class AutoRotationController
                 // Friendly-only resolutions bypass ActionChanging: handing the hook `gameAct`
                 // makes it re-derive the action from the pressed damage button, which cannot be
                 // relied on to reproduce a content-specific replacement like a phantom cure.
-                var actToSend = Service.Configuration.ActionChanging && !resolvedFriendlyOnly
+                // The mandragora hold's single-target swap is sent as itself too: the button would
+                // re-derive the held pick.
+                var actToSend = Service.Configuration.ActionChanging && !resolvedFriendlyOnly && !mandragoraSwapped
                     ? gameAct
                     : outAct;
                 // One owner per raidwide (2026-10-19 report): same stand-down as the AoE path -

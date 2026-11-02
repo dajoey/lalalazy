@@ -67,22 +67,63 @@ internal static class MandragoraHold
         npcs.Any(n => !n.IsDead && IsPackMember(n.BaseId, n.NameId));
 
     /// <summary>
-    ///     Multi-target damage the Action sheet's hostile-effect flag does not mark: the damage
-    ///     comes from a placed area or a channel, not from the action itself (Doton, Salted
-    ///     Earth, Flamethrower).
+    ///     Held although the Action sheet does not mark them as multi-target damage: the damage
+    ///     comes from a placed area or a channel (Doton, Salted Earth, Flamethrower), or the
+    ///     action starts something whose follow-up is multi-target damage: a dance whose finish
+    ///     is an AoE (Standard Step, Technical Step), a primal or demi-summon whose pet attack
+    ///     is an AoE (Summon Ifrit II, Summon Titan II, Summon Garuda II, Enkindle Bahamut,
+    ///     Enkindle Phoenix, Enkindle Solar Bahamut), or Living Shadow (its simulacrum casts
+    ///     Abyssal Drain, Shadowbringer and Disesteem).
     /// </summary>
-    internal static readonly FrozenSet<uint> UnflaggedAreaDamage = new uint[] { 2270, 3639, 7418 }.ToFrozenSet();
+    internal static readonly FrozenSet<uint> AlwaysHeld = new uint[]
+    {
+        2270, 3639, 7418,          // Doton, Salted Earth, Flamethrower
+        15997, 15998,              // Standard Step, Technical Step
+        25838, 25839, 25840,       // Summon Ifrit II, Summon Titan II, Summon Garuda II
+        7429, 16516, 36998,        // Enkindle Bahamut, Enkindle Phoenix, Enkindle Solar Bahamut
+        16472,                     // Living Shadow
+    }.ToFrozenSet();
+
+    /// <summary>
+    ///     Shaped and flagged like an AoE attack but deal no damage, so never held: Reprisal
+    ///     (tank mitigation, a damage-down on enemies around the tank).
+    /// </summary>
+    internal static readonly FrozenSet<uint> NeverHeld = new uint[] { 7535 }.ToFrozenSet();
 
     /// <summary>
     ///     Whether an action can hit more than one enemy: it damages hostiles
     ///     (<paramref name="damagesHostiles"/>, the Action sheet's hostile-effect flag, which is
     ///     false for heals, mitigation and party buffs) and its shape is not single-target
     ///     (circle, cone, line, ground area) with a non-zero effect range, or it is one of
-    ///     <see cref="UnflaggedAreaDamage"/>.
+    ///     <see cref="AlwaysHeld"/>; never one of <see cref="NeverHeld"/>.
     /// </summary>
-    internal static bool HitsSeveral(uint actionId, byte castType, byte effectRange, bool damagesHostiles) =>
-        UnflaggedAreaDamage.Contains(actionId)
-        || (damagesHostiles && castType != SingleTargetCastType && effectRange > 0);
+    internal static bool HitsSeveral(uint actionId, byte castType, byte effectRange, bool damagesHostiles)
+    {
+        if (NeverHeld.Contains(actionId))
+            return false;
+
+        if (AlwaysHeld.Contains(actionId))
+            return true;
+
+        return damagesHostiles && castType != SingleTargetCastType && effectRange > 0;
+    }
+
+    /// <summary>
+    ///     The single-target action to use instead of a held one: the button's current form
+    ///     (<paramref name="hookedButton"/>, the game's own upgrade of the pressed button) when
+    ///     that is single-target, otherwise the button's base action (<paramref name="button"/>:
+    ///     Jolt III while the game shows Grand Impact on it), otherwise 0 (none).
+    /// </summary>
+    internal static uint PickFallback(uint resolved, uint hookedButton, bool hookedHitsSeveral, uint button, bool buttonHitsSeveral)
+    {
+        if (hookedButton != 0 && hookedButton != resolved && !hookedHitsSeveral)
+            return hookedButton;
+
+        if (button != 0 && button != resolved && !buttonHitsSeveral)
+            return button;
+
+        return 0;
+    }
 
     /// <summary>What to do with an action a rotation resolved while the hold may be on.</summary>
     internal enum Outcome
@@ -100,27 +141,33 @@ internal static class MandragoraHold
     /// <summary>
     ///     Decision for one resolved action. A multi-target action while the hold is on is never
     ///     kept: a weave (<paramref name="resolvedIsAbility"/>) is skipped, because the GCD comes
-    ///     next anyway; a GCD is replaced by the button's own single-target action
-    ///     (<paramref name="fallbackHitsSeveral"/> false and a different action), otherwise the
-    ///     tick is skipped.
+    ///     next anyway; a GCD is replaced by the single-target fallback when there is one
+    ///     (<paramref name="hasFallback"/>, from <see cref="PickFallback"/>), otherwise the tick
+    ///     is skipped.
     /// </summary>
-    internal static Outcome Decide(
-        bool holding,
-        bool resolvedHitsSeveral,
-        bool resolvedIsAbility,
-        bool fallbackHitsSeveral,
-        bool fallbackIsResolved)
+    internal static Outcome Decide(bool holding, bool resolvedHitsSeveral, bool resolvedIsAbility, bool hasFallback)
     {
         if (!holding || !resolvedHitsSeveral)
             return Outcome.Keep;
 
-        if (resolvedIsAbility)
-            return Outcome.Skip;
-
-        if (fallbackIsResolved || fallbackHitsSeveral)
+        if (resolvedIsAbility || !hasFallback)
             return Outcome.Skip;
 
         return Outcome.Fallback;
+    }
+
+    /// <summary>
+    ///     Whether a cached hold reading taken at <paramref name="readAtMs"/> is still fresh at
+    ///     <paramref name="nowMs"/>. A hold that has never been read (<paramref name="hasRead"/>
+    ///     false) is never fresh; a clock that went backwards is not fresh either.
+    /// </summary>
+    internal static bool CacheFresh(long nowMs, long readAtMs, bool hasRead, long windowMs)
+    {
+        if (!hasRead)
+            return false;
+
+        var age = nowMs - readAtMs;
+        return age >= 0 && age < windowMs;
     }
 
     /// <summary>

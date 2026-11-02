@@ -121,14 +121,18 @@ internal sealed class ActionReplacer : IDisposable
             if (!Player.Available)
                 return OriginalHook(actionID);
 
-            // Only refresh every so often
+            // Only refresh every so often. Fork (1.0.4.325): both returns pass the treasure-dungeon
+            // mandragora hold - the cache also holds the auto-rotation's raw combo pick (InvokeCombo
+            // writes it), and the game re-resolves the auto-rotation's ActionChanging press through
+            // here: while the pack is alive, a pick able to hit several enemies leaves as the
+            // button's single-target action (an AoE button keeps its pick: the player's call).
             if (!EzThrottler.Throttle("Actions" + actionID,
                     Service.Configuration.Throttle))
-                return LastActionInvokeFor[actionID];
+                return CustomComboFunctions.MandragoraHoldForButton(LastActionInvokeFor[actionID], actionID);
 
             // Actually get the action
             LastActionInvokeFor[actionID] = GetAdjustedAction(actionID);
-            return LastActionInvokeFor[actionID];
+            return CustomComboFunctions.MandragoraHoldForButton(LastActionInvokeFor[actionID], actionID);
         }
         catch (Exception e)
         {
@@ -167,17 +171,6 @@ internal sealed class ActionReplacer : IDisposable
                     {
                         return All.Cease;
                     }
-
-                    // Fork (1.0.4.325): while a treasure dungeon's mandragora pack is alive, a
-                    // combo that resolves an action able to hit several enemies hands the button
-                    // its own single-target action instead. A button whose own action hits several
-                    // (an AoE button pressed by hand) keeps the combo's pick: that is the player's call.
-                    // A held weave also shows the button's own action: the press queues the GCD.
-                    if (CustomComboFunctions.MandragoraHoldResolve(newActionID, actionID, out var holdFallback)
-                            is not global::GluttonyCombo.AutoRotation.MandragoraHold.Outcome.Keep
-                        && holdFallback != 0
-                        && !CustomComboFunctions.ActionHitsSeveral(holdFallback))
-                        return holdFallback;
 
                     return newActionID;
                 }

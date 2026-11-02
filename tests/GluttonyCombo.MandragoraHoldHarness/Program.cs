@@ -85,6 +85,17 @@ Console.WriteLine("== Group 3: which actions can hit more than one enemy (live A
     (2270, "Doton (ground area, unflagged)", 7, 5, false, true),
     (3639, "Salted Earth (placed area, unflagged)", 2, 5, false, true),
     (7418, "Flamethrower (channel, unflagged)", 1, 12, false, true),
+    (15997, "Standard Step (its finish is an AoE)", 1, 0, false, true),
+    (15998, "Technical Step (its finish is an AoE)", 1, 0, false, true),
+    (16191, "Single Standard Finish (self circle)", 2, 15, true, true),
+    (25838, "Summon Ifrit II (Inferno is an AoE)", 1, 0, true, true),
+    (25839, "Summon Titan II (Earthen Fury is an AoE)", 1, 0, true, true),
+    (25840, "Summon Garuda II (Aerial Blast is an AoE)", 1, 0, true, true),
+    (7429, "Enkindle Bahamut (Akh Morn)", 1, 0, true, true),
+    (16516, "Enkindle Phoenix (Revelation)", 1, 0, true, true),
+    (36998, "Enkindle Solar Bahamut (Exodus)", 1, 0, true, true),
+    (16472, "Living Shadow (Abyssal Drain, Shadowbringer)", 1, 0, false, true),
+    (24318, "Pneuma (line, damage and heal)", 4, 25, true, true),
     // single-target damage: not held
     (3538, "Goring Blade", 1, 0, true, false),
     (16, "Shield Bash", 1, 0, true, false),
@@ -107,6 +118,11 @@ Console.WriteLine("== Group 3: which actions can hit more than one enemy (live A
     (16553, "Celestial Opposition", 2, 20, false, false),
     (7439, "Earthly Star", 7, 20, false, false),
     (7531, "Rampart", 1, 0, false, false),
+    (7535, "Reprisal (mitigation shaped like an AoE attack)", 2, 5, true, false),
+    (7560, "Addle (single-target mitigation)", 1, 0, true, false),
+    (7549, "Feint (single-target mitigation)", 1, 0, true, false),
+    (16012, "Shield Samba (party mitigation)", 2, 30, false, false),
+    (7427, "Summon Bahamut (Wyrmwave is single-target)", 1, 0, false, false),
     (7561, "Swiftcast", 1, 0, false, false),
     (24394, "Enshroud", 1, 0, false, false),
 ];
@@ -114,14 +130,28 @@ foreach (var r in rows)
     Check($"{r.Name} ({r.Id})", HitsSeveral(r.Id, r.Ct, r.Er, r.Hostile), r.Expected);
 
 Console.WriteLine();
-Console.WriteLine("== Group 4: what happens to a resolved action ==");
-Check("no hold: a multi-target GCD is kept", Decide(false, true, false, false, false), Outcome.Keep);
-Check("hold, single-target action: kept", Decide(true, false, false, false, false), Outcome.Keep);
-Check("hold, single-target weave: kept", Decide(true, false, true, false, false), Outcome.Keep);
-Check("hold, multi-target GCD (Glare IV) with a single-target button: button's own action", Decide(true, true, false, false, false), Outcome.Fallback);
-Check("hold, multi-target weave (Circle of Scorn): skipped, the GCD follows", Decide(true, true, true, false, false), Outcome.Skip);
-Check("hold, multi-target GCD on an AoE button (Overpower): skipped", Decide(true, true, false, true, false), Outcome.Skip);
-Check("hold, the button's own action is the held action: skipped", Decide(true, true, false, false, true), Outcome.Skip);
+Console.WriteLine("== Group 4: the single-target fallback and what happens to a resolved action ==");
+// ids: Glare III 25859 / Glare IV 37009; Jolt III 37004 shown as Grand Impact 37006; Overpower 41;
+// Mythril Tempest 16462; Cascade 15989; Standard Step 15997.
+Check("Glare IV from the Stone button: fallback is the button's form (Glare III)", PickFallback(37009, 25859, false, 119, false), 25859u);
+Check("Grand Impact on the Jolt button (the game shows Grand Impact): fallback is Jolt III itself", PickFallback(37006, 37006, true, 37004, false), 37004u);
+Check("Mythril Tempest from the Overpower button: no single-target fallback", PickFallback(16462, 41, true, 41, true), 0u);
+Check("Standard Step from the Cascade button: fallback is Cascade", PickFallback(15997, 15989, false, 15989, false), 15989u);
+Check("fallback never equals the held action", PickFallback(41, 41, false, 41, false), 0u);
+Check("no hold: a multi-target GCD is kept", Decide(false, true, false, true), Outcome.Keep);
+Check("hold, single-target action: kept", Decide(true, false, false, true), Outcome.Keep);
+Check("hold, single-target weave: kept", Decide(true, false, true, true), Outcome.Keep);
+Check("hold, multi-target GCD with a single-target fallback: fallback", Decide(true, true, false, true), Outcome.Fallback);
+Check("hold, multi-target weave (Circle of Scorn): skipped, the GCD follows", Decide(true, true, true, true), Outcome.Skip);
+Check("hold, multi-target GCD with no single-target fallback (AoE button): skipped", Decide(true, true, false, false), Outcome.Skip);
+
+Console.WriteLine();
+Console.WriteLine("== Group 4b: the 100 ms reading cache ==");
+Check("never read: not fresh (the hold is read on first use)", CacheFresh(5_000, 0, false, 100), false);
+Check("read 50 ms ago: fresh", CacheFresh(5_050, 5_000, true, 100), true);
+Check("read 100 ms ago: stale", CacheFresh(5_100, 5_000, true, 100), false);
+Check("clock went backwards: stale", CacheFresh(4_000, 5_000, true, 100), false);
+Check("long.MinValue read time (overflowing subtraction): stale, not stuck fresh", CacheFresh(5_000, long.MinValue, true, 100), false);
 
 Console.WriteLine();
 Console.WriteLine("== Group 5: auto-rotation presets while the hold is on ==");
