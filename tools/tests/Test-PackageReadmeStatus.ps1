@@ -30,7 +30,8 @@ $utf8 = [Text.UTF8Encoding]::new($false)
 $readme = "# t`n`n## Plugins`n`n| Plugin | Description | Status |`n|---|---|---|`n| **Probe Plugin** | probe | Testing |`n"
 function New-ScratchRepo {
     $dir = Join-Path ([IO.Path]::GetTempPath()) ("lala-readme-test-" + [IO.Path]::GetRandomFileName())
-    New-Item -ItemType Directory -Force -Path (Join-Path $dir 'tools'), (Join-Path $dir 'src/Probe') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $dir 'tools'), (Join-Path $dir 'src/Probe'), (Join-Path $dir 'plugins/Probe') | Out-Null
+    [IO.File]::WriteAllText((Join-Path $dir 'plugins/Probe/latest.zip'), "zip", [Text.UTF8Encoding]::new($false))
     Copy-Item (Join-Path $toolsDir 'readme_status.py') (Join-Path $dir 'tools/readme_status.py')
     [IO.File]::WriteAllText((Join-Path $dir 'README.md'), $readme, $utf8)
     [IO.File]::WriteAllText((Join-Path $dir 'pluginmaster.json'),
