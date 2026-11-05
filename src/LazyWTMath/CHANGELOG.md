@@ -1,5 +1,11 @@
 # Changelog - Lazy WT Math
 
+## v3.2.3.3 (2026-11-05) [testing]
+
+- Updated the UI framework bundled inside the plugin to the current upstream KamiToolKit; the Wondrous Tails probability readout is built on the framework's current internals now.
+- Kept the fork's hot-reload safety guard: the plugin's hooks disable, let any call already inside them finish, and only then dispose, so an update while the game is running can no longer crash the game from a call landing on a hook that is gone.
+- Testing channel only; the production channel is unchanged.
+
 ## v3.2.3.2 (2026-10-04) [testing]
 
 - Fixed a rare game crash when the plugin updates while the game is running: while its hooks are active and the plugin is updated again, they are disabled only after any call still inside them has finished, so a call can no longer land on a hook that is already gone. The Wondrous Tails math readout is unchanged.
