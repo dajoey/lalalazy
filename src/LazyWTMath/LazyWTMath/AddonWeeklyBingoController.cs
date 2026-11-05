@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Game.Text.SeStringHandling;
@@ -7,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
 using KamiToolKit.Classes;
 using KamiToolKit.Controllers;
+using KamiToolKit.Enums;
 using KamiToolKit.Extensions;
 using KamiToolKit.Nodes;
 

@@ -1,8 +1,10 @@
+using System;
 using System.Diagnostics;
 using Dalamud.Interface.Textures;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
+using KamiToolKit.BaseTypes;
 using KamiToolKit.Nodes;
 using Lalalazy.Hub;
 using LazyHub.Core;
@@ -130,7 +132,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
     // ===== lifecycle ====================================================================================
 
-    protected override void OnSetup(AtkUnitBase* addon)
+    protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
         // This runs inside the game's native Setup callback: an exception that escapes here ends the game. A half-built window
         // is safe, because BindAll returns early while any of its pieces is missing, so log and leave it.
@@ -259,8 +261,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         {
             if (WindowNode is KamiToolKit.Nodes.WindowNode w)
             {
-                w.BackgroundNode.AddColor = HubTheme.ChromeTint;
-                w.BorderNode.AddColor = HubTheme.ChromeTint;
+                // Tip KamiToolKit replaced the old BackgroundNode/BorderNode nine-grids with
+                // texture-backed nodes; both derive from NineGridNode, so AddColor still applies.
+                w.BackgroundTextureNode.AddColor = HubTheme.ChromeTint;
+                w.BorderTextureNode.AddColor = HubTheme.ChromeTint;
             }
         }
         catch (Exception ex)

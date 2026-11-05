@@ -1,6 +1,8 @@
+using System;
 using System.Diagnostics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
+using KamiToolKit.BaseTypes;
 using KamiToolKit.Nodes;
 using LazyHub.Core;
 
@@ -51,7 +53,7 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
     private TextNode? _quickState;
     private int _generation;
 
-    protected override void OnSetup(AtkUnitBase* addon)
+    protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
         _generation++;
         _rows.Clear();
