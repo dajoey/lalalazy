@@ -166,6 +166,12 @@ public partial class GluttonyCombo
         var argumentParts = arguments.ToLowerInvariant().Split();
         switch (argumentParts[0])
         {
+            case "plan":
+                // Card 609a863c Part A: the one-line pre-pull note. "/gluttony plan <text>" sets it,
+                // "/gluttony plan" alone clears it. Logged in the FB| plan-text line; nothing acts on it.
+                HandlePlanCommand(trimmed.Length > 4 ? arguments[4..].Trim() : string.Empty);
+                break;
+
             case "burst":
                 HandleBurstControl(argumentParts); break;
 
@@ -925,6 +931,19 @@ public partial class GluttonyCombo
         DuoLog.Warning("Please do not play Classes with other people, " +
                        "it is objectively worse in every way, and you will lack " +
                        "a significant amount of functionality anyway.");
+    }
+
+    /// <summary>
+    ///     Card 609a863c Part A: set or clear the one-line pre-pull plan note. The note joins the
+    ///     party finder text in the FB| plan lines; nothing else reads it.
+    /// </summary>
+    private void HandlePlanCommand(string note)
+    {
+        AutoRotation.FightBrainPlan.SetNote(note);
+        if (note.Length == 0)
+            Svc.Chat.Print("[GluttonyCombo] Fight Brain plan note cleared.");
+        else
+            Svc.Chat.Print($"[GluttonyCombo] Fight Brain plan note set: {note}");
     }
 
     /// <summary>

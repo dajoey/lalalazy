@@ -55,6 +55,12 @@ public class FightBrainSettings
 
     /// <summary> The ~/ops/pvp-jev relay /decide endpoint; empty switches the shadow asks off. </summary>
     public string RelayUrl = "http://192.168.10.44:8797/decide";
+
+    /// <summary> Card 609a863c Part A: the pre-pull plan reader (party finder text + one Jev question per pull, logged). </summary>
+    public bool PlanReader = true;
+
+    /// <summary> Card 609a863c Part B: the party-data shadow rules (party-mit tally, position-zone lines). </summary>
+    public bool PartyShadow = true;
 }
 
 public class DPSSettings

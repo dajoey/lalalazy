@@ -138,6 +138,28 @@ internal static class FightBrainForecast
         return (null, false);
     }
 
+    /// <summary>
+    ///     The BMR answer for a party member's position (the Part B position-shadow rule): true
+    ///     when the spot is inside a drawn danger zone, null when BMR cannot answer.
+    /// </summary>
+    internal static bool? IsPositionUnsafe(Vector3 position)
+    {
+        if (CrucibleBoard)
+            return null;
+        try
+        {
+            var pi = Svc.PluginInterface;
+            _isPositionSafe ??= pi.GetIpcSubscriber<Vector3, bool>("BossMod.Hints.IsPositionSafe");
+            if (_isPositionSafe is { } safe && safe.HasFunction)
+                return !safe.InvokeFunc(position);
+        }
+        catch
+        {
+            // An absent or failing endpoint means the shadow rule logs nothing this tick.
+        }
+        return null;
+    }
+
     private static long? ZoneNextActivationMs()
     {
         try

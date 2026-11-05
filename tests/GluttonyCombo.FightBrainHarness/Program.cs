@@ -85,6 +85,39 @@ Check("gate: a cast ending exactly at the must-move moment goes through",
 Check("gate: an already-active zone is not a forecast",
     false, FightBrainForecastCore.WouldBlockCast(castEndIn: 4.5, zoneIn: 0.0, standingInZone: true, walkOut: 1.0));
 
+// ---- card 609a863c Part A: the pre-pull plan reader's pure core -----------------------
+// Candidate plans: the code default is always first; the alternatives only exist when the
+// forecast actually has something for them to differ on.
+var planHits = new List<FightBrainHit> { Rw(8.0f), new(FightBrainHitKind.Tankbuster, Now + 12000, "timeline", 2) };
+var candidates = FightBrainPlanCore.BuildCandidates(planHits);
+CheckEqual("a raidwide+tankbuster pull offers default, hold-strong and early-safe", 3, candidates.Count);
+CheckEqual("the code default is the first candidate and is named 'default'",
+    "default", candidates[0].Id);
+CheckEqual("hold-strong appears when a tankbuster is forecast",
+    "hold-strong", candidates[1].Id);
+var rwOnly = FightBrainPlanCore.BuildCandidates([Rw(8.0f)]);
+CheckEqual("a raidwide-only pull offers the default plus early-safe", 2, rwOnly.Count);
+CheckEqual("early-safe is the second candidate on a raidwide-only pull",
+    "early-safe", rwOnly[1].Id);
+CheckEqual("an empty forecast still offers the code default",
+    1, FightBrainPlanCore.BuildCandidates([]).Count);
+
+// The text is sanitized for the FB| log: no pipes, no newlines, collapsed whitespace.
+var dirty = "Line1\nwith|pipes\tand   spaces\r\nLine2";
+CheckEqual("sanitize removes pipes, newlines and collapses spaces",
+    "Line1 with pipes and spaces Line2", FightBrainPlanCore.Sanitize(dirty));
+CheckEqual("a null note sanitizes to empty", "", FightBrainPlanCore.Sanitize(null));
+var text = FightBrainPlanCore.BuildText("My Group", "UWU strats\r\nuse | marker split", "mit open");
+Check("the composed text carries pf, desc and note parts",
+    text.Contains("pf=My Group") && text.Contains("desc=UWU strats use marker split") && text.Contains("note=mit open"),
+    true);
+Check("the composed text never contains a pipe (FB| uses them as separators)",
+    false, text.Contains('|'));
+Check("a long description is truncated in the composed text",
+    true, FightBrainPlanCore.BuildText(null, new string('x', 500), null).Length < 420);
+Check("the log text caps at its max",
+    true, FightBrainPlanCore.LogText(new string('y', 400), 160).Length <= 162);
+
 if (failures > 0)
 {
     Console.WriteLine($"{failures} case(s) FAILED");

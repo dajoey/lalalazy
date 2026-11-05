@@ -82,7 +82,15 @@ internal static class FightBrain
         LastReadMs = nowMs;
 
         MaybeAskMitigate(nowMs);
+
+        // Card 609a863c: the pre-pull plan reader (Part A) and the party-data shadow rules
+        // (Part B) ride the same tick and the same tick guard; both are log-only.
+        FightBrainPlan.Tick(nowMs);
+        FightBrainParty.Tick(nowMs);
     }
+
+    /// <summary> The kept forecast entries, for the plan reader's candidate build. </summary>
+    internal static IReadOnlyList<FightBrainHit> CurrentHits() => _current;
 
     private static void LogForecastChange(IReadOnlyList<FightBrainHit> before, IReadOnlyList<FightBrainHit> after, long nowMs)
     {
@@ -258,7 +266,7 @@ internal static class FightBrain
         }
     }
 
-    private static readonly JsonSerializerOptions Json = new()
+    internal static readonly JsonSerializerOptions Json = new()
     {
         IncludeFields = true,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
