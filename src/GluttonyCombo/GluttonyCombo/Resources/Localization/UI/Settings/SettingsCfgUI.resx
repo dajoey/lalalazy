@@ -800,7 +800,7 @@ Also: /gluttony telemetry on|off|toggle|status</value>
     <value>On</value>
   </data>
   <data name="MovementRecorderOn_helpMark" xml:space="preserve">
-    <value>The 10 Hz movement recorder. While a PvE pull is on, one M|/H| sample set per tick goes to the LAN relay's /move/ingest (ffxivdb, 365-day retention): position, facing and whether a movement key is held, every party member's position and facing, every casting hostile (the telegraph signal, with the cast clock and the caster's position), head markers, and whether BossMod Reborn has actions queued. Observes only - nothing here moves the character, presses a button or touches a BossMod preset. PvP is a hard stop, re-checked every tick. An empty relay URL (set with /gluttony moverelay) switches the uploads off.
+    <value>The 10 Hz movement recorder. While a PvE pull is on, one M|/H| sample set per tick goes to the LAN relay's /move/ingest (ffxivdb, 365-day retention): position, facing and whether a movement key is held, every party member's position and facing, every casting hostile (the telegraph signal, with the cast clock and the caster's position), head markers, and whether BossMod Reborn has actions queued. Observes only - nothing here moves the character, presses a button or touches a BossMod preset. PvP is a hard stop, re-checked every tick. An empty relay URL (set with /gluttony movelog relay) switches the uploads off.
 
 Also: /gluttony movelog on|off|toggle|status</value>
   </data>
@@ -826,7 +826,7 @@ Also: /gluttony movelog on|off|toggle|status</value>
     <value>On</value>
   </data>
   <data name="MovementJevQuestions_helpMark" xml:space="preserve">
-    <value>Let the shadow move planner also ask Jev the same question through the LAN relay (at most one call a second, the relay's own daily cap for the move mode, stop cleanly at the cap). The code rule's pick is logged either way; Jev's pick beside it is for grading. Off = the planner stays purely local. The relay URL is /gluttony moverelay (command only).</value>
+    <value>Let the shadow move planner also ask Jev the same question through the LAN relay (at most one call a second, the relay's own daily cap for the move mode, stop cleanly at the cap). The code rule's pick is logged either way; Jev's pick beside it is for grading. Off = the planner stays purely local. The relay URL is set with /gluttony movelog relay (command only).</value>
   </data>
   <data name="MovementJevQuestions_recommendedValue" xml:space="preserve">
     <value>On</value>

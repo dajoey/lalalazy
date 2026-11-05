@@ -338,7 +338,7 @@ public partial class Configuration : IPluginConfiguration
     /// <summary>
     ///     Fork (2026-11-05): the relay base URL for the movement ingest and move questions.
     ///     LAN address, never proxied, same default as PvP Solver's JevRelayUrl. Change with
-    ///     <c>/gluttony moverelay &lt;url&gt;</c>; empty switches the uploads off.
+    ///     <c>/gluttony movelog relay &lt;url&gt;</c>; empty switches the uploads off.
     ///     <seealso cref="Data.MovementUploader"/>
     /// </summary>
     public string MovementRelayUrl = global::GluttonyCombo.Data.MovementUploader.DefaultRelayBaseUrl;
