@@ -8,6 +8,7 @@ using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
 using GluttonyCombo.Core;
+using GluttonyCombo.Services;
 using Lalalazy.Telemetry;
 
 namespace GluttonyCombo.Data;
