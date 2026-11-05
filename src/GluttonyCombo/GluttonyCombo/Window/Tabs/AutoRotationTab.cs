@@ -135,13 +135,20 @@ internal class AutoRotationTab : ConfigWindow
                     "a Jev pick: every question stays shadow until it passes its grade.");
                 changed |= ImGui.Checkbox("Plan Reader (Jev)", ref fb.PlanReader);
                 changed |= ImGui.Checkbox("Party Shadow", ref fb.PartyShadow);
+                changed |= ImGui.Checkbox("Callout Reader (Jev)", ref fb.CalloutReader);
                 ImGuiComponents.HelpMarker(
                     "Plan Reader (Jev): at each pull start the party finder text of the group " +
                     "in the party (plus /gluttony plan <note>) is read and the relay is asked " +
                     "once which candidate cooldown plan fits it - one FB|plan line, log only. " +
                     "Party Shadow: the FB|party-mit mitigation tally and the FB|pos-zone " +
-                    "position lines. Both default on and log only; clearing the relay URL " +
-                    "switches their questions off.");
+                    "position lines. Callout Reader (Jev): while in combat inside a duty, " +
+                    "short party and alliance chat lines are read, joined to the live state " +
+                    "(head markers and on whom, tethers, party positions, the forecast's next " +
+                    "mechanic), and the relay is asked which candidate response each line " +
+                    "means - one FB|callout line, log only; the head-marker signs, tethers, " +
+                    "positions and forecast are what the code reads, not the map waymarks. " +
+                    "All three default on and log only; clearing the relay URL switches " +
+                    "their questions off.");
                 changed |= ImGui.InputText("Relay URL (shadow mitigate asks)", ref fb.RelayUrl, 256);
                 ImGuiComponents.HelpMarker(
                     "The LAN relay that asks Jev the healer's raidwide mitigation question in " +

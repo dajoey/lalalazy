@@ -118,6 +118,92 @@ Check("a long description is truncated in the composed text",
 Check("the log text caps at its max",
     true, FightBrainPlanCore.LogText(new string('y', 400), 160).Length <= 162);
 
+// ---- the callout reader (card 271c4b4e): intent, candidates, code answers -------------
+// Joey's settled points, in code: the marker count decides what "stack" means; with no
+// text and no callout the answer is the schedule; safety outranks every callout.
+
+CalloutMember M(int slot, string job, string role, uint marker = 0, bool tethered = false) =>
+    new(slot, $"{job}{slot}", role, marker, tethered);
+
+CalloutState S(string text, List<CalloutMember> members, int mySlot,
+    string? next = null, double nextIn = -1, double since = -1, bool standingUnsafe = false) =>
+    new(text, "dps", members, mySlot, next, nextIn, since, standingUnsafe);
+
+string CodeFor(CalloutState s) =>
+    FightBrainCalloutCore.CodeAnswer(s, FightBrainCalloutCore.Classify(s.Text),
+        FightBrainCalloutCore.BuildCandidates(s));
+
+// intent classification, word-boundary only
+CheckEqual("\"stack\" means Stack", CalloutIntent.Stack, FightBrainCalloutCore.Classify("stack"));
+CheckEqual("\"stack on me\" means Stack", CalloutIntent.Stack, FightBrainCalloutCore.Classify("stack on me"));
+CheckEqual("\"in with grps\" means Stack", CalloutIntent.Stack, FightBrainCalloutCore.Classify("in with grps"));
+CheckEqual("\"middle\" means Position", CalloutIntent.Position, FightBrainCalloutCore.Classify("middle"));
+CheckEqual("\"go left\" means Position", CalloutIntent.Position, FightBrainCalloutCore.Classify("go left"));
+CheckEqual("\"with H2\" means WithPerson", CalloutIntent.WithPerson, FightBrainCalloutCore.Classify("with H2"));
+CheckEqual("\"LB now\" means Lb", CalloutIntent.Lb, FightBrainCalloutCore.Classify("LB now"));
+CheckEqual("\"lb3\" means Lb", CalloutIntent.Lb, FightBrainCalloutCore.Classify("lb3"));
+CheckEqual("\"rez\" means Rez", CalloutIntent.Rez, FightBrainCalloutCore.Classify("rez"));
+CheckEqual("\"raise the blm\" means Rez", CalloutIntent.Rez, FightBrainCalloutCore.Classify("raise the blm"));
+CheckEqual("\"grats\" is Unclear", CalloutIntent.Unclear, FightBrainCalloutCore.Classify("grats"));
+CheckEqual("\"o7\" is Unclear", CalloutIntent.Unclear, FightBrainCalloutCore.Classify("o7"));
+CheckEqual("\"rescue\" is NOT Rez (word boundaries)", CalloutIntent.Unclear, FightBrainCalloutCore.Classify("rescue"));
+
+// one marker: the stack means that player
+var oneMarker = S("stack", [M(0, "PLD", "tank"), M(3, "WHM", "healer", marker: 421)], 5);
+Check("one marker builds the go-m candidate for the marked slot",
+    FightBrainCalloutCore.BuildCandidates(oneMarker).Any(c => c.Id == "go-m3"), true);
+CheckEqual("one marker: the code answer is that player", "go-m3", CodeFor(oneMarker));
+
+// two markers: the player's own light party's marker (the role-split default)
+var fullParty = new List<CalloutMember>
+{
+    M(0, "PLD", "tank"), M(1, "SCH", "healer"), M(2, "WHM", "healer", marker: 421), M(3, "DRG", "dps"),
+    M(4, "WAR", "tank", marker: 421), M(5, "AST", "healer"), M(6, "RPR", "dps"), M(7, "MCH", "dps"),
+};
+var twoMarkersMine = S("stack", fullParty, 3);
+CheckEqual("two markers, my half carries one: the code answer is my light party's", "go-lp1", CodeFor(twoMarkersMine));
+Check("two markers build both light-party candidates",
+    FightBrainCalloutCore.BuildCandidates(twoMarkersMine).Any(c => c.Id == "go-lp1")
+    && FightBrainCalloutCore.BuildCandidates(twoMarkersMine).Any(c => c.Id == "go-lp2"), true);
+var twoMarkersOther = S("stack",
+    [M(0, "PLD", "tank"), M(1, "SCH", "healer"), M(5, "AST", "healer", marker: 421), M(6, "RPR", "dps", marker: 421)], 1);
+CheckEqual("two markers, my half carries none: the code answer is ignore", "ignore", CodeFor(twoMarkersOther));
+
+// no marker, stack soon: pre-position; no marker, nothing soon: ignore
+var prePos = S("stack", [M(0, "PLD", "tank"), M(1, "SCH", "healer")], 1, next: "CastHit", nextIn: 3.5);
+Check("no marker but a stack in the forecast builds the pre-position candidate",
+    FightBrainCalloutCore.BuildCandidates(prePos).Any(c => c.Id == "pre-position"), true);
+CheckEqual("no marker but a stack 3.5 s out: the code answer pre-positions", "pre-position", CodeFor(prePos));
+var tooFar = S("stack", [M(0, "PLD", "tank"), M(1, "SCH", "healer")], 1, next: "CastHit", nextIn: 9.0);
+CheckEqual("no marker and the stack is 9 s out: the code answer is ignore", "ignore", CodeFor(tooFar));
+var noForecast = S("stack", [M(0, "PLD", "tank"), M(1, "SCH", "healer")], 1);
+CheckEqual("no marker and no forecast: the code answer is ignore", "ignore", CodeFor(noForecast));
+
+// loose wording maps into the same candidate space
+CheckEqual("\"with H2\" lands on with-person", "with-person", CodeFor(S("with H2", [M(0, "PLD", "tank"), M(2, "SCH", "healer")], 4)));
+CheckEqual("\"middle\" lands on position", "position", CodeFor(S("middle", [M(0, "PLD", "tank")], 1)));
+CheckEqual("\"LB now\" lands on lb", "lb", CodeFor(S("LB now", [M(0, "PLD", "tank")], 1)));
+CheckEqual("\"rez\" lands on rez", "rez", CodeFor(S("rez", [M(0, "PLD", "tank")], 1)));
+
+// unclear words never move anything: the schedule stands (the settled default)
+CheckEqual("\"grats\" lands on the code default", FightBrainCalloutCore.CodeDefault,
+    CodeFor(S("grats", [M(0, "PLD", "tank")], 1)));
+Check("an unclear line still builds the default candidate",
+    FightBrainCalloutCore.BuildCandidates(S("grats", [], -1)).Any(c => c.Id == FightBrainCalloutCore.CodeDefault), true);
+
+// safety rules in code first: an unsafe spot outranks every callout
+var unsafeStack = S("stack", fullParty, 3, standingUnsafe: true);
+CheckEqual("standing in a telegraph: the code answer is safe-first",
+    FightBrainCalloutCore.SafeFirst, CodeFor(unsafeStack));
+CheckEqual("an unclear line in a telegraph is still safe-first",
+    FightBrainCalloutCore.SafeFirst, CodeFor(S("grats", fullParty, 3, standingUnsafe: true)));
+
+// light party split: the role-sorted default (slots 0-3 / 4-7), only for a full party
+CheckEqual("slot 5 belongs to light party 2", 1, FightBrainCalloutCore.MyLightParty(fullParty, 5));
+CheckEqual("slot 2 belongs to light party 1", 0, FightBrainCalloutCore.MyLightParty(fullParty, 2));
+CheckEqual("a light party needs a full eight", null, FightBrainCalloutCore.MyLightParty([M(0, "PLD", "tank")], 0));
+CheckEqual("a slot outside 0-7 has no light party", null, FightBrainCalloutCore.MyLightParty(fullParty, 9));
+
 if (failures > 0)
 {
     Console.WriteLine($"{failures} case(s) FAILED");

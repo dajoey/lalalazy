@@ -61,6 +61,9 @@ public class FightBrainSettings
 
     /// <summary> Card 609a863c Part B: the party-data shadow rules (party-mit tally, position-zone lines). </summary>
     public bool PartyShadow = true;
+
+    /// <summary> Card 271c4b4e: the party-callout reader (party/alliance chat in combat joined to live state, one Jev question per line, logged). </summary>
+    public bool CalloutReader = true;
 }
 
 public class DPSSettings

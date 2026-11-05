@@ -87,6 +87,8 @@ internal static class FightBrain
         // (Part B) ride the same tick and the same tick guard; both are log-only.
         FightBrainPlan.Tick(nowMs);
         FightBrainParty.Tick(nowMs);
+        // Card 271c4b4e: the party-callout reader (resolution tracking + outcome lines), log-only.
+        FightBrainCallout.Tick(nowMs);
     }
 
     /// <summary> The kept forecast entries, for the plan reader's candidate build. </summary>

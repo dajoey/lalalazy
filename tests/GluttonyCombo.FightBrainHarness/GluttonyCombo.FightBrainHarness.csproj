@@ -22,5 +22,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainHit.cs" Link="FightBrainHit.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainPlanCore.cs" Link="FightBrainPlanCore.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainCalloutCore.cs" Link="FightBrainCalloutCore.cs" />
   </ItemGroup>
 </Project>

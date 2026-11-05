@@ -361,6 +361,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.Toasts.ErrorToast += OnErrorToast;
         // Card 609a863c Part A: the plan reader's party finder listing cache.
         AutoRotation.FightBrainPlan.Subscribe();
+        // Card 271c4b4e: the party-callout reader's chat hook.
+        AutoRotation.FightBrainCallout.Subscribe();
 
         CustomComboFunctions.TimerSetup();
 
@@ -750,6 +752,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         IpcStallTrace.Emit = null;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
         AutoRotation.FightBrainPlan.Unsubscribe();
+        AutoRotation.FightBrainCallout.Unsubscribe();
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
 
