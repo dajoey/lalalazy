@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- PvPSolver rotation-review harness. Plain console app. Offline proofs for the reviewed PvP rotation
        fixes, each stated with exactly one proof tier:
-         T1  pure decision core (src/PvPSolver/PvPSolver.Basic/Decisions/*.cs, compiled in here directly),
+         T1  pure decision core (src/PvPSolver/PvPSolver/Basic/Decisions/*.cs, compiled in here directly),
              truth-table tested, plus a canary that must fail;
          T2  source-shape test: reads the real source file and fails on the old text, passes on the new.
        Source root: env PVPROT_SRC (path of a src/PvPSolver folder, used to replay the tests against the
@@ -28,7 +28,7 @@
     <Compile Include="*.cs" />
     <Compile Include="Cases\*.cs" />
     <!-- Fork-only pure decision cores (no Dalamud or game types): compiled in directly so T1 proves the files standalone. -->
-    <Compile Include="..\..\src\PvPSolver\PvPSolver.Basic\Decisions\*.cs" Link="Decisions\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\PvPSolver\PvPSolver\Decisions\*.cs" Link="Decisions\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

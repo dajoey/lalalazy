@@ -82,7 +82,7 @@ internal static class DefensiveStageCases
     private static readonly Regex VirtualBool = new(@"\bvirtual\s+bool\s+(?<name>\w+)\s*\(", RegexOptions.Compiled);
     private static readonly Regex StaticBool = new(@"\bstatic\s+bool\s+(?<name>\w+)\s*\(", RegexOptions.Compiled);
 
-    private static string BasicFile(params string[] parts) => Path.Combine([Program.SrcRoot, "PvPSolver.Basic", .. parts]);
+    private static string BasicFile(params string[] parts) => Path.Combine([Program.SrcRoot, "PvPSolver", "Basic", .. parts]);
 
     private static string MethodBody(string file, Regex head, string name) =>
         CsSource.Squash(CsSource.Methods(CsSource.Sanitize(File.ReadAllText(file)), Path.GetFileName(file), head).Single(m => m.Name == name).Body);

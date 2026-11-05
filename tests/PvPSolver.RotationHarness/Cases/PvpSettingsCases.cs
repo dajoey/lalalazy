@@ -41,7 +41,7 @@ internal static class PvpSettingsCases
         Console.WriteLine("-- round 3 Part A, item 7: Configs.PvpSettings (T2 + T1 by reflection) --");
 
         // ---- T2 --------------------------------------------------------------------------------------------------
-        var dir = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Configuration");
+        var dir = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Configuration");
         var settingsPath = Path.Combine(dir, "Configs.PvpSettings.cs");
         var settingsExists = File.Exists(settingsPath);
         Harness.Case("Configs.PvpSettings.cs exists", settingsExists);

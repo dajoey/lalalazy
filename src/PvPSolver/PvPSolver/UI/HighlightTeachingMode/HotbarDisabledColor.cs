@@ -1,164 +1,150 @@
 using ECommons.DalamudServices;
-using FFXIVClientStructs.Attributes;
+using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using RotationSolver.UI.HighlightTeachingMode.ElementSpecial;
 using RotationSolver.Updaters;
 using static FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureHotbarModule;
 
 namespace RotationSolver.UI.HighlightTeachingMode;
 
-/// <summary>
-/// Draws a semi-transparent red tint over hotbar slots whose actions are disabled in RSR (IsEnabled == false).
-/// Only applies to slots whose RaptureHotbarModule.HotbarSlotType == Action (byte 1).
-/// </summary>
-public sealed class HotbarDisabledColor : DrawingHighlightHotbarBase
+internal static class HotbarDisabledColor
 {
-	private readonly HashSet<uint> _disabledBaseActionIds = [];
+	private static readonly HashSet<uint> _disabledActionIds = [];
+	private static readonly List<nint> _addons = [];
 
-	protected override void Dispose(bool disposing)
-	{
-		base.Dispose(disposing);
-	}
-
-	private protected override unsafe IEnumerable<IDrawing2D> To2D()
-	{
-		return [];
-	}
-
-	protected override unsafe void UpdateOnFrame()
-	{
-		ApplyFrame();
-	}
+	internal static bool HasTint { get; private set; }
 
 	public static unsafe void ApplyFrame()
 	{
 		if (!Service.Config.ReddenDisabledHotbarActions || !MajorUpdater.IsValid || DataCenter.CurrentRotation == null || !DataCenter.IsActivated())
 		{
-			ResetAllHotbarIconColors();
+			Reset();
 			return;
 		}
 
-		var disabledBase = CollectDisabledActionIds();
+		var framework = Framework.Instance();
+		var uiModule = framework == null ? null : framework->GetUIModule();
+		var raptureModule = uiModule == null ? null : uiModule->GetRaptureHotbarModule();
+		var actionManager = ActionManager.Instance();
+		if (raptureModule == null || actionManager == null)
+		{
+			return;
+		}
 
-		int hotBarIndex = 0;
-		foreach (nint intPtr in EnumerateHotbarAddons())
+		CollectDisabledActionIds();
+		HasTint = true;
+
+		HotbarAddonHelper.GetHotbarAddons(_addons);
+
+		var hotBarIndex = 0;
+		foreach (var intPtr in _addons)
 		{
 			var actionBar = (AddonActionBarBase*)intPtr;
-			if (actionBar == null || !IsVisible(actionBar->AtkUnitBase))
+			if (!HotbarAddonHelper.IsVisible(&actionBar->AtkUnitBase))
 			{
 				hotBarIndex++;
 				continue;
 			}
 
-			bool isCrossBar = hotBarIndex > 9;
-			int resolvedHotbarIndex = hotBarIndex;
-			if (isCrossBar)
+			var resolvedHotbarIndex = hotBarIndex;
+			if (hotBarIndex > 9)
 			{
-				if (hotBarIndex == 10)
-				{
-					var actBar = (AddonActionCross*)intPtr;
-					resolvedHotbarIndex = actBar != null ? actBar->RaptureHotbarId : hotBarIndex;
-				}
-				else
-				{
-					var actBar = (AddonActionDoubleCrossBase*)intPtr;
-					resolvedHotbarIndex = actBar != null ? actBar->BarTarget : hotBarIndex;
-				}
+				resolvedHotbarIndex = hotBarIndex == 10
+					? ((AddonActionCross*)intPtr)->RaptureHotbarId
+					: ((AddonActionDoubleCrossBase*)intPtr)->BarTarget;
 			}
 
-			var framework = Framework.Instance();
-			if (framework == null)
-			{
-				hotBarIndex++;
-				continue;
-			}
-			var uiModule = framework->GetUIModule();
-			if (uiModule == null)
-			{
-				hotBarIndex++;
-				continue;
-			}
-			var raptureModule = uiModule->GetRaptureHotbarModule();
-			if (raptureModule == null)
-			{
-				hotBarIndex++;
-				continue;
-			}
 			if (resolvedHotbarIndex < 0 || resolvedHotbarIndex >= raptureModule->Hotbars.Length)
 			{
 				hotBarIndex++;
 				continue;
 			}
-			Hotbar raptureHotbar = raptureModule->Hotbars[resolvedHotbarIndex];
+			var raptureHotbar = raptureModule->Hotbars[resolvedHotbarIndex];
 
-			int slotIndex = 0;
-			foreach (ActionBarSlot slot in actionBar->ActionBarSlotVector.AsSpan())
+			var slotIndex = -1;
+			foreach (var slot in actionBar->ActionBarSlotVector.AsSpan())
 			{
-				AtkComponentNode* iconAddon = slot.Icon;
-				if ((nint)iconAddon == nint.Zero || !IsVisible(&iconAddon->AtkResNode))
+				slotIndex++;
+
+				var iconAddon = slot.Icon;
+				if (iconAddon == null || !HotbarAddonHelper.IsVisible(&iconAddon->AtkResNode))
 				{
-					slotIndex++;
 					continue;
 				}
 
 				if ((uint)slotIndex >= raptureHotbar.Slots.Length)
 				{
-					slotIndex++;
 					continue;
 				}
 
-				HotbarSlot hotbarSlot = raptureHotbar.Slots[slotIndex];
-
+				var hotbarSlot = raptureHotbar.Slots[slotIndex];
 				if (hotbarSlot.ApparentSlotType != HotbarSlotType.Action || hotbarSlot.OriginalApparentSlotType != HotbarSlotType.Action)
 				{
-					slotIndex++;
 					continue;
 				}
 
-				uint adjusted = 0;
-				try
+				var adjusted = actionManager->GetAdjustedActionId((uint)slot.ActionId);
+				var shouldRedden = adjusted != 0 && _disabledActionIds.Contains((uint)slot.ActionId);
+				if (iconAddon->Component != null)
 				{
-					var actionManager = ActionManager.Instance();
-					if (actionManager != null)
-					{
-						adjusted = actionManager->GetAdjustedActionId((uint)slot.ActionId);
-					}
+					ApplyIconReddening((AtkComponentIcon*)iconAddon->Component, shouldRedden);
 				}
-				catch
-				{
-					adjusted = 0;
-				}
-
-				bool shouldRedden = adjusted != 0 && disabledBase.Contains((uint)slot.ActionId);
-				if (slot.Icon != null && slot.Icon->Component != null)
-				{
-					ApplyIconReddening((AtkComponentIcon*)slot.Icon->Component, shouldRedden);
-				}
-
-				slotIndex++;
 			}
 
 			hotBarIndex++;
 		}
 	}
 
+	internal static void Reset()
+	{
+		if (!HasTint)
+		{
+			return;
+		}
+
+		ResetAllHotbarIconColors();
+		HasTint = false;
+	}
+
+	internal static void ResetOnUnload()
+	{
+		if (!HasTint)
+		{
+			return;
+		}
+
+		try
+		{
+			if (Svc.Framework.IsInFrameworkUpdateThread)
+			{
+				Reset();
+			}
+			else
+			{
+				_ = Svc.Framework.RunOnFrameworkThread(Reset).Wait(TimeSpan.FromSeconds(1));
+			}
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Warning($"Failed to reset hotbar icon colors: {ex.Message}");
+		}
+	}
+
 	private static unsafe void ApplyIconReddening(AtkComponentIcon* iconComponent, bool redden)
 	{
-		if (iconComponent == null) return;
-		if (iconComponent->IconImage == null) return;
+		if (iconComponent == null || iconComponent->IconImage == null)
+		{
+			return;
+		}
 
 		if (redden)
 		{
 			var tint = Service.Config.HotbarDisabledTintColor;
-			byte r = (byte)Math.Clamp((int)(tint.X * 255f), 0, 255);
-			byte g = (byte)Math.Clamp((int)(tint.Y * 255f), 0, 255);
-			byte b = (byte)Math.Clamp((int)(tint.Z * 255f), 0, 255);
-			iconComponent->IconImage->Color.R = r;
-			iconComponent->IconImage->Color.G = g;
-			iconComponent->IconImage->Color.B = b;
+			iconComponent->IconImage->Color.R = (byte)Math.Clamp((int)(tint.X * 255f), 0, 255);
+			iconComponent->IconImage->Color.G = (byte)Math.Clamp((int)(tint.Y * 255f), 0, 255);
+			iconComponent->IconImage->Color.B = (byte)Math.Clamp((int)(tint.Z * 255f), 0, 255);
 		}
 		else
 		{
@@ -170,84 +156,38 @@ public sealed class HotbarDisabledColor : DrawingHighlightHotbarBase
 
 	private static unsafe void ResetAllHotbarIconColors()
 	{
-		foreach (nint intPtr in EnumerateHotbarAddons())
+		HotbarAddonHelper.GetHotbarAddons(_addons);
+
+		foreach (var intPtr in _addons)
 		{
 			var actionBar = (AddonActionBarBase*)intPtr;
-			if (actionBar == null || !IsVisible(actionBar->AtkUnitBase))
-				continue;
-
-			foreach (ActionBarSlot slot in actionBar->ActionBarSlotVector.AsSpan())
+			foreach (var slot in actionBar->ActionBarSlotVector.AsSpan())
 			{
-				AtkComponentIcon* iconComponent = (AtkComponentIcon*)slot.Icon->Component;
-				if (iconComponent == null || iconComponent->IconImage == null) continue;
-				iconComponent->IconImage->Color.R = 0xFF;
-				iconComponent->IconImage->Color.G = 0xFF;
-				iconComponent->IconImage->Color.B = 0xFF;
+				if (slot.Icon == null)
+				{
+					continue;
+				}
+
+				ApplyIconReddening((AtkComponentIcon*)slot.Icon->Component, false);
 			}
 		}
 	}
 
-	private static unsafe bool IsVisible(AtkUnitBase unit)
+	private static void CollectDisabledActionIds()
 	{
-		if (!unit.IsVisible)
-			return false;
-		return unit.VisibilityFlags != 1 && IsVisible(unit.RootNode);
-	}
+		_disabledActionIds.Clear();
+		Collect(RotationUpdater.CurrentRotationActions);
+		Collect(RotationUpdater.CurrentDutyRotationActions);
 
-	private static unsafe bool IsVisible(AtkResNode* node)
-	{
-		while (node != null)
+		static void Collect(IAction[] actions)
 		{
-			if (!node->IsVisible())
-				return false;
-			node = node->ParentNode;
-		}
-		return true;
-	}
-
-	private static IEnumerable<nint> EnumerateHotbarAddons()
-	{
-		foreach (var a in GetAddons<AddonActionBar>()) yield return a;
-		foreach (var a in GetAddons<AddonActionBarX>()) yield return a;
-		foreach (var a in GetAddons<AddonActionCross>()) yield return a;
-		foreach (var a in GetAddons<AddonActionDoubleCrossBase>()) yield return a;
-	}
-
-	private static HashSet<uint> CollectDisabledActionIds()
-	{
-		HashSet<uint> baseIds = [];
-
-		Collect(DataCenter.CurrentRotation?.AllActions);
-		Collect(DataCenter.CurrentDutyRotation?.AllActions);
-
-		void Collect(IEnumerable<IAction>? actions)
-		{
-			if (actions == null) return;
 			foreach (var a in actions)
 			{
 				if (a is IBaseAction ba && !ba.IsEnabled)
 				{
-					baseIds.Add(ba.ID);
+					_ = _disabledActionIds.Add(ba.ID);
 				}
 			}
 		}
-
-		return baseIds;
-	}
-
-	private static unsafe List<nint> GetAddons<T>() where T : struct
-	{
-		var attr = typeof(T).GetCustomAttribute<AddonAttribute>();
-		if (attr is not AddonAttribute on)
-			return [];
-
-		List<nint> result = [];
-		foreach (var str in on.AddonIdentifiers)
-		{
-			var ptr = Svc.GameGui.GetAddonByName(str, 1);
-			if (ptr != nint.Zero)
-				result.Add(ptr);
-		}
-		return result;
 	}
 }

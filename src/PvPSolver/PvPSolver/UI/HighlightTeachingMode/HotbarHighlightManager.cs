@@ -1,15 +1,14 @@
 ﻿using RotationSolver.UI.HighlightTeachingMode.ElementSpecial;
 using RotationSolver.Updaters;
+using System.Diagnostics;
 
 namespace RotationSolver.UI.HighlightTeachingMode;
 
 internal static class HotbarHighlightManager
 {
 	public static bool Enable { get; set; } = false;
-	public static bool UseTaskToAccelerate { get; set; } = false;
 	private static DrawingHighlightHotbar? _highLight;
 	public static HashSet<HotbarID> HotbarIDs => _highLight?.HotbarIDs ?? [];
-	internal static IDrawing2D[] _drawingElements2D = [];
 
 	public static Vector4 HighlightColor
 	{
@@ -42,17 +41,31 @@ internal static class HotbarHighlightManager
 		foreach (DrawingHighlightHotbarBase item in new List<DrawingHighlightHotbarBase>(PvPSolverPlugin._drawingElements))
 		{
 			item.Dispose();
-#if DEBUG
-			//PluginLog.Debug($"Item: {item} from '_drawingElements' was disposed");
-#endif
 		}
 		_highLight?.Dispose();
 		_highLight = null;
+		DrawingHighlightHotbar.DisposeTexture();
 	}
 
-	internal static async Task<IDrawing2D[]> To2DAsync()
+	internal static IDrawing2D[] Elements2D { get; private set; } = [];
+
+	private const int MinDisplayMs = 150;
+
+	private const int MaxPending = 3;
+
+	private const int RefreshIntervalMs = 33;
+
+	private static readonly List<HotbarID[]> _pending = [];
+	private static HotbarID[] _lastSeen = [];
+	private static HotbarID[]? _displayed;
+	private static readonly Stopwatch _displayTime = Stopwatch.StartNew();
+	private static readonly Stopwatch _refresh = Stopwatch.StartNew();
+
+	public static void ClearElements()
 	{
-		List<Task<IEnumerable<IDrawing2D>>> drawing2Ds = [];
+		_pending.Clear();
+		_lastSeen = [];
+		_displayed = null;
 
 		if (PvPSolverPlugin._drawingElements != null)
 		{
@@ -61,26 +74,73 @@ internal static class HotbarHighlightManager
 				// Let each element update its per-frame state before drawing
 				item.UpdateOnFrameMain();
 
-				drawing2Ds.Add(Task.Run(() =>
-				{
-					return item.To2DMain();
-				}));
+	internal static void UpdateElements()
+	{
+		var live = HotbarIDs;
+
+		if (!SameIds(live, _lastSeen))
+		{
+			_lastSeen = [.. live];
+
+			if (_pending.Count >= MaxPending)
+			{
+				_pending.RemoveAt(0);
 			}
+
+			_pending.Add(_lastSeen);
 		}
 
-		_ = await Task.WhenAll(drawing2Ds);
+		if (_pending.Count > 0 && (_displayed == null || _displayTime.ElapsedMilliseconds >= MinDisplayMs))
+		{
+			_displayed = _pending[0];
+			_pending.RemoveAt(0);
+			_displayTime.Restart();
+		}
+		else if (_displayed == null || _refresh.ElapsedMilliseconds < RefreshIntervalMs)
+		{
+			return;
+		}
+
+		_refresh.Restart();
+		_highLight?.SetDisplayIds(_displayed ?? []);
 
 		List<IDrawing2D> result = [];
-		foreach (var task in drawing2Ds)
+		foreach (var item in PvPSolverPlugin._drawingElements)
 		{
-			if (task.Result != null)
+			item.UpdateOnFrameMain();
+			result.AddRange(item.To2DMain());
+		}
+
+		var elements = result.ToArray();
+		Array.Sort(elements, static (a, b) => GetDrawingOrder(a).CompareTo(GetDrawingOrder(b)));
+		Elements2D = elements;
+	}
+
+	private static bool SameIds(HashSet<HotbarID> live, HotbarID[] other)
+	{
+		if (live.Count != other.Length)
+		{
+			return false;
+		}
+
+		foreach (var id in other)
+		{
+			if (!live.Contains(id))
 			{
-				foreach (var drawing in task.Result)
-				{
-					result.Add(drawing);
-				}
+				return false;
 			}
 		}
-		return [.. result];
+
+		return true;
+	}
+
+	private static int GetDrawingOrder(object drawing)
+	{
+		return drawing switch
+		{
+			PolylineDrawing poly => poly._thickness == 0 ? 0 : 1,
+			ImageDrawing => 1,
+			_ => 2,
+		};
 	}
 }

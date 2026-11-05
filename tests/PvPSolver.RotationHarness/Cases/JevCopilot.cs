@@ -332,7 +332,7 @@ internal static class JevCopilot
         // ---- T2: call sites ---------------------------------------------------------------------------------
         string Src(params string[] parts) => CsSource.Sanitize(File.ReadAllText(Path.Combine([Program.SrcRoot, .. parts])));
 
-        var target = Src("PvPSolver.Basic", "Actions", "ActionTargetInfo.cs");
+        var target = Src("PvPSolver", "Basic", "Actions", "ActionTargetInfo.cs");
         int sticky = target.IndexOf("FindStickyTarget(filtered)", StringComparison.Ordinal);
         int jev = target.IndexOf("JevCall.FocusPick(JevCaller.Latest, JevCaller.Now)", StringComparison.Ordinal);
         int last = target.IndexOf("foreach (var obj in filtered)", sticky < 0 ? 0 : sticky, StringComparison.Ordinal);
@@ -342,18 +342,18 @@ internal static class JevCopilot
             Regex.IsMatch(target, @"Service\.Config\.JevCallsShots\s*&&\s*DataCenter\.IsPvP\s*&&\s*JevCall\.FocusPick")
             && Regex.IsMatch(target, @"foreach\s*\(\s*var obj in filtered\s*\)\s*\{\s*if\s*\(\s*obj\.GameObjectId\s*==\s*jevFocus\s*\)"));
 
-        var invoke = Src("PvPSolver.Basic", "Rotations", "CustomRotation_Invoke.cs");
+        var invoke = Src("PvPSolver", "Basic", "Rotations", "CustomRotation_Invoke.cs");
         int hook = invoke.IndexOf("JevCaller.TryLimitBreak(LimitBreakPvP, out IAction? jevLimitBreak)", StringComparison.Ordinal);
         int gcd = invoke.IndexOf("gcdAction = GCD();", StringComparison.Ordinal);
         Harness.Case("Invoke: the Limit Break hook runs before the GCD pick, gated on PvP and the switch, and returns the Limit Break",
             hook > 0 && gcd > hook && Regex.IsMatch(invoke, @"if\s*\(\s*DataCenter\.IsPvP\s*&&\s*Service\.Config\.JevCallsShots\s*&&\s*JevCaller\.TryLimitBreak\(LimitBreakPvP, out IAction\? jevLimitBreak\)\s*\)\s*\{\s*return jevLimitBreak;\s*\}"));
 
-        var basic = Src("PvPSolver.Basic", "Actions", "ActionBasicInfo.cs");
+        var basic = Src("PvPSolver", "Basic", "Actions", "ActionBasicInfo.cs");
         Harness.Case("no Jev code in BasicCheck: Jev never blocks an action", !basic.Contains("Jev"));
 
-        var caller = Src("PvPSolver.Basic", "Helpers", "JevCaller.cs");
+        var caller = Src("PvPSolver", "Basic", "Helpers", "JevCaller.cs");
         // String literals are blanked by Sanitize; the log-line checks read the raw file.
-        var callerRaw = File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Helpers", "JevCaller.cs"));
+        var callerRaw = File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Helpers", "JevCaller.cs"));
         int should = caller.IndexOf("JevCall.ShouldFireLimitBreak(Latest, now, _lastFireAttempt, out ulong? target)", StringComparison.Ordinal);
         int window = caller.IndexOf("_fireUntil = now + FireWindowSeconds;", StringComparison.Ordinal);
         int gap = caller.IndexOf("_lastFireAttempt = _fireUntil;", StringComparison.Ordinal);
@@ -395,7 +395,7 @@ internal static class JevCopilot
             pending > 0 && sticky > pending);
         foreach (var (file, method) in new[] { ("MonkRotation.cs", "ModifyMeteodrivePvP"), ("NinjaRotation.cs", "ModifySeitonTenchuPvP"), ("SamuraiRotation.cs", "ModifyZantetsukenPvP") })
         {
-            var rot = Src("PvPSolver.Basic", "Rotations", "Basic", file);
+            var rot = Src("PvPSolver", "Basic", "Rotations", "Basic", file);
             Harness.Case($"{method}: the Guard-piercing Limit Break may target a Guarded enemy (IgnoreGuard)",
                 Regex.IsMatch(rot, @"static partial void " + method + @"\(ref ActionSetting setting\)\s*\{\s*setting\.IgnoreGuard\s*=\s*true;\s*\}"));
         }
@@ -455,19 +455,19 @@ internal static class JevCopilot
             && callerRaw.IndexOf("private static async Task SendAsync(", StringComparison.Ordinal) is int sa && sa > 0
             && callerRaw.IndexOf("private static string? BuildSnapshot(", sa, StringComparison.Ordinal) is int sb && sb > sa
             && Regex.Matches(callerRaw[sa..sb], @"PluginLog\.Information\(").Count == 1);
-        var jevCore = Src("PvPSolver.Basic", "Decisions", "JevCall.cs");
+        var jevCore = Src("PvPSolver", "Basic", "Decisions", "JevCall.cs");
         Harness.Case("no movement: PvP Solver's Jev code never moves the character (no navmesh IPC, no move or position calls)",
-            !Regex.IsMatch(callerRaw + File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Decisions", "JevCall.cs")), @"vnavmesh", RegexOptions.IgnoreCase)
+            !Regex.IsMatch(callerRaw + File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Decisions", "JevCall.cs")), @"vnavmesh", RegexOptions.IgnoreCase)
             && !Regex.IsMatch(caller + jevCore, @"MoveTo|PathfindAndMoveTo|SetPosition|Movement|Navmesh"));
 
-        var actions = Src("PvPSolver.Basic", "Rotations", "CustomRotation_Actions.cs");
+        var actions = Src("PvPSolver", "Basic", "Rotations", "CustomRotation_Actions.cs");
         Harness.Case("the rotation exposes its PvP Limit Break to the caller (internal accessor)",
             Regex.IsMatch(actions, @"internal IBaseAction\? JevLimitBreak => LimitBreakPvP;"));
 
         var updater = Src("PvPSolver", "Updaters", "MajorUpdater.cs");
         Harness.Case("frame update calls JevCaller.Update once", Regex.Matches(updater, @"JevCaller\.Update\(\)").Count == 1);
 
-        var configs = Src("PvPSolver.Basic", "Configuration", "Configs.cs");
+        var configs = Src("PvPSolver", "Basic", "Configuration", "Configs.cs");
         Harness.Case("config: the switch defaults off", Regex.IsMatch(configs, @"private static readonly bool _jevCallsShots = false;"));
         Harness.Case("settings: the Targeting tab has the switch, default off, and its help names the Limit Break",
             PvpSettingsCatalog.All.Any(s => s.Property == "JevCallsShots" && s.Tab == PvpSettingsCatalog.Targeting && !s.DefaultOn && s.Help.Contains("Limit Break")));

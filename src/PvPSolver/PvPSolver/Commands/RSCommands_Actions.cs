@@ -4,6 +4,7 @@ using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
 using RotationSolver.Basic.Configuration;
+using RotationSolver.Helpers;
 using RotationSolver.Updaters;
 
 namespace RotationSolver.Commands
@@ -11,6 +12,7 @@ namespace RotationSolver.Commands
 	public static partial class RSCommands
 	{
 		private static DateTime _lastClickTime = DateTime.MinValue;
+		private static TimeSpan _clickDelay = TimeSpan.Zero;
 		private static bool _lastState;
 		private static bool started = false;
 		internal static DateTime _lastUsedTime = DateTime.MinValue;
@@ -18,20 +20,25 @@ namespace RotationSolver.Commands
 		private static float _lastCountdownTime = 0;
 		private static Job _previousJob = Job.ADV;
 		private static readonly Random random = Random.Shared;
+		private static readonly List<MiscUpdater.ActionBarSlotRef> _pulseSlots = [];
 
 		internal static IBaseAction? CurrentAction { get; set; } = null;
 
 		public static void IncrementState()
 		{
-			if (!DataCenter.State) { DoStateCommandType(StateCommandType.Auto); return; }
-			if (DataCenter.State && !DataCenter.IsManual && DataCenter.TargetingType == TargetingType.Big) { DoStateCommandType(StateCommandType.Auto); return; }
-			if (DataCenter.State && !DataCenter.IsManual) { DoStateCommandType(StateCommandType.Manual); return; }
-			if (DataCenter.State && DataCenter.IsManual) { DoStateCommandType(StateCommandType.Off); return; }
+			if (!DataCenter.State)
+			{ DoStateCommandType(StateCommandType.Auto); return; }
+			if (DataCenter.State && !DataCenter.IsManual && DataCenter.TargetingType == TargetingType.Big)
+			{ DoStateCommandType(StateCommandType.Auto); return; }
+			if (DataCenter.State && !DataCenter.IsManual)
+			{ DoStateCommandType(StateCommandType.Manual); return; }
+			if (DataCenter.State && DataCenter.IsManual)
+			{ DoStateCommandType(StateCommandType.Off); return; }
 		}
 
 		internal static bool CanDoAnAction(bool isGCD)
 		{
-			bool currentState = DataCenter.State;
+			var currentState = DataCenter.State;
 
 			if (!_lastState || !currentState)
 			{
@@ -40,16 +47,13 @@ namespace RotationSolver.Commands
 			}
 			_lastState = currentState;
 
-			TimeSpan delayRange = TimeSpan.FromMilliseconds(random.Next(
-				(int)(Service.Config.ClickingDelay.X * 1000),
-				(int)(Service.Config.ClickingDelay.Y * 1000)));
-
-			if (DateTime.Now - _lastClickTime < delayRange)
+			if (DateTime.Now - _lastClickTime < _clickDelay)
 			{
 				return false;
 			}
 
 			_lastClickTime = DateTime.Now;
+			_clickDelay = RandomSeconds(Service.Config.ClickingDelay.X, Service.Config.ClickingDelay.Y);
 
 			if (!isGCD && DataCenter.DefaultGCDRemain <= 0.5f && DataCenter.DefaultGCDRemain > 0f)
 			{
@@ -59,9 +63,6 @@ namespace RotationSolver.Commands
 			return isGCD || ActionUpdater.NextAction is not IBaseAction nextAction || !nextAction.Info.IsRealGCD;
 		}
 
-		private static StatusID[]? _cachedNoCastingStatusArray = null;
-		private static HashSet<uint>? _cachedNoCastingStatusSet = null;
-
 		public static void DoAction()
 		{
 			if (Player.Object != null && Player.Object.StatusList == null)
@@ -69,7 +70,7 @@ namespace RotationSolver.Commands
 				return;
 			}
 
-			IAction? nextAction = ActionUpdater.NextAction;
+			var nextAction = ActionUpdater.NextAction;
 			if (nextAction == null)
 			{
 				return;
@@ -82,55 +83,33 @@ namespace RotationSolver.Commands
 
 			if (nextAction is BaseAction baseAct)
 			{
-				// If this is an ability and not a Ninjutsu-type action, and GCD remaining is between 0 and 0.5s, skip using it
 				if (baseAct.Info.IsAbility && !baseAct.Setting.IsMudra && DataCenter.DefaultGCDRemain <= 0.5f && DataCenter.DefaultGCDRemain > 0f)
 				{
 					return;
 				}
 			}
 
-			HashSet<uint> noCastingStatus = OtherConfiguration.NoCastingStatus;
-			if (noCastingStatus != null)
+			var player = Player.Object;
+			if (player != null && !DataCenter.IsPvP
+				&& NoCastingStatusHelper.PlayerHasNoCastingStatus(out var minStatusTime))
 			{
-				if (_cachedNoCastingStatusSet != noCastingStatus)
-				{
-					_cachedNoCastingStatusArray = new StatusID[noCastingStatus.Count];
-					int index = 0;
-					foreach (uint status in noCastingStatus)
-					{
-						_cachedNoCastingStatusArray[index++] = (StatusID)status;
-					}
-					_cachedNoCastingStatusSet = noCastingStatus;
-				}
-			}
-			else
-			{
-				_cachedNoCastingStatusArray = [];
-				_cachedNoCastingStatusSet = null;
-			}
-			StatusID[] noCastingStatusArray = _cachedNoCastingStatusArray!;
-
-			float minStatusTime = float.MaxValue;
-			int statusTimesCount = 0;
-			if (Player.Object != null && !DataCenter.IsPvP)
-			{
-				foreach (float t in Player.Object.StatusTimes(false, noCastingStatusArray))
-				{
-					statusTimesCount++;
-					if (t < minStatusTime)
-					{
-						minStatusTime = t;
-					}
-				}
-			}
-
-			if (statusTimesCount > 0 && Player.Object != null)
-			{
-				float remainingCastTime = Player.Object.TotalCastTime - Player.Object.CurrentCastTime;
-				if (minStatusTime > remainingCastTime && minStatusTime < 3f)
+				var remainingCastTime = player.TotalCastTime - player.CurrentCastTime;
+				if (minStatusTime > remainingCastTime && minStatusTime < NoCastingStatusHelper.ResolveWindow)
 				{
 					return;
 				}
+			}
+
+			if (DataCenter.BMRSpecialModeType == SpecialMode.Pyretic)
+			{
+				PluginLog.Verbose("Player has Pyretic special mode active, skipping action use to avoid potential issues.");
+				return;
+			}
+
+			if (StatusHelper.PlayerHasStatus(false, StatusID.MotionTracker))
+			{
+				PluginLog.Verbose("Player has Motion Tracker status, skipping action use to avoid potential issues.");
+				return;
 			}
 
 			if (StatusHelper.PlayerHasStatus(false, StatusID.Transcendent))
@@ -148,22 +127,11 @@ namespace RotationSolver.Commands
 			//     PluginLog.Debug($"Will Do {debugAct}");
 #endif
 
-			if (nextAction is BaseAction baseAct2)
-			{
-				if (baseAct2.Target.Target != null && baseAct2.Target.Target is IBattleChara target && target != Player.Object && (Service.Config.SwitchTargetFriendly2 || target.IsEnemy()))
-				{
-					DataCenter.HostileTarget = target;
-					if (!DataCenter.IsManual &&
-						(Service.Config.SwitchTargetFriendly2
-						|| (Svc.Targets.Target?.IsEnemy() ?? true)
-						|| (Svc.Targets.Target?.GetObjectKind() == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Treasure)))
-					{
-						Svc.Targets.Target = target;
-					}
-				}
-			}
+			SwitchTargetForAction(nextAction);
 
 			CurrentAction = nextAction as IBaseAction;
+
+			var pulse = CapturePulseSlots(nextAction);
 
 			if (nextAction.Use())
 			{
@@ -171,13 +139,11 @@ namespace RotationSolver.Commands
 				_lastActionID = nextAction.AdjustedID;
 				_lastUsedTime = DateTime.Now;
 
-				// If this action was the one intercepted by the user, clear intercepted state and end the intercept window early
 				try
 				{
 					if (DataCenter.CurrentInterceptedAction != null && DataCenter.CurrentInterceptedAction.AdjustedID == nextAction.AdjustedID)
 					{
 						DataCenter.CurrentInterceptedAction = null;
-						// End the special intercepting state without showing toast
 						DoSpecialCommandType(SpecialCommandType.EndSpecial, false);
 					}
 				}
@@ -188,13 +154,14 @@ namespace RotationSolver.Commands
 
 				if (nextAction is BaseAction finalAct)
 				{
-					if (Service.Config.KeyboardNoise)
+					if (Service.Config.EnableClickingCount)
 					{
-						PulseSimulation(nextAction.AdjustedID);
-						if (Service.Config.EnableClickingCount)
-						{
-							OtherConfiguration.RotationSolverRecord.ClickingCount++;
-						}
+						OtherConfiguration.RotationSolverRecord.ClickingCount++;
+					}
+
+					if (pulse)
+					{
+						PulseSimulation();
 					}
 
 					if (finalAct.Setting.EndSpecial)
@@ -209,31 +176,37 @@ namespace RotationSolver.Commands
 			}
 		}
 
-		private static void PulseSimulation(uint id)
+		private static TimeSpan RandomSeconds(float min, float max)
 		{
-			if (started)
+			return TimeSpan.FromSeconds(Math.Min(min, max) + (random.NextDouble() * Math.Abs(max - min)));
+		}
+
+		private static bool CapturePulseSlots(IAction action)
+		{
+			if (!Service.Config.KeyboardNoise || started || action is not BaseAction)
 			{
-				return;
+				return false;
 			}
 
-			started = true;
 			try
 			{
-				int pulseCount = random.Next(Service.Config.KeyboardNoisePresses.X, Service.Config.KeyboardNoisePresses.Y);
-				PulseAction(id, pulseCount);
+				MiscUpdater.FindActionBarSlots(action.AdjustedID, _pulseSlots);
+				return _pulseSlots.Count > 0;
 			}
 			catch (Exception ex)
 			{
 				PluginLog.Warning($"Pulse Failed!: {ex.Message}");
-				BasicWarningHelper.AddSystemWarning($"Action bar failed to pulse because: {ex.Message}");
-			}
-			finally
-			{
-				started = false;
+				return false;
 			}
 		}
 
-		private static void PulseAction(uint id, int remainingPulses)
+		private static void PulseSimulation()
+		{
+			started = true;
+			PulseAction(random.Next(2, 4));
+		}
+
+		private static void PulseAction(int remainingPulses)
 		{
 			if (remainingPulses <= 0)
 			{
@@ -241,12 +214,18 @@ namespace RotationSolver.Commands
 				return;
 			}
 
-			MiscUpdater.PulseActionBar(id);
-			double time = Service.Config.ClickingDelay.X + (random.NextDouble() * (Service.Config.ClickingDelay.Y - Service.Config.ClickingDelay.X));
-			_ = Svc.Framework.RunOnTick(() =>
+			try
 			{
-				PulseAction(id, remainingPulses - 1);
-			}, TimeSpan.FromSeconds(time));
+				MiscUpdater.PulseActionBarSlots(_pulseSlots);
+				_ = Svc.Framework.RunOnTick(() => PulseAction(remainingPulses - 1),
+					RandomSeconds(Service.Config.ClickingDelay.X, Service.Config.ClickingDelay.Y));
+			}
+			catch (Exception ex)
+			{
+				started = false;
+				PluginLog.Warning($"Pulse Failed!: {ex.Message}");
+				BasicWarningHelper.AddSystemWarning($"Action bar failed to pulse because: {ex.Message}");
+			}
 		}
 
 		internal static void ResetSpecial()
@@ -257,46 +236,47 @@ namespace RotationSolver.Commands
 		internal static void CancelState()
 		{
 			DataCenter.ResetAllRecords();
+			DataCenter.IpcOverrides = null;
 			if (DataCenter.State)
 			{
 				DoStateCommandType(StateCommandType.Off);
 			}
 		}
 
-		internal static void SetTargetWithDelay(IGameObject? candidate)
+		internal static void SetTargetWithDelay(IBattleChara? candidate)
 		{
 			if (candidate == null)
 			{
 				return;
 			}
 
-			float min = Service.Config.TargetDelay.X;
-			float max = Service.Config.TargetDelay.Y;
-			double delay = Math.Max(0, min + (random.NextDouble() * Math.Max(0, max - min)));
+			var min = Service.Config.TargetDelay.X;
+			var max = Service.Config.TargetDelay.Y;
+			var delay = Math.Max(0, min + (random.NextDouble() * Math.Max(0, max - min)));
 			if (delay <= 0)
 			{
 				Svc.Targets.Target = candidate;
 				return;
 			}
 
-			ulong initialTargetId = Svc.Targets.Target?.GameObjectId ?? 0;
-			ulong candidateId = candidate.GameObjectId;
+			var initialTargetId = Svc.Targets.Target?.GameObjectId ?? 0;
+			var candidateId = candidate.GameObjectId;
 
 			_ = Svc.Framework.RunOnTick(() =>
 			{
 				try
 				{
 					var current = Svc.Targets.Target;
-					ulong currentId = current?.GameObjectId ?? 0;
+					var currentId = current?.GameObjectId ?? 0;
 
 					if (currentId == initialTargetId)
 					{
-						IGameObject? cand = null;
+						IBattleChara? cand = null;
 						foreach (var obj in Svc.Objects)
 						{
 							if (obj != null && obj.GameObjectId == candidateId)
 							{
-								cand = obj;
+								cand = obj as IBattleChara;
 								break;
 							}
 						}
@@ -321,19 +301,33 @@ namespace RotationSolver.Commands
 				return;
 			}
 
-			IAction? nextAction = ActionUpdater.NextAction;
-			if (nextAction is BaseAction baseAct)
+			SwitchTargetForAction(ActionUpdater.NextAction);
+		}
+
+		private static void SwitchTargetForAction(IAction? action)
+		{
+			if (action is not BaseAction baseAct || baseAct.Target.Target is not IBattleChara target)
 			{
-				if (baseAct.Target.Target != null && baseAct.Target.Target is IBattleChara target && target != Player.Object && (Service.Config.SwitchTargetFriendly2 || target.IsEnemy()))
-				{
-					DataCenter.HostileTarget = target;
-					if (!DataCenter.IsManual &&
-						(Service.Config.SwitchTargetFriendly2 || ((Svc.Targets.Target?.IsEnemy() ?? true)
-						|| Svc.Targets.Target?.GetObjectKind() == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Treasure)))
-					{
-						Svc.Targets.Target = target;
-					}
-				}
+				return;
+			}
+
+			var isEnemy = target.IsEnemy();
+			if (target.GameObjectId == Player.Object?.GameObjectId || !(Service.Config.SwitchTargetFriendly2 || isEnemy))
+			{
+				return;
+			}
+
+			if (isEnemy)
+			{
+				DataCenter.HostileTarget = target;
+			}
+
+			if (!DataCenter.IsManual &&
+				(Service.Config.SwitchTargetFriendly2
+				|| (Svc.Targets.Target?.IsEnemy() ?? true)
+				|| Svc.Targets.Target?.GetObjectKind() == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Treasure))
+			{
+				Svc.Targets.Target = target;
 			}
 		}
 
@@ -359,10 +353,9 @@ namespace RotationSolver.Commands
 					(Service.Config.AutoOffSwitchClass && Player.Job != _previousJob) ||
 					(ActionUpdater.AutoCancelTime != DateTime.MinValue && DateTime.Now > ActionUpdater.AutoCancelTime) || false)
 				{
-					CancelState();
-					if (Player.Job != _previousJob)
+					if (DataCenter.State)
 					{
-						_previousJob = Player.Job;
+						CancelState();
 					}
 
 					ActionUpdater.AutoCancelTime = DateTime.MinValue;
@@ -386,5 +379,37 @@ namespace RotationSolver.Commands
 			}
 		}
 
+		private static readonly HashSet<ulong> _targetedIds = [];
+
+		private static HashSet<ulong> CollectHostileTargetObjectIds()
+		{
+			_targetedIds.Clear();
+			foreach (var hostile in DataCenter.AllHostileTargets)
+			{
+
+				if (hostile == null || !hostile.IsValid() || hostile.Address == nint.Zero)
+				{
+					continue;
+				}
+
+				if (hostile.TargetObjectId != 0)
+				{
+					_ = _targetedIds.Add(hostile.TargetObjectId);
+				}
+			}
+			return _targetedIds;
+		}
+
+		private static bool AnyInCombatOrTargeted(List<IBattleChara> members, HashSet<ulong> targetedIds)
+		{
+			foreach (var member in members)
+			{
+				if (member != null && (member.InCombat() || targetedIds.Contains(member.GameObjectId)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 }

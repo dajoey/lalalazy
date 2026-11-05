@@ -30,7 +30,7 @@ public class JobChoiceConfigGenerator : IIncrementalGenerator
 			var className = type.Identifier.Text;
 
 			var propertyCodes = new List<string>();
-			foreach (var (variableInfo, model) in group)
+			foreach ((var variableInfo, var model) in group)
 			{
 				try
 				{
@@ -40,7 +40,6 @@ public class JobChoiceConfigGenerator : IIncrementalGenerator
 
 					if (variableName == propertyName)
 					{
-						// Skip fields with PascalCase names
 						continue;
 					}
 
@@ -51,7 +50,11 @@ public class JobChoiceConfigGenerator : IIncrementalGenerator
 					var attributeNames = new List<string>();
 					foreach (var attrSet in field.AttributeLists)
 					{
-						if (attrSet == null) continue;
+						if (attrSet == null)
+						{
+							continue;
+						}
+
 						foreach (var attr in attrSet.Attributes)
 						{
 							var name = model.GetSymbolInfo(attr).Symbol?.GetFullMetadataName();
@@ -110,7 +113,10 @@ public class JobChoiceConfigGenerator : IIncrementalGenerator
 				}
 			}
 
-			if (propertyCodes.Count == 0) continue;
+			if (propertyCodes.Count == 0)
+			{
+				continue;
+			}
 
 			var code = $$"""
                 using ECommons.ExcelServices;

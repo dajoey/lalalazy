@@ -8,24 +8,20 @@ namespace RotationSolver.Commands
 	{
 		internal static void Enable()
 		{
+			DataCenter.OnSpecialTypeChanged = specialType => _specialString = specialType.ToSpecialString();
+
+			var helpMessage = $"{UiString.Commands_Rotation.GetDescription()}\n"
+				+ $"{Service.COMMAND} Auto → {UiString.Commands_Start.GetDescription()}\n"
+				+ $"{Service.COMMAND} Off → {UiString.Commands_Off.GetDescription()}";
+
 			_ = Svc.Commands.AddHandler(Service.COMMAND, new CommandInfo(OnCommand)
 			{
-				HelpMessage = UiString.Commands_Rotation.GetDescription(),
+				HelpMessage = helpMessage,
 				ShowInHelp = true,
 			});
 			_ = Svc.Commands.AddHandler(Service.ALTCOMMAND, new CommandInfo(OnCommand)
 			{
-				HelpMessage = UiString.Commands_Rotation.GetDescription(),
-				ShowInHelp = true,
-			});
-			_ = Svc.Commands.AddHandler(Service.AUTOCOMMAND, new CommandInfo(OnCommand)
-			{
-				HelpMessage = UiString.Commands_Start.GetDescription(),
-				ShowInHelp = true,
-			});
-			_ = Svc.Commands.AddHandler(Service.OFFCOMMAND, new CommandInfo(OnCommand)
-			{
-				HelpMessage = UiString.Commands_Off.GetDescription(),
+				HelpMessage = $"{UiString.Commands_Rotation.GetDescription()}\n",
 				ShowInHelp = true,
 			});
 		}
@@ -34,8 +30,6 @@ namespace RotationSolver.Commands
 		{
 			_ = Svc.Commands.RemoveHandler(Service.COMMAND);
 			_ = Svc.Commands.RemoveHandler(Service.ALTCOMMAND);
-			_ = Svc.Commands.RemoveHandler(Service.AUTOCOMMAND);
-			_ = Svc.Commands.RemoveHandler(Service.OFFCOMMAND);
 		}
 
 		private static void OnCommand(string command, string arguments)
@@ -47,7 +41,6 @@ namespace RotationSolver.Commands
 		{
 			command = (command ?? string.Empty).Trim();
 
-			// No args => open config
 			if (command.Length == 0)
 			{
 				PvPSolverPlugin.OpenConfigWindow();
@@ -75,20 +68,18 @@ namespace RotationSolver.Commands
 				command = "off";
 			}
 
-			if (TryGetOneEnum<StateCommandType>(command, out StateCommandType stateType))
+			if (TryGetOneEnum<StateCommandType>(command, out var stateType))
 			{
-				// Split command into parts
 				var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-				int index = -1;
+				var index = -1;
 
-				// Try to parse the second argument as TargetingType if present
 				if (parts.Length > 1)
 				{
-					string value = parts[1];
-					if (Enum.TryParse(typeof(TargetingType), value, true, out object? parsedEnumSet))
+					var value = parts[1];
+					if (Enum.TryParse(typeof(TargetingType), value, true, out var parsedEnumSet))
 					{
-						TargetingType targetingTypeSet = (TargetingType)parsedEnumSet;
-						int idx = Service.Config.TargetingTypes.IndexOf(targetingTypeSet);
+						var targetingTypeSet = (TargetingType)parsedEnumSet;
+						var idx = Service.Config.TargetingTypes.IndexOf(targetingTypeSet);
 						if (idx >= 0)
 						{
 							Service.Config.TargetingIndex = idx;
@@ -112,13 +103,13 @@ namespace RotationSolver.Commands
 
 				DoStateCommandType(stateType, index);
 			}
-			else if (TryGetOneEnum<SpecialCommandType>(command, out SpecialCommandType specialType))
+			else if (TryGetOneEnum<SpecialCommandType>(command, out var specialType))
 			{
 				DoSpecialCommandType(specialType);
 			}
-			else if (TryGetOneEnum<OtherCommandType>(command, out OtherCommandType otherType))
+			else if (TryGetOneEnum<OtherCommandType>(command, out var otherType))
 			{
-				string extraCommand = command[otherType.ToString().Length..].Trim();
+				var extraCommand = command[otherType.ToString().Length..].Trim();
 				DoOtherCommand(otherType, extraCommand);
 			}
 			else
@@ -136,16 +127,16 @@ namespace RotationSolver.Commands
 				return false;
 			}
 
-			// Parse only the first token (case-insensitive).
-			int spaceIdx = command.IndexOf(' ');
-			string token = spaceIdx >= 0 ? command[..spaceIdx] : command;
+			var spaceIdx = command.IndexOf(' ');
+			var token = spaceIdx >= 0 ? command[..spaceIdx] : command;
 
-			return Enum.TryParse(token, ignoreCase: true, out type);
+			return token.Length > 0 && char.IsLetter(token[0]) && !token.Contains(',')
+				&& Enum.TryParse(token, ignoreCase: true, out type) && Enum.IsDefined(type);
 		}
 
 		internal static string GetCommandStr(this Enum command, string extraCommand = "")
 		{
-			string cmdStr = $"{Service.COMMAND} {command}";
+			var cmdStr = $"{Service.COMMAND} {command}";
 			if (!string.IsNullOrEmpty(extraCommand))
 			{
 				cmdStr += $" {extraCommand}";

@@ -55,7 +55,7 @@ internal static class DefenseStall
             oldBad.Length == 1 && oldBad[0] == "found=False,pvp=True,cast=False,veng=False,damn=False", string.Join(" | ", oldBad));
 
         // Call site: Ability() routes the whole condition through the gate, with DataCenter.IsPvP.
-        var path = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "CustomRotation_Ability.cs");
+        var path = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "CustomRotation_Ability.cs");
         var san = CsSource.Sanitize(File.ReadAllText(path));
         Harness.Case("Ability() calls DefenseSingleGate.EndsStage(defenseSingleFound, DataCenter.IsPvP, ...)",
             Regex.IsMatch(san, @"DefenseSingleGate\.EndsStage\(\s*defenseSingleFound\s*,\s*DataCenter\.IsPvP\s*,"));

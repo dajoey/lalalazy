@@ -67,14 +67,20 @@ internal static class BMRTimeline_IPCSubscriber
 	[EzIPC("Hints.NextTankbusterDamageIn", true)]
 	internal static readonly Func<float>? NextTankbusterDamageIn;
 
-	[EzIPC("Debug.TimelineWalk", true)]
-	internal static readonly Func<string?>? DebugTimelineWalk;
-
 	[EzIPC("Hints.SpecialModeIn", true)]
 	internal static readonly Func<float>? SpecialModeIn;
 
 	[EzIPC("Hints.SpecialModeType", true)]
 	internal static readonly Func<int>? SpecialModeType;
+
+	[EzIPC("Hints.IsPositionSafe", true)]
+	internal static readonly Func<Vector3, bool>? IsPositionSafe;
+
+	[EzIPC("Hints.IsDashSafe", true)]
+	internal static readonly Func<Vector3, Vector3, bool>? IsDashSafe;
+
+	[EzIPC("Hints.IsFixedDashSafe", true)]
+	internal static readonly Func<Vector3, Vector3, bool>? IsFixedDashSafe;
 
 	internal static void Dispose() => IPCSubscriber_Common.DisposeAll(_disposalTokens);
 }

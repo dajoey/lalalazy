@@ -45,7 +45,7 @@ internal static class GuardianRange
             oldBad.Length == Table.Count(r => !r.Expected), $"{oldBad.Length} out-of-reach rows offered");
 
         // T2: the base action setting carries the filter.
-        var path = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "Basic", "PaladinRotation.cs");
+        var path = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "Basic", "PaladinRotation.cs");
         var san = CsSource.Sanitize(File.ReadAllText(path));
         var head = new Regex(@"\bstatic\s+partial\s+void\s+(?<name>ModifyGuardianPvP)\s*\(");
         var m = CsSource.Methods(san, "PaladinRotation.cs", head).SingleOrDefault();

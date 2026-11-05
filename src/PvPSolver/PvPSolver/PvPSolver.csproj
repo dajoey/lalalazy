@@ -40,9 +40,13 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
     <Compile Include="..\..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
+    <Compile Include="..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
+    <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" ExcludeAssets="runtime">
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -55,6 +59,8 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PvPSolver.Basic\PvPSolver.Basic.csproj" />
+    <ProjectReference Include="..\PvPSolver.SourceGenerators\PvPSolver.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Using Include="System.ComponentModel" />
     <Using Include="Dalamud.Game.ClientState.Objects.Types" />
     <Using Include="RotationSolver.Basic" />
     <Using Include="RotationSolver.Basic.Actions" />
@@ -75,8 +81,8 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
   </ItemGroup>
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="      '%(Filename)' == 'PvPSolver' or      '%(Filename)' == 'PvPSolver.Basic' or      '%(Filename)' == 'ECommons'     " />
-      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="!('%(Filename)' == 'PvPSolver' or '%(Filename)' == 'PvPSolver.Basic' or '%(Filename)' == 'ECommons')" />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="      '%(Filename)' == 'PvPSolver' or           '%(Filename)' == 'ECommons'     " />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="!('%(Filename)' == 'PvPSolver' or '%(Filename)' == 'ECommons')" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>
   </Target>

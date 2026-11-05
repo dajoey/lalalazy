@@ -250,7 +250,7 @@ internal static class SettingsReflectionCases
         // job-specific rows appear in the rotation file or its base class, as text too (the base class is generated, so the rotation files and the base files are searched)
         var textMissing = new List<string>();
         string rotationsDir = Path.Combine(Program.SrcRoot, "PvPSolver", "RebornRotations", "PVPRotations");
-        string basicDir = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations");
+        string basicDir = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations");
         string text = string.Join("\n", Directory.GetFiles(rotationsDir, "*.cs", SearchOption.AllDirectories).Concat(Directory.GetFiles(basicDir, "*.cs", SearchOption.AllDirectories)).Select(File.ReadAllText));
         foreach (DefensiveRow row in DefensiveTable.Rows.Where(r => r.Job.Length == 3))
         {

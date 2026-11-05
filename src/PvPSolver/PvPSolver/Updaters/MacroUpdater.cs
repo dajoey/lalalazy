@@ -6,7 +6,7 @@ internal static class MacroUpdater
 
 	public static void UpdateMacro()
 	{
-		if (DoingMacro == null && DataCenter.Macros.TryDequeue(out MacroItem? macro))
+		if (DoingMacro == null && DataCenter.Macros.TryDequeue(out var macro))
 		{
 			DoingMacro = macro;
 		}

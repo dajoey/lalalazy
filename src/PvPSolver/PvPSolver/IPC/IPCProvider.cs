@@ -1,37 +1,23 @@
 using ECommons.EzIpcManager;
 using ECommons.Logging;
 using RotationSolver.Commands;
+using RotationSolver.Updaters;
 
 namespace RotationSolver.IPC
 {
-	/// <summary>
-	/// Provides IPC methods for external plugins or tools to interact with RotationSolver.
-	/// All public methods marked with <see cref="EzIPCAttribute"/> are exposed for IPC calls.
-	/// </summary>
 	internal class IPCProvider
 	{
-		/// <summary>
-		/// Initializes the IPC provider and registers IPC methods with the specified prefix.
-		/// </summary>
 		internal IPCProvider()
 		{
 			_ = EzIPC.Init(this, prefix: "PvPSolver");
 		}
 
-		/// <summary>
-		/// IPC method for testing connectivity and logging a debug message.
-		/// </summary>
-		/// <param name="param">A string parameter to include in the debug log for verification.</param>
 		[EzIPC]
 		public void Test(string param)
 		{
 			PluginLog.Debug($"IPC Test! Param:{param}");
 		}
 
-		/// <summary>
-		/// Adds a name ID to the prioritized list via IPC.
-		/// </summary>
-		/// <param name="nameId">The unique identifier to add to the prioritized name IDs collection.</param>
 		[EzIPC]
 		public void AddPriorityNameID(uint nameId)
 		{
@@ -46,10 +32,6 @@ namespace RotationSolver.IPC
 			}
 		}
 
-		/// <summary>
-		/// Removes a name ID from the prioritized list via IPC.
-		/// </summary>
-		/// <param name="nameId">The unique identifier to remove from the prioritized name IDs collection.</param>
 		[EzIPC]
 		public void RemovePriorityNameID(uint nameId)
 		{
@@ -71,10 +53,6 @@ namespace RotationSolver.IPC
 			}
 		}
 
-		/// <summary>
-		/// Adds a name ID to the blacklist via IPC, preventing actions for this identifier.
-		/// </summary>
-		/// <param name="nameId">The unique identifier to add to the blacklist collection.</param>
 		[EzIPC]
 		public void AddBlacklistNameID(uint nameId)
 		{
@@ -89,10 +67,6 @@ namespace RotationSolver.IPC
 			}
 		}
 
-		/// <summary>
-		/// Removes a name ID from the blacklist via IPC, allowing actions for this identifier.
-		/// </summary>
-		/// <param name="nameId">The unique identifier to remove from the blacklist collection.</param>
 		[EzIPC]
 		public void RemoveBlacklistNameID(uint nameId)
 		{
@@ -114,80 +88,128 @@ namespace RotationSolver.IPC
 			}
 		}
 
-		/// <summary>
-		/// Changes the operating mode of the plugin via IPC.
-		/// </summary>
-		/// <param name="stateCommand">
-		/// The <see cref="StateCommandType"/> value specifying the desired operating mode, such as Off, Auto, or Manual.
-		/// </param>
 		[EzIPC]
 		public void ChangeOperatingMode(StateCommandType stateCommand)
 		{
-			RSCommands.UpdateState(stateCommand, (JobRole)DataCenter.Job);
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.UpdateState(stateCommand, DataCenter.Role);
+			}
 			PluginLog.Debug($"IPC ChangeOperatingMode was called. StateCommand:{stateCommand}");
 		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="stateCommand">
-		/// The <see cref="StateCommandType"/> value specifying the desired operating mode, such as Off, Auto, or Manual.
-		/// </param>
-		/// <param name="targetingType">
-		/// The <see cref="TargetingType"/> value specifying the desired operating mode, such as Big, LowHP, or Nearest.
-		/// </param>
+		[EzIPC]
+		public void ChangeOperatingModeWithOverrides(StateCommandType stateCommand, TargetHostileType targetHostileType, SettingOverride targetFreely, SettingOverride autoOffAfterCombat, SettingOverride friendlyPartyNpcHealRaise)
+		{
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.UpdateState(stateCommand, DataCenter.Role, CreateOverrides(targetHostileType, targetFreely, autoOffAfterCombat, friendlyPartyNpcHealRaise));
+			}
+			PluginLog.Debug($"IPC ChangeOperatingModeWithOverrides was called. StateCommand:{stateCommand} TargetHostileType:{targetHostileType} TargetFreely:{targetFreely} AutoOffAfterCombat:{autoOffAfterCombat} FriendlyPartyNpcHealRaise:{friendlyPartyNpcHealRaise}");
+		}
+
 		[EzIPC]
 		public void AutodutyChangeOperatingMode(StateCommandType stateCommand, TargetingType targetingType)
 		{
-			RSCommands.AutodutyUpdateState(stateCommand, (JobRole)DataCenter.Job, targetingType);
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.AutodutyUpdateState(stateCommand, DataCenter.Role, targetingType);
+			}
 			PluginLog.Debug($"IPC AutodutyChangeOperatingMode was called. StateCommand:{stateCommand} TargetingType:{targetingType}");
 		}
 
-		/// <summary>
-		/// Triggers a special state in the plugin via IPC, such as healing, defense, or movement.
-		/// </summary>
-		/// <param name="specialCommand">
-		/// The <see cref="SpecialCommandType"/> value representing the special state to activate (e.g., HealArea, DefenseSingle, Burst).
-		/// </param>
+		[EzIPC]
+		public void AutodutyChangeOperatingModeWithOverrides(StateCommandType stateCommand, TargetingType targetingType, TargetHostileType targetHostileType, SettingOverride targetFreely, SettingOverride autoOffAfterCombat, SettingOverride friendlyPartyNpcHealRaise)
+		{
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.AutodutyUpdateState(stateCommand, DataCenter.Role, targetingType, CreateOverrides(targetHostileType, targetFreely, autoOffAfterCombat, friendlyPartyNpcHealRaise));
+			}
+			PluginLog.Debug($"IPC AutodutyChangeOperatingModeWithOverrides was called. StateCommand:{stateCommand} TargetingType:{targetingType} TargetHostileType:{targetHostileType} TargetFreely:{targetFreely} AutoOffAfterCombat:{autoOffAfterCombat} FriendlyPartyNpcHealRaise:{friendlyPartyNpcHealRaise}");
+		}
+
+		private static IpcStateOverrides CreateOverrides(TargetHostileType targetHostileType, SettingOverride targetFreely, SettingOverride autoOffAfterCombat, SettingOverride friendlyPartyNpcHealRaise)
+		{
+			return new(targetHostileType, ToOverrideValue(targetFreely), ToOverrideValue(autoOffAfterCombat), ToOverrideValue(friendlyPartyNpcHealRaise));
+		}
+
+		private static bool? ToOverrideValue(SettingOverride setting)
+		{
+			return setting switch
+			{
+				SettingOverride.ForceOn => true,
+				SettingOverride.ForceOff => false,
+				_ => null,
+			};
+		}
+
 		[EzIPC]
 		public void TriggerSpecialState(SpecialCommandType specialCommand)
 		{
-			DataCenter.SpecialType = specialCommand;
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.DoSpecialCommandType(specialCommand, false);
+			}
 			PluginLog.Debug($"IPC TriggerSpecialState was called. SpecialCommand:{specialCommand}");
 		}
 
-		/// <summary>
-		/// Changes a plugin setting or triggers an auxiliary command via IPC.
-		/// </summary>
-		/// <param name="otherType">
-		/// The <see cref="OtherCommandType"/> category of command to execute, such as DoActions, ToggleActions, Settings, NextAction, Rotations, or DutyRotations.
-		/// </param>
-		/// <param name="str">
-		/// The string value representing the modification or parameter for the command.
-		/// </param>
+		[EzIPC]
+		public void TriggerSpecialStateWithDuration(SpecialCommandType specialCommand, float duration)
+		{
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.DoSpecialCommandType(specialCommand, false);
+				DataCenter.SetSpecialTypeWithDuration(specialCommand, duration);
+			}
+			PluginLog.Debug($"IPC TriggerSpecialStateWithDuration was called. SpecialCommand:{specialCommand}, Duration:{duration}");
+		}
+
 		[EzIPC]
 		public void OtherCommand(OtherCommandType otherType, string str)
 		{
-			RSCommands.DoOtherCommand(otherType, str);
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.DoOtherCommand(otherType, str);
+			}
 			PluginLog.Debug($"IPC DoOtherCommand was called. OtherCommandType:{otherType}, String:{str},");
 		}
 
-		/// <summary>
-		/// Executes an action command via IPC, allowing external plugins or tools to trigger a specific action with a timing parameter.
-		/// </summary>
-		/// <param name="action">
-		/// The name of the action to execute. This needs to be the exact name of the action.
-		/// </param>
-		/// <param name="time">
-		/// The time value that the window to use the action is open (typcially 5 seconds).
-		/// </param>
 		[EzIPC]
 		public void ActionCommand(string action, float time)
 		{
-			string combinedString = $"{action}-{time}";
+			var combinedString = $"{action}-{time}";
 
-			RSCommands.DoActionCommand($"{combinedString}");
+			if (!DataCenter.IsPvP)
+			{
+				RSCommands.DoActionCommand($"{combinedString}");
+			}
 			PluginLog.Debug($"IPC ActionCommand was called. Action Name:{action}, Time:{time}");
+		}
+
+		[EzIPC]
+		public void EnableTargetFreelyOverride()
+		{
+			DataCenter.TargetFreelyOverride = true;
+			PluginLog.Debug("IPC EnableTargetFreelyOverride was called.");
+		}
+
+		[EzIPC]
+		public void DisableTargetFreelyOverride()
+		{
+			DataCenter.TargetFreelyOverride = false;
+			PluginLog.Debug("IPC DisableTargetFreelyOverride was called.");
+		}
+
+		[EzIPC]
+		public byte GetDesiredPositional()
+		{
+			return (byte)ActionUpdater.DesiredPositional;
+		}
+
+		[EzIPC]
+		public bool AutorotationActive()
+		{
+			return DataCenter.IsActivatedIPC();
 		}
 	}
 }

@@ -173,7 +173,7 @@ internal static class TargetingSelect
         Harness.Case("TargetingType.LowHP appears only as the default-list entry and the sort case", lowHpUses.Count == 0, string.Join("; ", lowHpUses));
 
         // Call site: DataCenter.TargetingType goes through the pure resolver and no longer indexes the list itself.
-        var dcPath = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "DataCenter.cs");
+        var dcPath = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "DataCenter.cs");
         var dc = CsSource.Sanitize(File.ReadAllText(dcPath));
         var getter = Regex.Match(dc, @"public\s+static\s+TargetingType\s+TargetingType\s*\{");
         var getterBody = getter.Success ? dc.Substring(getter.Index, CsSource.Match(dc, getter.Index + getter.Length - 1) - getter.Index) : "";

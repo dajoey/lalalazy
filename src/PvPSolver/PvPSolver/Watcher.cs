@@ -1,11 +1,11 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+﻿using Dalamud.Hooking;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.Hooks;
 using ECommons.Hooks.ActionEffectTypes;
 using ECommons.Logging;
-using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel.Sheets;
+using RotationSolver.ActionTimeline;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Basic.Helpers;
 using System.Text.RegularExpressions;
@@ -14,36 +14,79 @@ namespace RotationSolver;
 
 public static class Watcher
 {
+	private const uint CancelAbilityCategory = 15;
+	private const uint EnemyDotTickCategory = 0x605;
+
+	private delegate void ActorControlDelegate(uint entityId, uint category, uint p1, uint p2, uint p3, uint p4, uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying);
+	private static Hook<ActorControlDelegate>? _actorControlHook;
+
 	public static void Enable()
 	{
 		ActionEffect.ActionEffectEvent += ActionFromEnemy;
 		ActionEffect.ActionEffectEvent += ActionFromSelf;
+
+		try
+		{
+			_actorControlHook = Svc.Hook.HookFromSignature<ActorControlDelegate>("E8 ?? ?? ?? ?? 0F B7 0B 83 E9 64", ActorControlDetour);
+			_actorControlHook.Enable();
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Error($"[Watcher] Failed to hook ActorControl: {ex}");
+		}
 	}
 
 	public static void Disable()
 	{
 		ActionEffect.ActionEffectEvent -= ActionFromEnemy;
 		ActionEffect.ActionEffectEvent -= ActionFromSelf;
+
+		_actorControlHook?.Dispose();
+		_actorControlHook = null;
+	}
+
+	private static void ActorControlDetour(uint entityId, uint category, uint p1, uint p2, uint p3, uint p4, uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying)
+	{
+		_actorControlHook!.Original(entityId, category, p1, p2, p3, p4, p5, p6, p7, p8, targetId, replaying);
+
+		try
+		{
+			if (category == EnemyDotTickCategory)
+			{
+				DotTickTracker.RecordTick(entityId, Environment.TickCount64);
+			}
+			else if (category == CancelAbilityCategory && entityId == Player.Object?.EntityId)
+			{
+				ActionTimelineManager.Current?.CancelInterruptedCast(DateTime.Now);
+			}
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Error($"Error in ActorControlDetour: {ex.Message}");
+		}
 	}
 
 	public static string ShowStrSelf { get; private set; } = string.Empty;
-	public static string ShowStrEnemy { get; private set; } = string.Empty;
 
 	private static void ActionFromEnemy(ActionEffectSet set)
 	{
 		try
 		{
 			if (set.Source is not IBattleChara battle || !set.Source.IsEnemy())
+			{
 				return;
+			}
 
-			IPlayerCharacter? playerObject = Player.Object;
+			var playerObject = Player.Object;
 			if (playerObject == null)
+			{
 				return;
+			}
 
 			float damageRatio = 0;
-			ulong playerId = playerObject.GameObjectId;
-			uint maxHp = playerObject.MaxHp;
-			uint denom = Math.Max(1u, maxHp); // avoid division by zero
+			var playerId = playerObject.GameObjectId;
+			var maxHp = playerObject.MaxHp;
+			var denom = Math.Max(1u, maxHp);
 
 			foreach (var effect in set.TargetEffects)
 			{
@@ -52,18 +95,21 @@ public static class Watcher
 					effect.ForEach(entry =>
 					{
 						if (entry.type == ActionEffectType.Damage)
+						{
 							damageRatio += (float)entry.value / denom;
+						}
 					});
 				}
 			}
 
 			DataCenter.AddDamageRec(damageRatio);
-			ShowStrEnemy = $"Damage Ratio: {damageRatio}\n{set}";
 
 			foreach (var effect in set.TargetEffects)
 			{
 				if (effect.TargetID != playerId)
+				{
 					continue;
+				}
 
 				if (effect.GetSpecificTypeEffect(ActionEffectType.Knockback, out var entry))
 				{
@@ -76,23 +122,10 @@ public static class Watcher
 							DataCenter.KnockbackFinished = DateTime.Now + TimeSpan.FromSeconds(knock.Value.Distance / (float)knock.Value.Speed);
 						}
 
-						if (set.Action.HasValue && Service.Config.RecordKnockbackies)
+						if (set.Action.HasValue && Service.Config.RecordKnockbackies
+							&& OtherConfiguration.HostileCastingKnockback.Add(set.Action.Value.RowId))
 						{
-							bool isContained = false;
-							foreach (var id in OtherConfiguration.HostileCastingKnockback)
-							{
-								if (id == set.Action.Value.RowId)
-								{
-									isContained = true;
-									break;
-								}
-							}
-
-							if (!isContained)
-							{
-								_ = OtherConfiguration.HostileCastingKnockback.Add(set.Action.Value.RowId);
-								_ = OtherConfiguration.Save();
-							}
+							_ = OtherConfiguration.SaveHostileCastingKnockback();
 						}
 					}
 					break;
@@ -100,27 +133,21 @@ public static class Watcher
 			}
 
 			var partyMembers = DataCenter.PartyMembers;
-			int partyMemberCount = partyMembers.Count;
+			var partyMemberCount = partyMembers.Count;
 
-			if (set.Header.ActionType == ActionType.Action && partyMemberCount >= 4 && set.Action?.Cast100ms > 0)
+			if (Service.Config.RecordCastingArea && partyMemberCount >= 4 && set.Action?.Cast100ms > 0)
 			{
 				var type = set.Action?.GetActionCate();
 				if (type is ActionCate.Spell or ActionCate.Weaponskill or ActionCate.Ability)
 				{
-					int damageEffectCount = 0;
-
-					var partyIds = new HashSet<ulong>();
-					foreach (var pm in partyMembers)
-					{
-						partyIds.Add(pm.GameObjectId);
-					}
+					var damageEffectCount = 0;
 
 					foreach (var effect in set.TargetEffects)
 					{
-						bool isPartyMember = false;
-						foreach (var pId in partyIds)
+						var isPartyMember = false;
+						foreach (var pm in partyMembers)
 						{
-							if (pId == effect.TargetID)
+							if (pm.GameObjectId == effect.TargetID)
 							{
 								isPartyMember = true;
 								break;
@@ -135,9 +162,9 @@ public static class Watcher
 						}
 					}
 
-					if (damageEffectCount == partyMemberCount && Service.Config.RecordCastingArea)
+					if (damageEffectCount == partyMemberCount
+						&& OtherConfiguration.HostileCastingArea.Add(set.Action!.Value.RowId))
 					{
-						_ = OtherConfiguration.HostileCastingArea.Add(set.Action!.Value.RowId);
 						_ = OtherConfiguration.SaveHostileCastingArea();
 					}
 				}
@@ -153,37 +180,24 @@ public static class Watcher
 	{
 		try
 		{
-			//PluginLog.Debug($"ActionFromSelf invoked. Source: {set.Source?.GameObjectId}, Action: {set.Action?.Name.ExtractText() ?? "null"}");
-
-			IPlayerCharacter? playerObject = Player.Object;
+			var playerObject = Player.Object;
 			if (set.Source == null || playerObject == null)
 			{
-				//PluginLog.Debug("ActionFromSelf: Source or playerObject is null. Exiting.");
 				return;
 			}
 
 			if (set.Source.GameObjectId != playerObject.GameObjectId)
 			{
-				//PluginLog.Debug($"ActionFromSelf: Source.GameObjectId ({set.Source.GameObjectId}) does not match playerObject.GameObjectId ({playerObject.GameObjectId}). Exiting.");
 				return;
 			}
-
-			// TODO: Review if we need this check
-			//if (set.Header.ActionType is not ActionType.Action and not ActionType.Item)
-			//{
-			//	PluginLog.Debug($"ActionFromSelf: ActionType is {set.Header.ActionType}, not Action or Item. Exiting.");
-			//	return;
-			//}
 
 			if (set.Action == null)
 			{
-				//PluginLog.Debug("ActionFromSelf: set.Action is null. Exiting.");
 				return;
 			}
 
-			if (set.Action?.ActionCategory.Value.RowId == (uint)ActionCate.Autoattack)
+			if (set.Action.Value.ActionCategory.RowId == (uint)ActionCate.Autoattack)
 			{
-				//PluginLog.Debug("ActionFromSelf: ActionCategory is Autoattack. Exiting.");
 				return;
 			}
 
@@ -192,27 +206,23 @@ public static class Watcher
 
 			if (set.TargetEffects.Length == 0)
 			{
-				//PluginLog.Debug("ActionFromSelf: No TargetEffects. Exiting.");
 				return;
 			}
 
-			Lumina.Excel.Sheets.Action? action = set.Action;
-			IGameObject? tar = set.Target;
+			var action = set.Action;
+			var tar = set.Target;
 
-			// Record
-			//PluginLog.Debug($"ActionFromSelf: ActionType is {set.Header.ActionType}.");
 			DataCenter.AddActionRec(action!.Value);
 			JevCaller.NoteActionUsed(action.Value.RowId, tar?.GameObjectId);
 			ShowStrSelf = set.ToString();
 
 			DataCenter.HealHP = set.GetSpecificTypeEffect(ActionEffectType.Heal);
 
-			// Ensure ApplyStatus dictionary is non-null, then merge source-applied effects
 			DataCenter.ApplyStatus = set.GetSpecificTypeEffect(ActionEffectType.ApplyStatusEffectTarget) ?? [];
 			var sourceApply = set.GetSpecificTypeEffect(ActionEffectType.ApplyStatusEffectSource);
 			if (sourceApply is { Count: > 0 })
 			{
-				foreach (KeyValuePair<ulong, uint> effect in sourceApply)
+				foreach (var effect in sourceApply)
 				{
 					DataCenter.ApplyStatus[effect.Key] = effect.Value;
 				}
@@ -222,7 +232,7 @@ public static class Watcher
 			var mpEffects = set.GetSpecificTypeEffect(ActionEffectType.MpGain);
 			if (mpEffects != null)
 			{
-				foreach (KeyValuePair<ulong, uint> effect in mpEffects)
+				foreach (var effect in mpEffects)
 				{
 					if (effect.Key == playerObject.GameObjectId)
 					{
@@ -235,21 +245,20 @@ public static class Watcher
 			DataCenter.EffectTime = DateTime.Now;
 			DataCenter.EffectEndTime = DateTime.Now.AddSeconds(set.Header.AnimationLockTime + 1);
 
-			Queue<(ulong id, DateTime time)> attackedTargets = DataCenter.AttackedTargets;
-			int attackedTargetsCount = DataCenter.AttackedTargetsCount;
+			var attackedTargets = DataCenter.AttackedTargets;
+			var attackedTargetsCount = DataCenter.AttackedTargetsCount;
 
 			if (attackedTargetsCount > 0)
 			{
-				foreach (TargetEffect effect in set.TargetEffects)
+				foreach (var effect in set.TargetEffects)
 				{
 					if (!effect.GetSpecificTypeEffect(ActionEffectType.Damage, out _))
 					{
 						continue;
 					}
 
-					// Check if the target is already in the attacked targets list
-					bool targetExists = false;
-					foreach ((ulong id, DateTime time) in attackedTargets)
+					var targetExists = false;
+					foreach ((var id, var time) in attackedTargets)
 					{
 						if (id == effect.TargetID)
 						{
@@ -262,30 +271,26 @@ public static class Watcher
 						continue;
 					}
 
-					// Ensure the current target is not dequeued
 					while (attackedTargets.Count >= attackedTargetsCount && attackedTargets.Count > 0)
 					{
-						(ulong id, DateTime time) = attackedTargets.Peek();
+						(var id, var time) = attackedTargets.Peek();
 						if (id == effect.TargetID)
 						{
-							// If the oldest target is the current target, break the loop to avoid dequeuing it
 							break;
 						}
 						_ = attackedTargets.Dequeue();
 					}
 
-					// Enqueue the new target
 					attackedTargets.Enqueue((effect.TargetID, DateTime.Now));
 				}
 			}
 
-			// Macro
-			RegexOptions regexOptions = RegexOptions.Compiled | RegexOptions.IgnoreCase;
+			var regexOptions = RegexOptions.IgnoreCase;
 			var eventsList = Service.Config.Events ?? [];
 			var actionName = action.Value.Name.ExtractText() ?? string.Empty;
 			if (!string.IsNullOrEmpty(actionName))
 			{
-				foreach (ActionEventInfo item in eventsList)
+				foreach (var item in eventsList)
 				{
 					if (string.IsNullOrWhiteSpace(item.Name))
 					{
