@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- BMR targeting checkbox (v1.0.4.241): asserts the four-state semantics of
-       "Use boss-mod targeting when active" offline against the exact code that ships.
-       Plain console app, no Dalamud. Compiles the REAL
-       src/GluttonyCombo/GluttonyCombo/AutoRotation/BossModTargetingGate.cs — the pure
-       decision core GetSingleTarget consults before the DPS targeting-mode switch.
-       Any Dalamud type leaking into that file breaks this build, which is the point.
+  <!-- Status-immunity seam + endpoint latch (originally the boss-mod targeting checkbox
+       harness v1.0.4.241; the checkbox itself was removed in the Fight Brain 1a build —
+       stock BMR has no Hints.PriorityTarget). Offline asserts of what still ships:
+       BossModTargetingGate's status-immunity seam (compiled from the REAL
+       src/GluttonyCombo/GluttonyCombo/AutoRotation/BossModTargetingGate.cs — any Dalamud
+       type leaking in breaks this build, which is the point) and the IpcEndpointLatch
+       behind the live SetTransient distance write.
          dotnet build tests/GluttonyCombo.BossModTargetingHarness -c Release
          dotnet tests/GluttonyCombo.BossModTargetingHarness/bin/Release/net10.0/GluttonyCombo.BossModTargetingHarness.dll
        Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->

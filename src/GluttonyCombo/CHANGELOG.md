@@ -1,3 +1,10 @@
+## v1.0.4.327 (2026-11-05) [testing]
+### Added
+- **Fight Brain Stage 1a: a fight forecast that only logs.** While a boss fight is on, the plugin builds a forecast of the next 3-30 s from BossMod Reborn's own public timeline and hints plus a plain scan of the enemies' visible casts, outside the Crucible boards. It writes `FB|` lines to the game log (forecast entries appearing and expiring, a shadow cast-gate line when a hard cast would still be running at the moment a drawn danger zone under the character demands a move, and the healer's raidwide mitigation question with both answers in one line: the plain code rule's pick and the relay's shadow pick beside it), and a small click-through countdown strip lists the forecast (code forecasts only; no shadow pick is shown until it passes its grade). The shadow questions go to the LAN Jev relay (PvE mode, its own daily cap) and can be switched off by clearing the relay URL in the auto-rotation settings. Nothing here presses an action: the rotation's behavior is unchanged, and the mitigation and cast-gate answers are recorded for grading only.
+### Fixed
+- **Removed the dead "Use boss-mod targeting when active" option.** It needed a priority-target endpoint that stock BossMod Reborn does not provide, so it could never change a target and only wrote a log line on every load. The setting, its greyed-out UI state and its offline cases are gone; the DPS targeting mode dropdown behaves exactly as before.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v1.0.4.326 (2026-11-03) [testing]
 ### Fixed
 - **Action replacement follows the game's own hook plumbing again.** Upstream WrathCombo replaced its hand-written hook delegate with the game's GetAdjustedActionId delegate type and reads the action manager through the game's accessor at call time instead of a pointer cached at startup, so action replacement keeps working when the game moves or re-creates the action manager; that upstream change (1e64c866) is merged. The fork's replacement behavior, throttle, mandragora hold and error reporting are unchanged.

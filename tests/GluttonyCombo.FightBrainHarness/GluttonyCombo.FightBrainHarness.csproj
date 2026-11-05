@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Fight Brain 1a (notebook Projects/Jev Fight Brain): offline asserts of the pure
+       forecast cores, compiled from the REAL
+       src/GluttonyCombo/GluttonyCombo/AutoRotation/FightBrain/FightBrainHit.cs — any
+       Dalamud type leaking in breaks this build, which is the point.
+         dotnet build tests/GluttonyCombo.FightBrainHarness -c Release
+         dotnet tests/GluttonyCombo.FightBrainHarness/bin/Release/net10.0/GluttonyCombo.FightBrainHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.FightBrainHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainHit.cs" Link="FightBrainHit.cs" />
+  </ItemGroup>
+</Project>

@@ -454,7 +454,6 @@ internal sealed class BossModIPC(
     }
 
     private readonly IpcEndpointLatch _setTransientLatch = new();
-
     /// <summary>
     ///     Fork (bst1013): BossMod Reborn's AI distance for the current role, as a TRANSIENT override through
     ///     stock <c>Configuration.SetTransient(["AIConfig", "MaxDistanceToTarget", value])</c> (BMR
@@ -502,66 +501,9 @@ internal sealed class BossModIPC(
             Plugin.GetFoP("_amex"), "SmartTargeting", "SmartTarget.Enabled");
     }
 
-    private readonly IpcEndpointLatch _priorityTargetLatch = new();
-    private long? _priorityTargetUiCheckedMs; // null = never checked (see IpcEndpointLatch.RecheckDue)
-    private bool _priorityTargetUiMissing;
-
-    /// <summary>
-    ///     Fork (1.0.4.241): BossMod Reborn's fight-aware combat target for the active
-    ///     module — the forced target when a module demands one, otherwise the head of
-    ///     BMR's priority-target ordering. Returns 0 when BMR is absent or older than the
-    ///     endpoint, has no active module, or the module expresses no attackable opinion;
-    ///     callers (the "Use boss-mod targeting when active" checkbox path) fall back to
-    ///     their own targeting on 0.
-    ///     <para>
-    ///         bst1013: stock BossMod Reborn registers no <c>Hints.PriorityTarget</c> (only a fork did). The first
-    ///         endpoint-missing error latches it for this BMR load (<see cref="IpcEndpointLatch"/>), writes one
-    ///         Information line and stops calling; a BMR reload or update re-arms it.
-    ///     </para>
-    /// </summary>
-    public ulong GetPriorityTargetId()
-    {
-        if (!TryGetProviderGeneration(out var generation) || !_priorityTargetLatch.ShouldCall(generation))
-            return 0ul;
-
-        try
-        {
-            var id = IpcStallTrace.Time("Hints.PriorityTarget", _priorityTarget);
-            _priorityTargetLatch.RecordSuccess(generation);
-            return id;
-        }
-        catch (Exception e)
-        {
-            if (_priorityTargetLatch.RecordFailure(generation, e))
-                PluginLog.Information($"[BossModTargeting] [{PluginName}] `Hints.PriorityTarget` is not provided " +
-                                      $"by this BossMod Reborn build ({generation.Split('#')[0]}); boss-mod targeting " +
-                                      $"is inactive and the targeting mode applies.");
-            else
-                PluginLog.Verbose($"[BossModTargeting] [{PluginName}] " +
-                                  $"`Hints.PriorityTarget` unavailable: {e.Message}");
-            return 0ul;
-        }
-    }
-
-    /// <summary>
-    ///     Fork (bst1013): whether the loaded BossMod Reborn lacks <c>Hints.PriorityTarget</c>, for the settings
-    ///     UI. Re-read at most once a second; when this BMR load has not been asked yet, asks once (the answer
-    ///     outside a fight is harmless).
-    /// </summary>
-    public bool IsPriorityTargetEndpointMissing()
-    {
-        var now = Environment.TickCount64;
-        if (!IpcEndpointLatch.RecheckDue(_priorityTargetUiCheckedMs, now, 1000))
-            return _priorityTargetUiMissing;
-        _priorityTargetUiCheckedMs = now;
-
-        if (!TryGetProviderGeneration(out var generation))
-            return _priorityTargetUiMissing = false;
-        if (_priorityTargetLatch.StateFor(generation) == IpcEndpointLatch.State.Unknown)
-            GetPriorityTargetId();
-        return _priorityTargetUiMissing =
-            _priorityTargetLatch.StateFor(generation) == IpcEndpointLatch.State.Missing;
-    }
+    // Fork (Fight Brain 1a): the `Hints.PriorityTarget` reader and its endpoint-missing latch are
+    // REMOVED with the dead fork-only "Use boss-mod targeting when active" path. Stock BossMod
+    // Reborn registers no such endpoint, so the path could never act and only logged on every load.
 
     /// <summary>
     ///     Fork (bst1013): the loaded, version-valid provider plugin and its generation (version + instance), in
@@ -610,9 +552,6 @@ internal sealed class BossModIPC(
 
     [EzIPC("BossMod.Configuration.LastModified", false)]
     private readonly Func<DateTime> _lastModified = null!;
-
-    [EzIPC("BossMod.Hints.PriorityTarget", false)]
-    private readonly Func<ulong> _priorityTarget = null!;
 
     [EzIPC("BossMod.Hints.IsDashSafe", false)]
     private readonly Func<Vector3, Vector3, bool> _isDashSafe = null!;
