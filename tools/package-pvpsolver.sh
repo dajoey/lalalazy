@@ -3,7 +3,7 @@
 #
 # Builds PvPSolver and packages it for the lalalazy custom plugin repo.
 # Produces a Dalamud-compatible plugin zip with the same file shape as the
-# existing production build (PvPSolver.dll, PvPSolver.Basic.dll, ECommons.dll,
+# existing production build shape (PvPSolver.dll, ECommons.dll,
 # PvPSolver.json — without .pdb/.xml/.deps.json to keep the zip small).
 #
 # Usage:
@@ -85,7 +85,7 @@ fi
 cp "$BUILT_MANIFEST" "$STAGE/PvPSolver.json"
 
 # Locate built DLLs
-for dll in PvPSolver.dll PvPSolver.Basic.dll ECommons.dll; do
+for dll in PvPSolver.dll ECommons.dll; do
   src_dll=""
   for cand in \
       "$SRC/bin/Release/$dll" \
@@ -119,7 +119,7 @@ python3 - "$OUT_ZIP" "$STAGE" <<'PY'
 import os, sys, zipfile
 out, stage = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
-    for name in ['PvPSolver.dll', 'PvPSolver.Basic.dll', 'ECommons.dll', 'PvPSolver.json']:
+    for name in ['PvPSolver.dll', 'ECommons.dll', 'PvPSolver.json']:
         zf.write(os.path.join(stage, name), arcname=name)
 PY
 
