@@ -607,7 +607,29 @@ if ($repoCheck.Code -ne 0) { throw "$RepoRoot is not a git work tree; the releas
 
 # The release commit may sweep only this release's own paths; anything else dirty refuses
 # the run instead of being pushed unasked (a multi-plugin release commits every other
-# plugin's prep before packaging).
+# plugin's prep before packaging). EXCEPTION - sealed pre-dirt: paths that were already
+# dirty in this worktree before the nightly run started, sealed verbatim from
+# `git status --porcelain` by nightly-gates.sh preflight in
+# .lalalazy-sync\_run-state\pre-dirty.txt. Those are Joey's files and stay uncommitted -
+# but they must not REFUSE a release either: every packager run refused while his untracked
+# captures sat sealed in the repo root. Load the gates' set here; an absent seal (no gates
+# run yet, or the run state cleaned at finish) seals nothing. LALA_PREDIRT_SEAL overrides
+# the location, for tools/tests. Sealed paths are never staged either: the commit below
+# sweeps only $releasePaths, and the gates still own what may change under a sealed path.
+$sealedPredirt = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$predirtSealPath = if ($env:LALA_PREDIRT_SEAL) { $env:LALA_PREDIRT_SEAL } else { Join-Path $env:USERPROFILE '.lalalazy-sync\_run-state\pre-dirty.txt' }
+if (Test-Path -LiteralPath $predirtSealPath) {
+    foreach ($sealLine in [System.IO.File]::ReadAllLines($predirtSealPath, [System.Text.Encoding]::UTF8)) {
+        if ($sealLine.Length -lt 4) { continue }
+        # porcelain line: XY + space + path. A rename line carries 'old -> new' and the
+        # gates seal the NEW side (porcelain_path in nightly-gates.sh).
+        $sp = $sealLine.Substring(3)
+        if ($sealLine.Contains(' -> ')) { $sp = $sealLine.Substring($sealLine.LastIndexOf(' -> ') + 4) }
+        $sp = ($sp.Trim().Trim('"') -replace '\\', '/')
+        if ($sp) { [void]$sealedPredirt.Add($sp) }
+    }
+}
+
 $status = Invoke-GitRaw @('status', '--porcelain')
 $dirtyLines = @($status.Lines | Where-Object { $_ })
 $allowedPrefixes = @("src/$PluginName/", "plugins/$PluginName/")
@@ -618,6 +640,11 @@ foreach ($line in $dirtyLines) {
         $p = ($side.Trim().Trim('"') -replace '\\', '/')
         $allowed = ($p -eq 'pluginmaster.json')
         foreach ($a in $allowedPrefixes) { if ($p.StartsWith($a)) { $allowed = $true } }
+        if (-not $allowed -and $sealedPredirt.Contains($p)) {
+            # Sealed pre-dirt stays in the worktree, uncommitted - it just no longer refuses.
+            Write-Host "Sealed pre-dirt left uncommitted (not swept, not refused): $p"
+            $allowed = $true
+        }
         if (-not $allowed) { $foreignPaths += $p }
     }
 }
