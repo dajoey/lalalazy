@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.1.1 (2026-11-05) [testing]
+
+- Updated the bundled KamiToolKit UI library to the current upstream version; the hub window is built on the framework's current internals now, and the window-frame tint targets the framework's texture-backed chrome nodes.
+- The native window is created on the game's main thread after the UI framework finishes initializing, instead of during plugin load.
+- Kept the fork's hot-reload safety guard: teardown disables the hooks, lets any call already inside them finish, and only then disposes.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.1.0 (2026-10-03) [testing]
 
 ### Added
