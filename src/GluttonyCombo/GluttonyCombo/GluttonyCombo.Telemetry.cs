@@ -23,8 +23,9 @@ public sealed partial class GluttonyCombo
     /// <summary> Most enabled-preset names listed for the current job in a report's state section. </summary>
     private const int ReportMaxPresets = 150;
 
-    private DalamudTelemetry? InstallTelemetry(IDalamudPluginInterface pluginInterface) =>
-        DalamudTelemetry.Install(new DalamudTelemetry.Options
+    private DalamudTelemetry? InstallTelemetry(IDalamudPluginInterface pluginInterface)
+    {
+        var telemetry = DalamudTelemetry.Install(new DalamudTelemetry.Options
         {
             PluginInterface = pluginInterface,
             PluginAssembly = typeof(GluttonyCombo).Assembly,
@@ -42,6 +43,29 @@ public sealed partial class GluttonyCombo
             ConfigSummary = () => ConfigSummary.Describe(Service.Configuration, maxDepth: 3),
             StateSummary = TelemetryStateSummary,
         });
+        InstallMovementTap();
+        return telemetry;
+    }
+
+    /// <summary>
+    ///     Fork (2026-11-05, Jev Fight Brain decision B): install the movement tap after the
+    ///     telemetry sink. Lives in this fork-owned file so the entry file stays out of the
+    ///     movement feature entirely. The tap's Dispose rides PluginInterface.Disposing.
+    /// </summary>
+    private static void InstallMovementTap()
+    {
+        try
+        {
+            MovementUploader.RelayBaseUrl = string.IsNullOrWhiteSpace(Service.Configuration.MovementRelayUrl)
+                ? string.Empty
+                : Service.Configuration.MovementRelayUrl.Trim();
+            MovementRecorder.Install();
+        }
+        catch (Exception ex)
+        {
+            LalaTelemetry.Error("movement.install", ex);
+        }
+    }
 
     /// <summary>
     ///     What the plugin thinks it is doing, for a report: auto-rotation on/paused/locked, the opener,

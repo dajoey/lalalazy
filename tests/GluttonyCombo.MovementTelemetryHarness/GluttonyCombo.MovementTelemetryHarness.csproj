@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL src/GluttonyCombo/GluttonyCombo/Data/MovementTelemetryFormat.cs
+       (the pure half of the fork's movement tap, 2026-11-05) so the M|/H|/MP| line formats, the hazard
+       change gate and the truncation rules are asserted offline, against the exact code that ships.
+       The relay's /move/ingest parser (~/ops/pvp-jev/move_ingest.py) is held to the same shapes - its
+       fixture in tests/fixtures is generated FROM these lines, so the two ends cannot drift apart
+       silently. Any Dalamud type leaking into that file breaks this build, which is the point.
+         dotnet build tests/GluttonyCombo.MovementTelemetryHarness -c Release
+         dotnet tests/GluttonyCombo.MovementTelemetryHarness/bin/Release/net10.0/GluttonyCombo.MovementTelemetryHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.MovementTelemetryHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\MovementTelemetryFormat.cs" Link="MovementTelemetryFormat.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The exact lines the relay parser must accept, one per kind, written by this harness's shapes. -->
+    <None Include="fixture-movement-lines.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
