@@ -48,14 +48,17 @@ internal static class FightBrainParty
     /// <summary> Called from the Fight Brain tick, after the forecast read. </summary>
     internal static void Tick(long nowMs)
     {
-        if (!Cfg.Enabled)
+        // Party Shadow governs both party-data line families (party-mit tally and the
+        // position lines) - 1.0.4.330: before the switch existed in the window the tally
+        // ran whenever the Fight Brain ran, which contradicted the setting's description.
+        if (!Cfg.Enabled || !Cfg.PartyShadow)
             return;
         if (nowMs >= _nextMitMs)
         {
             _nextMitMs = nowMs + 500;
             PartyMitigationDiff();
         }
-        if (Cfg.PartyShadow && nowMs >= _nextPosMs)
+        if (nowMs >= _nextPosMs)
         {
             _nextPosMs = nowMs + 2000;
             PositionShadow();
