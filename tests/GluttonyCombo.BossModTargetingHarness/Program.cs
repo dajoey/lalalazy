@@ -1,24 +1,17 @@
-// Failing-first cases for the "Use boss-mod targeting when active" checkbox
-// (GluttonyCombo 1.0.4.241, task tasks-20260927-gluttony-bmr-targeting-checkbox-01).
+// Offline cases for the status-immunity seam and the IPC endpoint latch that the DPS
+// targeting paths share (GluttonyCombo; originally the "Use boss-mod targeting when
+// active" checkbox harness, task tasks-20260927-gluttony-bmr-targeting-checkbox-01).
 //
-// Semantics under test (Joey, 2026-09-27T03:55:25Z): "Can we set a checkbox to
-// supercede the normal autotargeting in gluttony. it would have it use the BMR
-// autotargeting instead and then fall back to the dropdown if there is no active
-// boss mod."
-//
-// The four states, expressed at the decision seam GetSingleTarget consults:
-//   1. ON  + active module + opinion          -> boss-mod target wins
-//   2. ON  + active module + NO opinion       -> dropdown fallback
-//   3. ON  + NO active module                 -> dropdown fallback
-//   4. OFF (module + opinion live or not)     -> byte-identical to pre-checkbox
-// plus the stall guard: ON + opinion that resolves to an unusable target (dead,
-// untargetable, out of range) -> dropdown fallback, never a dead-air rotation.
-//
-// States 2 and 3 arrive at this seam as the same input (endpoint id 0) BY DESIGN:
-// BossModReborn's Hints.PriorityTarget endpoint reports 0 both when no module is
-// active and when the active module expresses no attackable opinion. Both cases
-// are asserted separately to pin that collapse: any future change that makes one
-// of them override would fail exactly one of these two cases.
+// Fork (Fight Brain 1a): the checkbox itself is REMOVED — it needed BMR's
+// `Hints.PriorityTarget`, which stock BossMod Reborn does not provide, so it could never
+// act and only logged on every load. What still ships from that work, and what this
+// harness still pins, is:
+//   1. the status-immunity seam (BossModTargetingGate.IsTargetUsable /
+//      ResolveStatusImmuneTarget) every dropdown, manual-AoE and action-retarget path
+//      converges on; and
+//   2. the endpoint latch (IpcEndpointLatch) behind the live SetTransient distance write:
+//      call once, latch on an endpoint-missing error, say so exactly once, stop calling,
+//      and re-arm when BossMod Reborn reloads (new generation string).
 
 using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Services.IPC;
@@ -39,50 +32,7 @@ void CheckEqual<T>(string name, T expected, T actual)
     Console.WriteLine($"{(pass ? "PASS" : "FAIL")}  {name}: expected {expected}, got {actual}");
 }
 
-// 1. ON + active module + opinion -> the boss-mod target must win.
-Check("on+module+opinion overrides",
-    expected: true,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: true));
-
-// 2. ON + active module + NO opinion (endpoint id 0) -> dropdown fallback.
-Check("on+module+no-opinion falls back",
-    expected: false,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: true, bossModTargetId: 0, targetUsable: false));
-
-// 3. ON + NO active module (endpoint id 0) -> dropdown fallback. Distinct scenario
-//    from case 2 upstream; must stay a fallback here too.
-Check("on+no-module falls back",
-    expected: false,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: true, bossModTargetId: 0, targetUsable: false));
-
-// 4. OFF -> never overrides, even with a live module opinion available. This is
-//    the "checkbox OFF = byte-identical behavior" guarantee.
-Check("off never overrides",
-    expected: false,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: false, bossModTargetId: 0x1001234, targetUsable: true));
-
-// Stall guard: ON + opinion whose actor fails the standard enemy filter
-// (dead / untargetable / out of range / LOS) -> dropdown fallback, not a
-// rotation locked onto an unusable target.
-Check("on+unusable-target falls back (no stall)",
-    expected: false,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: false));
-
-// Regression (.241 in-game verdict): a status-based damage immunity can coexist
-// with IsTargetable and the standard enemy checks. It must still reject BMR's
-// opinion so normal targeting can choose an attackable enemy.
-Check("on+status-immune target falls back",
-    expected: false,
-    actual: BossModTargetingGate.ShouldUseBossModTarget(
-        checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: true,
-        targetDamageImmune: true));
-
-// The dropdown result itself is guarded too: direct modes such as Manual and
+// The dropdown result itself is guarded: direct modes such as Manual and
 // Tank Target bypass the candidate list, so an immune result must be rejected.
 Check("direct dropdown target with status immunity is rejected",
     expected: false,
@@ -134,10 +84,9 @@ CheckEqual("manual AoE (AoEIgnoreManual on) keeps filtered auto-target",
         fallbackTarget: "sahagin"));
 
 // ---------------------------------------------------------------------------------------------
-// Endpoint latch (bst1013). Stock BossMod Reborn registers no Hints.PriorityTarget, so every call
-// threw IpcNotReadyError at the 50 ms targeting throttle, logged only at Verbose. The latch must:
-// call once, latch on the endpoint-missing error, say so exactly once, stop calling, and re-arm
-// when BossMod Reborn reloads (new instance or version = new generation string).
+// Endpoint latch (bst1013). The latch must: call once, latch on the endpoint-missing error, say
+// so exactly once, stop calling, and re-arm when BossMod Reborn reloads (new instance or version
+// = new generation string). It backs the live SetTransient distance write.
 // ---------------------------------------------------------------------------------------------
 const string Gen7534 = "7.5.6.34#1111";
 const string Gen7534Reloaded = "7.5.6.34#2222";
@@ -190,31 +139,14 @@ Check("latch: a wrapped IpcNotReadyError is recognised",
 Check("latch: IpcValueNullError is not 'missing' (the endpoint answered)", false,
     IpcEndpointLatch.IsMissingEndpointError(new Dalamud.Plugin.Ipc.Exceptions.IpcValueNullError()));
 
-// Settings-UI re-check throttle (review finding 4). The UI asks at most once a second; the first ask must go
-// through. The shipped field started at long.MinValue, so now - last overflowed negative, the throttle never
-// passed, and the greyed checkbox / note / LazyHub disable never appeared.
+// Re-check throttle (review finding 4). A caller that re-checks at most once a second: the first
+// ask must go through. The shipped field started at long.MinValue, so now - last overflowed
+// negative, the throttle never passed.
 const long Uptime = 5_000_000L; // Environment.TickCount64 a few minutes into a session
-Check("UI throttle: never checked -> due at once", true, IpcEndpointLatch.RecheckDue(null, Uptime, 1000));
-Check("UI throttle: never checked at clock 0 -> due", true, IpcEndpointLatch.RecheckDue(null, 0, 1000));
-Check("UI throttle: checked 200 ms ago -> not due", false, IpcEndpointLatch.RecheckDue(Uptime - 200, Uptime, 1000));
-Check("UI throttle: checked 1 s ago -> due", true, IpcEndpointLatch.RecheckDue(Uptime - 1000, Uptime, 1000));
-
-// The settings-UI sequence on stock BMR: the first draw re-checks, probes once, and reports Missing.
-long? lastUiCheck = null;
-var uiLatch = new IpcEndpointLatch();
-var uiMissing = false;
-if (IpcEndpointLatch.RecheckDue(lastUiCheck, Uptime, 1000))
-{
-    lastUiCheck = Uptime;
-    if (uiLatch.StateFor(Gen7534) == IpcEndpointLatch.State.Unknown)
-        uiLatch.RecordFailure(Gen7534, notReady); // the one probe call throws IpcNotReadyError
-    uiMissing = uiLatch.StateFor(Gen7534) == IpcEndpointLatch.State.Missing;
-}
-Check("UI: first settings draw on stock BMR reports the endpoint missing (greys the option)", true, uiMissing);
-
-// A latched endpoint answers 0 = no opinion, so the gate keeps the dropdown path (state 3 above).
-Check("latch: missing endpoint (id 0) falls back to the dropdown", false,
-    BossModTargetingGate.ShouldUseBossModTarget(checkboxOn: true, bossModTargetId: 0, targetUsable: false));
+Check("recheck throttle: never checked -> due at once", true, IpcEndpointLatch.RecheckDue(null, Uptime, 1000));
+Check("recheck throttle: never checked at clock 0 -> due", true, IpcEndpointLatch.RecheckDue(null, 0, 1000));
+Check("recheck throttle: checked 200 ms ago -> not due", false, IpcEndpointLatch.RecheckDue(Uptime - 200, Uptime, 1000));
+Check("recheck throttle: checked 1 s ago -> due", true, IpcEndpointLatch.RecheckDue(Uptime - 1000, Uptime, 1000));
 
 if (failures > 0)
 {

@@ -191,17 +191,9 @@ public static class ConflictingPluginsChecks
                 IPC.SetMaxDistanceToTarget(distance);
         }
 
-        /// <summary>
-        ///     Fork (1.0.4.241): BMR priority-target IPC accessor for the targeting bridge
-        ///     (0 = no active module / no opinion / BMR unavailable).
-        /// </summary>
-        internal ulong GetPriorityTargetId() => IPC.GetPriorityTargetId();
-
-        /// <summary>
-        ///     Fork (bst1013): the loaded BossMod Reborn has no <c>Hints.PriorityTarget</c> (stock builds), so
-        ///     boss-mod targeting cannot act. False when BMR is not loaded.
-        /// </summary>
-        internal bool PriorityTargetEndpointMissing => IPC.IsPriorityTargetEndpointMissing();
+        // Fork (Fight Brain 1a): the `Hints.PriorityTarget` accessors are REMOVED with the dead
+        // fork-only "Use boss-mod targeting when active" path (stock BossMod Reborn provides no
+        // such endpoint).
 
         /// <summary>
         ///     Fork (1.0.4.258): BMR's dash-safety answer for a landing point (null = BMR cannot answer).

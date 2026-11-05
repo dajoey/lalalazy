@@ -9,6 +9,8 @@ namespace GluttonyCombo.AutoRotation;
 
 public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
 {
+    /// <summary>Fork (Fight Brain 1a): the log-only Fight Brain — local-only settings, no IPC control.</summary>
+    public FightBrainSettings FightBrain => config!.FightBrain;
     public bool Enabled =>
         GluttonyCombo.P?.UIHelper.AutoRotationStateControlled()?.state ??
         config?.Enabled ??
@@ -211,8 +213,6 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 
     public bool AoEIgnoreManual => settings.AoEIgnoreManual;
 
-    /// <summary>Fork (1.0.4.241): boss-mod targeting supersede — local-only setting, no IPC control.</summary>
-    public bool UseBossModTargeting => settings.UseBossModTargeting;
     public bool FallbackToInRangeEnemy => settings.FallbackToInRangeEnemy;
     
     public bool UnTargetAndDisableForPenalty

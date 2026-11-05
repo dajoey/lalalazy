@@ -1,31 +1,21 @@
-// Fork (1.0.4.241): pure decision core for the "Use boss-mod targeting when
-// active" checkbox. Deliberately free of Dalamud types so the offline harness
+// Fork (1.0.4.241): pure decision core for the status-immunity seam the targeting
+// paths share. Deliberately free of Dalamud types so the offline harness
 // (tests/GluttonyCombo.BossModTargetingHarness) asserts the exact semantics that
-// ship; AutoRotationController also reuses the status-immunity seam for dropdown,
+// ship; AutoRotationController reuses the status-immunity seam for dropdown,
 // AoE, and action-retarget fallback routing.
+//
+// Fork (Fight Brain 1a): the checkbox half of this file — ShouldUseBossModTarget,
+// the "Use boss-mod targeting when active" supersede — is REMOVED. It needed BMR's
+// `Hints.PriorityTarget`, which stock BossMod Reborn does not provide, so it could
+// never act and only logged on every load.
 
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
-///     Decision core for routing the DPS single-target choice to BossMod Reborn's
-///     fight-aware targeting (task tasks-20260927-gluttony-bmr-targeting-checkbox-01).
+///     The status-immunity seam the DPS targeting paths share (dropdown, manual AoE,
+///     action retargeting): a Crucible damage-immunity status replaces the selected
+///     target with the caller's filtered fallback.
 /// </summary>
-/// <remarks>
-///     <para>
-///         Inputs at the seam in <c>AutoRotationHelper.GetSingleTarget</c>:
-///         <c>bossModTargetId</c> is BossModReborn's <c>BossMod.Hints.PriorityTarget</c>
-///         IPC answer — a non-zero actor id only when BMR has an active module that
-///         expresses an attackable opinion (forced target or the head of the priority
-///         ordering BMR's own AI selects from). BMR absent, no active module, module
-///         without opinion, and any IPC failure all surface as 0.
-///     </para>
-///     <para>
-///         <c>targetUsable</c> is the resolved actor passed through the standard
-///         <c>DPSTargeting.Query</c> enemy filter. <c>targetDamageImmune</c> adds
-///         encounter-specific immunity statuses that Dalamud's native actor flags do
-///         not expose. Either failure falls back to the dropdown instead of stalling.
-///     </para>
-/// </remarks>
 internal static class BossModTargetingGate
 {
     /// <summary>
@@ -48,19 +38,4 @@ internal static class BossModTargetingGate
         selectedTarget is not null && selectedDamageImmune
             ? fallbackTarget
             : selectedTarget;
-
-    /// <summary>
-    ///     Whether this tick's DPS single-target choice should be the boss-mod target.
-    ///     Checkbox off never overrides (byte-identical to pre-checkbox behavior). Checkbox
-    ///     on overrides only on a non-zero id whose actor is usable and can take damage;
-    ///     encounter-specific status immunity is separate from Dalamud's actor flags.
-    /// </summary>
-    internal static bool ShouldUseBossModTarget(
-        bool checkboxOn,
-        ulong bossModTargetId,
-        bool targetUsable,
-        bool targetDamageImmune = false)
-        => checkboxOn
-        && bossModTargetId != 0
-        && IsTargetUsable(targetUsable, targetDamageImmune);
 }

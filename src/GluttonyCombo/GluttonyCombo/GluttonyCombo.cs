@@ -58,6 +58,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal readonly ConfigWindow ConfigWindow;
     private readonly MajorChangesWindow _majorChangesWindow;
     private readonly TargetHelper TargetHelper;
+    // Fork (Fight Brain 1a): the log-only countdown strip (code forecasts only).
+    private readonly FightBrainStrip FightBrainStrip;
     internal static GluttonyCombo? P;
     private readonly WindowSystem ws;    // Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Configuration).
     internal ChangelogGate? _changelog;
@@ -67,6 +69,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     private readonly TelemetryGuard _tickGuard;
     private readonly TelemetryGuard _tickBstGuard;
     private readonly TelemetryGuard _tickStatusGuard;
+    private readonly TelemetryGuard _tickFightBrainGuard;
     private static readonly SocketsHttpHandler httpHandler = new()
     {
         AutomaticDecompression = DecompressionMethods.All,
@@ -241,6 +244,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         _tickGuard = LalaTelemetry.CreateGuard("tick", "auto-rotation and the per-frame update");
         _tickBstGuard = LalaTelemetry.CreateGuard("tick.bst", "the Beastmaster collectors and the Crucible Guard/Challenge line");
         _tickStatusGuard = LalaTelemetry.CreateGuard("tick.status", "the server info bar text and combat alerts");
+        _tickFightBrainGuard = LalaTelemetry.CreateGuard("tick.fightbrain", "the Fight Brain forecast reads and FB| log lines");
         // The Retarget registry is created FIRST: static initialisers elsewhere
         // (AutoRotationController) call (uint).Retarget(), which needs it.
         ActionRetargeting = new ActionRetargeting();
@@ -282,10 +286,12 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Settings.SanitiseSettings();
         _majorChangesWindow = new MajorChangesWindow();
         TargetHelper = new();
+        FightBrainStrip = new();
         ws = new();
         ws.AddWindow(ConfigWindow);
         ws.AddWindow(_majorChangesWindow);
         ws.AddWindow(TargetHelper);
+        ws.AddWindow(FightBrainStrip);
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an
         // update. Fork: SidecarSeenStore keeps the seen-version out of the upstream Configuration class.
@@ -476,6 +482,21 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             AutoRotationController.Run();
             UpcomingPositionalHintService.Tick();
+
+            // Fork (Fight Brain 1a): the log-only tick — forecast reads, FB| lines, the shadow
+            // mitigate ask. One bool read when the module is off; never presses an action. Its own
+            // breaker: a Fight Brain failure must never stop the rotation above.
+            if (_tickFightBrainGuard.TryEnter())
+            {
+                try
+                {
+                    AutoRotation.FightBrain.Tick();
+                }
+                catch (Exception ex)
+                {
+                    _tickFightBrainGuard.Failed(ex);
+                }
+            }
 
             if (_tickBstGuard.TryEnter())
             {

@@ -2269,27 +2269,11 @@ internal unsafe class AutoRotationController
         {
             if (rotationMode is DPSRotationMode dpsmode)
             {
-                // Fork (1.0.4.241): "Use boss-mod targeting when active" — when the checkbox
-                // is on and BossMod Reborn's active module reports a priority target, that
-                // target supersedes the targeting-mode dropdown below (and, through it, the
-                // BST Crucible priority table, which lives inside DPSTargeting.BaseSelection).
-                // Every miss — checkbox off, no active module, no opinion, or a target that
-                // fails the standard enemy filter — falls through to the unchanged path.
-                if (cfg.DPSSettings.UseBossModTargeting)
-                {
-                    var bmrId = Data.Conflicts.ConflictingPluginsChecks.BossModReborn
-                        .GetPriorityTargetId();
-                    var bmrChara = bmrId == 0 ? null : bmrId.GetBattleChara();
-                    var bmrDamageImmune = bmrChara is not null
-                        && Combos.PvE.BST.IsCrucibleDamageImmune(bmrChara);
-                    if (BossModTargetingGate.ShouldUseBossModTarget(
-                            cfg.DPSSettings.UseBossModTargeting, bmrId,
-                            bmrChara is not null && DPSTargeting.Query(bmrChara),
-                            bmrDamageImmune))
-                        return LogBossModOverride(bmrChara!);
-                }
-                _lastBossModOverrideTargetId = 0;
-
+                // Fork (Fight Brain 1a): the dead fork-only "Use boss-mod targeting when active"
+                // path is gone. It needed BMR's `Hints.PriorityTarget`, which stock BossMod Reborn
+                // does not provide, so it could never act and only logged on every load. The
+                // targeting-mode dropdown below (and, through it, the BST Crucible priority table)
+                // is the only DPS single-target rule again.
                 if (Player.Object?.Role is CombatRole.Tank ||
                     (Player.Job is Job.BLU && BLU.HasTankMimicry))
                 {
@@ -2363,10 +2347,10 @@ internal unsafe class AutoRotationController
 
         /// <summary>
         ///     Fork (1.0.4.283): one DPS target pick per second per player. The mode's pick, the Crucible kill
-        ///     order and the boss-mod target are stateless per-tick functions of live inputs; this is the cadence
-        ///     floor under them (decision core: <see cref="DpsTargetStability"/>). The first pick, a pick whose
-        ///     held enemy died or became untargetable, and a mechanic target (interrupt, dispel carrier, boss-mod
-        ///     target) switch at once. Single-target and AoE presses share it: both write the same current target.
+        ///     order and a mechanic target (interrupt, dispel carrier) are stateless per-tick functions of live
+        ///     inputs; this is the cadence floor under them (decision core: <see cref="DpsTargetStability"/>).
+        ///     The first pick, a pick whose held enemy died or became untargetable, and a mechanic target switch
+        ///     at once. Single-target and AoE presses share it: both write the same current target.
         /// </summary>
         private static readonly DpsTargetStability _dpsPickFloor = new();
 
@@ -2389,11 +2373,10 @@ internal unsafe class AutoRotationController
             && !c.IsInvincible
             && !Combos.PvE.BST.IsCrucibleDamageImmune(c);
 
-        /// <summary> The enemy is the boss-mod target of this tick, or a Crucible interrupt / kill-the-caster / dispel carrier. </summary>
+        /// <summary> The enemy is a Crucible interrupt / kill-the-caster / dispel carrier. </summary>
         private static bool IsMechanicPick(IBattleChara? fresh) =>
             fresh is not null
-            && ((_lastBossModOverrideTargetId != 0 && fresh.GameObjectId == _lastBossModOverrideTargetId)
-                || Combos.PvE.BST.IsCrucibleMechanicTarget(fresh));
+            && Combos.PvE.BST.IsCrucibleMechanicTarget(fresh);
 
         /// <summary>
         ///     Runs the DPS pick of a press through the cadence floor; logs one TS| line per change of the pick
@@ -2431,26 +2414,6 @@ internal unsafe class AutoRotationController
 
             _fallbackChosenTarget = null;
             OverrideTarget = DpsTargetExposure.AfterTick<IGameObject>(chosen, OverrideTarget);
-        }
-
-        /// <summary>Last actor id the boss-mod override selected; used to log acquisitions, not every tick.</summary>
-        private static ulong _lastBossModOverrideTargetId;
-
-        /// <summary>
-        ///     Emits one Debug line per boss-mod override ACQUISITION (target id change only)
-        ///     so post-play telemetry can verify the checkbox did what it says, without
-        ///     per-tick volume.
-        /// </summary>
-        private static IBattleChara LogBossModOverride(IBattleChara target)
-        {
-            if (target.GameObjectId != _lastBossModOverrideTargetId)
-            {
-                _lastBossModOverrideTargetId = target.GameObjectId;
-                PluginLog.Debug(
-                    $"[BossModTargeting] override -> {target.Name} ({target.GameObjectId})");
-            }
-
-            return target;
         }
 
         public static bool ExecuteAoE(Enum mode, Preset preset, PresetStorage.PresetData attributes, uint gameAct)
@@ -2493,6 +2456,11 @@ internal unsafe class AutoRotationController
                     bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
                     if (MovementBlocksCastStart(castTime, orbwalking))
                         return false;
+
+                    // Fork (Fight Brain 1a): the forecast-aware cast gate, SHADOW - it logs a
+                    // would-block line when the cast would still run at the moment the player must
+                    // move, and never blocks (the page ships the gate in shadow first).
+                    FightBrain.ShadowCastGate(castTime, outAct);
 
                     // One owner per raidwide (2026-10-19 report): while the timed lock holds the
                     // scheduling, or a committed timed cast's own HoT is live, this resolved action
@@ -2591,6 +2559,9 @@ internal unsafe class AutoRotationController
 
                 if (MovementBlocksCastStart(castTime, orbwalking))
                     return false;
+
+                // Fork (Fight Brain 1a): the forecast-aware cast gate, SHADOW - logs, never blocks.
+                FightBrain.ShadowCastGate(castTime, outAct);
 
                 if (OutOfCombatGate.MayWriteTarget(!NotInCombat, UserAllowsOutOfCombatAttacks) && cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
                     Svc.Targets.Target = OverrideTarget;
@@ -2849,6 +2820,9 @@ internal unsafe class AutoRotationController
 
             if (MovementBlocksCastStart(castTime, orbwalking))
                 return false;
+
+            // Fork (Fight Brain 1a): the forecast-aware cast gate, SHADOW - logs, never blocks.
+            FightBrain.ShadowCastGate(castTime, outAct);
 
             if (canUse && (inRange || areaTargeted))
             {

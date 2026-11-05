@@ -122,28 +122,27 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSTargettingMode);
 
-            // Fork (1.0.4.241): boss-mod targeting supersede — decision core in
-            // AutoRotation/BossModTargetingGate.cs, BMR reads via BossMod.Hints.PriorityTarget.
-            // bst1013: stock BossMod Reborn has no such endpoint; the option is then shown
-            // disabled with a note, and the stored value is left as it is.
-            var bossModTargetingMissing =
-                Data.Conflicts.ConflictingPluginsChecks.BossModReborn.PriorityTargetEndpointMissing;
-            using (ImRaii.Disabled(bossModTargetingMissing))
+            // Fork (Fight Brain 1a): log-only Fight Brain — the forecast strip and the shadow
+            // mitigate asks. Nothing here changes what the rotation presses.
+            if (ImGui.CollapsingHeader("Fight Brain (log-only)"))
             {
-                changed |= ImGui.Checkbox(
-                    "Use boss-mod targeting when active",
-                    ref cfg.DPSSettings.UseBossModTargeting);
-            }
-            ImGuiComponents.HelpMarker(
-                "When BossMod Reborn has an active fight module with a priority target, " +
-                "the rotation targets what it says. With no active module, no target " +
-                "opinion, or this box unticked, the targeting mode above applies " +
-                "unchanged.");
-            if (bossModTargetingMissing)
+                var fb = cfg.FightBrain;
+                changed |= ImGui.Checkbox("Enable the Fight Brain (forecast reads and FB| log lines)", ref fb.Enabled);
+                changed |= ImGui.Checkbox("Show the countdown strip", ref fb.ShowStrip);
+                ImGuiComponents.HelpMarker(
+                    "The strip lists what the code forecast says is coming (BossMod Reborn's " +
+                    "timeline and hints plus enemy casts), code forecasts only. It never shows " +
+                    "a Jev pick: every question stays shadow until it passes its grade.");
+                changed |= ImGui.InputText("Relay URL (shadow mitigate asks)", ref fb.RelayUrl, 256);
+                ImGuiComponents.HelpMarker(
+                    "The LAN relay that asks Jev the healer's raidwide mitigation question in " +
+                    "shadow. Clear it to switch the asks off; the forecast, the strip and the " +
+                    "cast-gate lines keep working without it.");
                 ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
-                    "Inactive: the installed BossMod Reborn does not provide a priority " +
-                    "target (stock builds have none), so the targeting mode above applies. " +
-                    "The setting is kept.");
+                    "Log-only: the Fight Brain never presses an action. The forecast, the " +
+                    "cast-gate shadow and the mitigate questions only write FB| lines and the " +
+                    "countdown strip.");
+            }
 
             // Fork (1.0.4.258): out-of-range fallback - decision core AutoRotation/RangeFallbackGate.cs.
             changed |= ImGui.Checkbox(

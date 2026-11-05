@@ -36,6 +36,25 @@ public class AutoRotationConfig
     public bool OrbwalkerIntegration;
     public float QueueWindow = 0.3f;
     public bool PauseWhenNoTarget;
+    public FightBrainSettings FightBrain = new();
+}
+
+/// <summary>
+///     Fork (Fight Brain 1a): the log-only Fight Brain. Everything here only reads, logs
+///     (FB| lines) and draws the countdown strip — nothing presses an action. Jev's shadow
+///     mitigate questions go to the LAN relay (its own pve daily cap); an empty relay URL
+///     switches them off. Deliberately not exposed over IPC: only the user controls it.
+/// </summary>
+public class FightBrainSettings
+{
+    /// <summary> The whole module (forecast reads, FB| lines, cast-gate shadow, the strip, shadow asks). </summary>
+    public bool Enabled = true;
+
+    /// <summary> The countdown strip draws the code forecast only (never a Jev pick). </summary>
+    public bool ShowStrip = true;
+
+    /// <summary> The ~/ops/pvp-jev relay /decide endpoint; empty switches the shadow asks off. </summary>
+    public string RelayUrl = "http://192.168.10.44:8797/decide";
 }
 
 public class DPSSettings
@@ -52,15 +71,6 @@ public class DPSSettings
     public bool AoEIgnoreManual = false;
     public bool AoEOnlyWhenTargeting = false;
     public bool UnTargetAndDisableForPenalty = false;
-
-    /// <summary>
-    ///     Fork (1.0.4.241): "Use boss-mod targeting when active" — when on, BossMod
-    ///     Reborn's active-module priority target supersedes the DPS targeting mode
-    ///     (and the BST Crucible table) for single-target selection. Default false:
-    ///     unticked, behavior is byte-identical to pre-checkbox builds; missing key on
-    ///     existing installs deserializes to false.
-    /// </summary>
-    public bool UseBossModTargeting = false;
 
     /// <summary>
     ///     Fork (1.0.4.258): when the enemy the targeting mode chose (the hard target in Manual mode) is out of
