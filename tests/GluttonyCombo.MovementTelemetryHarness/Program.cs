@@ -49,6 +49,16 @@ internal static class Program
         Check("other source emits", MovementFormat.HazardShouldEmit(steps, 8, 100, 5.0f));
         Check("expired cast emits its final step", MovementFormat.HazardShouldEmit(steps, 7, 100, 0.0f));
 
+        // ---- F| forecast line ----------------------------------------------------------
+        var forecast = MovementFormat.BuildForecastLine(1_788_672_002_000, 3, 822, "act36996in4.2s");
+        Check("forecast exact shape", forecast == "F|1788672002000|3|822|act36996in4.2s", forecast);
+        Check("forecast empty token renders dash",
+            MovementFormat.BuildForecastLine(1, 0, 0, null).EndsWith("|-", StringComparison.Ordinal) &&
+            MovementFormat.BuildForecastLine(1, 0, 0, "-").EndsWith("|-", StringComparison.Ordinal));
+        Check("forecast token sanitized and capped",
+            MovementFormat.BuildForecastLine(1, 0, 0, new string('x', 60))
+                .EndsWith("|" + new string('x', 24), StringComparison.Ordinal));
+
         // ---- MP| decision line ---------------------------------------------------------
         var opts = new List<MovementFormat.MoveOption>
         {

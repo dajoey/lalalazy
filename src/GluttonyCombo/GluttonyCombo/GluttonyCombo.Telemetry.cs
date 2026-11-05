@@ -61,6 +61,15 @@ public sealed partial class GluttonyCombo
             MovementUploader.RelayBaseUrl = string.IsNullOrWhiteSpace(Service.Configuration.MovementRelayUrl)
                 ? string.Empty
                 : Service.Configuration.MovementRelayUrl.Trim();
+            // Fight Brain join (Stage 1a landed 1.0.4.327): the recorder's forecast field reads
+            // the forecast's own cache - one short token for the next hit, change-gated to 1/s.
+            MovementRecorder.ForecastHint = () =>
+            {
+                var entries = FightBrain.StripEntries();
+                return entries.Count == 0
+                    ? null
+                    : $"act{entries[0].Hit.SourceId}in{entries[0].Seconds:F1}s";
+            };
             MovementRecorder.Install();
         }
         catch (Exception ex)

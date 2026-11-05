@@ -33,6 +33,12 @@ internal static class MovementFormat
     /// <summary> One shadow move decision: options, code pick, Jev pick. </summary>
     public const string DecisionPrefix = "MP|";
 
+    /// <summary> The forecast's next mechanic (Fight Brain Stage 1a join), change-gated. </summary>
+    public const string ForecastPrefix = "F|";
+
+    /// <summary> Hard cap for one forecast token. </summary>
+    public const int MaxForecastToken = 48;
+
     /// <summary> Hard budget for one decision line (tick/hazard lines are shorter). </summary>
     public const int MaxDecisionLength = 320;
 
@@ -177,6 +183,18 @@ internal static class MovementFormat
 
         return sb.ToString();
     }
+
+    /// <summary>
+    ///     Builds one forecast line: <c>F|unixms|pull|zone|token</c> - the Fight Brain
+    ///     forecast's next mechanic as a short token (e.g. <c>act12345in4.2s</c>), or
+    ///     <c>-</c> when the forecast has nothing. Change-gated by the caller.
+    /// </summary>
+    public static string BuildForecastLine(long unixMs, uint pullId, uint zoneId, string? token) =>
+        new StringBuilder(96).Append(ForecastPrefix)
+            .Append(unixMs).Append('|')
+            .Append(pullId).Append('|')
+            .Append(zoneId).Append('|')
+            .Append(SanitizeToken(token is null or "-" ? null : token)).ToString();
 
     /// <summary>
     ///     The hazard change gate: a cast emits when it is new for this source or its

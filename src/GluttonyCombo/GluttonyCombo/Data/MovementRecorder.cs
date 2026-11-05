@@ -190,7 +190,7 @@ internal static class MovementRecorder
 
             var hazards = SampleHazards(now);
             SampleActors(now, inCombat);
-
+            SampleForecast(now);
             MovementPlanner.Tick(now, _pullId, _zoneId, hazards);
             MovementUploader.Pump(now);
 
@@ -294,6 +294,34 @@ internal static class MovementRecorder
         LastPos[slot] = pos;
         HasLastPos[slot] = true;
         return moved;
+    }
+
+    /// <summary> The forecast token change gate, evaluated once a second (every 10th tick). </summary>
+    private static string? _lastForecastToken;
+    private static long _lastForecastMs;
+
+    private static void SampleForecast(long nowMs)
+    {
+        if (nowMs - _lastForecastMs < 1000)
+            return;
+        _lastForecastMs = nowMs;
+        string? token = null;
+        try
+        {
+            token = ForecastHint?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            // A broken forecast join must not cost the recorder; one rate-limited line.
+            LalaTelemetry.Swallowed("movement.recorder.forecast", ex);
+            ForecastHint = null;
+        }
+
+        if (token == _lastForecastToken)
+            return;
+        _lastForecastToken = token;
+        var unixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        MovementUploader.Enqueue(MovementFormat.BuildForecastLine(unixMs, _pullId, _zoneId, token));
     }
 
     private static bool MovementKeysHeld()
