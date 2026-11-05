@@ -166,6 +166,12 @@ public partial class GluttonyCombo
         var argumentParts = arguments.ToLowerInvariant().Split();
         switch (argumentParts[0])
         {
+            case "plan":
+                // Card 609a863c Part A: the one-line pre-pull note. "/gluttony plan <text>" sets it,
+                // "/gluttony plan" alone clears it. Logged in the FB| plan-text line; nothing acts on it.
+                HandlePlanCommand(trimmed.Length > 4 ? arguments[4..].Trim() : string.Empty);
+                break;
+
             case "burst":
                 HandleBurstControl(argumentParts); break;
 
@@ -237,6 +243,9 @@ public partial class GluttonyCombo
             case "telemetry": // fork: combo-decision tap (v1.0.4.168)
             case "ct": // unlisted
                 HandleTelemetryCommand(argumentParts); break;
+
+            case "movelog": // unlisted - fork: movement recorder + shadow move planner (2026-11-05)
+                HandleMovementCommand(argumentParts); break;
             default:
                 HandleOpenCommand(argumentParts); break;
         }
@@ -715,6 +724,68 @@ public partial class GluttonyCombo
         DuoLog.Information($"Combo telemetry {(wanted.Value ? "ON" : "OFF")}.");
     }
 
+    /// <summary>
+    ///     Fork (2026-11-05): <c>/gluttony movelog [on|off|toggle|status|relay &lt;url&gt;]</c> —
+    ///     the movement recorder and shadow move planner. on/off/toggle move the recorder, the
+    ///     planner and Jev questions together; status prints all three plus the ingest counters.
+    ///     Nothing here can move the character: the feature only logs.
+    /// </summary>
+    private void HandleMovementCommand(string[] argument)
+    {
+        var sub = argument.Length > 1 ? argument[1] : "status";
+
+        if (sub is "relay" or "url")
+        {
+            if (argument.Length > 2)
+            {
+                Service.Configuration.MovementRelayUrl = argument[2].Trim();
+                Service.Configuration.Save();
+                MovementUploader.RelayBaseUrl = Service.Configuration.MovementRelayUrl;
+                DuoLog.Information($"Movement relay URL set ({(MovementUploader.RelayBaseUrl.Length == 0 ? "uploads off" : MovementUploader.RelayBaseUrl)}).");
+            }
+            else
+            {
+                DuoLog.Information($"Movement relay URL: {(MovementUploader.RelayBaseUrl.Length == 0 ? "(empty - uploads off)" : MovementUploader.RelayBaseUrl)} " +
+                                   $"- set it with /gluttony movelog relay <url>");
+            }
+            return;
+        }
+
+        var current = Service.Configuration.MovementRecorderOn;
+        bool? wanted = sub switch
+        {
+            "on" or "enable" or "1" => true,
+            "off" or "disable" or "0" => false,
+            "toggle" => !current,
+            _ => null,
+        };
+
+        if (wanted is null)
+        {
+            if (sub is not ("status" or ""))
+            {
+                DuoLog.Error("Usage: /gluttony movelog <on|off|toggle|status|relay <url>>");
+                return;
+            }
+
+            DuoLog.Information(
+                $"Movement: recorder {(Service.Configuration.MovementRecorderOn ? "ON" : "OFF")}, " +
+                $"planner shadow {(Service.Configuration.MovementPlannerShadow ? "ON" : "OFF")}, " +
+                $"Jev questions {(Service.Configuration.MovementJevQuestions ? "ON" : "OFF")}, " +
+                $"relay {(MovementUploader.RelayBaseUrl.Length == 0 ? "off" : MovementUploader.RelayBaseUrl)}; " +
+                $"samples={MovementRecorder.Samples} pulls={MovementRecorder.Pulls} " +
+                $"pending={MovementUploader.Pending} dropped={MovementUploader.DroppedBatches}. " +
+                $"Lines: M| (ticks), H| (casts), MP| (decisions).");
+            return;
+        }
+
+        Service.Configuration.MovementRecorderOn = wanted.Value;
+        Service.Configuration.MovementPlannerShadow = wanted.Value;
+        Service.Configuration.MovementJevQuestions = wanted.Value;
+        Service.Configuration.Save();
+        DuoLog.Information($"Movement recording and shadow planning {(wanted.Value ? "ON" : "OFF")}.");
+    }
+
 
 
     private void HandleDebugCommands(string[] argument)
@@ -925,6 +996,19 @@ public partial class GluttonyCombo
         DuoLog.Warning("Please do not play Classes with other people, " +
                        "it is objectively worse in every way, and you will lack " +
                        "a significant amount of functionality anyway.");
+    }
+
+    /// <summary>
+    ///     Card 609a863c Part A: set or clear the one-line pre-pull plan note. The note joins the
+    ///     party finder text in the FB| plan lines; nothing else reads it.
+    /// </summary>
+    private void HandlePlanCommand(string note)
+    {
+        AutoRotation.FightBrainPlan.SetNote(note);
+        if (note.Length == 0)
+            Svc.Chat.Print("[GluttonyCombo] Fight Brain plan note cleared.");
+        else
+            Svc.Chat.Print($"[GluttonyCombo] Fight Brain plan note set: {note}");
     }
 
     /// <summary>
