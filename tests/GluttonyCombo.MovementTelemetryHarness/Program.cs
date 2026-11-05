@@ -52,9 +52,9 @@ internal static class Program
         // ---- F| forecast line ----------------------------------------------------------
         var forecast = MovementFormat.BuildForecastLine(1_788_672_002_000, 3, 822, "act36996in4.2s");
         Check("forecast exact shape", forecast == "F|1788672002000|3|822|act36996in4.2s", forecast);
-        Check("forecast empty token renders dash",
-            MovementFormat.BuildForecastLine(1, 0, 0, null).EndsWith("|-", StringComparison.Ordinal) &&
-            MovementFormat.BuildForecastLine(1, 0, 0, "-").EndsWith("|-", StringComparison.Ordinal));
+        Check("forecast empty token renders none",
+            MovementFormat.BuildForecastLine(1, 0, 0, null).EndsWith("|none", StringComparison.Ordinal) &&
+            MovementFormat.BuildForecastLine(1, 0, 0, "-").EndsWith("|none", StringComparison.Ordinal));
         Check("forecast token sanitized and capped",
             MovementFormat.BuildForecastLine(1, 0, 0, new string('x', 60))
                 .EndsWith("|" + new string('x', 24), StringComparison.Ordinal));

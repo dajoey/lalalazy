@@ -186,15 +186,15 @@ internal static class MovementFormat
 
     /// <summary>
     ///     Builds one forecast line: <c>F|unixms|pull|zone|token</c> - the Fight Brain
-    ///     forecast's next mechanic as a short token (e.g. <c>act12345in4.2s</c>), or
-    ///     <c>-</c> when the forecast has nothing. Change-gated by the caller.
+    ///     forecast's next mechanic as a short token (e.g. <c>act36996in4.2s</c>), or
+    ///     <c>none</c> when the forecast has nothing. Change-gated by the caller.
     /// </summary>
     public static string BuildForecastLine(long unixMs, uint pullId, uint zoneId, string? token) =>
         new StringBuilder(96).Append(ForecastPrefix)
             .Append(unixMs).Append('|')
             .Append(pullId).Append('|')
             .Append(zoneId).Append('|')
-            .Append(SanitizeToken(token is null or "-" ? null : token)).ToString();
+            .Append(SanitizeToken(token is null or "-" or "none" ? null : token)).ToString();
 
     /// <summary>
     ///     The hazard change gate: a cast emits when it is new for this source or its
@@ -222,7 +222,7 @@ internal static class MovementFormat
         var sb = new StringBuilder(Math.Min(token.Length, 24));
         foreach (var c in token)
         {
-            if (char.IsLetterOrDigit(c) || c is '_' or '-')
+            if (char.IsLetterOrDigit(c) || c is '_' or '-' or '.')
                 sb.Append(c);
             else if (sb.Length == 0 || sb[^1] != '_')
                 sb.Append('_');
