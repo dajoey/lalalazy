@@ -41,7 +41,7 @@ public static class ObjectHelper
 
 	internal static BNpcBase? GetObjectNPC(this IBattleChara battleChara)
 	{
-		return battleChara == null ? null : Service.GetSheet<Lumina.Excel.Sheets.BNpcBase>().GetRow(battleChara.BaseId);
+		return battleChara == null ? null : Service.GetSheet<Lumina.Excel.Sheets.BNpcBase>().GetRowOrDefault(battleChara.BaseId);
 	}
 
 	/// <summary>
@@ -2763,7 +2763,7 @@ public static class ObjectHelper
 	public static uint GetObjectShield(this IBattleChara battleChara)
 	{
 		return battleChara is ICharacter character && character.MaxHp > 0 && character.ShieldPercentage > 0
-			? character.MaxHp * character.ShieldPercentage / 100
+			? (uint)((ulong)character.MaxHp * character.ShieldPercentage / 100)
 			: 0;
 	}
 

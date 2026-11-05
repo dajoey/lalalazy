@@ -32,15 +32,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// </summary>
 	public CooldownDelayTweak CooldownDelayTweak => _cooldownTweak;
 
-	private readonly ActionManager* _actionManager;
 	private float _lastAnimationLock;
 	private float _frameDeltaSec;
 	private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
-
-	private ActionManagerEx()
-	{
-		_actionManager = ActionManager.Instance();
-	}
 
 	/// <summary>
 	/// Updates the tweaks with current frame information.
@@ -48,7 +42,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// </summary>
 	public void UpdateTweaks()
 	{
-		if (_actionManager == null) return;
+		if (ActionManager.Instance() == null) return;
 
 		var dt = (float)_stopwatch.Elapsed.TotalSeconds;
 		_frameDeltaSec = Math.Clamp(dt, 0f, 0.25f);
@@ -68,7 +62,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// <returns>True if the action was successfully used</returns>
 	public bool UseActionWithTweaks(ActionType actionType, uint actionId, ulong targetId)
 	{
-		if (_actionManager == null) return false;
+		var actionManager = ActionManager.Instance();
+		if (actionManager == null) return false;
 
 		// Record current state for tweaks
 		var prevAnimLock = Player.AnimationLock;
@@ -81,10 +76,10 @@ public sealed unsafe class ActionManagerEx : IDisposable
 		}
 
 		// Determine the expected sequence for the upcoming action
-		var expectedSequence = _actionManager->LastUsedActionSequence + 1;
+		var expectedSequence = actionManager->LastUsedActionSequence + 1;
 
 		// Execute the action
-		var result = _actionManager->UseAction(actionType, actionId, targetId);
+		var result = actionManager->UseAction(actionType, actionId, targetId);
 
 		if (result)
 		{
@@ -119,7 +114,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// <returns>True if the action was successfully used</returns>
 	public bool UseActionLocationWithTweaks(ActionType actionType, uint actionId, ulong targetId, Vector3* location)
 	{
-		if (_actionManager == null || location == null) return false;
+		var actionManager = ActionManager.Instance();
+		if (actionManager == null || location == null) return false;
 
 		// Record current state for tweaks
 		var prevAnimLock = Player.AnimationLock;
@@ -132,10 +128,10 @@ public sealed unsafe class ActionManagerEx : IDisposable
 		}
 
 		// Determine the expected sequence for the upcoming action
-		var expectedSequence = _actionManager->LastUsedActionSequence + 1;
+		var expectedSequence = actionManager->LastUsedActionSequence + 1;
 
 		// Execute the action
-		var result = _actionManager->UseActionLocation(actionType, actionId, targetId, location);
+		var result = actionManager->UseActionLocation(actionType, actionId, targetId, location);
 
 		if (result)
 		{
@@ -165,7 +161,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// </summary>
 	private void ApplyPostActionTweaks(uint expectedSequence, float prevAnimLock, float prevCooldown)
 	{
-		if (_actionManager == null) return;
+		var actionManager = ActionManager.Instance();
+		if (actionManager == null) return;
 
 		// Apply animation lock reduction
 		if (Service.Config.RemoveAnimationLockDelay && prevAnimLock > 0)
@@ -176,7 +173,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 			// Apply the reduction to the current animation lock
 			if (reduction > 0)
 			{
-				_actionManager->AnimationLock = Math.Max(0, currentAnimLock - reduction);
+				actionManager->AnimationLock = Math.Max(0, currentAnimLock - reduction);
 				if (Service.Config.InDebug)
 				{
 					PluginLog.Debug($"[ActionManagerEx] Reduced animation lock by {reduction:f3}s (delay: {delay:f3}s)");
@@ -202,10 +199,11 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	/// </summary>
 	private float GetRemainingCooldown(ActionType actionType, uint actionId)
 	{
-		if (_actionManager == null) return 0;
+		var actionManager = ActionManager.Instance();
+		if (actionManager == null) return 0;
 
-		var recastTime = _actionManager->GetRecastTime(actionType, actionId);
-		var elapsedTime = _actionManager->GetRecastTimeElapsed(actionType, actionId);
+		var recastTime = actionManager->GetRecastTime(actionType, actionId);
+		var elapsedTime = actionManager->GetRecastTimeElapsed(actionType, actionId);
 		return Math.Max(0, recastTime - elapsedTime);
 	}
 

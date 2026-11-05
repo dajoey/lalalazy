@@ -1,4 +1,4 @@
-﻿namespace RotationSolver.Basic.Helpers;
+namespace RotationSolver.Basic.Helpers;
 
 /// <summary>
 /// Helper about actions.
@@ -200,7 +200,7 @@ public static class IActionHelper
 
 		for (int i = 0; i < ids.Length; i++)
 		{
-			if (ids[i].Equals(id))
+			if (ids[i] == id)
 			{
 				return true;
 			}
