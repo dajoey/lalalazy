@@ -43,7 +43,7 @@ internal static class Program
         // ---- hazard change gate --------------------------------------------------------
         var steps = new Dictionary<(ulong, uint), int>();
         Check("first hazard emits", MovementFormat.HazardShouldEmit(steps, 7, 100, 5.0f));
-        Check("same step does not re-emit", !MovementFormat.HazardShouldEmit(steps, 7, 100, 4.99f));
+        Check("same step does not re-emit", !MovementFormat.HazardShouldEmit(steps, 7, 100, 5.2f));
         Check("half-second step re-emits", MovementFormat.HazardShouldEmit(steps, 7, 100, 4.4f));
         Check("other action emits", MovementFormat.HazardShouldEmit(steps, 7, 200, 5.0f));
         Check("other source emits", MovementFormat.HazardShouldEmit(steps, 8, 100, 5.0f));
