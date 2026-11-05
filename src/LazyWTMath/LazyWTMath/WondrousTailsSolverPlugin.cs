@@ -33,8 +33,13 @@ public sealed class WondrousTailsSolverPlugin : IDalamudPlugin {
         // and the sidecar itself lives in it - treat "directory already there" as "already installed".
         var existingInstall = pluginInterface.ConfigFile.Exists || pluginInterface.ConfigDirectory.Exists;
 
+        // Tip KamiToolKit has no sync Initialize (it was replaced by InitializeAsync). The plugin load
+        // thread is a Task.Run thread, not the framework thread, so blocking here is safe: the
+        // framework thread keeps pumping and completes the queued work next tick.
+        KamiToolKitLibrary.InitializeAsync(pluginInterface).GetAwaiter().GetResult();
+
         System.PerfectTails = new PerfectTails();
-        System.AddonWeeklyBingoController = new AddonWeeklyBingoController(pluginInterface);
+        System.AddonWeeklyBingoController = new AddonWeeklyBingoController();
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
         _changelog = new ChangelogGate(new ChangelogGate.Options {

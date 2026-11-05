@@ -3,69 +3,121 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using KamiToolKit.Classes;
+using KamiToolKit.BaseTypes;
+using KamiToolKit.Interfaces;
 
 namespace KamiToolKit.Nodes;
 
-public abstract class LayoutListNode : SimpleComponentNode {
+/// <summary>
+/// Abstract base class for nodes that are intended to help with laying out other nodes.
+/// </summary>
+public abstract class LayoutListNode : ResNode, ILayoutListNode {
 
-    protected readonly List<NodeBase> NodeList = [];
-    private bool suppressRecalculateLayout;
+    /// <summary>
+    /// Nav index for use with setting contained nodes controller nav values.
+    /// </summary>
+    /// <remarks>
+    /// Must be non-zero to apply nav to contained nodes.
+    /// </remarks>
+    public int NavIndex { get; set; }
 
+    /// <summary>
+    /// Get a readonly enumerable of the contained nodes of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The NodeType to search for.</typeparam>
+    /// <returns>An IEnumerable of Nodes.</returns>
     public IEnumerable<T> GetNodes<T>() where T : NodeBase => NodeList.OfType<T>();
 
+    /// <summary>
+    /// Get a readonly list of the contained nodes.
+    /// </summary>
     public IReadOnlyList<NodeBase> Nodes => NodeList;
 
-    public int MaxNodes { get; set; }
-
+    /// <summary>
+    /// When true, will clip the nodes contents, preventing any contained nodes
+    /// outside the area of this node from being visible.
+    /// </summary>
+    /// <remarks>
+    /// If a node is being partially clipped, it will be un-interactable.
+    /// </remarks>
     public bool ClipListContents {
         get => NodeFlags.HasFlag(NodeFlags.Clip);
         set {
             if (value) {
-                AddFlags(NodeFlags.Clip);
+                AddNodeFlags(NodeFlags.Clip);
             }
             else {
-                RemoveFlags(NodeFlags.Clip);
+                RemoveNodeFlags(NodeFlags.Clip);
             }
         }
     }
 
+    /// <summary>
+    /// Spacing between items, does not apply to the first item.
+    /// </summary>
     public float ItemSpacing { get; set; }
 
+    /// <summary>
+    /// Spacing to apply before the first item.
+    /// </summary>
     public float FirstItemSpacing { get; set; }
 
+    /// <summary>
+    /// Recalculates the contained layout, and controller navigation values if applicable.
+    /// </summary>
     public void RecalculateLayout() {
         if (suppressRecalculateLayout) return;
 
-        InternalRecalculateLayout();
+        foreach (var node in NodeList) {
+            if (node is ILayoutListNode subNode) {
+                subNode.RecalculateLayout();
+            }
+        }
+
+        OnRecalculateLayout();
+
+        if (NavIndex is not 0) {
+            OnRecalculateNavigation();
+        }
 
         foreach (var node in NodeList) {
-            if (node is LayoutListNode subNode) {
+            if (node is ILayoutListNode subNode) {
                 subNode.RecalculateLayout();
             }
         }
     }
-    
-    protected abstract void InternalRecalculateLayout();
 
-    protected virtual void AdjustNode(NodeBase node) { }
-
-    public void AddNode(IEnumerable<NodeBase> nodes) {
-        AddNode(nodes.ToArray());
+    /// <summary>
+    /// An init only collection of nodes, to add a predefined amount of nodes to the list.
+    /// This is the preferred way of adding nodes.
+    /// </summary>
+    public ICollection<NodeBase> InitialNodes {
+        set => AddNode(value);
     }
-    
-    public void AddNode(params NodeBase?[] items) {
+
+    /// <summary>
+    /// Adds multiple nodes to the list. Added nodes are considered to be owned by the list.
+    /// </summary>
+    /// <param name="nodes">The nodes to add.</param>
+    public virtual void AddNode(IEnumerable<NodeBase> nodes) {
         suppressRecalculateLayout = true;
-        
-        foreach (var node in items) {
-            AddNode(node);
+        try {
+            foreach (var node in nodes) {
+                AddNode(node);
+            }
+        } finally {
+            suppressRecalculateLayout = false;
         }
-        
-        suppressRecalculateLayout = false;
-        
         RecalculateLayout();
     }
 
+    /// <summary>
+    /// Adds a single node to the list.
+    /// </summary>
+    /// <param name="node">Node to add.</param>
+    /// <remarks>
+    /// While this function accepts a nullable node, that's just for convenience, if the node is null it will not be added.
+    /// </remarks>
     public virtual void AddNode(NodeBase? node) {
         if (node is null) return;
 
@@ -73,37 +125,42 @@ public abstract class LayoutListNode : SimpleComponentNode {
 
         node.AttachNode(this);
 
-        if (MaxNodes >= 1 && NodeList.Count >= MaxNodes) {
-            var firstNode = NodeList.First();
-            node.NodeId = firstNode.NodeId;
-            RemoveNode(firstNode);
-        }
-
         RecalculateLayout();
     }
 
-    public void RemoveNode(params NodeBase[] items) {
+    /// <summary>
+    /// Removes multiple nodes from the list. Removed nodes are disposed by the list.
+    /// </summary>
+    /// <param name="items">Nodes to remove.</param>
+    public void RemoveNode(IEnumerable<NodeBase> items) {
         suppressRecalculateLayout = true;
-        
-        foreach (var node in items) {
-            RemoveNode(node);
+        try {
+            foreach (var node in items) {
+                RemoveNode(node);
+            }
+        } finally {
+            suppressRecalculateLayout = false;
         }
-        
-        suppressRecalculateLayout = false;
-        
         RecalculateLayout();
     }
 
+    /// <summary>
+    /// Remove a single node from the list. Removed nodes are disposed by the list.
+    /// </summary>
+    /// <param name="node">Node to remove.</param>
     public virtual void RemoveNode(NodeBase node) {
         if (!NodeList.Contains(node)) return;
 
-        node.DetachNode();
         NodeList.Remove(node);
         node.Dispose();
 
         RecalculateLayout();
     }
 
+    /// <summary>
+    /// Adds a dummy node to the list, a standard ResNode with no contents for spacing/positioning.
+    /// </summary>
+    /// <param name="size">The size of the dummy to add.</param>
     public void AddDummy(float size = 0.0f) {
         var dummyNode = new ResNode {
             Size = new Vector2(size, size),
@@ -112,56 +169,49 @@ public abstract class LayoutListNode : SimpleComponentNode {
         AddNode(dummyNode);
     }
 
+    /// <summary>
+    /// Removes all nodes from the list. All nodes are disposed.
+    /// </summary>
     public virtual void Clear() {
         suppressRecalculateLayout = true;
-        
-        foreach (var node in NodeList.ToList()) {
-            RemoveNode(node);
+        try {
+            foreach (var node in NodeList.ToList()) {
+                RemoveNode(node);
+            }
+        } finally {
+            suppressRecalculateLayout = false;
         }
-
-        suppressRecalculateLayout = false;
-        
-        NodeList.Clear();
         RecalculateLayout();
     }
 
-    public delegate TU CreateNewNode<in T, out TU>(T data) where TU : NodeBase;
-
-    public delegate T GetDataFromNode<out T, in TU>(TU node) where TU : NodeBase;
-    
-    public bool SyncWithListData<T, TU>(IEnumerable<T> dataList, GetDataFromNode<T?,TU> getDataFromNode, CreateNewNode<T, TU> createNodeMethod) where TU : NodeBase {
-        suppressRecalculateLayout = true;
-        
-        var nodesOfType = GetNodes<TU>().ToList();
-        var anythingChanged = false;
-        
-        var nodesToRemove = nodesOfType.Where(node => !dataList.Any(dataEntry => Equals(dataEntry, getDataFromNode(node)))).ToList();
-        
-        Log.Excessive($"Removing: {nodesToRemove.Count} Nodes");
-        
-        foreach (var node in nodesToRemove) {
-            RemoveNode(node);
-            anythingChanged = true;
-        }
-        
-        var dataToAdd = dataList.Where(data => !nodesOfType.Any(node => Equals(data, getDataFromNode(node)))).ToList();
-        var selectedData = dataToAdd.Select(data => createNodeMethod(data)).ToList();
-        
-        Log.Excessive($"Adding: {dataToAdd.Count} Nodes");
-        foreach (var newNode in selectedData) {
-            AddNode(newNode);
-            anythingChanged = true;
-        }
-
-        suppressRecalculateLayout = false;
-        
-        RecalculateLayout();
-        
-        return anythingChanged;
-    }
-
+    /// <summary>
+    /// Sorts the contained nodes using the provided comparison.
+    /// </summary>
+    /// <param name="comparison"></param>
     public void ReorderNodes(Comparison<NodeBase> comparison) {
         NodeList.Sort(comparison);
         RecalculateLayout();
     }
+
+    /// <summary>
+    /// Gets the list of nodes that this <see cref="LayoutListNode"/> is managing.
+    /// </summary>
+    protected List<NodeBase> NodeList { get; }= [];
+
+    /// <summary>
+    /// Function that is invoked when this node needs to rebuild its layout.
+    /// </summary>
+    protected abstract void OnRecalculateLayout();
+
+    /// <summary>
+    /// Function that is invoked when this node needs to rebuild its controller navigation layout.
+    /// </summary>
+    protected abstract void OnRecalculateNavigation();
+
+    /// <summary>
+    /// Adjusts the nodes properties when <see cref="RecalculateLayout"/> is invoked.
+    /// </summary>
+    protected virtual void AdjustNode(NodeBase node) { }
+
+    private bool suppressRecalculateLayout;
 }

@@ -1,29 +1,45 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
 using KamiToolKit.Classes;
-using KamiToolKit.Classes.Controllers;
+using KamiToolKit.Controllers;
 using KamiToolKit.Extensions;
 using KamiToolKit.Nodes;
 
 namespace WondrousTailsSolver;
 
-public unsafe class AddonWeeklyBingoController : AddonController<AddonWeeklyBingo> {
+/// <summary>
+/// Bolt-on controller for the WeeklyBingo addon. Tip KamiToolKit turned AddonController's events into
+/// init-only delegates and asserts the main game thread in Enable/Disable, so this is a thin wrapper
+/// composing one AddonController instead of subclassing it; enable and teardown run on the framework thread.
+/// </summary>
+public unsafe class AddonWeeklyBingoController : IDisposable {
     private TextNode? probabilityTextNode;
+    private readonly AddonController<AddonWeeklyBingo> controller;
 
-    public AddonWeeklyBingoController(IDalamudPluginInterface pluginInterface) : base("WeeklyBingo") {
-        KamiToolKitLibrary.Initialize(pluginInterface);
-        OnAttach += AttachNodes;
-        OnRefresh += AddonRefresh;
-        OnUpdate += AddonRefresh;
-        OnDetach += DetachNodes;
-        Enable();
+    public AddonWeeklyBingoController() {
+        controller = new AddonController<AddonWeeklyBingo> {
+            AddonName = "WeeklyBingo",
+            OnSetup = AttachNodes,
+            OnRefresh = AddonRefresh,
+            OnUpdate = AddonRefresh,
+            OnFinalize = DetachNodes,
+        };
+
+        // EnableAsync registers the lifecycle listeners now and runs the first OnSetup on the
+        // framework thread; the sync Enable() asserts the main thread, which the plugin load
+        // thread is not.
+        _ = controller.EnableAsync();
     }
+
+    public void Dispose()
+        // AddonController.Dispose disables on the framework thread (it asserts the main thread);
+        // the plugin unloads on a threadpool thread.
+        => WondrousTailsSolverPlugin.Framework.RunOnFrameworkThread(controller.Dispose);
 
     private void AttachNodes(AddonWeeklyBingo* addon) {
         var existingTextNode = addon->GetTextNodeById(34);

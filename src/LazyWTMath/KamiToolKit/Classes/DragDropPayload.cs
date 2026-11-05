@@ -1,13 +1,23 @@
-﻿using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Text;
+﻿using System;
+using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Text.ReadOnly;
 
 namespace KamiToolKit.Classes;
 
-public unsafe class DragDropPayload {
+/// <summary>
+/// Data wrapper for a native DragDropPayload.
+/// </summary>
+public unsafe class DragDropPayload : ICloneable {
 
+    /// <summary>
+    /// Gets or sets the Drag Drop Type.
+    /// </summary>
     public DragDropType Type { get; set; } = DragDropType.Nothing;
 
+    /// <summary>
+    /// Gets or sets the reference index.
+    /// </summary>
     public short ReferenceIndex { get; set; }
 
     /// <remarks> Index (like AtkDragDropInterface.ReferenceIndex), InventoryType, etc. </remarks>
@@ -22,11 +32,27 @@ public unsafe class DragDropPayload {
     // unknown usage
     // public AtkValue* AtkValue { get; set; }
 
+    /// <summary>
+    /// Gets or sets the payload text.
+    /// </summary>
     public ReadOnlySeString Text { get; set; }
 
     // unknown usage
     // public uint Flags { get; set; }
 
+    /// <summary>
+    /// Builds a DragDropPayload from the provided DragDropEventInterface.
+    /// </summary>
+    /// <param name="dragDropInterface">The instance to build the payload from.</param>
+    /// <returns>A built DragDropPayload.</returns>
+    public static implicit operator DragDropPayload(AtkDragDropInterface* dragDropInterface)
+        => FromDragDropInterface(dragDropInterface);
+
+    /// <summary>
+    /// Builds a DragDropPayload from the provided DragDropEventInterface.
+    /// </summary>
+    /// <param name="dragDropInterface">The instance to build the payload from.</param>
+    /// <returns>A built DragDropPayload.</returns>
     public static DragDropPayload FromDragDropInterface(AtkDragDropInterface* dragDropInterface) {
         var payloadContainer = dragDropInterface->GetPayloadContainer();
 
@@ -39,6 +65,11 @@ public unsafe class DragDropPayload {
         };
     }
 
+    /// <summary>
+    /// Populates the provided DragDropInterface with the information from this payload.
+    /// </summary>
+    /// <param name="dragDropInterface">The instance to populate.</param>
+    /// <param name="writeToPayloadContainer">If the params for this payload should be written to the target PayloadContainer.</param>
     public void ToDragDropInterface(AtkDragDropInterface* dragDropInterface, bool writeToPayloadContainer = true) {
         dragDropInterface->DragDropType = Type;
         dragDropInterface->DragDropReferenceIndex = ReferenceIndex;
@@ -53,12 +84,16 @@ public unsafe class DragDropPayload {
                 payloadContainer->Text.Clear();
             }
             else {
-                var stringBuilder = new SeStringBuilder().Append(Text);
+                using var rentedBuilder = new RentedSeStringBuilder();
+                var stringBuilder = rentedBuilder.Append(Text);
                 payloadContainer->Text.SetString(stringBuilder.GetViewAsSpan());
             }
         }
     }
 
+    /// <summary>
+    /// Clears this payload and resets values to default.
+    /// </summary>
     public void Clear() {
         Type = DragDropType.Nothing;
         ReferenceIndex = 0;
@@ -66,4 +101,32 @@ public unsafe class DragDropPayload {
         Int2 = -1;
         Text = default;
     }
+
+    /// <summary>
+    /// Default construct to construct an empty instance.
+    /// </summary>
+    public DragDropPayload() {
+        Clear();
+    }
+
+    /// <summary>
+    /// Copy constructor to instantiate a payload from an existing one.
+    /// </summary>
+    public DragDropPayload(DragDropPayload source) {
+        Type = source.Type;
+        ReferenceIndex = source.ReferenceIndex;
+        Int1 = source.Int1;
+        Int2 = source.Int2;
+        Text = source.Text;
+    }
+
+    /// <summary>
+    /// Returns a new reference to a copy of this payload.
+    /// </summary>
+    /// <returns></returns>
+    public DragDropPayload Clone()
+        => new(this);
+
+    object ICloneable.Clone()
+        => Clone();
 }

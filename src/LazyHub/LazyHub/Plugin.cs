@@ -1,3 +1,7 @@
+using System;
+using System.Linq;
+using System.Numerics;
+using System.Threading.Tasks;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Text.SeStringHandling;
@@ -37,9 +41,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly HubClient _client;
     private readonly IconLoader _icons;
     private readonly GluttonyProbe _probe;
-    private NativeAddon _addon;
+    private NativeAddon? _addon;
     private readonly IDtrBarEntry _dtr;
     private long _nextDtrUpdateTicks;
+    private Task? _addonBuild;
 
     public Plugin(IDalamudPluginInterface pi)
     {
@@ -49,13 +54,25 @@ public sealed class Plugin : IDalamudPlugin
         var existingInstall = pi.ConfigFile.Exists;
         _config = pi.GetPluginConfig() as Configuration ?? new Configuration();
 
-        KamiToolKitLibrary.Initialize(pi);
-
         _monitor = new PluginMonitor(pi);
         _client = new HubClient(pi, Log);
         _icons = new IconLoader(Textures, Framework, Log);
         _probe = new GluttonyProbe(pi, Log);
-        _addon = BuildAddon();
+
+        // Tip KamiToolKit initializes asynchronously and its node constructors assert the main game
+        // thread, so the native window is built on the framework thread once initialization completes.
+        // The plugin load thread is neither, and blocking on InitializeAsync here would pair the load
+        // thread's wait with a framework-thread task (deadlock if that ordering ever changes).
+        _addonBuild = KamiToolKitLibrary.InitializeAsync(pi).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+            {
+                Log.Error(t.Exception, "KamiToolKit init failed; /lazy stays closed this session");
+                return;
+            }
+
+            Framework.RunOnFrameworkThread(BuildAddonOnFramework);
+        });
 
         // Shared "What's new" popup: shows this plugin's CHANGELOG once after an update.
         _changelog = new ChangelogGate(new ChangelogGate.Options
@@ -76,7 +93,7 @@ public sealed class Plugin : IDalamudPlugin
 
         _dtr = DtrBar.Get(DtrTitle);
         _dtr.Tooltip = new SeString(new TextPayload("Lazy Hub: click to open the lalalazy window"));
-        _dtr.OnClick = _ => _addon.Toggle();
+        _dtr.OnClick = _ => _addon?.Toggle();
         _dtr.Shown = true;
         UpdateDtr();
 
@@ -93,7 +110,9 @@ public sealed class Plugin : IDalamudPlugin
         Commands.AddHandler(AltCommandName, new CommandInfo(OnCommand) { HelpMessage = "Same as /lazy.", ShowInHelp = false });
     }
 
-    private void OpenWindow() => _addon.Open();
+    private void BuildAddonOnFramework() => _addon = BuildAddon();
+
+    private void OpenWindow() => _addon?.Open();
 
     private void OnCommand(string command, string args)
     {
@@ -109,7 +128,7 @@ public sealed class Plugin : IDalamudPlugin
             SetSafeMode(!_config.SafeMode);
             return;
         }
-        _addon.Toggle();
+        _addon?.Toggle();
     }
 
     /// <summary>The full window, or the plain 0.1.0.1 window when safe mode is on.</summary>
@@ -130,10 +149,15 @@ public sealed class Plugin : IDalamudPlugin
     private void SetSafeMode(bool on)
     {
         // The old window closes asynchronously, so it is not reopened here: the next /lazy opens the new one.
-        _addon.Dispose();
+        // With the build still pending, only the config flips: the pending framework-thread build reads it.
+        if (_addon is not null)
+        {
+            _addon.Dispose();
+            _addon = BuildAddon();
+        }
+
         _config.SafeMode = on;
         Pi.SavePluginConfig(_config);
-        _addon = BuildAddon();
         ChatGui.Print(on
             ? "[Lazy Hub] Safe mode ON: /lazy opens the plain window. /lazy safe switches back."
             : "[Lazy Hub] Safe mode OFF: /lazy opens the full window.");
@@ -166,8 +190,13 @@ public sealed class Plugin : IDalamudPlugin
         Commands.RemoveHandler(CommandName);
         Commands.RemoveHandler(AltCommandName);
 
+        // A pending build must not construct an addon after the library went away: wait it out
+        // (the framework thread keeps pumping during unload; boot failures time out and no-op).
+        try { _addonBuild?.Wait(TimeSpan.FromSeconds(2)); }
+        catch { /* init failures are already logged in the continuation */ }
+
         _dtr.Remove();
-        _addon.Dispose();
+        _addon?.Dispose();
         KamiToolKitLibrary.Dispose();
 
         _changelog.Dispose();
