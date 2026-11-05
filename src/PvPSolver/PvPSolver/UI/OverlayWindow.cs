@@ -1,11 +1,15 @@
-using Dalamud.Interface.Utility;
+﻿using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
 using ECommons.Logging;
 using RotationSolver.UI.HighlightTeachingMode;
+using System.Diagnostics;
 
-namespace RotationSolver.UI.ExtraWindows;
+namespace RotationSolver.UI;
 
+/// <summary>
+/// The Overlay Window
+/// </summary>
 internal class OverlayWindow : Window
 {
 	private const ImGuiWindowFlags BaseFlags = ImGuiWindowFlags.NoBackground
@@ -15,6 +19,11 @@ internal class OverlayWindow : Window
 	| ImGuiWindowFlags.NoFocusOnAppearing
 	| ImGuiWindowFlags.NoInputs
 	| ImGuiWindowFlags.NoNav;
+
+	// Async update support and throttling for sync path
+	private IDrawing2D[]? _elements;
+	private readonly Stopwatch _throttle = Stopwatch.StartNew();
+	private const int SyncUpdateMs = 33; // ~30 FPS updates in sync mode
 
 	public OverlayWindow()
 		: base(nameof(OverlayWindow), BaseFlags, true)
@@ -40,27 +49,35 @@ internal class OverlayWindow : Window
 			return;
 		}
 
-		var elements = HotbarHighlightManager.Elements2D;
-		if (elements.Length == 0)
-		{
-			return;
-		}
-
-		var prevAAFill = ImGui.GetStyle().AntiAliasedFill;
+		// Save and disable AA fill for performance of large overlays
+		bool prevAAFill = ImGui.GetStyle().AntiAliasedFill;
 		ImGui.GetStyle().AntiAliasedFill = false;
 
 		try
 		{
-			var drawList = ImGui.GetWindowDrawList();
+			if (_throttle.ElapsedMilliseconds >= SyncUpdateMs)
+			{
+				var result = HotbarHighlightManager.To2DAsync().GetAwaiter().GetResult() ?? [];
+				var list = new List<IDrawing2D>(result);
+				list.Sort((a, b) => GetDrawingOrder(a).CompareTo(GetDrawingOrder(b)));
+				_elements = [.. list];
+				_throttle.Restart();
+			}
+
+			ImDrawListPtr drawList = ImGui.GetWindowDrawList();
 			if (drawList.Handle == null)
 			{
 				PluginLog.Warning($"{nameof(OverlayWindow)}: Window draw list is null.");
 				return;
 			}
 
-			foreach (var item in elements)
+			var elements = _elements;
+			if (elements != null)
 			{
-				item.Draw();
+				foreach (IDrawing2D item in elements)
+				{
+					item.Draw();
+				}
 			}
 		}
 		catch (Exception ex)
@@ -71,6 +88,16 @@ internal class OverlayWindow : Window
 		{
 			ImGui.GetStyle().AntiAliasedFill = prevAAFill;
 		}
+	}
+
+	private static int GetDrawingOrder(object drawing)
+	{
+		return drawing switch
+		{
+			PolylineDrawing poly => poly._thickness == 0 ? 0 : 1,
+			ImageDrawing => 1,
+			_ => 2,
+		};
 	}
 
 	public override void PostDraw()

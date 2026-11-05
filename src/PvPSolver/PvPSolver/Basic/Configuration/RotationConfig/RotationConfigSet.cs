@@ -21,17 +21,20 @@ public class RotationConfigSet : IRotationConfigSet
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="rotation"/> is <c>null</c>.</exception>
 	public RotationConfigSet(ICustomRotation rotation)
 	{
-		ArgumentNullException.ThrowIfNull(rotation);
-
-		foreach (var prop in rotation.GetType().GetRuntimeProperties())
+		if (rotation == null)
 		{
-			var attr = prop.GetCustomAttribute<RotationConfigAttribute>();
+			throw new ArgumentNullException(nameof(rotation));
+		}
+
+		foreach (PropertyInfo prop in rotation.GetType().GetRuntimeProperties())
+		{
+			RotationConfigAttribute? attr = prop.GetCustomAttribute<RotationConfigAttribute>();
 			if (attr == null)
 			{
 				continue;
 			}
 
-			var type = prop.PropertyType;
+			Type type = prop.PropertyType;
 			if (type == null)
 			{
 				continue;
@@ -71,17 +74,20 @@ public class RotationConfigSet : IRotationConfigSet
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="rotation"/> is <c>null</c>.</exception>
 	public RotationConfigSet(DutyRotation rotation)
 	{
-		ArgumentNullException.ThrowIfNull(rotation);
-
-		foreach (var prop in rotation.GetType().GetRuntimeProperties())
+		if (rotation == null)
 		{
-			var attr = prop.GetCustomAttribute<RotationConfigAttribute>();
+			throw new ArgumentNullException(nameof(rotation));
+		}
+
+		foreach (PropertyInfo prop in rotation.GetType().GetRuntimeProperties())
+		{
+			RotationConfigAttribute? attr = prop.GetCustomAttribute<RotationConfigAttribute>();
 			if (attr == null)
 			{
 				continue;
 			}
 
-			var type = prop.PropertyType;
+			Type type = prop.PropertyType;
 			if (type == null)
 			{
 				continue;

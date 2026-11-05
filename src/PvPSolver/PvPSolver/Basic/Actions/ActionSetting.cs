@@ -6,62 +6,34 @@
 public enum SpecialActionType : byte
 {
 	/// <summary>
-	/// No special movement behaviour.
+	/// 
 	/// </summary>
 	None,
 
 	/// <summary>
-	/// Ranged attack that can be used by a Melee class/job (e.g. Ranged attack fallback).
+	/// 
 	/// </summary>
-	MeleeRangedAttack,
+	MeleeRange,
 
 	/// <summary>
-	/// A pure movement action that moves the character a fixed distance forward in the current facing/screen direction
-	/// with no target requirement (e.g. En Avant, Elusive Jump, Hells Ingress, AetherialShiftPvE).
-	/// Targeting uses area-move logic and the destination is validated for safety.
+	/// 
 	/// </summary>
-	FixedDistanceMoveForward,
+	MovingBackward,
 
 	/// <summary>
-	/// A pure movement action that moves the character a fixed distance forward in the current facing/screen direction
-	/// with no target requirement (e.g. Hell's Regress).
-	/// Targeting uses area-move logic and the destination is validated for safety.
-	/// </summary>
-	FixedDistanceMoveBackward,
-
-	/// <summary>
-	/// A non-damage targeted movement action that dashes to the hitbox of a <b>hostile</b> target
-	/// (e.g. TrajectoryPvE on GNB).
-	/// Targeting selects the best hostile target within range; destination is validated for safety.
+	/// 
 	/// </summary>
 	HostileMovingForward,
 
 	/// <summary>
-	/// A targeted movement action that dashes to the hitbox of a <b>friendly/party</b> target
-	/// (e.g. Aetherial ManipulationPvE targeting an ally).
-	/// Targeting selects the best party member in range; destination is validated for safety.
+	/// 
 	/// </summary>
 	FriendlyMovingForward,
 
 	/// <summary>
-	/// A targeted movement action that can dash to either a <b>hostile or friendly</b> target
-	/// depending on what is currently selected (e.g. AetherialManipulationPvP).
-	/// Targeting prefers the focus/hard target; destination is validated for safety.
+	/// 
 	/// </summary>
 	HostileFriendlyMovingForward,
-
-	/// <summary>
-	/// A movement-<b>attack</b> action where the movement is part of an offensive hit
-	/// (e.g. Primal Rend on WAR, Dragonfire Dive on DRG, IntervenePvE on PLD).
-	/// Targeting uses the standard hostile targeting pipeline with all normal filters
-	/// (stop marks, priority, TTK, resistance). Position safety is still validated.
-	/// Do <b>not</b> use pure movement target logic for these — the action must hit a valid enemy.
-	/// </summary>
-	HostileMovingAttack,
-
-	/// <summary>
-	/// </summary>
-	ObjectBasedMovement,
 }
 
 /// <summary>
@@ -84,39 +56,14 @@ public class ActionSetting
 	public uint RequiredBluSlotActionId { get; set; } = 0;
 
 	/// <summary>
-	/// Marks this action as belonging to a Quest Battle's replacement action set (e.g. Hardboiled),
-	/// where the player's normal character/hotbars are replaced by an NPC with its own actions.
-	/// This is intentionally separate from <see cref="ActionBasicInfo.IsDutyAction"/> (the standard
-	/// duty-action-bar system used by content like Bozja/Eureka/Occult Crescent) so that Quest Battle
-	/// handling never interferes with normal duty action slot detection.
-	/// When set, <see cref="ActionBasicInfo.IsOnSlot"/> is <c>true</c> whenever <see cref="DataCenter.IsInQuestBattle"/>
-	/// is <c>true</c>, regardless of the standard duty action hotbar slots.
-	/// </summary>
-	public bool IsQuestBattleAction { get; set; } = false;
-
-	/// <summary>
 	/// The override of the <see cref="ActionBasicInfo.MPNeed"/>.
 	/// </summary>
 	public Func<uint?>? MPOverride { get; set; } = null;
 
 	/// <summary>
-	/// Marks action as a fake action. 
-	/// This is used for actions that can be placed on hotbars but not actually usable, just a placeholder to turn into something else.
-	/// </summary>
-	public bool IsFakeAction { get; set; } = false;
-
-	/// <summary>
 	/// Is this action in the melee range.
 	/// </summary>
 	internal SpecialActionType SpecialType { get; set; }
-
-	/// <summary>
-	/// For <see cref="SpecialActionType.ObjectBasedMovement"/> actions: the DataId of the
-	/// in-world object that marks the destination (e.g. Ley Lines for BetweenTheLines,
-	/// Hell's Gate for Regress). The safety check will look for an object owned by the
-	/// local player with this DataId and use its position as the movement destination.
-	/// </summary>
-	public uint ObjectBasedMovementObjectOID { get; set; } = 0;
 
 	/// <summary>
 	/// Is this status only ever added by the caster/player. 
@@ -133,11 +80,6 @@ public class ActionSetting
 	/// The status that is provided to the target of the ability.
 	/// </summary>
 	public StatusID[]? TargetStatusProvide { get; set; } = null;
-
-	/// <summary>
-	/// The damage over time effect behind <see cref="TargetStatusProvide"/>. When set and DoT tick timing is on, refreshes are timed from the target's ticks and time to kill instead of <see cref="ActionConfig.StatusRefreshGcdCount"/>.
-	/// </summary>
-	public DotEffect? Dot { get; set; } = null;
 
 	/// <summary>
 	/// The status that it needs on the target.
@@ -158,12 +100,6 @@ public class ActionSetting
 	/// The additional combo ids.
 	/// </summary>
 	public ActionID[]? ComboIds { get; set; }
-
-	/// <summary>
-	/// Cached combined combo action list (the action's base <c>ActionCombo</c> plus <see cref="ComboIds"/>),
-	/// computed once on first combo check instead of being rebuilt on every CanUse().
-	/// </summary>
-	internal ActionID[]? ComboActionsCache { get; set; }
 
 	/// <summary>
 	/// Status that this action provides.
@@ -203,9 +139,21 @@ public class ActionSetting
 	{
 		get
 		{
-			// The BeAttacked override only applies to friendly actions.
-			var type = IBaseAction.TargetOverride ?? _type;
-			return !IsFriendly && type == TargetType.BeAttacked ? _type : type;
+			TargetType type = IBaseAction.TargetOverride ?? _type;
+			if (IsFriendly)
+			{
+
+			}
+			else
+			{
+				switch (type)
+				{
+					case TargetType.BeAttacked:
+						return _type;
+				}
+			}
+
+			return type;
 		}
 		set => _type = value;
 	}
@@ -313,7 +261,7 @@ public class ActionSetting
 	/// The quest ID that unlocks this action.
 	/// 0 means no quest.
 	/// </summary>
-	public uint UnlockedByQuestID { get; set; } = 0;
+	 public uint UnlockedByQuestID { get; set; } = 0;
 
 	/// <summary>
 	/// When true, this action can be used against targets that have the Guard status in PvP.

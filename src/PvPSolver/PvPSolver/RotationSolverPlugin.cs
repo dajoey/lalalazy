@@ -1,5 +1,4 @@
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.DutyState;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -10,11 +9,11 @@ using ECommons.Logging;
 using Lalalazy.Changelog;
 using Lalalazy.Hub;
 using Lumina.Excel.Sheets;
-using RebornMaterial;
 using RotationSolver.ActionTimeline;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Commands;
 using RotationSolver.Data;
+using RotationSolver.Helpers;
 using RotationSolver.IPC;
 using RotationSolver.UI;
 using RotationSolver.UI.Pvp;
@@ -34,9 +33,9 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	private static ControlWindow? _controlWindow;
 	private static NextActionWindow? _nextActionWindow;
 	private static InterceptedActionWindow? _interceptedActionWindow;
+	private static CooldownWindow? _cooldownWindow;
 	private static ActionTimelineWindow? _actionTimelineWindow;
 	private static OverlayWindow? _overlayWindow;
-	private static StateControlWindow? _stateControlWindow;
 	private static EasterEggWindow? _easterEggWindow;
 	private static FirstStartTutorialWindow? _firstStartTutorialWindow;
 	// Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Configs).
@@ -65,8 +64,33 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		IconSet.Init();
 
 		_dis.Add(new Service());
+		try
+		{
+			// Check if the config file exists before attempting to read and deserialize it
+			if (File.Exists(Svc.PluginInterface.ConfigFile.FullName))
+			{
+				Configs oldConfigs = JsonConvert.DeserializeObject<Configs>(
+					File.ReadAllText(Svc.PluginInterface.ConfigFile.FullName))
+					?? new Configs();
 
-		ActionTracer.Init();
+				// Check version and migrate or reset if necessary
+				Configs newConfigs = Configs.Migrate(oldConfigs);
+				if (newConfigs.Version != Configs.CurrentVersion)
+				{
+					newConfigs = new Configs(); // Reset to default if versions do not match
+				}
+				Service.Config = newConfigs;
+			}
+			else
+			{
+				Service.Config = new Configs();
+			}
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Warning($"Failed to load config: {ex.Message}");
+			Service.Config = new Configs();
+		}
 
 		IPCProvider = new();
 
@@ -75,12 +99,25 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_controlWindow = new();
 		_nextActionWindow = new();
 		_interceptedActionWindow = new();
+		_cooldownWindow = new();
 		_actionTimelineWindow = new();
 		_overlayWindow = new();
-		_stateControlWindow = new();
 		_easterEggWindow = new();
 		_firstStartTutorialWindow = new();
-		_updateNotesWindow = new();
+
+		// Start cactbot bridge if enabled
+		//try
+		//{
+		//    if (Service.Config.EnableCactbotTimeline)
+		//    {
+		//        var cactbotBridge = new Helpers.CactbotTimelineBridge();
+		//        _dis.Add(cactbotBridge);
+		//    }
+		//}
+		//catch (Exception ex)
+		//{
+		//    PluginLog.Warning($"Failed to start CactbotTimelineBridge: {ex.Message}");
+		//}
 
 		windowSystem = new WindowSystem(Name);
 		windowSystem.AddWindow(_rotationConfigWindow);
@@ -88,9 +125,9 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		windowSystem.AddWindow(_controlWindow);
 		windowSystem.AddWindow(_nextActionWindow);
 		windowSystem.AddWindow(_interceptedActionWindow);
+		windowSystem.AddWindow(_cooldownWindow);
 		windowSystem.AddWindow(_actionTimelineWindow);
 		windowSystem.AddWindow(_overlayWindow);
-		windowSystem.AddWindow(_stateControlWindow);
 		windowSystem.AddWindow(_easterEggWindow);
 		windowSystem.AddWindow(_firstStartTutorialWindow);
 
@@ -115,7 +152,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		Svc.PluginInterface.UiBuilder.OpenConfigUi += OnOpenConfigUi;
 		Svc.PluginInterface.UiBuilder.OpenMainUi += OnOpenConfigUi;
 		Svc.PluginInterface.UiBuilder.Draw += OnDraw;
-	}
 
 		//HotbarHighlightDrawerManager.Init();
 
@@ -133,12 +169,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 
 		static void ClientState_TerritoryChanged(uint id)
 		{
-			await textureWarmupTask;
-		}
-		catch (OperationCanceledException)
-		{
-			PluginLog.Warning("Texture warmup was canceled; continuing plugin load.");
-		}
+			DataCenter.ResetAllRecords();
 
 			if (id == 0)
 			{
@@ -148,43 +179,38 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 
 			TerritoryType territory = Service.GetSheet<TerritoryType>().GetRow((ushort)id);
 
-			ChangeUITranslation();
+			DataCenter.Territory = new TerritoryInfo(territory);
 
-			OpenLinkPayload = Svc.Chat.AddChatLinkHandler(0, (guid, seString) =>
+			try
 			{
-				if (guid == 0)
-				{
-					OpenConfigWindow();
-				}
-			});
-			HideWarningLinkPayload = Svc.Chat.AddChatLinkHandler(1, (guid, seString) =>
+				DataCenter.CurrentRotation?.OnTerritoryChanged();
+			}
+			catch (Exception ex)
 			{
-				if (guid == 0)
-				{
-					Service.Config.HideWarning.Value = true;
-					Svc.Chat.Print("Warning has been hidden.");
-				}
-			});
-		}, CancellationToken.None);
-	}
+				PluginLog.Warning($"Failed on Territory changed: {ex.Message}");
+			}
+		}
 
 		ChangeUITranslation();
 
-		if (!TargetFilter.PlayerJobCategory(JobRole.Tank) && !TargetFilter.PlayerJobCategory(JobRole.Healer))
+		OpenLinkPayload = Svc.Chat.AddChatLinkHandler(0, (guid, seString) =>
 		{
-			return;
-		}
-
-		if (DataCenter.Territory?.IsHighEndDuty ?? false)
+			if (guid == 0)
+			{
+				OpenConfigWindow();
+			}
+		});
+		HideWarningLinkPayload = Svc.Chat.AddChatLinkHandler(1, (guid, seString) =>
 		{
-			var warning = string.Format(UiString.HighEndWarning.GetDescription(), DataCenter.Territory.ContentFinderName);
-			BasicWarningHelper.AddSystemWarning(warning);
-		}
-	}
+			if (guid == 0)
+			{
+				Service.Config.HideWarning.Value = true;
+				Svc.Chat.Print("Warning has been hidden.");
+			}
+		});
 
-	private static void DutyState_DutyWiped(IDutyStateEventArgs e)
-	{
-		if (!Player.Available)
+		// Load rotations on startup
+		_ = Task.Run(async () =>
 		{
 			await DownloadHelper.DownloadAsync();
 		});
@@ -202,14 +228,13 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 			return;
 		}
 
-		M3.BeginFrame();
 		windowSystem.Draw();
 	}
 
 	internal static void ChangeUITranslation()
 	{
-		_mainWindow!.WindowName = UiString.ConfigWindowHeader.GetDescription()
-			+ (typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "?.?.?") + "###rsrConfigWindow";
+		_rotationConfigWindow!.WindowName = UiString.ConfigWindowHeader.GetDescription()
+			+ (typeof(RotationConfigWindow).Assembly.GetName().Version?.ToString() ?? "?.?.?") + "###rsrConfigWindow";
 
 		RSCommands.Disable();
 		RSCommands.Enable();
@@ -256,18 +281,17 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_easterEggWindow?.IsOpen = true;
 	}
 
-	internal static void ShowConfigWindow(MainWindowTab? tab = null)
+	internal static void ShowConfigWindow(RotationConfigWindowTab? tab = null)
 	{
-		if (_mainWindow == null)
+		if (_rotationConfigWindow == null)
 		{
 			return;
 		}
 
-		_mainWindow.IsOpen = true;
-		_mainWindow.Restore();
+		_rotationConfigWindow.IsOpen = true;
 		if (tab.HasValue)
 		{
-			_mainWindow.SetActiveTab(tab.Value);
+			_rotationConfigWindow.SetActiveTab(tab.Value);
 		}
 	}
 
@@ -281,56 +305,45 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_firstStartTutorialWindow?.Toggle();
 	}
 
-	internal static void ShowFirstStartTutorialIfNeeded()
-	{
-		_firstStartTutorialWindow?.OpenIfFirstStart();
-	}
-
-	internal static void OpenChangelog()
-	{
-		_updateNotesWindow?.IsOpen = true;
-	}
-
-	internal static void ShowChangelogIfUpdated()
-	{
-		_updateNotesWindow?.OpenIfUpdated();
-	}
-
 	internal static void UpdateDisplayWindow()
 	{
-		var isValid = MajorUpdater.IsValid && DataCenter.CurrentRotation != null;
+		bool isValid = MajorUpdater.IsValid && DataCenter.CurrentRotation != null;
 
 		isValid &= !Service.Config.OnlyShowWithHostileOrInDuty
 				|| Svc.Condition[ConditionFlag.BoundByDuty]
 				|| AnyHostileTargetWithinDistance(25);
 
-		_fullControlWindow!.IsOpen = isValid && Service.Config.ShowControlWindow;
+		_controlWindow!.IsOpen = isValid && Service.Config.ShowControlWindow;
+		_cooldownWindow!.IsOpen = isValid && Service.Config.ShowCooldownWindow;
 		_nextActionWindow!.IsOpen = isValid && Service.Config.ShowNextActionWindow;
 		_interceptedActionWindow!.IsOpen = isValid && Service.Config.ShowInterceptedActionWindow;
-		UpdateActionTimeline(isValid);
-		_overlayWindow!.IsOpen = isValid && Service.Config.TeachingMode;
-	}
 
-	private static void UpdateActionTimeline(bool isValid)
-	{
-		var config = Service.Config;
-		if (!config.ShowActionTimelineWindow)
+		// ActionTimeline window with additional checks
+		bool showActionTimeline = isValid && Service.Config.ShowActionTimelineWindow;
+
+		if (Service.Config.ActionTimelineOnlyWhenActive)
 		{
-			_actionTimelineWindow!.IsOpen = false;
-			ActionTimelineManager.DisposeInstance();
-			return;
+			showActionTimeline &= DataCenter.IsActivated();
 		}
 
-		ActionTimelineManager.Instance.Update();
+		if (Service.Config.ActionTimelineOnlyInCombat)
+		{
+			showActionTimeline &= DataCenter.InCombat;
+		}
 
-		_actionTimelineWindow!.IsOpen = isValid
-			&& (!config.ActionTimelineOnlyWhenActive || DataCenter.IsActivated())
-			&& (!config.ActionTimelineOnlyInCombat || DataCenter.InCombat);
+		_actionTimelineWindow!.IsOpen = showActionTimeline;
+
+		if (showActionTimeline)
+		{
+			ActionTimelineManager.Instance.UpdateCombatState();
+		}
+
+		_overlayWindow!.IsOpen = isValid && Service.Config.TeachingMode;
 	}
 
 	private static bool AnyHostileTargetWithinDistance(float distance)
 	{
-		foreach (var target in DataCenter.AllHostileTargets)
+		foreach (IBattleChara target in DataCenter.AllHostileTargets)
 		{
 			if (target.DistanceToPlayer() < distance)
 			{
@@ -340,57 +353,35 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		return false;
 	}
 
-	public async ValueTask DisposeAsync()
+	void IDisposable.Dispose()
 	{
-		MajorUpdater.Dispose();
-
-		ActionTracer.Shutdown();
+		Dispose().GetAwaiter().GetResult();
+	}
 
 	public async Task Dispose()
 	{
 		_hub?.Dispose();   // first: a provider must never outlive its plugin
 		Service.Config.Save();
-
-		var saveLists = OtherConfiguration.Save();
+		await OtherConfiguration.Save();
 
 		_changelog?.Dispose();
 		_changelog = null;
 		RSCommands.Disable();
 		Watcher.Disable();
 		ActionQueueManager.Disable();
-		ActionManagerEx.DisposeInstance();
-		BMRPlanUpdater.Disable();
-		ActionContextMenu.Dispose();
 		Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
-		Svc.PluginInterface.UiBuilder.OpenMainUi -= OnOpenConfigUi;
 		Svc.PluginInterface.UiBuilder.Draw -= OnDraw;
 
-		Svc.DutyState.DutyStarted -= DutyState_DutyStarted;
-		Svc.DutyState.DutyWiped -= DutyState_DutyWiped;
-		Svc.DutyState.DutyCompleted -= DutyState_DutyCompleted;
-		Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
-
-		Svc.Chat.RemoveChatLinkHandler();
-		OpenLinkPayload = null!;
-		HideWarningLinkPayload = null;
-
-		foreach (var item in _dis)
+		foreach (IDisposable item in _dis)
 		{
 			item.Dispose();
 		}
 		_dis.Clear();
 
-		HotbarDisabledColor.ResetOnUnload();
+		MajorUpdater.Dispose();
+		MiscUpdater.Dispose();
 		HotbarHighlightManager.Dispose();
-		ActionTimelineManager.DisposeInstance();
-		M3.Dispose();
-
-		BMRInfo_IPCSubscriber.Dispose();
-		BMRTimeline_IPCSubscriber.Dispose();
-		BMRPlan_IPCSubscriber.Dispose();
-		Wrath_IPCSubscriber.Dispose();
-
-		await saveLists;
+		ActionTimelineManager.Instance.Dispose();
 
 		ECommonsMain.Dispose();
 	}

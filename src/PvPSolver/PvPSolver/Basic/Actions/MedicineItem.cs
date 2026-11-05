@@ -44,7 +44,7 @@ internal class MedicineItem : BaseItem
 
 	public MedicineItem(Item item) : base(item)
 	{
-		Type = _item.Unknown4 switch
+		Type = _item.Unknown4 switch // Unknown4 is column for the medicine type
 		{
 			10120 => MedicineType.Strength,
 			10140 => MedicineType.Dexterity,

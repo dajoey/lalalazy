@@ -10,54 +10,80 @@ public partial class AstrologianRotation : CustomRotation
 	public override MedicineType MedicineType => MedicineType.Mind;
 
 	/// <summary>
+	/// NONE = 0, BALANCE = 1, BOLE = 2, ARROW = 3, SPEAR = 4, EWERS = 5, SPIRE = 6
+	/// </summary>
+	protected static CardType[] DrawnCard => JobGauge.DrawnCards;
+	/// <summary>
 	/// 
 	/// </summary>
-	public static CardType Card1 => JobGauge.Card1;
+	public static bool HasBalance
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Balance) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// 
 	/// </summary>
-	public static CardType Card2 => JobGauge.Card2;
+	public static bool HasBole
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Bole) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// 
 	/// </summary>
-	public static CardType Card3 => JobGauge.Card3;
-
-	/// <summary>
-	/// Whether any of the three drawn cards is <paramref name="card"/>.
-	/// </summary>
-	public static bool HasCard(CardType card) => Card1 == card || Card2 == card || Card3 == card;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasBalance => HasCard(CardType.Balance);
+	public static bool HasArrow
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Arrow) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// 
 	/// </summary>
-	public static bool HasBole => HasCard(CardType.Bole);
+	public static bool HasSpear
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Spear) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// 
 	/// </summary>
-	public static bool HasArrow => HasCard(CardType.Arrow);
+	public static bool HasEwer
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Ewer) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// 
 	/// </summary>
-	public static bool HasSpear => HasCard(CardType.Spear);
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasEwer => HasCard(CardType.Ewer);
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasSpire => HasCard(CardType.Spire);
+	public static bool HasSpire
+	{
+		get
+		{
+			foreach (var card in DrawnCard) { if (card == CardType.Spire) return true; }
+			return false;
+		}
+	}
 
 	/// <summary>
 	/// Indicates the state of Minor Arcana and which card will be used next when activating Minor Arcana, LORD = 7, LADY = 8
@@ -125,9 +151,7 @@ public partial class AstrologianRotation : CustomRotation
 	/// <inheritdoc/>
 	public override void DisplayBaseStatus()
 	{
-		ImGui.Text($"Card1: {Card1.ToString()}");
-		ImGui.Text($"Card2: {Card2.ToString()}");
-		ImGui.Text($"Card3: {Card3.ToString()}");
+		ImGui.Text($"DrawnCard: {string.Join(", ", DrawnCard)}");
 		ImGui.Text($"DrawnCrownCard: {DrawnCrownCard}");
 		ImGui.Text($"ActiveDraw: {ActiveDraw}");
 		ImGui.Text($"RaiseMPMinimum: {RaiseMPMinimum}");
@@ -244,7 +268,7 @@ public partial class AstrologianRotation : CustomRotation
 
 	static partial void ModifyEpicyclePvP(ref ActionSetting setting)
 	{
-		setting.SpecialType = SpecialActionType.FixedDistanceMoveForward;
+		//setting.SpecialType = SpecialActionType.MovingForward;
 		setting.IsFriendly = true;
 	}
 
@@ -253,8 +277,7 @@ public partial class AstrologianRotation : CustomRotation
 		setting.ActionCheck = () => StatusHelper.PlayerHasStatus(true, StatusID.RetrogradeReady);
 		setting.IsFriendly = true;
 		setting.MPOverride = () => 0;
-		setting.SpecialType = SpecialActionType.ObjectBasedMovement;
-		setting.ObjectBasedMovementObjectOID = 0x3B8; // Pole Star (BNpcBase 952)
+		setting.SpecialType = SpecialActionType.MovingBackward;
 	}
 	#endregion
 }

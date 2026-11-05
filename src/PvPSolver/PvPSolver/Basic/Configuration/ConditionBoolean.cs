@@ -1,18 +1,16 @@
 ﻿namespace RotationSolver.Basic.Configuration;
 
 /// <summary>
-/// Initializes a new instance of the <see cref="ConditionBoolean"/> class.
+/// Represents a boolean condition with additional configuration options.
 /// </summary>
-/// <param name="defaultValue">The default value of the condition.</param>
-/// <param name="key">The key associated with the condition.</param>
-internal class ConditionBoolean(bool defaultValue, string key)
+internal class ConditionBoolean
 {
-	private readonly bool _defaultValue = defaultValue;
+	private readonly bool _defaultValue;
 
 	/// <summary>
 	/// Gets or sets the value of the condition.
 	/// </summary>
-	public bool Value { get; set; } = defaultValue;
+	public bool Value { get; set; }
 
 	/// <summary>
 	/// Gets or sets a value indicating whether the condition is enabled.
@@ -28,7 +26,19 @@ internal class ConditionBoolean(bool defaultValue, string key)
 	/// Gets the key associated with the condition.
 	/// </summary>
 	[JsonIgnore]
-	public string Key { get; } = key;
+	public string Key { get; }
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="ConditionBoolean"/> class.
+	/// </summary>
+	/// <param name="defaultValue">The default value of the condition.</param>
+	/// <param name="key">The key associated with the condition.</param>
+	public ConditionBoolean(bool defaultValue, string key)
+	{
+		_defaultValue = defaultValue;
+		Value = defaultValue;
+		Key = key;
+	}
 
 	/// <summary>
 	/// Resets the value of the condition to its default value.

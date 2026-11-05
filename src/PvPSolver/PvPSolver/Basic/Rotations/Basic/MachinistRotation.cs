@@ -30,7 +30,7 @@ public partial class MachinistRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.Overheated);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.Overheated);
 			return stacks == byte.MaxValue ? (byte)5 : stacks;
 		}
 	}

@@ -2,7 +2,6 @@ using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
-using ECommons.ExcelServices;
 using ECommons.GameFunctions;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel;
@@ -30,13 +29,11 @@ public partial class CustomRotation
 	{
 		get
 		{
-			var count = 0;
-			foreach (var member in PartyMembers)
+			int count = 0;
+			foreach (IBattleChara member in PartyMembers)
 			{
 				if (!member.IsDead && member.ObjectId != Player?.ObjectId)
-				{
 					count++;
-				}
 			}
 
 			return count;
@@ -124,7 +121,7 @@ public partial class CustomRotation
 			return false;
 		}
 
-		var minutes = (int)Math.Floor(CombatTime / 60f);
+		int minutes = (int)Math.Floor(CombatTime / 60f);
 		return minutes % 2 == 0;
 	}
 
@@ -169,25 +166,19 @@ public partial class CustomRotation
 		{
 			StatusList();
 
-			if (Buffs.Count == 0)
-			{
-				return false;
-			}
+			if (Buffs.Count == 0) return false;
 
-			var playerHasBuffs = true;
+			bool playerHasBuffs = true;
 			if (Player == null)
 			{
 				playerHasBuffs = false;
 			}
 			else
 			{
-				for (var i = 0; i < Buffs.Count; i++)
+				for (int i = 0; i < Buffs.Count; i++)
 				{
 					var buff = Buffs[i];
-					if (buff.Type != StatusType.Buff)
-					{
-						continue;
-					}
+					if (buff.Type != StatusType.Buff) continue;
 
 					if (!StatusHelper.PlayerHasStatus(false, buff.Ids) || StatusHelper.PlayerWillStatusEnd(0, false, buff.Ids))
 					{
@@ -197,17 +188,14 @@ public partial class CustomRotation
 				}
 			}
 
-			var targetHasDebuffs = HostileTarget != null;
+			bool targetHasDebuffs = HostileTarget != null;
 			if (targetHasDebuffs)
 			{
 				var target = HostileTarget!;
-				for (var i = 0; i < Buffs.Count; i++)
+				for (int i = 0; i < Buffs.Count; i++)
 				{
 					var buff = Buffs[i];
-					if (buff.Type != StatusType.Debuff)
-					{
-						continue;
-					}
+					if (buff.Type != StatusType.Debuff) continue;
 
 					if (!target.HasStatus(false, buff.Ids) || target.WillStatusEnd(0, false, buff.Ids))
 					{
@@ -230,49 +218,26 @@ public partial class CustomRotation
 		{
 			StatusList();
 
-			if (Buffs.Count == 0)
-			{
-				return 0;
-			}
+			if (Buffs.Count == 0) return 0;
 
 			float maxDuration = 0;
 			foreach (var buff in Buffs)
 			{
 				if (buff.Type == StatusType.Buff)
 				{
-					if (Player == null)
-					{
-						continue;
-					}
+					if (Player == null) continue;
+					if (!StatusHelper.PlayerHasStatus(false, buff.Ids)) continue;
 
-					if (!StatusHelper.PlayerHasStatus(false, buff.Ids))
-					{
-						continue;
-					}
-
-					var remaining = StatusHelper.PlayerStatusTime(false, buff.Ids);
-					if (remaining > maxDuration)
-					{
-						maxDuration = remaining;
-					}
+					float remaining = StatusHelper.PlayerStatusTime(true, buff.Ids[0]);
+					if (remaining > maxDuration) maxDuration = remaining;
 				}
 				else if (buff.Type == StatusType.Debuff)
 				{
-					if (HostileTarget == null)
-					{
-						continue;
-					}
+					if (HostileTarget == null) continue;
+					if (!HostileTarget.HasStatus(false, buff.Ids)) continue;
 
-					if (!HostileTarget.HasStatus(false, buff.Ids))
-					{
-						continue;
-					}
-
-					var remaining = HostileTarget.StatusTime(false, buff.Ids);
-					if (remaining > maxDuration)
-					{
-						maxDuration = remaining;
-					}
+					float remaining = HostileTarget.StatusTime(true, buff.Ids[0]);
+					if (remaining > maxDuration) maxDuration = remaining;
 				}
 			}
 
@@ -288,59 +253,59 @@ public partial class CustomRotation
 	public static List<StatusInfo> Buffs { get; } = [];
 
 	/// <summary>
-	/// Populates the <see cref="Buffs"/> list with the raid buffs and debuffs of every job in the party, or of the player's job when solo.
-	/// The list is rebuilt at most once per frame.
+	/// Populates the <see cref="Buffs"/> list with status effects (buffs and debuffs) based on the current party composition or the player's job.
+	/// <para>This method clears any existing entries in <see cref="Buffs"/> and rebuilds the list to reflect the jobs present in the party or the solo player's job.</para>
+	/// <para>If <see cref="PartyComposition"/> is null (indicating a solo scenario), it adds buffs specific to the player's current job abbreviation.</para>
+	/// <para>If <see cref="PartyComposition"/> is available, it iterates through each party member's job and adds relevant buffs, avoiding duplicates via a processed jobs set.</para>
+	/// <para>The <see cref="AddJobBuffs"/> method is called for each unique job abbreviation to append appropriate <see cref="StatusInfo"/> entries to <see cref="Buffs"/>.</para>
+	/// <para>This ensures that <see cref="Buffs"/> contains only the status effects pertinent to the current group setup.</para>
 	/// </summary>
 	public static void StatusList()
 	{
-		// Read many times per decision, so the list is rebuilt at most once a frame.
-		var now = Environment.TickCount64;
-		if (_buffsTick != long.MinValue && now - _buffsTick < 15)
-		{
-			return;
-		}
-
-		_buffsTick = now;
 		Buffs.Clear();
-		_buffJobs.Clear();
-		foreach (var member in PartyMembers)
+		var processedJobs = new HashSet<string>();
+
+		if (PartyComposition == null)
 		{
-			if (member != null)
+			if (Player?.ClassJob.Value.Abbreviation != null)
 			{
-				AddJobBuffs((Job)member.ClassJob.RowId);
+				var abbr = Player.ClassJob.Value.Abbreviation.ToString();
+				AddJobBuffs(abbr, processedJobs);
 			}
 		}
-
-		if (_buffJobs.Count == 0 && Player != null)
+		else
 		{
-			AddJobBuffs((Job)Player.ClassJob.RowId);
+			foreach (var job in PartyComposition)
+			{
+				var abbr = job.Value.Abbreviation.ToString();
+				AddJobBuffs(abbr, processedJobs);
+			}
 		}
 	}
 
-	private static long _buffsTick = long.MinValue;
-	private static readonly HashSet<Job> _buffJobs = [];
-
-	private static readonly Dictionary<Job, List<StatusInfo>> JobBuffs = new()
+	private static readonly Dictionary<string, List<StatusInfo>> JobBuffs = new()
 	{
-		{ Job.AST, [new StatusInfo("Divination", "AST", StatusType.Buff, StatusID.Divination)] },
-		{ Job.BRD, [new StatusInfo("Battle Voice", "BRD", StatusType.Buff, StatusID.BattleVoice),
+		{ "AST", [new StatusInfo("Divination", "AST", StatusType.Buff, StatusID.Divination)] },
+		{ "BRD", [new StatusInfo("Battle Voice", "BRD", StatusType.Buff, StatusID.BattleVoice),
 			new StatusInfo("Radiant Finale", "BRD", StatusType.Buff, StatusID.RadiantFinale_2964,
 					StatusID.RadiantFinale)] },
-		{ Job.DNC, [new StatusInfo("Technical Finish", "DNC", StatusType.Buff, StatusID.TechnicalFinish)] },
-		{ Job.DRG, [new StatusInfo("Battle Litany", "DRG", StatusType.Buff, StatusID.BattleLitany)] },
-		{ Job.MNK, [new StatusInfo("Brotherhood", "MNK", StatusType.Buff, StatusID.Brotherhood)] },
-		{ Job.NIN, [new StatusInfo("Mug", "NIN", StatusType.Debuff, StatusID.Mug),
+		{ "DNC", [new StatusInfo("Technical Finish", "DNC", StatusType.Buff, StatusID.TechnicalFinish)] },
+		{ "DRG", [new StatusInfo("Battle Litany", "DRG", StatusType.Buff, StatusID.BattleLitany)] },
+		{ "MNK", [new StatusInfo("Brotherhood", "MNK", StatusType.Buff, StatusID.Brotherhood)] },
+		{ "NIN", [new StatusInfo("Mug", "NIN", StatusType.Debuff, StatusID.Mug),
 			new StatusInfo("Dokumori", "NIN", StatusType.Debuff, StatusID.Dokumori, StatusID.Dokumori_4303)] },
-		{ Job.PCT, [new StatusInfo("Starry Muse", "PCT", StatusType.Buff, StatusID.StarryMuse)] },
-		{ Job.RPR, [new StatusInfo("Arcane Circle", "RPR", StatusType.Buff, StatusID.ArcaneCircle)] },
-		{ Job.RDM, [new StatusInfo("Embolden", "RDM", StatusType.Buff, StatusID.Embolden, StatusID.Embolden_1297)] },
-		{ Job.SCH, [new StatusInfo("Chain Stratagem", "SCH", StatusType.Debuff, StatusID.ChainStratagem, StatusID.ChainStratagem_1406)] },
-		{ Job.SMN, [new StatusInfo("Searing Light", "SMN", StatusType.Buff, StatusID.SearingLight)] }
+		{ "PCT", [new StatusInfo("Starry Muse", "PCT", StatusType.Buff, StatusID.StarryMuse)] },
+		{ "RPR", [new StatusInfo("Arcane Circle", "RPR", StatusType.Buff, StatusID.ArcaneCircle)] },
+		{ "RDM", [new StatusInfo("Embolden", "RDM", StatusType.Buff, StatusID.Embolden, StatusID.Embolden_1297)] },
+		{ "SCH", [new StatusInfo("Chain Stratagem", "SCH", StatusType.Debuff, StatusID.ChainStratagem, StatusID.ChainStratagem_1406)] },
+		{ "SMN", [new StatusInfo("Searing Light", "SMN", StatusType.Buff, StatusID.SearingLight)] }
 	};
 
-	private static void AddJobBuffs(Job job)
+	private static void AddJobBuffs(string abbr, HashSet<string> processedJobs)
 	{
-		if (_buffJobs.Add(job) && JobBuffs.TryGetValue(job, out var buffs))
+		if (!processedJobs.Add(abbr)) return;
+
+		if (JobBuffs.TryGetValue(abbr, out var buffs))
 		{
 			Buffs.AddRange(buffs);
 		}
@@ -400,8 +365,8 @@ public partial class CustomRotation
 			return false;
 		}
 
-		var minutes = (int)Math.Floor(CombatTime / 60f);
-		var secondsInCurrentMinute = (int)Math.Floor(CombatTime % 60f);
+		int minutes = (int)Math.Floor(CombatTime / 60f);
+		int secondsInCurrentMinute = (int)Math.Floor(CombatTime % 60f);
 
 		return minutes % 2 == 0 && secondsInCurrentMinute < 15;
 	}
@@ -444,17 +409,14 @@ public partial class CustomRotation
 	{
 		get
 		{
-			var count = 0;
+			int count = 0;
 			var members = PartyMembers;
 			if (members != null)
 			{
 				foreach (var _ in members)
 				{
 					count++;
-					if (count > 9)
-					{
-						break;
-					}
+					if (count > 9) break;
 				}
 			}
 			return count == 8 || count == 9;
@@ -485,21 +447,13 @@ public partial class CustomRotation
 	{
 		get
 		{
-			if (Player == null)
-			{
-				return null;
-			}
-
+			if (Player == null) return null;
 			IBattleChara lowest = Player;
 			var lowestHp = Player?.GetHealthRatio();
 
 			foreach (var member in PartyMembers)
 			{
-				if (member == null || member.IsDead)
-				{
-					continue;
-				}
-
+				if (member == null || member.IsDead) continue;
 				var memberHpRatio = member.GetHealthRatio();
 				if (memberHpRatio < lowestHp)
 				{
@@ -531,97 +485,86 @@ public partial class CustomRotation
 	/// </remarks>
 	public static float GetCurrentMitigationPercent()
 	{
-		var damageFactor = 1.0f;
+		float damageFactor = 1.0f;
 
 		var partyEnum = PartyMembers;
 		var hostileEnum = AllHostileTargets;
 
 		// Determine (heuristically) if the imminent AoE is magical.
-		var incomingMagical = IsMagicalDamageIncoming;
+		bool incomingMagical = IsMagicalDamageIncoming;
 
 		// Enemy debuffs (scan once).
-		var addle = false;
-		var feint = false;
-		var dismantle = false;
-		var reprisal = false;
+		bool addle = false;
+		bool feint = false;
+		bool dismantle = false;
+		bool reprisal = false;
 
 		if (hostileEnum != null)
 		{
 			foreach (var e in hostileEnum)
 			{
-				if (e == null)
-				{
-					continue;
-				}
+				if (e == null) continue;
 
 				// Addle: -10% magical / -5% physical
 				if (!addle && e.HasStatus(false, StatusID.Addle))
-				{
 					addle = true;
-				}
 
 				// Feint: -10% physical / -5% magical
 				if (!feint && e.HasStatus(false, StatusID.Feint))
-				{
 					feint = true;
-				}
 
 				if (!dismantle && e.HasStatus(false, StatusID.Dismantled))
-				{
 					dismantle = true;
-				}
 
 				// Reprisal: -10% all damage (missing previously)
 				if (!reprisal && e.HasStatus(false, StatusID.Reprisal))
-				{
 					reprisal = true;
-				}
 
 				if (addle && feint && dismantle && reprisal)
-				{
 					break;
-				}
 			}
 		}
 
 		if (addle)
-		{
 			damageFactor *= incomingMagical ? 0.90f : 0.95f;
-		}
-
 		if (feint)
-		{
 			damageFactor *= incomingMagical ? 0.95f : 0.90f;
-		}
-
 		if (dismantle)
-		{
 			damageFactor *= 0.90f;
-		}
-
 		if (reprisal)
-		{
 			damageFactor *= 0.90f;
+
+		// Collect party statuses once into a hash set for O(1) lookups.
+		HashSet<StatusID> partyStatuses = [];
+		if (partyEnum != null)
+		{
+			foreach (var m in partyEnum)
+			{
+				if (m == null) continue;
+				// Here we just probe the relevant IDs.
+				// To avoid N*M calls, we gather by probing only needed IDs below if not already present.
+			}
 		}
 
-		HashSet<StatusID> partyStatuses = [];
-
+		// Helper to lazily test & cache a status.
 		bool HasPartyStatus(StatusID id)
 		{
-			if (partyStatuses.Contains(id))
+			bool haspartyStatuses = false;
+			foreach (var status in partyStatuses)
 			{
-				return true;
+				if (status == id)
+				{
+					haspartyStatuses = true;
+					break;
+				}
 			}
+			if (haspartyStatuses) return true;
 
 			if (partyEnum != null)
 			{
 				foreach (var m in partyEnum)
 				{
-					if (m == null)
-					{
-						continue;
-					}
-
+					if (m == null) continue;
 					if (m.HasStatus(false, id))
 					{
 						partyStatuses.Add(id);
@@ -637,73 +580,41 @@ public partial class CustomRotation
 			|| HasPartyStatus(StatusID.DarkForce)
 			|| HasPartyStatus(StatusID.GunmetalSoul)
 			|| HasPartyStatus(StatusID.LandWaker))
-		{
 			damageFactor *= 0.2f;
-		}
 
 		if (HasPartyStatus(StatusID.SacredSoil))
-		{
 			damageFactor *= 0.90f;
-		}
-
 		if (incomingMagical && HasPartyStatus(StatusID.FeyIllumination))
-		{
 			damageFactor *= 0.95f;
-		}
-
-		if (HasPartyStatus(StatusID.DesperateMeasures))
-		{
+		if (HasPartyStatus(StatusID.DesperateMeasures)) // Expedient mitigation component
 			damageFactor *= 0.90f;
-		}
-
 		if (HasPartyStatus(StatusID.Temperance_1873))
-		{
 			damageFactor *= 0.90f;
-		}
-
 		if (HasPartyStatus(StatusID.Holos))
-		{
 			damageFactor *= 0.90f;
-		}
-
 		if (HasPartyStatus(StatusID.Kerachole))
-		{
 			damageFactor *= 0.90f;
-		}
-
 		if (HasPartyStatus(StatusID.CollectiveUnconscious_849))
-		{
 			damageFactor *= 0.90f;
-		}
 
 		if (HasPartyStatus(StatusID.Troubadour)
 			|| HasPartyStatus(StatusID.ShieldSamba)
 			|| HasPartyStatus(StatusID.Tactician_1951))
-		{
 			damageFactor *= 0.90f;
-		}
 
 		if (HasPartyStatus(StatusID.DarkMissionary))
-		{
 			damageFactor *= incomingMagical ? 0.90f : 0.95f;
-		}
 
 		if (HasPartyStatus(StatusID.HeartOfLight))
-		{
 			damageFactor *= incomingMagical ? 0.90f : 0.95f;
-		}
 
 		if (incomingMagical && HasPartyStatus(StatusID.MagickBarrier))
-		{
 			damageFactor *= 0.90f;
-		}
 
 		if (HasPartyStatus(StatusID.PassageOfArms))
-		{
 			damageFactor *= 0.85f;
-		}
 
-		var mitigated = 1.0f - damageFactor;
+		float mitigated = 1.0f - damageFactor;
 		return Math.Clamp(mitigated, 0f, 0.95f);
 	}
 
@@ -762,7 +673,7 @@ public partial class CustomRotation
 			return true;
 		}
 
-		var enemy_positional = enemy.FindEnemyPositional();
+		EnemyPositional enemy_positional = enemy.FindEnemyPositional();
 
 		return enemy_positional == positional;
 	}
@@ -838,19 +749,21 @@ public partial class CustomRotation
 	{
 		get
 		{
-			var controller = &UIState.Instance()->LimitBreakController;
-			return controller->BarUnits == 0 ? (byte)0 : (byte)(controller->CurrentUnits / controller->BarUnits);
+			LimitBreakController controller = UIState.Instance()->LimitBreakController;
+			ushort barValue = *(ushort*)&controller.BarCount;
+			return barValue == 0 ? (byte)0 : (byte)(controller.BarCount / barValue);
 		}
 	}
 
 	/// <summary>
-	/// Is the <see cref="AverageTTK"/> larger than <paramref name="time"/>. True while no time to kill is known yet.
+	/// Is the <see cref="AverageTTK"/> larger than <paramref name="time"/>.
 	/// </summary>
 	/// <param name="time">Time</param>
 	/// <returns>Is Longer.</returns>
 	public static bool IsLongerThan(float time)
 	{
-		return !DataCenter.IsAverageTTKKnown || AverageTTK > time;
+		//if (IsInHighEndDuty) return true;
+		return AverageTTK > time;
 	}
 
 	/// <summary>
@@ -980,30 +893,24 @@ public partial class CustomRotation
 		/// </summary>
 		/// <param name="rotation">The custom rotation instance</param>
 		/// <param name="act">The action to use if potion usage is recommended</param>
-		/// <param name="clippingCheck">Whether to perform a clipping check when using the potion</param>
 		/// <returns>True if both conditions and timing are met for potion usage</returns>
-		public bool ShouldUsePotion(CustomRotation rotation, out IAction? act, bool clippingCheck = true)
+		public bool ShouldUsePotion(CustomRotation rotation, out IAction? act)
 		{
 			act = null;
 
-			if (!Enabled || StatusHelper.PlayerHasStatus(true, StatusID.Medicated))
-			{
+			if (!Enabled)
 				return false;
-			}
 
 			// Check if conditions are met for potion usage
 			if (!IsConditionMet())
-			{
 				return false;
-			}
 
 			// Check if current time aligns with strategy timing
 			if (!CanUseAtTime())
-			{
 				return false;
-			}
 
-			return rotation.UseBurstMedicine(out act, clippingCheck);
+			// Finally, attempt to use the burst medicine
+			return IsConditionMet() && CanUseAtTime() && rotation.UseBurstMedicine(out act);
 		}
 
 		/// <summary>
@@ -1014,20 +921,17 @@ public partial class CustomRotation
 		public virtual bool CanUseAtTime()
 		{
 			if (!Enabled)
-			{
 				return false;
-			}
 
+			// Null-safe check for custom timings: ensure array exists and has non-zero values (no LINQ)
 			if (Strategy == PotionStrategy.Custom)
 			{
 				var timingsArr = CustomTimings.Timings;
 				if (timingsArr == null || timingsArr.Length == 0)
-				{
 					return false;
-				}
 
-				var allZero = true;
-				for (var i = 0; i < timingsArr.Length; i++)
+				bool allZero = true;
+				for (int i = 0; i < timingsArr.Length; i++)
 				{
 					if (timingsArr[i] != 0f)
 					{
@@ -1036,16 +940,14 @@ public partial class CustomRotation
 					}
 				}
 				if (allZero)
-				{
 					return false;
-				}
 			}
 
 			// Get timing array based on strategy using extracted method
-			var timings = GetTimingsArray();
+			float[] timings = GetTimingsArray();
 
 			// Check if current time aligns with any timing window
-			foreach (var timing in timings)
+			foreach (float timing in timings)
 			{
 				if (IsTimingValid(timing))
 				{
@@ -1063,9 +965,7 @@ public partial class CustomRotation
 		public virtual bool IsConditionMet()
 		{
 			if (!Enabled)
-			{
 				return false;
-			}
 
 			// Basic condition checks - override in derived classes for job-specific logic
 			return true;
@@ -1114,8 +1014,8 @@ public partial class CustomRotation
 			}
 
 			// Check opener timing: if it's an opener potion and countdown is within configured time
-			var countDown = Service.CountDownTime;
-			if (IsOpenerPotion(timing) && countDown > 0 && countDown <= OpenerPotionTime && !InCombat)
+			float countDown = Service.CountDownTime;
+			if (IsOpenerPotion(timing) && countDown <= OpenerPotionTime && !InCombat)
 			{
 				return true;
 			}
@@ -1168,7 +1068,7 @@ public partial class CustomRotation
 	/// The type of the next predicted damage event (0=None, 1=Tankbuster, 2=Raidwide, 3=Shared).
 	/// </summary>
 	[Description("Next predicted damage type")]
-	public static PredictedDamageType BMRDamageType => DataCenter.BMRNextDamageType;
+	public static int BMRDamageType => DataCenter.BMRNextDamageType;
 
 	/// <summary>
 	/// Seconds until the boss becomes untargetable (downtime starts).
@@ -1226,29 +1126,29 @@ public partial class CustomRotation
 	#endregion
 
 	/// <summary>
-	/// The threshold (in seconds) that defines the start of a late weave window.
+	/// 
 	/// </summary>
 	public static float LateWeaveWindow => WeaponTotal * 0.45f;
 
 	/// <summary>
-	/// Checks if there is enough remaining time in the current GCD to execute an off-global action without clipping.
+	/// 
 	/// </summary>
-	public static bool EnoughWeaveTime => WeaponRemain < WeaponTotal && WeaponRemain > Math.Max(DataCenter.CalculatedActionAhead, AnimationLock);
+	public static bool EnoughWeaveTime => WeaponRemain > DataCenter.CalculatedActionAhead && WeaponRemain < WeaponTotal;
 
 	/// <summary>
-	/// Indicates whether the player can currently execute a late weave.
+	/// 
 	/// </summary>
-	public static bool CanLateWeave => WeaponRemain <= LateWeaveWindow && CanWeave;
+	public static bool CanLateWeave => WeaponRemain <= LateWeaveWindow && EnoughWeaveTime && CanWeave;
 
 	/// <summary>
-	/// Indicates whether the player can currently execute an early weave.
+	/// 
 	/// </summary>
 	public static bool CanEarlyWeave => (!HasWeaved() || WeaponRemain > LateWeaveWindow) && CanWeave;
 
 	/// <summary>
-	/// Safely verifies that the player is in the middle of a GCD and has enough time to weave an oGCD.
+	/// 
 	/// </summary>
-	public static bool CanWeave => EnoughWeaveTime && AnimationLock <= 0f;
+	public static bool CanWeave => WeaponRemain >= DataCenter.CalculatedActionAhead && DataCenter.DefaultGCDElapsed > 0 && DataCenter.DefaultGCDElapsed >= DataCenter.CalculatedActionAhead;
 
 	/// <summary>
 	/// Counts how many party members (alive and not full HP) are within range of the pet.
@@ -1260,7 +1160,7 @@ public partial class CustomRotation
 			return 0;
 		}
 
-		var count = 0;
+		int count = 0;
 
 		foreach (var target in PartyMembers)
 		{
@@ -1269,7 +1169,7 @@ public partial class CustomRotation
 				continue;
 			}
 
-			if (target.IsDead)
+			if (target.IsDead != false)
 			{
 				continue;
 			}
@@ -1313,7 +1213,7 @@ public partial class CustomRotation
 	public virtual bool CanHealSingleSpell => true;
 
 	/// <summary>
-	///
+	/// 
 	/// </summary>
 	public static int RaiseMPMinimum => Service.Config.LessMPNoRaise;
 
@@ -1479,15 +1379,9 @@ public partial class CustomRotation
 	public static bool IsInFRU => DataCenter.IsInFRU;
 
 	///<summary>
-	/// Is player in DMU duty.
-	///</summary>
-	[Description("Is in DMU duty")]
-	public static bool IsInDMU => DataCenter.IsInDMU;
-
-	///<summary>
 	/// Is player in COD duty.
 	///</summary>
-	[Description("Is in COD duty")]
+	[Description("Is in FRU duty")]
 	public static bool IsInCOD => DataCenter.IsInCOD;
 
 	/// <summary>
@@ -1530,6 +1424,7 @@ public partial class CustomRotation
 	internal static int CountingOfLastUsing { get; set; } = 0;
 	internal static int CountingOfCombatTimeUsing { get; set; } = 0;
 
+
 	/// <summary>
 	///  The actions that were used by player successfully. The first one is the latest successfully used one.
 	/// <br>WARNING: Do Not make this method the main of your rotation.</br>
@@ -1564,7 +1459,7 @@ public partial class CustomRotation
 	/// <param name="actions">True if any of this is matched.</param>
 	/// <returns></returns>
 	[Description("Just used GCD")]
-	public static bool IsLastGCD(bool isAdjust, params ReadOnlySpan<IAction> actions)
+	public static bool IsLastGCD(bool isAdjust, params IAction[] actions)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastGCD(isAdjust, actions);
@@ -1576,7 +1471,7 @@ public partial class CustomRotation
 	/// </summary>
 	/// <param name="ids">True if any of this is matched.</param>
 	/// <returns></returns>
-	public static bool IsLastGCD(params ReadOnlySpan<ActionID> ids)
+	public static bool IsLastGCD(params ActionID[] ids)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastGCD(ids);
@@ -1590,7 +1485,7 @@ public partial class CustomRotation
 	/// <param name="actions">True if any of this is matched.</param>
 	/// <returns></returns>
 	[Description("Just used Ability")]
-	public static bool IsLastAbility(bool isAdjust, params ReadOnlySpan<IAction> actions)
+	public static bool IsLastAbility(bool isAdjust, params IAction[] actions)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastAbility(isAdjust, actions);
@@ -1602,7 +1497,7 @@ public partial class CustomRotation
 	/// </summary>
 	/// <param name="ids">True if any of this is matched.</param>
 	/// <returns></returns>
-	public static bool IsLastAbility(params ReadOnlySpan<ActionID> ids)
+	public static bool IsLastAbility(params ActionID[] ids)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastAbility(ids);
@@ -1616,7 +1511,7 @@ public partial class CustomRotation
 	/// <param name="actions">True if any of this is matched.</param>
 	/// <returns></returns>
 	[Description("Just used Action")]
-	public static bool IsLastAction(bool isAdjust, params ReadOnlySpan<IAction> actions)
+	public static bool IsLastAction(bool isAdjust, params IAction[] actions)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastAction(isAdjust, actions);
@@ -1628,7 +1523,7 @@ public partial class CustomRotation
 	/// </summary>
 	/// <param name="ids">True if any of this is matched.</param>
 	/// <returns></returns>
-	public static bool IsLastAction(params ReadOnlySpan<ActionID> ids)
+	public static bool IsLastAction(params ActionID[] ids)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastAction(ids);
@@ -1654,7 +1549,7 @@ public partial class CustomRotation
 	/// <param name="actions">True if any of this is matched.</param>
 	/// <returns></returns>
 	[Description("Just used Combo Action")]
-	public static bool IsLastComboAction(bool isAdjust, params ReadOnlySpan<IAction> actions)
+	public static bool IsLastComboAction(bool isAdjust, params IAction[] actions)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastComboAction(isAdjust, actions);
@@ -1666,7 +1561,7 @@ public partial class CustomRotation
 	/// </summary>
 	/// <param name="ids">True if any of this is matched.</param>
 	/// <returns></returns>
-	public static bool IsLastComboAction(params ReadOnlySpan<ActionID> ids)
+	public static bool IsLastComboAction(params ActionID[] ids)
 	{
 		CountingOfLastUsing++;
 		return IActionHelper.IsLastComboAction(ids);
@@ -1685,7 +1580,9 @@ public partial class CustomRotation
 	/// </summary>
 	public static bool HasWeaved()
 	{
-		return IActionHelper.IsLastActionAbility();
+		// Returns true if the last action and last ability are the same (i.e., an oGCD was weaved).
+		// Returns false otherwise.
+		return IsLastAction() == IsLastAbility();
 	}
 
 	/// <summary>

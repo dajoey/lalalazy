@@ -25,7 +25,7 @@ public partial class WarriorRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.InnerRelease);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.InnerRelease);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}
@@ -37,7 +37,7 @@ public partial class WarriorRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.Berserk);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.Berserk);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}

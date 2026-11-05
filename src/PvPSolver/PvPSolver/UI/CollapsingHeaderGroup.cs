@@ -1,56 +1,54 @@
+﻿using Dalamud.Interface.Utility.Raii;
 using ECommons.Logging;
-using RebornMaterial;
 
 namespace RotationSolver.UI;
 
 internal class CollapsingHeaderGroup(Dictionary<Func<string>, Action> headers)
 {
-	private static int _nextGroupId;
-
 	private readonly Dictionary<Func<string>, Action> _headers = headers ?? throw new ArgumentNullException(nameof(headers));
-	private readonly Dictionary<string, FontAwesomeIcon> _icons = [];
-	private readonly int _groupId = Interlocked.Increment(ref _nextGroupId);
 	private int _openedIndex = -1;
+
+	public float HeaderSize { get; set; } = 24;
 
 	public void AddCollapsingHeader(Func<string> name, Action action)
 	{
 		ArgumentNullException.ThrowIfNull(name);
+
 		ArgumentNullException.ThrowIfNull(action);
 
 		_headers[name] = action;
 	}
 
+	public void RemoveCollapsingHeader(Func<string> name)
+	{
+		ArgumentNullException.ThrowIfNull(name);
+
+		_ = _headers.Remove(name);
+	}
+
 	public void ClearCollapsingHeader()
 	{
 		_headers.Clear();
-		_icons.Clear();
 	}
 
-	public void SetHeaderIcon(string title, FontAwesomeIcon icon)
-	{
-		if (!string.IsNullOrEmpty(title))
-		{
-			_icons[title] = icon;
-		}
-	}
-
+	/// <summary>
+	/// Programmatically open a header by its display title.
+	/// </summary>
 	public void OpenHeaderByTitle(string? title, bool ignoreCase = true)
 	{
 		if (string.IsNullOrEmpty(title))
 		{
 			return;
 		}
-
-		var idx = -1;
-		foreach (var header in _headers)
+		int idx = -1;
+		foreach (KeyValuePair<Func<string>, Action> header in _headers)
 		{
 			idx++;
-			var name = header.Key?.Invoke() ?? string.Empty;
+			string name = header.Key?.Invoke() ?? string.Empty;
 			if (string.IsNullOrEmpty(name))
 			{
 				continue;
 			}
-
 			if (string.Equals(name, title, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
 			{
 				_openedIndex = idx;
@@ -59,10 +57,18 @@ internal class CollapsingHeaderGroup(Dictionary<Func<string>, Action> headers)
 		}
 	}
 
+	/// <summary>
+	/// Programmatically open a header by its 0-based index.
+	/// </summary>
+	public void OpenHeaderByIndex(int index)
+	{
+		_openedIndex = index;
+	}
+
 	public void Draw()
 	{
-		var index = -1;
-		foreach (var header in _headers)
+		int index = -1;
+		foreach (KeyValuePair<Func<string>, Action> header in _headers)
 		{
 			index++;
 
@@ -71,7 +77,7 @@ internal class CollapsingHeaderGroup(Dictionary<Func<string>, Action> headers)
 				continue;
 			}
 
-			var name = header.Key();
+			string name = header.Key();
 			if (string.IsNullOrEmpty(name))
 			{
 				continue;
@@ -88,17 +94,17 @@ internal class CollapsingHeaderGroup(Dictionary<Func<string>, Action> headers)
 					changed = ImGui.Selectable(name, selected, ImGuiSelectableFlags.DontClosePopups);
 				}
 
-				using (var card = M3ExpandableCard.Begin($"section_{_groupId}_{index}", name, ref expanded, icon, M3.AccentFor(index)))
+				if (ImGui.IsItemHovered())
 				{
-					if (card.Expanded)
-					{
-						header.Value();
-					}
+					ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
 				}
-
-				if (expanded != wasExpanded)
+				if (changed)
 				{
-					_openedIndex = expanded ? index : -1;
+					_openedIndex = selected ? -1 : index;
+				}
+				if (selected)
+				{
+					header.Value();
 				}
 			}
 			catch (Exception ex)

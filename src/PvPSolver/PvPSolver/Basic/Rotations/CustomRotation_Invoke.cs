@@ -15,20 +15,22 @@ public partial class CustomRotation
 
 		try
 		{
-			UpdateInfo();
-			UpdatePreview();
+			UpdateInfo(); // Rotation specific info updates
+			IBaseAction.ActionPreview = true;
+			if (DataCenter.DrawingActions)
+			{
+				UpdateActions(Role);
+			}
+			IBaseAction.ActionPreview = false;
 
 			CountingOfLastUsing = CountingOfCombatTimeUsing = 0;
 			newAction = Invoke(out gcdAction);
-
+			// Track when the next GCD action (IBaseAction) returned by Invoke changes.
 			try
 			{
 				uint gcdId = 0;
 				if (gcdAction is IBaseAction ib)
-				{
 					gcdId = ib.AdjustedID;
-				}
-
 				if (gcdId != _lastNextGCDId)
 				{
 					_lastNextGCDId = gcdId;
@@ -37,7 +39,7 @@ public partial class CustomRotation
 			}
 			catch
 			{
-
+				// ignore any errors during tracking
 			}
 			if (InCombat || CountOfTracking == 0)
 			{
@@ -76,57 +78,18 @@ public partial class CustomRotation
 				ex = ex.InnerException;
 			}
 
-			LogErrorOnce(WhyNotValid);
+			// Log the exception details
+			PluginLog.Error(WhyNotValid);
 
 			IsValid = false;
-		}
-		finally
-		{
-			IBaseAction.ResetOverrides();
 		}
 
 		return newAction != null;
 	}
 
-	private string? _lastLoggedError;
-
-	private void LogErrorOnce(string message)
-	{
-		if (message == _lastLoggedError)
-		{
-			return;
-		}
-
-		_lastLoggedError = message;
-		PluginLog.Error(message);
-	}
-
-	private void UpdatePreview()
-	{
-		if (!DataCenter.DrawingActions)
-		{
-			return;
-		}
-
-		IBaseAction.ActionPreview = true;
-		try
-		{
-			UpdateActions(Role);
-		}
-		catch (Exception ex)
-		{
-			LogErrorOnce($"Failed to preview the actions: {ex}");
-		}
-		finally
-		{
-			IBaseAction.ActionPreview = false;
-			IBaseAction.ResetOverrides();
-		}
-	}
-
 	private void UpdateActions(JobRole role)
 	{
-		ActionMoveForwardGCD = MoveForwardGCD(out var act) ? act : null;
+		ActionMoveForwardGCD = MoveForwardGCD(out IAction? act) ? act : null;
 
 		UpdateHealingActions(role, out _);
 		UpdateDefenseActions(out _);
@@ -137,7 +100,7 @@ public partial class CustomRotation
 
 	private void UpdateHealingActions(JobRole role, out IAction? act)
 	{
-		act = null;
+		act = null; // Ensure 'act' is assigned before any return
 
 		try
 		{
@@ -156,7 +119,9 @@ public partial class CustomRotation
 		}
 		catch (Exception ex)
 		{
+			// Log the exception or handle it as needed
 			PluginLog.Error($"Exception in UpdateHealingActions method: {ex.Message}");
+			// Optionally, set actions to null in case of an exception
 			ActionHealAreaGCD = ActionHealAreaAbility = ActionHealSingleGCD = ActionHealSingleAbility = null;
 		}
 	}
@@ -175,14 +140,16 @@ public partial class CustomRotation
 		}
 		catch (MissingMethodException ex)
 		{
+			// Log the exception or handle it as needed
 			_ = BasicWarningHelper.AddSystemWarning($"Exception in UpdateDefenseActions method: {ex.Message}");
+			// Optionally, set actions to null in case of an exception
 			ActionDefenseAreaAbility = ActionDefenseSingleAbility = null;
 		}
 	}
 
 	private void UpdateDispelAndRaiseActions(JobRole role, out IAction? act)
 	{
-		act = null;
+		act = null; // Ensure 'act' is assigned before any return
 
 		IBaseAction.TargetOverride = TargetType.Dispel;
 		ActionDispelStancePositionalGCD = role switch
@@ -203,7 +170,7 @@ public partial class CustomRotation
 
 	private void UpdatePositionalActions(JobRole role, out IAction? act)
 	{
-		act = null;
+		act = null; // Ensure 'act' is assigned before any return
 
 		ActionDispelStancePositionalAbility = role switch
 		{
@@ -234,19 +201,23 @@ public partial class CustomRotation
 
 	private IAction? Invoke(out IAction? gcdAction)
 	{
+		// Initialize the output parameter
 		gcdAction = null;
 
+		// Reset special action flags
 		IBaseAction.ShouldEndSpecial = false;
 		IBaseAction.IgnoreClipping = true;
 
 		try
 		{
-			var countDown = Service.CountDownTime;
+			// Check for countdown and return the appropriate action if not in combat
+			float countDown = Service.CountDownTime;
 			if (countDown > 0 && !DataCenter.InCombat)
 			{
 				return CountDownAction(countDown);
 			}
 
+			// Reset target override
 			IBaseAction.TargetOverride = null;
 
 			// "Let Jev call the shots" (Projects/PvP Jev Co-pilot): fire the PvP Limit Break when Jev's fresh answer
@@ -260,17 +231,14 @@ public partial class CustomRotation
 			gcdAction = GCD();
 			IBaseAction.IgnoreClipping = false;
 
-			IBaseAction.TargetOverride = null;
-			IBaseAction.ShouldEndSpecial = false;
-
-			IBaseAction.AutoHealCheck = false;
-
+			// If a GCD action is available, determine if it can be used or if an ability should be used instead
 			if (gcdAction != null)
 			{
-				return ActionHelper.CanUseGCD ? gcdAction : Ability(gcdAction, out var ability) ? ability : gcdAction;
+				return ActionHelper.CanUseGCD ? gcdAction : Ability(gcdAction, out IAction? ability) ? ability : gcdAction;
 			}
 			else
 			{
+				// If no GCD action is available, attempt to use an ability
 				IBaseAction.IgnoreClipping = true;
 				if (Ability(RecuperatePvP, out IAction? ability))
 				{
@@ -283,12 +251,14 @@ public partial class CustomRotation
 		}
 		catch (Exception ex)
 		{
-			LogErrorOnce($"Exception in Invoke method: {ex.Message}");
+			// Log the exception or handle it as needed
+			Console.WriteLine($"Exception in Invoke method: {ex.Message}");
 			return null;
 		}
 		finally
 		{
-			IBaseAction.ResetOverrides();
+			// Ensure IgnoreClipping is reset
+			IBaseAction.IgnoreClipping = false;
 		}
 	}
 

@@ -68,7 +68,12 @@ public class ActionConfig()
 	/// setting this to "2" would re-apply the damage-over-time action within 5
 	/// seconds before it falls off.
 	/// </markdown>
-	public byte StatusRefreshGcdCount { get; set; } = 2;
+	public byte StatusGcdCount { get; set; } = 2;
+
+	/// <summary>
+	/// Is this action a Single Target Healing GCD.
+	/// </summary>
+	public bool GCDSingleHeal { get; set; } = false;
 
 	/// <summary>
 	/// The aoe count of this action.
@@ -101,6 +106,11 @@ public class ActionConfig()
 	public float AutoHealRatio { get; set; } = 0.8f;
 
 	/// <summary>
+	/// Is this action in the cd window.
+	/// </summary>
+	public bool IsOnCooldownWindow { get; set; } = true;
+
+	/// <summary>
 	/// 
 	/// </summary>
 	public bool MinHPFeature { get; set; } = false;
@@ -114,21 +124,4 @@ public class ActionConfig()
 	/// One-time flag to indicate the AOE-count reset has been applied.
 	/// </summary>
 	public bool AoeResetDone { get; set; } = false;
-
-	/// <summary>
-	/// The rotation-provided default of <see cref="AoeCount"/> that was last applied to this config.
-	/// Used to detect when the rotation default changes between plugin updates so the user value can be reset.
-	/// </summary>
-	public byte? AppliedDefaultAoeCount { get; set; } = null;
-
-	/// <summary>
-	/// The rotation-provided default of <see cref="StatusRefreshGcdCount"/> that was last applied to this config.
-	/// Used to detect when the rotation default changes between plugin updates so the user value can be reset.
-	/// </summary>
-	public byte? AppliedDefaultStatusRefreshGcdCount { get; set; } = null;
-
-	/// <summary>
-	/// When true, skip the BossModReborn position-safety check for this action. Allows users to opt out per-action.
-	/// </summary>
-	public bool SkipPositionSafetyCheck { get; set; } = false;
 }

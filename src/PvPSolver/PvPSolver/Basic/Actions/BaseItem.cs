@@ -63,7 +63,7 @@ public class BaseItem : IBaseItem
 	{
 		get
 		{
-			if (!Service.Config.RotationItemConfig.TryGetValue(ID, out var value))
+			if (!Service.Config.RotationItemConfig.TryGetValue(ID, out ItemConfig? value))
 			{
 				Service.Config.RotationItemConfig[ID] = value = new();
 			}
@@ -99,6 +99,15 @@ public class BaseItem : IBaseItem
 	}
 
 	/// <summary>
+	/// Is the item in the cd window.
+	/// </summary>
+	public bool IsOnCooldownWindow
+	{
+		get => Config.IsOnCooldownWindow;
+		set => Config.IsOnCooldownWindow = value;
+	}
+
+	/// <summary>
 	/// Gets or sets a value indicating whether this action is restricted by min HP.
 	/// </summary>
 	public bool MinHPFeature
@@ -114,14 +123,6 @@ public class BaseItem : IBaseItem
 	{
 		get => Config.MinHPPercent;
 		set => Config.MinHPPercent = value;
-	}
-
-	/// <inheritdoc/>
-	/// <remarks>Items never move the character; this is always <c>false</c>.</remarks>
-	public bool SkipPositionSafetyCheck
-	{
-		get => false;
-		set { }
 	}
 
 	/// <summary>
@@ -195,7 +196,7 @@ public class BaseItem : IBaseItem
 		item = this;
 		if (_item.RowId == 0)
 		{
-			return false;
+			return false; // Check if the item is uninitialized
 		}
 
 		if (!CanUseThis)
@@ -208,15 +209,15 @@ public class BaseItem : IBaseItem
 			return false;
 		}
 
-		if (ConfigurationHelper.BadStatus.Contains((ActionStatus)ActionManager.Instance()->GetActionStatus(ActionType.Item, ID))
-			&& ConfigurationHelper.BadStatus.Contains((ActionStatus)ActionManager.Instance()->GetActionStatus(ActionType.Item, ID + 1000000)))
+		if (ConfigurationHelper.BadStatus.Contains(ActionManager.Instance()->GetActionStatus(ActionType.Item, ID))
+			&& ConfigurationHelper.BadStatus.Contains(ActionManager.Instance()->GetActionStatus(ActionType.Item, ID + 1000000)))
 		{
 			return false;
 		}
 
-		var remain = Cooldown.RecastTimeOneChargeRaw - Cooldown.RecastTimeElapsedRaw;
+		float remain = Cooldown.RecastTimeOneChargeRaw - Cooldown.RecastTimeElapsedRaw;
 
-		return (remain <= DataCenter.DefaultGCDRemain || !clippingCheck) && (ItemCheck == null || ItemCheck()) && HasIt;
+		return remain <= DataCenter.DefaultGCDRemain && (ItemCheck == null || ItemCheck()) && HasIt;
 	}
 
 	/// <summary>
@@ -232,7 +233,7 @@ public class BaseItem : IBaseItem
 
 		if (_item.RowId == 0)
 		{
-			return false;
+			return false; // Check if the item is uninitialized
 		}
 
 		if (_item.RowId == 4570 && DataCenter.DeathTarget != null)

@@ -1,27 +1,19 @@
-using Dalamud.Interface.Utility.Raii;
+﻿using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
-using RebornMaterial;
-using RotationSolver.UI.HighlightTeachingMode;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using RotationSolver.Updaters;
 
-namespace RotationSolver.UI.ExtraWindows;
+namespace RotationSolver.UI;
 
 internal class NextActionWindow : Window
 {
-	private const ImGuiWindowFlags BaseFlags = FullControlWindow.BaseFlags
+	private const ImGuiWindowFlags BaseFlags = ControlWindow.BaseFlags
 	| ImGuiWindowFlags.AlwaysAutoResize
 	| ImGuiWindowFlags.NoCollapse
 	| ImGuiWindowFlags.NoTitleBar
 	| ImGuiWindowFlags.NoResize;
-
-	private readonly record struct TargetHint(IBattleChara Target, string Name, bool IsSelf, bool IsCurrent);
-
-	private const float IconSize = 60f;
-
-	private M3.WindowScaleScope _scale;
-	private M3Style.Scope _theme;
 
 	public NextActionWindow()
 		: base(nameof(NextActionWindow), BaseFlags)
@@ -30,9 +22,6 @@ internal class NextActionWindow : Window
 
 	public override void PreDraw()
 	{
-		_scale = M3.PushWindowScale(Service.Config.NextActionWindowScale);
-		_theme = M3Style.Push(M3Density.Compact);
-
 		ImGui.PushStyleColor(ImGuiCol.WindowBg, Service.Config.InfoWindowBg);
 
 		Flags = BaseFlags;
@@ -44,165 +33,140 @@ internal class NextActionWindow : Window
 		{
 			Flags |= ImGuiWindowFlags.NoMove;
 		}
+		ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
 		base.PreDraw();
 	}
 
 	public override void PostDraw()
 	{
 		ImGui.PopStyleColor();
+		ImGui.PopStyleVar();
 		base.PostDraw();
-		_theme.Dispose();
-		_theme = default;
-		_scale.Dispose();
-		_scale = default;
 	}
 
-	public override void Draw()
+	public override unsafe void Draw()
 	{
-		var config = Service.Config;
-		var windowScale = config.NextActionWindowScale;
-		var size = IconSize * windowScale;
-		var action = ActionUpdater.NextAction;
+		Basic.Configuration.Configs config = Service.Config;
+		float width = config.ControlWindowGCDSize * config.ControlWindowNextSizeRatio;
+		DrawGcdCooldown(width, false);
 
-		var keybind = config.ShowNextActionKeybind ? HotbarKeybindHelper.GetKeybind(action) : string.Empty;
-		var hint = config.TeachingMode && config.TeachingModeShowTargetHint ? GetTargetHint(action) : null;
+		float percent = 0f;
 
-		var width = size;
-		if (keybind.Length > 0)
+		ActionManager* actionManager = ActionManager.Instance();
+		if (actionManager == null)
 		{
-			width = MathF.Max(width, KeyCapSize(keybind).X);
-		}
-		if (hint is { } measured)
-		{
-			width = MathF.Max(width, M3Widgets.PillSize(measured.Name, FontAwesomeIcon.Crosshairs).X);
+			// Handle the case where actionManager is null
+			return;
 		}
 
-		var left = ImGui.GetCursorPosX();
-
-		ImGui.SetCursorPosX(left + ((width - size) * 0.5f));
-		DrawGcdProgress(size, showTime: false, windowScale);
-
-		ImGui.SetCursorPosX(left + ((width - size) * 0.5f));
-		if (ActionIcon.Draw("##next_action", action, size, config.ShowCooldownsAlways))
+		RecastDetail* group = actionManager->GetRecastGroupDetail(ActionHelper.GCDCooldownGroup - 1);
+		if (group == null)
 		{
-			FullControlWindow.UseOrQueue(action);
+			// Handle the case where group is null
+			return;
 		}
 
-		if (keybind.Length > 0)
+		if (group->Elapsed == group->Total || group->Total == 0)
 		{
-			ImGui.SetCursorPosX(left + ((width - KeyCapSize(keybind).X) * 0.5f));
-			DrawKeyCap(keybind);
+			percent = 1;
+		}
+		else
+		{
+			percent = group->Elapsed / group->Total;
+			if (ActionUpdater.NextAction != ActionUpdater.NextGCDAction)
+			{
+				percent++;
+			}
 		}
 
-		if (hint is { } target)
+		_ = ControlWindow.DrawIAction(ActionUpdater.NextAction, width, percent);
+
+		// Teaching Mode: show a target hint if the rotation wants a different target
+		if (Service.Config.TeachingMode && Service.Config.TeachingModeShowTargetHint)
 		{
-			ImGui.SetCursorPosX(left + ((width - M3Widgets.PillSize(target.Name, FontAwesomeIcon.Crosshairs).X) * 0.5f));
-			DrawTargetHint(target);
+			DrawTeachingModeTargetHint(width);
 		}
 	}
 
-	internal static void DrawGcdProgress(float width, bool showTime, float heightScale = 1f)
+	private static void DrawTeachingModeTargetHint(float width)
 	{
-		var s = M3.Scheme;
-		var remain = DataCenter.DefaultGCDRemain;
-		var total = DataCenter.DefaultGCDTotal;
-		var elapsed = DataCenter.DefaultGCDElapsed;
-
-		float? marker = null;
-		if (remain > 0 && total > 0)
+		IBattleChara? suggestedTarget = null;
+		if (ActionUpdater.NextAction is BaseAction baseAct)
 		{
-			var value = total - DataCenter.CalculatedActionAhead;
+			suggestedTarget = baseAct.Target.Target;
+		}
+
+		if (suggestedTarget == null)
+		{
+			return;
+		}
+
+		string name = suggestedTarget.Name.TextValue;
+		if (string.IsNullOrEmpty(name))
+		{
+			return;
+		}
+
+		bool isCurrentTarget = Svc.Targets.Target?.GameObjectId == suggestedTarget.GameObjectId;
+		bool isSelf = suggestedTarget.GameObjectId == (Player.Object?.GameObjectId ?? 0);
+
+		string label = $"Target: {name}";
+		Vector4 color = isSelf
+			? ImGuiColors.DalamudWhite
+			: isCurrentTarget
+				? ImGuiColors.HealerGreen
+				: ImGuiColors.DalamudOrange;
+
+		float textWidth = ImGui.CalcTextSize(label).X;
+		float offsetX = (width - textWidth) / 2f;
+		ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(0, offsetX));
+
+		ImGui.PushStyleColor(ImGuiCol.Text, color);
+		ImGui.Selectable(label, false, ImGuiSelectableFlags.None, new Vector2(textWidth, 0));
+		ImGui.PopStyleColor();
+
+		if (ImGui.IsItemClicked() && !isSelf)
+		{
+			Svc.Targets.Target = suggestedTarget;
+		}
+
+		if (ImGui.IsItemHovered() && !isSelf)
+		{
+			ImGui.SetTooltip("Click to target");
+		}
+	}
+
+	public static void DrawGcdCooldown(float width, bool drawTitle)
+	{
+		float remain = DataCenter.DefaultGCDRemain;
+		float total = DataCenter.DefaultGCDTotal;
+		float elapsed = DataCenter.DefaultGCDElapsed;
+
+		if (drawTitle)
+		{
+			string str = $"{remain:F2}s / {total:F2}s";
+			ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (width / 2) - (ImGui.CalcTextSize(str).X / 2));
+			ImGui.Text(str);
+		}
+
+		Vector2 cursor = ImGui.GetCursorPos() + ImGui.GetWindowPos();
+		float height = Service.Config.ControlProgressHeight;
+
+		ImGui.ProgressBar(elapsed / total, new Vector2(width, height), string.Empty);
+
+		float actionRemain = DataCenter.DefaultGCDRemain;
+		if (actionRemain > 0)
+		{
+			float value = total - DataCenter.CalculatedActionAhead;
+
 			var playerObject = Player.Object;
 			if (playerObject != null && value > playerObject.TotalCastTime)
 			{
-				marker = value / total;
+				Vector2 pt = cursor + (new Vector2(width, 0) * value / total);
+
+				ImGui.GetWindowDrawList().AddLine(pt, pt + new Vector2(0, height),
+					ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudRed), 2);
 			}
-		}
-
-		var fraction = total > 0 ? elapsed / total : 0f;
-		M3Widgets.LinearProgress(new Vector2(width, MathF.Max(2f, Service.Config.ControlProgressHeight) * heightScale), fraction, marker);
-
-		if (!showTime)
-		{
-			return;
-		}
-
-		using var font = ImRaii.PushFont(M3.LabelSmall);
-		var time = $"{remain:F2}s / {total:F2}s";
-		var timeSize = ImGui.CalcTextSize(time);
-		ImGui.Dummy(new Vector2(width, timeSize.Y));
-
-		var min = ImGui.GetItemRectMin();
-		var drawList = ImGui.GetWindowDrawList();
-		drawList.AddText(min, M3.U32(s.OnSurfaceVariant, 0.85f), "GCD");
-		drawList.AddText(new Vector2(min.X + width - timeSize.X, min.Y), M3.U32(s.OnSurfaceVariant, 0.85f), time);
-	}
-
-	private static Vector2 KeyCapSize(string keybind)
-	{
-		return ImGui.CalcTextSize(keybind) + (new Vector2(8f, 3f) * M3.Scale * 2f);
-	}
-
-	private static void DrawKeyCap(string keybind)
-	{
-		var s = M3.Scheme;
-		var size = KeyCapSize(keybind);
-
-		ImGui.Dummy(size);
-		var min = ImGui.GetItemRectMin();
-		var max = ImGui.GetItemRectMax();
-		var drawList = ImGui.GetWindowDrawList();
-
-		M3Draw.Container(drawList, min, max, s.SurfaceContainerHighest, M3.ShapeExtraSmall, M3.Alpha(s.Outline, 0.7f));
-
-		var textSize = ImGui.CalcTextSize(keybind);
-		drawList.AddText(min + ((size - textSize) * 0.5f), M3.U32(s.OnSurface), keybind);
-	}
-
-	private static TargetHint? GetTargetHint(IAction? action)
-	{
-		if (action is not BaseAction baseAction || baseAction.Target.Target is not { } target)
-		{
-			return null;
-		}
-
-		try
-		{
-			var name = target.Name.TextValue;
-			if (string.IsNullOrEmpty(name))
-			{
-				return null;
-			}
-
-			var targetId = target.GameObjectId;
-			return new TargetHint(target, name,
-				IsSelf: targetId == (Player.Object?.GameObjectId ?? 0),
-				IsCurrent: Svc.Targets.Target?.GameObjectId == targetId);
-		}
-		catch
-		{
-			return null;
-		}
-	}
-
-	private static void DrawTargetHint(in TargetHint hint)
-	{
-		var s = M3.Scheme;
-		var accent = hint.IsSelf ? s.OnSurfaceVariant : hint.IsCurrent ? s.Success : s.Warning;
-		var tooltip = hint.IsSelf ? null : hint.IsCurrent ? "Already targeted" : "Click to target";
-
-		if (!M3Widgets.Pill("##next_action_target", hint.Name, accent, FontAwesomeIcon.Crosshairs, tooltip, interactive: !hint.IsSelf))
-		{
-			return;
-		}
-
-		try
-		{
-			Svc.Targets.Target = hint.Target;
-		}
-		catch
-		{
-			// The object may be gone by now.
 		}
 	}
 }

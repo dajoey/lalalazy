@@ -1,5 +1,7 @@
 ﻿using ECommons.ExcelServices;
 using ECommons.GameHelpers;
+using ECommons.Logging;
+using ExCSS;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
@@ -10,6 +12,9 @@ namespace RotationSolver.Basic.Actions;
 /// </summary>
 public readonly struct ActionBasicInfo
 {
+	/// <summary>
+	/// Actions that do not require casting.
+	/// </summary>
 	internal static readonly uint[] ActionsNoNeedCasting =
 	[
 		5,
@@ -22,7 +27,7 @@ public readonly struct ActionBasicInfo
 	/// <summary>
 	/// Gets the name of the action.
 	/// </summary>
-	public string Name { get; }
+	public readonly string Name => _action.Action.Name.ExtractText();
 
 	/// <summary>
 	/// Gets the unique identifier of the action.
@@ -32,12 +37,7 @@ public readonly struct ActionBasicInfo
 	/// <summary>
 	/// Gets the range of the action.
 	/// </summary>
-	public readonly sbyte Range => IsInstinctualAxe(ID) ? (sbyte)3 : (sbyte)ActionManager.GetActionRange(ID);
-
-	internal static bool IsInstinctualAxe(uint id)
-	{
-		return (ActionID)id is ActionID.AvalancheAxePvE or ActionID.SpinningAxePvE or ActionID.MistralAxePvE or ActionID.GaleAxePvE;
-	}
+	public readonly sbyte Range => _action.Action.Range;
 
 	/// <summary>
 	/// Gets the effect range of the action.
@@ -71,10 +71,7 @@ public readonly struct ActionBasicInfo
 		{
 			var additional = _action.Setting.AdditionalAttackTypes;
 			if (additional == null || additional.Length == 0)
-			{
 				return [AttackType];
-			}
-
 			var result = new AttackType[1 + additional.Length];
 			result[0] = AttackType;
 			additional.CopyTo(result, 1);
@@ -86,10 +83,7 @@ public readonly struct ActionBasicInfo
 	/// Returns <see langword="true"/> if this action has the specified attack type,
 	/// accounting for all values in <see cref="AttackTypes"/>.
 	/// </summary>
-	public bool HasAttackType(AttackType attackType)
-	{
-		return AttackType == attackType || Array.IndexOf(_action.Setting.AdditionalAttackTypes ?? [], attackType) >= 0;
-	}
+	public bool HasAttackType(AttackType attackType) => AttackTypes.Contains(attackType);
 
 	/// <summary>
 	/// Gets the aspect of the action.
@@ -108,10 +102,7 @@ public readonly struct ActionBasicInfo
 		{
 			var additional = _action.Setting.AdditionalAspects;
 			if (additional == null || additional.Length == 0)
-			{
 				return [Aspect];
-			}
-
 			var result = new Aspect[1 + additional.Length];
 			result[0] = Aspect;
 			additional.CopyTo(result, 1);
@@ -123,10 +114,7 @@ public readonly struct ActionBasicInfo
 	/// Returns <see langword="true"/> if this action has the specified aspect,
 	/// accounting for all values in <see cref="Aspects"/>.
 	/// </summary>
-	public bool HasAspect(Aspect aspect)
-	{
-		return Aspect == aspect || Array.IndexOf(_action.Setting.AdditionalAspects ?? [], aspect) >= 0;
-	}
+	public bool HasAspect(Aspect aspect) => Aspects.Contains(aspect);
 
 	/// <summary>
 	/// Gets the level required to use the action.
@@ -261,13 +249,13 @@ public readonly struct ActionBasicInfo
 	{
 		get
 		{
-			var mpOver = _action.Setting.MPOverride?.Invoke();
+			uint? mpOver = _action.Setting.MPOverride?.Invoke();
 			if (mpOver.HasValue)
 			{
 				return mpOver.Value;
 			}
 
-			var mp = (uint)ActionManager.GetActionCost(ActionType.Action, AdjustedID, 0, 0, 0, 0);
+			uint mp = (uint)ActionManager.GetActionCost(ActionType.Action, AdjustedID, 0, 0, 0, 0);
 			return mp < 100 ? 0 : mp;
 		}
 	}
@@ -288,48 +276,15 @@ public readonly struct ActionBasicInfo
 	{
 		get
 		{
+			// BLU morph actions: only visible when their parent action is in an active BLU slot
 			if (_action.Setting.RequiredBluSlotActionId != 0)
 			{
-				foreach (var slotId in DataCenter.BluSlots)
-				{
-					if (slotId == _action.Setting.RequiredBluSlotActionId)
-					{
-						return true;
-					}
-				}
-				return false;
+				return DataCenter.BluSlots.Contains(_action.Setting.RequiredBluSlotActionId);
 			}
 
-			if (_action.Action.ClassJob.RowId == (uint)Job.BLU)
-			{
-				foreach (var slotId in DataCenter.BluSlots)
-				{
-					if (slotId == ID)
-					{
-						return true;
-					}
-				}
-				return false;
-			}
-
-			if (_action.Setting.IsQuestBattleAction)
-			{
-				return DataCenter.IsInQuestBattle;
-			}
-
-			if (IsDutyAction)
-			{
-				foreach (var actionId in DataCenter.DutyActions)
-				{
-					if (actionId == ID)
-					{
-						return true;
-					}
-				}
-				return false;
-			}
-
-			return IsPvP == DataCenter.IsPvP;
+			return _action.Action.ClassJob.RowId == (uint)Job.BLU
+				? DataCenter.BluSlots.Contains(ID)
+				: IsDutyAction ? DataCenter.DutyActions.Contains(ID) : IsPvP == DataCenter.IsPvP;
 		}
 	}
 
@@ -386,7 +341,6 @@ public readonly struct ActionBasicInfo
 	public ActionBasicInfo(IBaseAction action, bool isDutyAction)
 	{
 		_action = action;
-		Name = _action.Action.Name.ExtractText();
 		IsGeneralGCD = _action.Action.IsGeneralGCD();
 		IsRealGCD = _action.Action.IsRealGCD();
 		IsLimitBreak = (ActionCate?)_action.Action.ActionCategory.Value.RowId
@@ -404,6 +358,16 @@ public readonly struct ActionBasicInfo
 		IsDutyAction = isDutyAction;
 	}
 
+	/// <summary>
+	/// Performs a basic check to determine whether the action can be used.
+	/// </summary>
+	/// <param name="skipStatusProvideCheck">Whether to skip the status provide check.</param>
+	/// <param name="skipStatusNeed">Whether to skip the casting check.</param>
+	/// <param name="skipComboCheck">Whether to skip the combo check.</param>
+	/// <param name="skipCastingCheck">Whether to skip the casting check.</param>
+	/// <param name="checkActionManager">Whether to check the action manager directly for skills being usable.</param>
+	/// <param name="targetOverride">Overrides the default target type for the action.</param>
+	/// <returns>True if the action passes the basic check; otherwise, false.</returns>
 	internal readonly unsafe bool BasicCheck(bool skipStatusProvideCheck, bool skipStatusNeed, bool skipComboCheck, bool skipCastingCheck, bool checkActionManager = false, TargetType targetOverride = default)
 	{
 		if (Player.Object == null)
@@ -411,6 +375,7 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
+		// 1. Player and action slot checks
 		if (Player.Object.StatusList == null)
 		{
 			return false;
@@ -451,38 +416,49 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
-		if (!IsActionEnabled())
+		if (!IsActionEnabled() || !IsOnSlot)
 		{
 			return false;
 		}
 
-		if (!IsOnSlot)
-		{
-			return false;
-		}
-
-		if (!HasEnoughMP())
+		if (IsActionDisabled() || !HasEnoughMP())
 		{
 			return false;
 		}
 
 		if (!IsQuestUnlocked())
 		{
+			PluginLog.Warning($"Do your class quests, action not unlocked: {Name}");
 			BasicWarningHelper.AddSystemWarning($"Do your class quests, action not unlocked: {Name}");
 			return false;
 		}
 
-		if (!_action.Setting.IgnoresBadStatus && (IsRealGCD || IsAbility)
-			&& Array.IndexOf(ConfigurationHelper.BadStatusAction, (ActionStatus)ActionManager.Instance()->GetActionStatus(ActionType.Action, AdjustedID)) >= 0)
+		if (!_action.Setting.IgnoresBadStatus)
 		{
-			return false;
+			if (IsRealGCD)
+			{
+				if (ConfigurationHelper.BadStatusGCD.Contains(ActionManager.Instance()->GetActionStatus(ActionType.Action, AdjustedID)))
+				{
+					return false;
+				}
+			}
+
+			if (IsAbility && !IsRealGCD)
+			{
+				if (ConfigurationHelper.BadStatusAbility.Contains(ActionManager.Instance()->GetActionStatus(ActionType.EventAction, AdjustedID)))
+				{
+					return false;
+				}
+			}
 		}
 
+		// Status checks: need or provide
 		if (IsStatusNeeded(skipStatusNeed) || IsStatusProvided(skipStatusProvideCheck))
 		{
 			return false;
 		}
 
+		// Combo and role checks
 		if (_action.Info.BreaksCombo && !IsComboValid(skipComboCheck))
 		{
 			return false;
@@ -493,6 +469,9 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
+		// 5. Optional: ask the game directly if the action is usable
+		// In terms of "whether we can cast something" this check functionally negates everything else as we're asking the game directly if this is usable
+		// That *said* there is a lot of logic elsewhere here for prioritizing things, so we're simply going to add this as an optional check for handling abilities we want to verify are usable
 		if (checkActionManager && !ActionManagerStatusValid())
 		{
 			return false;
@@ -508,27 +487,23 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
+		// Must have a cast time
 		if (CastTime <= 0f)
-		{
 			return false;
-		}
 
+		// Must not have a instant cast status
 		if (!Player.Object.WillStatusEnd(0, true, StatusHelper.SwiftcastStatus))
-		{
 			return false;
-		}
 
-		if (Array.IndexOf(ActionsNoNeedCasting, ID) >= 0)
-		{
+		// Must not be in the no-cast list
+		if (ActionsNoNeedCasting.Contains(ID))
 			return false;
-		}
 
+		// Must be in a state where casting is not possible
 		if (DataCenter.SpecialType == SpecialCommandType.NoCasting ||
 			(DateTime.Now > DataCenter.KnockbackStart && DateTime.Now < DataCenter.KnockbackFinished) ||
-			(DataCenter.NoPoslock && DataCenter.IsMoving && !skipCastingCheck) || DataCenter.BMRForceCancelCast || DataCenter.BMRIsMoving)
-		{
+			(DataCenter.NoPoslock && DataCenter.IsMoving && !skipCastingCheck))
 			return true;
-		}
 
 		return false;
 	}
@@ -536,6 +511,11 @@ public readonly struct ActionBasicInfo
 	private bool IsActionEnabled()
 	{
 		return _action.Config?.IsEnabled ?? false;
+	}
+
+	private bool IsActionDisabled()
+	{
+		return !IBaseAction.ForceEnable && _action.Config?.IsEnabled == false;
 	}
 
 	/// <summary>
@@ -555,6 +535,7 @@ public readonly struct ActionBasicInfo
 
 		if (Player.Job == Job.WHM)
 		{
+			// Freecure makes the next Cure II cost 0 MP
 			if (ID == (uint)ActionID.CureIiPvE && StatusHelper.PlayerHasStatus(true, StatusID.Freecure))
 			{
 				return true;
@@ -577,7 +558,7 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
-		return Player.Object.StatusList != null && !skipStatusNeed && _action.Setting.StatusNeed != null && Player.Object.WillStatusEndGCD(0, 0, _action.Setting.StatusFromSelf, _action.Setting.StatusNeed);
+		return Player.Object.StatusList != null && !skipStatusNeed && _action.Setting.StatusNeed != null && Player.Object.WillStatusEndGCD(_action.Config.StatusGcdCount, 0, _action.Setting.StatusFromSelf, _action.Setting.StatusNeed);
 	}
 
 	private bool IsStatusProvided(bool skipStatusProvideCheck)
@@ -587,7 +568,7 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
-		return Player.Object.StatusList != null && !skipStatusProvideCheck && _action.Setting.StatusProvide != null && _action.Config.ShouldCheckStatus && !Player.Object.WillStatusEndGCD(_action.Config.StatusRefreshGcdCount, 0, _action.Setting.StatusFromSelf, _action.Setting.StatusProvide);
+		return Player.Object.StatusList != null && !skipStatusProvideCheck && _action.Setting.StatusProvide != null && !Player.Object.WillStatusEndGCD(_action.Config.StatusGcdCount, 0, _action.Setting.StatusFromSelf, _action.Setting.StatusProvide);
 	}
 
 	private bool IsComboValid(bool skipComboCheck)
@@ -629,42 +610,24 @@ public readonly struct ActionBasicInfo
 
 		if (_action.Setting.ComboIdsNot != null)
 		{
-			foreach (var comboIdNot in _action.Setting.ComboIdsNot)
+			if (_action.Setting.ComboIdsNot.Contains(DataCenter.LastComboAction))
 			{
-				if (comboIdNot == DataCenter.LastComboAction)
-				{
-					return false;
-				}
+				return false;
 			}
 		}
 
-		var comboActions = _action.Setting.ComboActionsCache;
-		if (comboActions == null)
+		ActionID[] comboActions = _action.Action.ActionCombo.RowId != 0
+								? [(ActionID)_action.Action.ActionCombo.RowId]
+								: [];
+
+		if (_action.Setting.ComboIds != null)
 		{
-			ActionID[] baseCombo = _action.Action.ActionCombo.RowId != 0
-									? [(ActionID)_action.Action.ActionCombo.RowId]
-									: [];
-
-			comboActions = _action.Setting.ComboIds != null
-				? [.. baseCombo, .. _action.Setting.ComboIds]
-				: baseCombo;
-
-			_action.Setting.ComboActionsCache = comboActions;
+			comboActions = [.. comboActions, .. _action.Setting.ComboIds];
 		}
 
 		if (comboActions.Length > 0)
 		{
-			var foundCombo = false;
-			foreach (var comboAction in comboActions)
-			{
-				if (comboAction == DataCenter.LastComboAction)
-				{
-					foundCombo = true;
-					break;
-				}
-			}
-
-			if (foundCombo)
+			if (comboActions.Contains(DataCenter.LastComboAction))
 			{
 				if (DataCenter.ComboTime < DataCenter.DefaultGCDRemain)
 				{

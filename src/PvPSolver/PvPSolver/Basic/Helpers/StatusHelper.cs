@@ -1,6 +1,5 @@
 ﻿using Dalamud.Game.ClientState.Statuses;
 using ECommons.Automation;
-using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Logging;
@@ -13,283 +12,6 @@ namespace RotationSolver.Basic.Helpers;
 /// </summary>
 public static class StatusHelper
 {
-	/// <summary>
-	/// 
-	/// </summary>
-	public static readonly Dictionary<uint, StatusID[]> NorthHornWeaknessByNameId = new()
-	{
-		{ 13876, [StatusID.LightningWeakness] },
-		{ 13939, [StatusID.IceWeakness] },
-		{ 13940, [StatusID.WindWeakness] },
-		{ 13941, [StatusID.FireWeakness] },
-		{ 13942, [StatusID.LightningWeakness] },
-		{ 14490, [StatusID.WindWeakness] },
-		{ 14491, [StatusID.FireWeakness] },
-		{ 14503, [StatusID.IceWeakness] },
-		{ 14505, [StatusID.LightningWeakness] },
-		{ 14508, [StatusID.LightningWeakness] },
-		{ 14509, [StatusID.LightningWeakness] },
-		{ 14511, [StatusID.WindWeakness] },
-		{ 14512, [StatusID.WindWeakness] },
-		{ 14517, [StatusID.WindWeakness] },
-		{ 14520, [StatusID.FireWeakness] },
-		{ 14523, [StatusID.IceWeakness] },
-		{ 14714, [StatusID.FireWeakness] },
-		{ 14717, [StatusID.FireWeakness, StatusID.WindWeakness] },
-		{ 14719, [StatusID.IceWeakness] },
-		{ 14720, [StatusID.IceWeakness] },
-		{ 14726, [StatusID.FireWeakness] },
-		{ 14728, [StatusID.LightningWeakness] },
-		{ 14735, [StatusID.FireWeakness] },
-		{ 14736, [StatusID.IceWeakness] },
-		{ 14738, [StatusID.FireWeakness] },
-		{ 14747, [StatusID.FireWeakness] },
-		{ 14762, [StatusID.FireWeakness] },
-		{ 14764, [StatusID.LightningWeakness, StatusID.WindWeakness] },
-		{ 14765, [StatusID.FireWeakness] },
-		{ 14767, [StatusID.WindWeakness] },
-		{ 14771, [StatusID.FireWeakness] },
-		{ 14772, [StatusID.IceWeakness] },
-		{ 14774, [StatusID.LightningWeakness] },
-		{ 14775, [StatusID.LightningWeakness] },
-		{ 14776, [StatusID.FireWeakness] },
-		{ 14785, [StatusID.FireWeakness] },
-		{ 14787, [StatusID.FireWeakness] },
-		{ 14789, [StatusID.FireWeakness] },
-		{ 14790, [StatusID.FireWeakness] },
-		{ 14791, [StatusID.IceWeakness] },
-		{ 14795, [StatusID.LightningWeakness] },
-		{ 14799, [StatusID.LightningWeakness] },
-		{ 14800, [StatusID.LightningWeakness] },
-		{ 14801, [StatusID.WindWeakness] },
-		{ 14802, [StatusID.LightningWeakness] },
-		{ 14804, [StatusID.LightningWeakness] },
-		{ 14805, [StatusID.IceWeakness] },
-		{ 14806, [StatusID.LightningWeakness] },
-		{ 14809, [StatusID.LightningWeakness] },
-		{ 14817, [StatusID.LightningWeakness] },
-		{ 14820, [StatusID.LightningWeakness] },
-		{ 14840, [StatusID.IceWeakness] },
-		{ 14841, [StatusID.IceWeakness] },
-		{ 14857, [StatusID.LightningWeakness] },
-		{ 14858, [StatusID.LightningWeakness] },
-		{ 14859, [StatusID.LightningWeakness] },
-		{ 14860, [StatusID.FireWeakness] },
-		{ 14861, [StatusID.FireWeakness] },
-		{ 14862, [StatusID.FireWeakness] },
-		{ 14863, [StatusID.IceWeakness] },
-		{ 14864, [StatusID.WindWeakness] },
-		{ 14865, [StatusID.FireWeakness] },
-		{ 14866, [StatusID.FireWeakness] },
-		{ 14867, [StatusID.IceWeakness] },
-		{ 14868, [StatusID.LightningWeakness] },
-		{ 14869, [StatusID.FireWeakness, StatusID.IceWeakness] },
-		{ 14870, [StatusID.FireWeakness] },
-		{ 14871, [StatusID.FireWeakness] },
-		{ 14872, [StatusID.WindWeakness] },
-		{ 14873, [StatusID.WindWeakness] },
-		{ 14874, [StatusID.LightningWeakness] },
-		{ 14875, [StatusID.LightningWeakness, StatusID.IceWeakness] },
-		{ 14876, [StatusID.LightningWeakness] },
-		{ 14877, [StatusID.LightningWeakness] },
-		{ 14878, [StatusID.FireWeakness, StatusID.WindWeakness] },
-		{ 14879, [StatusID.IceWeakness] },
-		{ 14880, [StatusID.FireWeakness] },
-		{ 14881, [StatusID.IceWeakness] },
-		{ 14882, [StatusID.FireWeakness] },
-		{ 14883, [StatusID.IceWeakness, StatusID.WindWeakness] },
-		{ 14884, [StatusID.WindWeakness] },
-		{ 14885, [StatusID.FireWeakness] },
-		{ 14886, [StatusID.FireWeakness] },
-		{ 14887, [StatusID.FireWeakness] },
-		{ 14888, [StatusID.FireWeakness] },
-		{ 14889, [StatusID.IceWeakness] },
-		{ 14890, [StatusID.LightningWeakness] },
-		{ 14891, [StatusID.LightningWeakness] },
-		{ 14892, [StatusID.FireWeakness] },
-		{ 14893, [StatusID.FireWeakness] },
-		{ 14894, [StatusID.FireWeakness] },
-		{ 14895, [StatusID.IceWeakness] },
-		{ 14896, [StatusID.WindWeakness] },
-		{ 14897, [StatusID.IceWeakness] },
-		{ 14898, [StatusID.IceWeakness] },
-		{ 14899, [StatusID.WindWeakness] },
-		{ 14900, [StatusID.LightningWeakness] },
-		{ 14901, [StatusID.LightningWeakness] },
-		{ 14902, [StatusID.IceWeakness] },
-		{ 14903, [StatusID.WindWeakness] },
-		{ 14904, [StatusID.WindWeakness] },
-		{ 14905, [StatusID.LightningWeakness] },
-		{ 14906, [StatusID.IceWeakness] },
-		{ 14907, [StatusID.WindWeakness] },
-		{ 14908, [StatusID.IceWeakness, StatusID.WindWeakness] },
-		{ 14909, [StatusID.FireWeakness] },
-		{ 14910, [StatusID.WindWeakness] },
-		{ 14911, [StatusID.WindWeakness] },
-		{ 14912, [StatusID.WindWeakness] },
-		{ 14913, [StatusID.FireWeakness] },
-		{ 14914, [StatusID.IceWeakness] },
-		{ 14915, [StatusID.FireWeakness] },
-		{ 14917, [StatusID.WindWeakness] },
-		{ 14918, [StatusID.WindWeakness] },
-		{ 14919, [StatusID.FireWeakness] },
-		{ 14920, [StatusID.IceWeakness] },
-		{ 14921, [StatusID.WindWeakness] },
-		{ 14922, [StatusID.LightningWeakness] },
-		{ 14923, [StatusID.WindWeakness] },
-		{ 14929, [StatusID.FireWeakness] },
-		{ 14930, [StatusID.WindWeakness] },
-		{ 14931, [StatusID.FireWeakness] },
-		{ 14932, [StatusID.IceWeakness] },
-	};
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static readonly Dictionary<uint, StatusID[]> SouthHornWeaknessByNameId = new()
-	{
-		{ 13638, [StatusID.FireWeakness] },
-		{ 13646, [StatusID.FireWeakness] },
-		{ 13656, [StatusID.IceWeakness] },
-		{ 13666, [StatusID.IceWeakness] },
-		{ 13668, [StatusID.IceWeakness] },
-		{ 13703, [StatusID.FireWeakness] },
-		{ 13717, [StatusID.LightningWeakness] },
-		{ 13718, [StatusID.LightningWeakness] },
-		{ 13726, [StatusID.LightningWeakness] },
-		{ 13728, [StatusID.LightningWeakness] },
-		{ 13729, [StatusID.LightningWeakness] },
-		{ 13740, [StatusID.FireWeakness] },
-		{ 13747, [StatusID.LightningWeakness] },
-		{ 13748, [StatusID.LightningWeakness] },
-		{ 13853, [StatusID.WindWeakness] },
-		{ 13855, [StatusID.WindWeakness] },
-		{ 13871, [StatusID.FireWeakness] },
-		{ 13872, [StatusID.WindWeakness] },
-		{ 13873, [StatusID.IceWeakness] },
-		{ 13874, [StatusID.FireWeakness] },
-		{ 13875, [StatusID.FireWeakness] },
-		{ 13877, [StatusID.FireWeakness] },
-		{ 13878, [StatusID.FireWeakness] },
-		{ 13879, [StatusID.LightningWeakness] },
-		{ 13880, [StatusID.IceWeakness] },
-		{ 13881, [StatusID.LightningWeakness] },
-		{ 13882, [StatusID.IceWeakness] },
-		{ 13883, [StatusID.LightningWeakness] },
-		{ 13884, [StatusID.FireWeakness] },
-		{ 13885, [StatusID.IceWeakness] },
-		{ 13886, [StatusID.FireWeakness] },
-		{ 13887, [StatusID.FireWeakness] },
-		{ 13888, [StatusID.IceWeakness] },
-		{ 13890, [StatusID.FireWeakness] },
-		{ 13891, [StatusID.LightningWeakness] },
-		{ 13892, [StatusID.WindWeakness] },
-		{ 13893, [StatusID.FireWeakness] },
-		{ 13894, [StatusID.FireWeakness] },
-		{ 13895, [StatusID.FireWeakness] },
-		{ 13896, [StatusID.IceWeakness] },
-		{ 13897, [StatusID.IceWeakness] },
-		{ 13898, [StatusID.WindWeakness] },
-		{ 13900, [StatusID.FireWeakness] },
-		{ 13901, [StatusID.WindWeakness] },
-		{ 13902, [StatusID.IceWeakness] },
-		{ 13903, [StatusID.LightningWeakness] },
-		{ 13904, [StatusID.IceWeakness] },
-		{ 13906, [StatusID.FireWeakness] },
-		{ 13907, [StatusID.IceWeakness] },
-		{ 13908, [StatusID.IceWeakness] },
-		{ 13909, [StatusID.IceWeakness] },
-		{ 13911, [StatusID.FireWeakness] },
-		{ 13912, [StatusID.LightningWeakness] },
-		{ 13913, [StatusID.LightningWeakness] },
-		{ 13915, [StatusID.LightningWeakness] },
-		{ 13916, [StatusID.IceWeakness] },
-		{ 13917, [StatusID.LightningWeakness] },
-		{ 13918, [StatusID.IceWeakness] },
-		{ 13919, [StatusID.FireWeakness] },
-		{ 13922, [StatusID.WindWeakness] },
-		{ 13924, [StatusID.LightningWeakness] },
-		{ 13925, [StatusID.FireWeakness] },
-		{ 13926, [StatusID.FireWeakness] },
-		{ 13928, [StatusID.LightningWeakness] },
-		{ 13930, [StatusID.IceWeakness] },
-		{ 13931, [StatusID.FireWeakness] },
-		{ 13932, [StatusID.FireWeakness] },
-		{ 13933, [StatusID.LightningWeakness] },
-		{ 13934, [StatusID.LightningWeakness] },
-		{ 13935, [StatusID.WindWeakness] },
-		{ 13936, [StatusID.LightningWeakness] },
-		{ 13937, [StatusID.LightningWeakness] },
-		{ 13938, [StatusID.IceWeakness] },
-	};
-
-	/// <summary>
-	/// The elemental weakness statuses used in Occult Crescent
-	/// </summary>
-	public static StatusID[] OccultWeaknessStatuses { get; } =
-	[
-		StatusID.LightningWeakness,
-		StatusID.FireWeakness,
-		StatusID.IceWeakness,
-		StatusID.WindWeakness,
-	];
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool IsOccultWeaknessStatus(StatusID status)
-	{
-		return Array.IndexOf(OccultWeaknessStatuses, status) >= 0;
-	}
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasKnownOccultWeakness(uint nameId)
-	{
-		if (DataCenter.IsInNorthHorn)
-		{
-			if (nameId != 0 && NorthHornWeaknessByNameId.ContainsKey(nameId))
-			{
-				return true;
-			}
-		}
-
-		if (DataCenter.IsInSouthHorn)
-		{
-			if (nameId != 0 && SouthHornWeaknessByNameId.ContainsKey(nameId))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasKnownOccultWeakness(uint nameId, StatusID status)
-	{
-		if (DataCenter.IsInNorthHorn)
-		{
-			if (nameId != 0 && NorthHornWeaknessByNameId.TryGetValue(nameId, out var known) && known != null && Array.IndexOf(known, status) >= 0)
-			{
-				return true;
-			}
-		}
-
-		if (DataCenter.IsInSouthHorn)
-		{
-			if (nameId != 0 && SouthHornWeaknessByNameId.TryGetValue(nameId, out var known) && known != null && Array.IndexOf(known, status) >= 0)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -381,12 +103,9 @@ public static class StatusHelper
 	[
 		StatusID.Holmgang_409,
 		StatusID.LivingDead,
-		//StatusID.WalkingDead,
-		StatusID.Superbolide,
-		StatusID.HallowedGround,
+        //StatusID.WalkingDead,
+        StatusID.Superbolide,
 		StatusID.Invulnerability,
-		StatusID.HpRecoveryDown,
-		StatusID.Mounted,
 	];
 
 	/// <summary>
@@ -397,9 +116,7 @@ public static class StatusHelper
 		StatusID.Swiftcast,
 		StatusID.Triplecast,
 		StatusID.Dualcast,
-		StatusID.Dualcast_5438,
-		StatusID.OccultQuick,
-		StatusID.LostChainspell
+		StatusID.OccultQuick
 	];
 
 	/// <summary>
@@ -418,27 +135,16 @@ public static class StatusHelper
 	/// </summary>
 	public static StatusID[] RampartStatus { get; } =
 	[
-		StatusID.Rampart,
-		StatusID.Rampart_1191,
-		StatusID.Rampart_1978,
-		StatusID.Rampart_4168,
-		StatusID.Bulwark,
-		StatusID.Bloodwhetting,
-
-		StatusID.Vengeance,
-		StatusID.Damnation,
-
-		StatusID.Sentinel,
-		StatusID.Guardian,
-
-		StatusID.ShadowWall,
-		StatusID.ShadowedVigil,
-
-		StatusID.Nebula,
-		StatusID.GreatNebula,
-
 		StatusID.Superbolide,
 		StatusID.HallowedGround,
+		StatusID.Rampart,
+		StatusID.Bulwark,
+		StatusID.Bloodwhetting,
+		StatusID.Vengeance,
+		StatusID.Sentinel,
+		StatusID.ShadowWall,
+		StatusID.Nebula,
+		StatusID.GreatNebula,
 		StatusID.Holmgang_409,
 		StatusID.LivingDead,
 	];
@@ -457,37 +163,6 @@ public static class StatusHelper
 	public static StatusID[] DoomHealStatus { get; } =
 	[
 		StatusID.Doom_1769,
-		StatusID.Doom_5473
-	];
-
-	/// <summary>
-	/// M9S Hell in a Cell statuses on the player. Each one pairs with the <see cref="HeelOfTheCellStatus"/> at the same index.
-	/// </summary>
-	public static StatusID[] HellInACellStatus { get; } =
-	[
-		StatusID.HellInACell,
-		StatusID.HellInACell_4732,
-		StatusID.HellInACell_4733,
-		StatusID.HellInACell_4734,
-		StatusID.HellInACell_4735,
-		StatusID.HellInACell_4736,
-		StatusID.HellInACell_4737,
-		StatusID.HellInACell_4738,
-	];
-
-	/// <summary>
-	/// M9S Heel in a Cell statuses on the Charnel Cells. Each one pairs with the <see cref="HellInACellStatus"/> at the same index.
-	/// </summary>
-	public static StatusID[] HeelOfTheCellStatus { get; } =
-	[
-		StatusID.HeelOfTheCell,
-		StatusID.HeelOfTheCell_4740,
-		StatusID.HeelOfTheCell_4741,
-		StatusID.HeelOfTheCell_4742,
-		StatusID.HeelOfTheCell_4743,
-		StatusID.HeelOfTheCell_4744,
-		StatusID.HeelOfTheCell_4745,
-		StatusID.HeelOfTheCell_4746,
 	];
 
 	/// <summary>
@@ -551,16 +226,12 @@ public static class StatusHelper
 	public unsafe static bool IsStatusCapped(IBattleChara battleChara)
 	{
 		if (battleChara == null)
-		{
 			return false;
-		}
 
 		try
 		{
 			if (battleChara.StatusList == null)
-			{
 				return false;
-			}
 		}
 		catch
 		{
@@ -569,7 +240,7 @@ public static class StatusHelper
 
 		if (battleChara.IsValid())
 		{
-			var count = 0;
+			int count = 0;
 			foreach (var x in battleChara.StatusList)
 			{
 				if (x.StatusId != 0)
@@ -587,9 +258,10 @@ public static class StatusHelper
 	}
 
 	/// <summary>
-	/// True when the player has no <see cref="NoNeedHealingStatus"/> (invuln, healing block) lasting beyond 2 GCDs.
+	/// Check whether the Player needs to be healing.
 	/// </summary>
-	public static bool PlayerCanBeHealed()
+	/// <returns></returns>
+	public static bool PlayerNoNeedHealingInvuln()
 	{
 		if (Player.Object == null)
 		{
@@ -600,11 +272,13 @@ public static class StatusHelper
 	}
 
 	/// <summary>
-	/// True when the target has no <see cref="NoNeedHealingStatus"/> (invuln, healing block) lasting beyond 2 GCDs.
+	/// Check whether the target needs to be healing.
 	/// </summary>
-	public static bool CanBeHealed(this IBattleChara battleChara)
+	/// <param name="Invulnp"></param>
+	/// <returns></returns>
+	public static bool NoNeedHealingInvuln(this IBattleChara Invulnp)
 	{
-		return battleChara.WillStatusEndGCD(2, 0, false, NoNeedHealingStatus);
+		return Invulnp.WillStatusEndGCD(2, 0, false, NoNeedHealingStatus);
 	}
 
 	/// <summary>
@@ -628,44 +302,7 @@ public static class StatusHelper
 	/// <returns></returns>
 	public static bool DoomNeedHealing(this IBattleChara Doomp)
 	{
-		if (Doomp == null)
-		{
-			return false;
-		}
-
-		if (!Doomp.IsValid())
-		{
-			return false;
-		}
-
-		if (Doomp.Address == nint.Zero || Doomp.EntityId == 0)
-		{
-			return false;
-		}
-
-		try
-		{
-			if (Svc.Objects.SearchById(Doomp.GameObjectId) is not IBattleChara fresh || !fresh.IsValid())
-			{
-				return false;
-			}
-
-			if (fresh.StatusList == null)
-			{
-				return false;
-			}
-
-			if (HasStatus(fresh, false, DoomHealStatus))
-			{
-				return true;
-			}
-		}
-		catch (Exception)
-		{
-			return false;
-		}
-
-		return false;
+		return Doomp.HasStatus(false, DoomHealStatus);
 	}
 
 	/// <summary>
@@ -676,7 +313,7 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool PlayerWillStatusEndGCD(uint gcdCount = 0, float offset = 0, bool isFromSelf = true, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool PlayerWillStatusEndGCD(uint gcdCount = 0, float offset = 0, bool isFromSelf = true, params StatusID[] statusIDs)
 	{
 		if (Player.Object == null)
 		{
@@ -695,7 +332,7 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool WillStatusEndGCD(this IBattleChara battleChara, uint gcdCount = 0, float offset = 0, bool isFromSelf = true, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool WillStatusEndGCD(this IBattleChara battleChara, uint gcdCount = 0, float offset = 0, bool isFromSelf = true, params StatusID[] statusIDs)
 	{
 		return WillStatusEnd(battleChara, DataCenter.GCDTime(gcdCount, offset), isFromSelf, statusIDs);
 	}
@@ -707,14 +344,14 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool PlayerWillStatusEnd(float time, bool isFromSelf = true, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool PlayerWillStatusEnd(float time, bool isFromSelf = true, params StatusID[] statusIDs)
 	{
 		if (PlayerHasApplyStatus(statusIDs))
 		{
 			return false;
 		}
 
-		var statusTime = PlayerStatusTime(isFromSelf, statusIDs);
+		float statusTime = PlayerStatusTime(isFromSelf, statusIDs);
 		return (statusTime >= 0f || !PlayerHasStatus(isFromSelf, statusIDs)) && statusTime <= time;
 	}
 
@@ -726,14 +363,14 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool WillStatusEnd(this IBattleChara battleChara, float time, bool isFromSelf = true, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool WillStatusEnd(this IBattleChara battleChara, float time, bool isFromSelf = true, params StatusID[] statusIDs)
 	{
 		if (HasApplyStatus(battleChara, statusIDs))
 		{
 			return false;
 		}
 
-		var statusTime = battleChara.StatusTime(isFromSelf, statusIDs);
+		float statusTime = battleChara.StatusTime(isFromSelf, statusIDs);
 		return (statusTime >= 0f || !battleChara.HasStatus(isFromSelf, statusIDs)) && statusTime <= time;
 	}
 
@@ -741,7 +378,7 @@ public static class StatusHelper
 	/// Get the remaining time of the status (raw remaining time of the earliest matching status). Returns 0 if none.
 	/// NOTE: Previously this subtracted DefaultGCDRemain which caused premature refresh decisions.
 	/// </summary>
-	public static float PlayerStatusTime(bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static float PlayerStatusTime(bool isFromSelf, params StatusID[] statusIDs)
 	{
 		if (Player.Object == null)
 		{
@@ -755,7 +392,18 @@ public static class StatusHelper
 				return float.MaxValue;
 			}
 
-			var min = MinStatusRemainingTime(Player.Object, isFromSelf, statusIDs, out var found);
+			IEnumerable<float> times = PlayerStatusTimes(isFromSelf, statusIDs);
+			float min = float.MaxValue;
+			bool found = false;
+			foreach (float t in times)
+			{
+				if (t < min)
+				{
+					min = t;
+				}
+				found = true;
+			}
+			// Return 0 when not found (legacy behaviour expected by callers), otherwise raw remaining time.
 			return !found ? 0f : min;
 		}
 		catch (Exception ex)
@@ -767,8 +415,9 @@ public static class StatusHelper
 
 	/// <summary>
 	/// Get the remaining time of the status (raw remaining time of the earliest matching status). Returns 0 if none.
+	/// NOTE: Previously this subtracted DefaultGCDRemain which caused premature refresh decisions.
 	/// </summary>
-	public static float StatusTime(this IBattleChara battleChara, bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static float StatusTime(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
 	{
 		try
 		{
@@ -777,7 +426,18 @@ public static class StatusHelper
 				return float.MaxValue;
 			}
 
-			var min = MinStatusRemainingTime(battleChara, isFromSelf, statusIDs, out var found);
+			IEnumerable<float> times = battleChara.StatusTimes(isFromSelf, statusIDs);
+			float min = float.MaxValue;
+			bool found = false;
+			foreach (float t in times)
+			{
+				if (t < min)
+				{
+					min = t;
+				}
+				found = true;
+			}
+			// Return 0 when not found (legacy behaviour expected by callers), otherwise raw remaining time.
 			return !found ? 0f : min;
 		}
 		catch (Exception ex)
@@ -787,13 +447,34 @@ public static class StatusHelper
 		}
 	}
 
+	internal static IEnumerable<float> PlayerStatusTimes(bool isFromSelf, params StatusID[] statusIDs)
+	{
+		if (Player.Object == null)
+		{
+			yield break;
+		}
+
+		foreach (IStatus status in Player.Object.GetStatus(isFromSelf, statusIDs))
+		{
+			yield return status.RemainingTime == 0f ? float.MaxValue : status.RemainingTime;
+		}
+	}
+
+	internal static IEnumerable<float> StatusTimes(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
+	{
+		foreach (IStatus status in battleChara.GetStatus(isFromSelf, statusIDs))
+		{
+			yield return status.RemainingTime == 0f ? float.MaxValue : status.RemainingTime;
+		}
+	}
+
 	/// <summary>
 	/// Get the stack count of the status.
 	/// </summary>
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static byte PlayerStatusStack(bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static byte PlayerStatusStack(bool isFromSelf, params StatusID[] statusIDs)
 	{
 		if (Player.Object == null)
 		{
@@ -805,7 +486,18 @@ public static class StatusHelper
 			return byte.MaxValue;
 		}
 
-		var min = MinStatusStack(Player.Object, isFromSelf, statusIDs, out var found);
+		IEnumerable<byte> stacks = PlayerStatusStacks(isFromSelf, statusIDs);
+		byte min = byte.MaxValue;
+		bool found = false;
+		foreach (byte s in stacks)
+		{
+			if (s < min)
+			{
+				min = s;
+			}
+
+			found = true;
+		}
 		return found ? min : (byte)0;
 	}
 
@@ -816,15 +508,47 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static byte StatusStack(this IBattleChara battleChara, bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static byte StatusStack(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
 	{
 		if (HasApplyStatus(battleChara, statusIDs))
 		{
 			return byte.MaxValue;
 		}
 
-		var min = MinStatusStack(battleChara, isFromSelf, statusIDs, out var found);
+		IEnumerable<byte> stacks = battleChara.StatusStacks(isFromSelf, statusIDs);
+		byte min = byte.MaxValue;
+		bool found = false;
+		foreach (byte s in stacks)
+		{
+			if (s < min)
+			{
+				min = s;
+			}
+
+			found = true;
+		}
 		return found ? min : (byte)0;
+	}
+
+	private static IEnumerable<byte> PlayerStatusStacks(bool isFromSelf, params StatusID[] statusIDs)
+	{
+		if (Player.Object == null)
+		{
+			yield break;
+		}
+
+		foreach (IStatus status in PlayerGetStatus(isFromSelf, statusIDs))
+		{
+			yield return (byte)(status.Param == 0 ? byte.MaxValue : status.Param);
+		}
+	}
+
+	private static IEnumerable<byte> StatusStacks(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
+	{
+		foreach (IStatus status in battleChara.GetStatus(isFromSelf, statusIDs))
+		{
+			yield return (byte)(status.Param == 0 ? byte.MaxValue : status.Param);
+		}
 	}
 
 	/// <summary>
@@ -833,7 +557,7 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool PlayerHasStatus(bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool PlayerHasStatus(bool isFromSelf, params StatusID[] statusIDs)
 	{
 		if (Player.Object == null)
 		{
@@ -850,7 +574,11 @@ public static class StatusHelper
 			return true;
 		}
 
-		return AnyStatusMatches(Player.Object, isFromSelf, statusIDs);
+		foreach (IStatus _ in PlayerGetStatus(isFromSelf, statusIDs))
+		{
+			return true;
+		}
+		return false;
 	}
 
 	/// <summary>
@@ -860,51 +588,46 @@ public static class StatusHelper
 	/// <param name="isFromSelf"></param>
 	/// <param name="statusIDs"></param>
 	/// <returns></returns>
-	public static bool HasStatus(this IBattleChara battleChara, bool isFromSelf, params ReadOnlySpan<StatusID> statusIDs)
+	public static bool HasStatus(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
 	{
+		if (!DataCenter.PlayerAvailable())
+		{
+			return false;
+		}
+
+		if (Player.Object == null)
+		{
+			return false;
+		}
+
+		if (Player.Object.StatusList == null)
+		{
+			return false;
+		}
+
 		try
 		{
-			if (!DataCenter.PlayerAvailable())
-			{
-				return false;
-			}
-
-			if (Player.Object == null)
-			{
-				return false;
-			}
-
-			if (Player.Object.StatusList == null)
-			{
-				return false;
-			}
-
-			if (battleChara == null)
-			{
-				return false;
-			}
-
-			if (!battleChara.IsValid())
-			{
-				return false;
-			}
-
 			if (battleChara.StatusList == null)
 			{
 				return false;
 			}
-
-			if (HasApplyStatus(battleChara, statusIDs))
-			{
-				return true;
-			}
-
-			return AnyStatusMatches(battleChara, isFromSelf, statusIDs);
 		}
 		catch
 		{
+			// StatusList threw, treat as unavailable
 			return false;
 		}
+
+		if (HasApplyStatus(battleChara, statusIDs))
+		{
+			return true;
+		}
+
+		foreach (IStatus _ in battleChara.GetStatus(isFromSelf, statusIDs))
+		{
+			return true;
+		}
+		return false;
 	}
 
 	/// <summary>
@@ -915,7 +638,7 @@ public static class StatusHelper
 	/// <returns>
 	/// <c>true</c> if any of the specified statuses are currently being applied to the character; otherwise, <c>false</c>.
 	/// </returns>
-	public static bool PlayerHasApplyStatus(ReadOnlySpan<StatusID> statusIDs)
+	public static bool PlayerHasApplyStatus(StatusID[] statusIDs)
 	{
 		if (!DataCenter.PlayerAvailable())
 		{
@@ -936,12 +659,13 @@ public static class StatusHelper
 		}
 		catch
 		{
+			// StatusList threw, treat as unavailable
 			return false;
 		}
 
-		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(Player.Object.GameObjectId, out var statusId))
+		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(Player.Object.GameObjectId, out uint statusId))
 		{
-			foreach (var s in statusIDs)
+			foreach (StatusID s in statusIDs)
 			{
 				if ((uint)s == statusId)
 				{
@@ -961,7 +685,7 @@ public static class StatusHelper
 	/// <returns>
 	/// <c>true</c> if any of the specified statuses are currently being applied to the character; otherwise, <c>false</c>.
 	/// </returns>
-	public static bool HasApplyStatus(this IBattleChara battleChara, ReadOnlySpan<StatusID> statusIDs)
+	public static bool HasApplyStatus(this IBattleChara battleChara, StatusID[] statusIDs)
 	{
 		try
 		{
@@ -972,12 +696,13 @@ public static class StatusHelper
 		}
 		catch
 		{
+			// StatusList threw, treat as unavailable
 			return false;
 		}
 
-		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(battleChara.GameObjectId, out var statusId))
+		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(battleChara.GameObjectId, out uint statusId))
 		{
-			foreach (var s in statusIDs)
+			foreach (StatusID s in statusIDs)
 			{
 				if ((uint)s == statusId)
 				{
@@ -1006,7 +731,7 @@ public static class StatusHelper
 
 		try
 		{
-			Chat.SendMessage($"/statusoff \"{GetStatusName(status)}\"");
+			Chat.SendMessage($"/statusoff {GetStatusName(status)}");
 			PluginLog.Information($"Status {GetStatusName(status)} removed successfully.");
 		}
 		catch (Exception ex)
@@ -1015,138 +740,148 @@ public static class StatusHelper
 		}
 	}
 
+	/// <summary>
+	/// Get the name of the specified status.
+	/// </summary>
+	/// <param name="id">The status ID.</param>
+	/// <returns>The name of the status.</returns>
 	internal static string GetStatusName(StatusID id)
 	{
-		var sheet = Service.GetSheet<Lumina.Excel.Sheets.Status>();
+		Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Status> sheet = Service.GetSheet<Lumina.Excel.Sheets.Status>();
 		if (sheet == null)
 		{
 			return string.Empty;
 		}
 
-		var statusRow = sheet.GetRow((uint)id);
+		Lumina.Excel.Sheets.Status statusRow = sheet.GetRow((uint)id);
 		return statusRow.RowId == 0 ? string.Empty : statusRow.Name.ToString() ?? string.Empty;
 	}
 
-	private static bool ContainsId(uint id, ReadOnlySpan<StatusID> ids)
+	/// <summary>
+	/// Get the statuses of the specified object.
+	/// </summary>
+	/// <param name="battleChara">The object to get the statuses from.</param>
+	/// <param name="isFromSelf">Whether the statuses are from self.</param>
+	/// <param name="statusIDs">The status IDs to look for.</param>
+	/// <returns>An enumerable of statuses.</returns>
+	private static IEnumerable<IStatus> GetStatus(this IBattleChara battleChara, bool isFromSelf, params StatusID[] statusIDs)
 	{
-		for (var i = 0; i < ids.Length; i++)
-		{
-			if ((uint)ids[i] == id)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static bool TryGetStatusList(IBattleChara? battleChara, out StatusList? statusList)
-	{
-		statusList = null;
 		if (battleChara == null)
 		{
-			return false;
+			yield break;
 		}
 
+		StatusList statusList;
 		try
 		{
 			statusList = battleChara.StatusList;
-			return statusList != null;
+			if (statusList == null)
+			{
+				yield break;
+			}
 		}
 		catch
 		{
+			// StatusList threw, treat as unavailable
+			yield break;
+		}
+
+		// Linear membership check to avoid HashSet allocation (statusIDs is small in practice)
+		static bool ContainsId(uint id, StatusID[] ids)
+		{
+			for (int i = 0; i < ids.Length; i++)
+			{
+				if ((uint)ids[i] == id) return true;
+			}
 			return false;
 		}
+
+		ulong playerId = Player.Object?.GameObjectId ?? 0;
+
+		for (int i = 0; i < statusList.Length; i++)
+		{
+			IStatus? status = statusList[i];
+			if (status == null || status.StatusId == 0)
+			{
+				continue;
+			}
+
+			if (isFromSelf)
+			{
+				if (status.SourceId != playerId && status.SourceObject?.OwnerId != playerId)
+				{
+					continue;
+				}
+			}
+
+			if (ContainsId(status.StatusId, statusIDs))
+			{
+				yield return status;
+			}
+		}
 	}
 
-	private static bool AnyStatusMatches(IBattleChara? battleChara, bool isFromSelf, ReadOnlySpan<StatusID> statusIDs)
+	/// <summary>
+	/// Get the statuses of the Player.
+	/// </summary>
+	/// <param name="isFromSelf">Whether the statuses are from self.</param>
+	/// <param name="statusIDs">The status IDs to look for.</param>
+	/// <returns>An enumerable of statuses.</returns>
+	private static IEnumerable<IStatus> PlayerGetStatus(bool isFromSelf, params StatusID[] statusIDs)
 	{
-		if (!TryGetStatusList(battleChara, out var statusList))
+		if (Player.Object == null)
 		{
+			yield break;
+		}
+
+		StatusList statusList;
+		try
+		{
+			statusList = Player.Object.StatusList;
+			if (statusList == null)
+			{
+				yield break;
+			}
+		}
+		catch
+		{
+			// StatusList threw, treat as unavailable
+			yield break;
+		}
+
+		// Linear membership check to avoid HashSet allocation (statusIDs is small in practice)
+		static bool ContainsId(uint id, StatusID[] ids)
+		{
+			for (int i = 0; i < ids.Length; i++)
+			{
+				if ((uint)ids[i] == id) return true;
+			}
 			return false;
 		}
 
-		var playerId = Player.Object?.GameObjectId ?? 0;
-		for (var i = 0; i < statusList!.Length; i++)
+		ulong playerId = Player.Object?.GameObjectId ?? 0;
+
+		for (int i = 0; i < statusList.Length; i++)
 		{
-			var status = statusList[i];
+			IStatus? status = statusList[i];
 			if (status == null || status.StatusId == 0)
 			{
 				continue;
 			}
 
-			if (ContainsId(status.StatusId, statusIDs) && (!isFromSelf || IsFromPlayer(status, playerId)))
+			if (isFromSelf)
 			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static bool IsFromPlayer(IStatus status, ulong playerId)
-	{
-		return status.SourceId == playerId || status.SourceObject?.OwnerId == playerId;
-	}
-
-	internal static float MinStatusRemainingTime(IBattleChara? battleChara, bool isFromSelf, ReadOnlySpan<StatusID> statusIDs, out bool found)
-	{
-		found = false;
-		var min = float.MaxValue;
-		if (!TryGetStatusList(battleChara, out var statusList))
-		{
-			return min;
-		}
-
-		var playerId = Player.Object?.GameObjectId ?? 0;
-		for (var i = 0; i < statusList!.Length; i++)
-		{
-			var status = statusList[i];
-			if (status == null || status.StatusId == 0)
-			{
-				continue;
-			}
-
-			if (ContainsId(status.StatusId, statusIDs) && (!isFromSelf || IsFromPlayer(status, playerId)))
-			{
-				var t = status.RemainingTime == 0f ? float.MaxValue : status.RemainingTime;
-				if (t < min)
+				if (status.SourceId != playerId && status.SourceObject?.OwnerId != playerId)
 				{
-					min = t;
+					continue;
 				}
-				found = true;
 			}
-		}
-		return min;
-	}
 
-	private static byte MinStatusStack(IBattleChara? battleChara, bool isFromSelf, ReadOnlySpan<StatusID> statusIDs, out bool found)
-	{
-		found = false;
-		var min = byte.MaxValue;
-		if (!TryGetStatusList(battleChara, out var statusList))
-		{
-			return min;
-		}
-
-		var playerId = Player.Object?.GameObjectId ?? 0;
-		for (var i = 0; i < statusList!.Length; i++)
-		{
-			var status = statusList[i];
-			if (status == null || status.StatusId == 0)
+			if (ContainsId(status.StatusId, statusIDs))
 			{
-				continue;
-			}
-
-			if (ContainsId(status.StatusId, statusIDs) && (!isFromSelf || IsFromPlayer(status, playerId)))
-			{
-				var s = (byte)(status.Param == 0 ? byte.MaxValue : status.Param);
-				if (s < min)
-				{
-					min = s;
-				}
-				found = true;
+				yield return status;
 			}
 		}
-		return min;
 	}
 
 
@@ -1172,7 +907,7 @@ public static class StatusHelper
 			return false;
 		}
 
-		foreach (var id in OtherConfiguration.InvincibleStatus)
+		foreach (uint id in OtherConfiguration.InvincibleStatus)
 		{
 			if (id == status.StatusId)
 			{
@@ -1199,7 +934,7 @@ public static class StatusHelper
 			return false;
 		}
 
-		foreach (var id in OtherConfiguration.PriorityStatus)
+		foreach (uint id in OtherConfiguration.PriorityStatus)
 		{
 			if (id == status.StatusId)
 			{
@@ -1226,6 +961,7 @@ public static class StatusHelper
 			return false;
 		}
 
+		// Catch all doom statuses that use the Doom icon
 		if (status.GameData.Value.Icon == 215503 && status.RemainingTime > 3)
 		{
 			return true;
@@ -1246,7 +982,7 @@ public static class StatusHelper
 			return false;
 		}
 
-		foreach (var id in OtherConfiguration.DangerousStatus)
+		foreach (uint id in OtherConfiguration.DangerousStatus)
 		{
 			if (id == status.StatusId)
 			{

@@ -21,6 +21,11 @@ public interface IAction : ITexture, IEnoughLevel
 	uint SortKey { get; }
 
 	/// <summary>
+	/// Gets or sets a value indicating whether this action is in the cooldown UI window.
+	/// </summary>
+	bool IsOnCooldownWindow { get; set; }
+
+	/// <summary>
 	/// Gets or sets a value indicating whether this action is restricted by min HP.
 	/// </summary>
 	bool MinHPFeature { get; set; }
@@ -29,11 +34,6 @@ public interface IAction : ITexture, IEnoughLevel
 	/// 
 	/// </summary>
 	float MinHPPercent { get; set; }
-
-	/// <summary>
-	/// When true, the BossModReborn position-safety check is skipped for this action.
-	/// </summary>
-	bool SkipPositionSafetyCheck { get; set; }
 
 	/// <summary>
 	/// Gets the cooldown information for this action.

@@ -19,52 +19,6 @@ public partial class BardRotation : CustomRotation
 	protected static Song Song => JobGauge.Song;
 
 	/// <summary>
-	/// 
-	/// </summary>
-	public enum SongTrack : byte
-	{
-		/// <summary>
-		/// 
-		/// </summary>
-		None = 0,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		MagesBallad = 1,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		ArmysPaeon = 2,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		WanderersMinuet = 3,
-	}
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool InWanderers => Song == Song.WanderersMinuet;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool InMages => Song == Song.MagesBallad;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool InArmys => Song == Song.ArmysPaeon;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool NoSong => Song == Song.None;
-
-	/// <summary>
 	/// Gets the type of song that was last played
 	/// </summary>
 	protected static Song LastSong => JobGauge.LastSong;
@@ -160,21 +114,16 @@ public partial class BardRotation : CustomRotation
 	// PvP
 	static partial void ModifyPowerfulShotPvP(ref ActionSetting setting)
 	{
-		setting.ActionCheck = () => !StatusHelper.PlayerHasStatus(true, StatusID.Repertoire);
+
 	}
 
 	static partial void ModifyPitchPerfectPvP(ref ActionSetting setting)
 	{
 		setting.StatusNeed = [StatusID.Repertoire];
-		setting.CreateConfig = () => new ActionConfig()
-		{
-			AoeCount = 1,
-		};
 	}
 
 	static partial void ModifyApexArrowPvP(ref ActionSetting setting)
 	{
-		setting.ActionCheck = () => !StatusHelper.PlayerHasStatus(true, StatusID.BlastArrowReady_3142);
 		setting.StatusProvide = [StatusID.BlastArrowReady_3142, StatusID.FrontlinersMarch];
 		setting.CreateConfig = () => new ActionConfig()
 		{
@@ -199,7 +148,7 @@ public partial class BardRotation : CustomRotation
 
 	static partial void ModifyRepellingShotPvP(ref ActionSetting setting)
 	{
-		setting.SpecialType = SpecialActionType.HostileMovingAttack;
+		setting.SpecialType = SpecialActionType.MovingBackward;
 	}
 
 	static partial void ModifyEncoreOfLightPvP(ref ActionSetting setting)

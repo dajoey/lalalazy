@@ -53,11 +53,6 @@ public partial class ViperRotation : CustomRotation
 	public static bool NODREAD => JobGauge.DreadCombo == 0 || ((byte)JobGauge.DreadCombo > 6 && !HasReawakenedActive);
 
 	/// <summary>
-	/// 
-	/// </summary>
-	public static bool NODREADalt => !DreadActive && !SwiftskinsCoilOnly && !HuntersCoilOnly;
-
-	/// <summary>
 	/// Indicates that the player has Dread Combo active and both HuntersCoil and SwiftskinsCoil available.
 	/// </summary>
 	public static bool DreadActive => JobGauge.DreadCombo.HasFlag(DreadCombo.Dreadwinder);
@@ -118,7 +113,7 @@ public partial class ViperRotation : CustomRotation
 	public static SerpentCombo SerpentCombo => JobGauge.SerpentCombo;
 
 	/// <summary>
-	/// 
+	/// Indicates if base no abilities are ready.
 	/// </summary>
 	public static bool NoAbilityReady => JobGauge.SerpentCombo.HasFlag((SerpentCombo)0);
 
@@ -284,25 +279,13 @@ public partial class ViperRotation : CustomRotation
 		get
 		{
 			if (!HasHunterAndSwift)
-			{
 				return null;
-			}
-
 			if (HuntersTime == null || SwiftTime == null)
-			{
 				return null;
-			}
-
 			if (HuntersTime < SwiftTime)
-			{
 				return "Hunter";
-			}
-
 			if (SwiftTime < HuntersTime)
-			{
 				return "Swift";
-			}
-
 			return "Equal";
 		}
 	}
@@ -370,7 +353,7 @@ public partial class ViperRotation : CustomRotation
 	/// <summary>
 	/// Indicates if the player can use Reawakened.
 	/// </summary>
-	public static bool HasReadyToReawaken => StatusHelper.PlayerHasStatus(false, StatusID.ReadyToReawaken);
+	public static bool HasReadyToReawaken => StatusHelper.PlayerHasStatus(true, StatusID.ReadyToReawaken);
 
 	/// <summary>
 	/// Indicates if the player can use Reawakened.

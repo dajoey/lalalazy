@@ -3,6 +3,9 @@ using RotationSolver.Basic.Rotations.Duties;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Represents a boolean rotation configuration.
+/// </summary>
 internal class RotationConfigBoolean : RotationConfigBase
 {
 	/// <summary>
@@ -38,9 +41,9 @@ internal class RotationConfigBoolean : RotationConfigBase
 			return false;
 		}
 
-		var numStr = str[Name.Length..].Trim();
+		string numStr = str[Name.Length..].Trim();
 
-		if (bool.TryParse(numStr, out var result))
+		if (bool.TryParse(numStr, out bool result))
 		{
 			Value = result.ToString();
 		}

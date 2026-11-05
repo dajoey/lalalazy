@@ -1,17 +1,19 @@
-using RebornMaterial;
+﻿namespace RotationSolver.UI.SearchableConfigs;
 
-namespace RotationSolver.UI.SearchableConfigs;
-
-internal class DragIntRangeSearch : UnitSearchable
+internal class DragIntRangeSearch : Searchable
 {
 	public int Min { get; }
 	public int Max { get; }
+	public float Speed { get; }
+	public ConfigUnitType Unit { get; }
 
-	public DragIntRangeSearch(PropertyInfo property) : base(property)
+	public override string Description
 	{
-		var range = _property.GetCustomAttribute<RangeAttribute>();
-		Min = (int?)range?.MinValue ?? 0;
-		Max = (int?)range?.MaxValue ?? 1;
+		get
+		{
+			string baseDesc = base.Description;
+			return !string.IsNullOrEmpty(baseDesc) ? baseDesc + "\n" + Unit.ToString() : Unit.ToString();
+		}
 	}
 
 	protected Vector2Int Value
@@ -20,22 +22,65 @@ internal class DragIntRangeSearch : UnitSearchable
 		set => _property.SetValue(Service.Config, value);
 	}
 
+	protected int MinValue
+	{
+		get => Value.X;
+		set => Value = Value.WithX(value);
+	}
+
+	protected int MaxValue
+	{
+		get => Value.Y;
+		set => Value = Value.WithY(value);
+	}
+
+	public DragIntRangeSearch(PropertyInfo property) : base(property)
+	{
+		// Retrieve the RangeAttribute from the property
+		RangeAttribute? range = _property.GetCustomAttribute<RangeAttribute>();
+		Min = (int?)range?.MinValue ?? 0;
+		Max = (int?)range?.MaxValue ?? 1;
+		Speed = range?.Speed ?? 0.001f;
+		Unit = range?.UnitType ?? ConfigUnitType.None;
+	}
+
 	protected override void DrawMain()
 	{
-		var bounds = Value;
-		var low = bounds.X;
-		var high = bounds.Y;
-		var trackWidth = Scale * DRAG_WIDTH;
-		var controlSize = new Vector2(trackWidth + M3Widgets.SliderValueGutter($"{Max} - {Max}"), M3Widgets.ButtonHeight);
+		int minValue = MinValue;
+		int maxValue = MaxValue;
 
-		var row = M3SettingRow.Begin(Name, SupportingText, controlSize, leadingIcon: RowIcon);
-		ImGui.SetCursorScreenPos(row.ControlPosition);
-		if (M3Widgets.RangeSliderInt($"##Config_{ID}{GetHashCode()}", ref low, ref high, Min, Max, trackWidth))
+		// Set the width of the drag control
+		ImGui.SetNextItemWidth(Scale * DRAG_WIDTH);
+
+		// Cache the hash code to avoid multiple calls
+		int hashCode = GetHashCode();
+
+		// Draw the integer range drag control
+		if (ImGui.DragIntRange2($"##Config_{ID}{hashCode}", ref minValue, ref maxValue, Speed, Min, Max))
 		{
-			Value = new Vector2Int(low, high);
+			MinValue = Math.Min(minValue, maxValue);
+			MaxValue = Math.Max(minValue, maxValue);
 		}
 
-		RowInteractions(row);
-		M3SettingRow.End(row);
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
+		{
+			ShowTooltip();
+		}
+
+		// Draw job icon if IsJob is true
+		if (IsJob)
+		{
+			DrawJobIcon();
+		}
+
+		ImGui.SameLine();
+		ImGui.TextWrapped(Name);
+
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
+		{
+			ShowTooltip(false);
+		}
 	}
 }

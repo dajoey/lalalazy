@@ -17,14 +17,22 @@ internal static class ImguiTooltips
 
 	private const string TooltipId = "PvPSolver Tooltips";
 
+	/// <summary>
+	/// Displays a tooltip when the item is hovered.
+	/// </summary>
+	/// <param name="text">The text to display in the tooltip.</param>
 	public static void HoveredTooltip(string? text)
 	{
-		if (ImGui.IsItemHovered())
+		if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(text))
 		{
-			ShowTooltip(text);
+			ShowTooltip(() => ImGui.Text(text));
 		}
 	}
 
+	/// <summary>
+	/// Displays a tooltip with the specified text.
+	/// </summary>
+	/// <param name="text">The text to display in the tooltip.</param>
 	public static void ShowTooltip(string? text)
 	{
 		if (!string.IsNullOrEmpty(text))
@@ -33,6 +41,10 @@ internal static class ImguiTooltips
 		}
 	}
 
+	/// <summary>
+	/// Displays a tooltip with the specified action.
+	/// </summary>
+	/// <param name="act">The action to perform to render the tooltip content.</param>
 	public static void ShowTooltip(Action? act)
 	{
 		if (act == null || Service.Config.ShowTooltips != true)
@@ -44,16 +56,14 @@ internal static class ImguiTooltips
 
 		using var color = ImRaii.PushColor(ImGuiCol.BorderShadow, ImGuiColors.DalamudWhite);
 
-		var globalScale = ImGuiHelpers.GlobalScale;
+		float globalScale = ImGuiHelpers.GlobalScale;
 		ImGui.SetNextWindowSizeConstraints(new Vector2(150, 0) * globalScale, new Vector2(1200, 1500) * globalScale);
 		ImGui.SetWindowPos(TooltipId, ImGui.GetIO().MousePos);
 
-		var visible = ImGui.Begin(TooltipId, TooltipFlag);
-		if (visible)
+		if (ImGui.Begin(TooltipId, TooltipFlag))
 		{
 			act();
+			ImGui.End();
 		}
-
-		ImGui.End();
 	}
 }

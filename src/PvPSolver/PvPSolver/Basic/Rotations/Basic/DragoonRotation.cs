@@ -102,7 +102,7 @@ public partial class DragoonRotation : CustomRotation
 
 	static partial void ModifyElusiveJumpPvP(ref ActionSetting setting)
 	{
-		setting.SpecialType = SpecialActionType.FixedDistanceMoveBackward;
+		setting.SpecialType = SpecialActionType.MovingBackward;
 		setting.IsFriendly = true;
 	}
 

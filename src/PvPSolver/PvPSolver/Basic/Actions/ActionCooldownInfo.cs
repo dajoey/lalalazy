@@ -75,7 +75,7 @@ public readonly struct ActionCooldownInfo : ICooldown
 	/// <summary>
 	/// Gets the raw remaining recast time for one charge.
 	/// </summary>
-	internal float RecastTimeRemainOneChargeRaw => RecastTimeRemain % RecastTimeOneChargeRaw;
+	private float RecastTimeRemainOneChargeRaw => RecastTimeRemain % RecastTimeOneChargeRaw;
 
 	/// <summary>
 	/// Gets the elapsed recast time for one charge minus the default GCD elapsed.
@@ -185,7 +185,7 @@ public readonly struct ActionCooldownInfo : ICooldown
 			return true;
 		}
 
-		var requiredTime = (charges - CurrentCharges - 1) * RecastTimeOneChargeRaw;
+		float requiredTime = (charges - CurrentCharges - 1) * RecastTimeOneChargeRaw;
 		return RecastTimeRemainOneCharge <= remain - requiredTime;
 	}
 
@@ -196,12 +196,7 @@ public readonly struct ActionCooldownInfo : ICooldown
 	/// <returns>True if the action was just used; otherwise, false.</returns>
 	public bool JustUsedAfter(float time)
 	{
-		if (!ActionIdHelper.IsCoolingDownGroup(CoolDownGroup))
-		{
-			return false;
-		}
-
-		var elapsed = RecastTimeElapsedRaw % RecastTimeOneChargeRaw;
+		float elapsed = RecastTimeElapsedRaw % RecastTimeOneChargeRaw;
 		return elapsed + DataCenter.DefaultGCDRemain < time;
 	}
 

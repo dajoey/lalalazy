@@ -2,6 +2,9 @@
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Represents a float rotation configuration.
+/// </summary>
 internal class RotationConfigFloat : RotationConfigBase
 {
 	/// <summary>
@@ -32,7 +35,7 @@ internal class RotationConfigFloat : RotationConfigBase
 	public RotationConfigFloat(ICustomRotation rotation, PropertyInfo property)
 		: base(rotation, property)
 	{
-		var attr = property.GetCustomAttribute<RangeAttribute>();
+		RangeAttribute? attr = property.GetCustomAttribute<RangeAttribute>();
 		if (attr != null)
 		{
 			Min = attr.MinValue;
@@ -57,7 +60,7 @@ internal class RotationConfigFloat : RotationConfigBase
 	public RotationConfigFloat(DutyRotation rotation, PropertyInfo property)
 		: base(rotation, property)
 	{
-		var attr = property.GetCustomAttribute<RangeAttribute>();
+		RangeAttribute? attr = property.GetCustomAttribute<RangeAttribute>();
 		if (attr != null)
 		{
 			Min = attr.MinValue;
@@ -87,9 +90,9 @@ internal class RotationConfigFloat : RotationConfigBase
 			return false;
 		}
 
-		var numStr = str[Name.Length..].Trim();
+		string numStr = str[Name.Length..].Trim();
 
-		if (float.TryParse(numStr, out var parsedValue))
+		if (float.TryParse(numStr, out float parsedValue))
 		{
 			if (UnitType == ConfigUnitType.Percent)
 			{

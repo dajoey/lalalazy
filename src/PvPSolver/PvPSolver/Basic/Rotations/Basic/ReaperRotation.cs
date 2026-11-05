@@ -204,15 +204,14 @@ public partial class ReaperRotation : CustomRotation
 
 	static partial void ModifyHellsIngressPvP(ref ActionSetting setting)
 	{
-		setting.SpecialType = SpecialActionType.FixedDistanceMoveForward;
+		//setting.SpecialType = SpecialActionType.MovingForward;
 		setting.IsFriendly = true;
 	}
 
 	static partial void ModifyRegressPvP(ref ActionSetting setting)
 	{
 		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.HellsIngressPvP) == ActionID.RegressPvP;
-		setting.SpecialType = SpecialActionType.ObjectBasedMovement;
-		setting.ObjectBasedMovementObjectOID = 0x4C3; // Hell's Gate
+		setting.SpecialType = SpecialActionType.MovingBackward;
 		setting.IsFriendly = true;
 		setting.CreateConfig = () => new ActionConfig()
 		{

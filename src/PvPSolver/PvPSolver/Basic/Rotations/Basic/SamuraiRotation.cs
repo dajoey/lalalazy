@@ -156,25 +156,13 @@ public partial class SamuraiRotation : CustomRotation
 		get
 		{
 			if (!HasFugetsuAndFuka)
-			{
 				return null;
-			}
-
 			if (FugetsuTime == null || FukaTime == null)
-			{
 				return null;
-			}
-
 			if (FugetsuTime < FukaTime)
-			{
 				return "Fugetsu";
-			}
-
 			if (FukaTime < FugetsuTime)
-			{
 				return "Fuka";
-			}
-
 			return "Equal";
 		}
 	}
@@ -199,36 +187,25 @@ public partial class SamuraiRotation : CustomRotation
 	#endregion
 
 
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool HasKaitenPvP => StatusHelper.PlayerHasStatus(true, StatusID.Kaiten_3201);
-
 	#region PvP Actions
 
 	static partial void ModifyYukikazePvP(ref ActionSetting setting)
 	{
 		setting.MPOverride = () => 0;
-		setting.ActionCheck = () => !HasKaitenPvP && Service.GetAdjustedActionId(ActionID.YukikazePvP) == ActionID.YukikazePvP;
 	}
 
 	static partial void ModifyGekkoPvP(ref ActionSetting setting)
 	{
 		setting.MPOverride = () => 0;
-		setting.ActionCheck = () => !HasKaitenPvP && Service.GetAdjustedActionId(ActionID.GekkoPvP) == ActionID.GekkoPvP;
-		setting.ComboIds = [ActionID.YukikazePvP, ActionID.HyosetsuPvP];
 	}
 
 	static partial void ModifyKashaPvP(ref ActionSetting setting)
 	{
 		setting.MPOverride = () => 0;
-		setting.ActionCheck = () => !HasKaitenPvP && Service.GetAdjustedActionId(ActionID.KashaPvP) == ActionID.KashaPvP;
-		setting.ComboIds = [ActionID.GekkoPvP, ActionID.MangetsuPvP];
 	}
 
 	static partial void ModifyOgiNamikiriPvP(ref ActionSetting setting)
 	{
-		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.OgiNamikiriPvP) == ActionID.OgiNamikiriPvP;
 		setting.CreateConfig = () => new ActionConfig()
 		{
 			AoeCount = 1,
@@ -248,14 +225,11 @@ public partial class SamuraiRotation : CustomRotation
 	static partial void ModifyMeikyoShisuiPvP(ref ActionSetting setting)
 	{
 		setting.IsFriendly = true;
-		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.MeikyoShisuiPvP) == ActionID.MeikyoShisuiPvP;
 	}
 
 	static partial void ModifyHyosetsuPvP(ref ActionSetting setting)
 	{
 		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.YukikazePvP) == ActionID.HyosetsuPvP;
-		setting.StatusNeed = [StatusID.Kaiten_3201];
-		setting.IsFriendly = false;
 		setting.MPOverride = () => 0;
 		setting.CreateConfig = () => new ActionConfig()
 		{
@@ -265,10 +239,7 @@ public partial class SamuraiRotation : CustomRotation
 
 	static partial void ModifyMangetsuPvP(ref ActionSetting setting)
 	{
-		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.GekkoPvP) == ActionID.MangetsuPvP;
-		setting.StatusNeed = [StatusID.Kaiten_3201];
-		setting.IsFriendly = false;
-		setting.ComboIds = [ActionID.YukikazePvP, ActionID.HyosetsuPvP];
+		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.YukikazePvP) == ActionID.MangetsuPvP;
 		setting.MPOverride = () => 0;
 		setting.CreateConfig = () => new ActionConfig()
 		{
@@ -278,10 +249,7 @@ public partial class SamuraiRotation : CustomRotation
 
 	static partial void ModifyOkaPvP(ref ActionSetting setting)
 	{
-		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.KashaPvP) == ActionID.OkaPvP;
-		setting.StatusNeed = [StatusID.Kaiten_3201];
-		setting.ComboIds = [ActionID.GekkoPvP, ActionID.MangetsuPvP];
-		setting.IsFriendly = false;
+		setting.ActionCheck = () => Service.GetAdjustedActionId(ActionID.YukikazePvP) == ActionID.OkaPvP;
 		setting.MPOverride = () => 0;
 		setting.CreateConfig = () => new ActionConfig()
 		{

@@ -1,5 +1,8 @@
 ﻿namespace RotationSolver.Basic.Data;
 
+/// <summary>
+/// Represents the raid languages.
+/// </summary>
 internal class RaidLangs
 {
 #pragma warning disable IDE1006 // Naming Styles

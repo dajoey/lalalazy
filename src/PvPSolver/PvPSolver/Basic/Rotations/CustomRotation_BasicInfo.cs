@@ -40,7 +40,7 @@ public abstract partial class CustomRotation : ICustomRotation
 				return _name;
 			}
 
-			var classJob = Svc.Data.GetExcelSheet<ClassJob>().GetRow((uint)Job)!;
+			ClassJob classJob = Svc.Data.GetExcelSheet<ClassJob>().GetRow((uint)Job)!;
 			return _name = $"{classJob.Abbreviation} - {classJob.Name}";
 		}
 	}
@@ -65,11 +65,13 @@ public abstract partial class CustomRotation : ICustomRotation
 			var disabled = Service.Config.DisabledJobs;
 			if (value)
 			{
+				// enable -> remove the job if present
 				_ = disabled.Remove(Job);
 			}
 			else
 			{
-				var exists = false;
+				// disable -> add only if not already present (avoid LINQ)
+				bool exists = false;
 				foreach (var j in disabled)
 				{
 					if (j == Job)

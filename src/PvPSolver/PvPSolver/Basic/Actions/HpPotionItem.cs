@@ -14,7 +14,7 @@ internal class HpPotionItem : BaseItem
 
 	public HpPotionItem(Item item) : base(item)
 	{
-		var data = _item.ItemAction.Value!.DataHQ;
+		Lumina.Excel.Collection<ushort> data = _item.ItemAction.Value!.DataHQ;
 		_percent = data[0] / 100f;
 		_maxHp = data[1];
 	}

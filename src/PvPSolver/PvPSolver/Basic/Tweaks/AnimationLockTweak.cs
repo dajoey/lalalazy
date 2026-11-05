@@ -74,8 +74,9 @@ public sealed unsafe class AnimationLockTweak
 		if (_lastReqSequence == sequence && _lastReqInitialAnimLock > 0)
 		{
 			SanityCheck(packetPrevAnimLock, packetCurrAnimLock, gameCurrAnimLock);
-			DelayAverage = Math.Clamp(delay * (1 - DelaySmoothing) + DelayAverage * DelaySmoothing, 0f, 0.5f);
+			DelayAverage = Math.Clamp(delay * (1 - DelaySmoothing) + DelayAverage * DelaySmoothing, 0f, 0.5f); // Update the exponential average with bounds
 
+			// The result will be subtracted from current animation lock (and thus from adjusted lock delay)
 			reduction = Service.Config.RemoveAnimationLockDelay ? Math.Clamp(delay - DelayMax, 0, gameCurrAnimLock) : 0;
 		}
 
@@ -84,25 +85,38 @@ public sealed unsafe class AnimationLockTweak
 		return reduction;
 	}
 
+	/// <summary>
+	/// Perform sanity check to detect conflicting plugins: disable the tweak if condition is false
+	/// </summary>
+	/// <param name="packetOriginalAnimLock">Original animation lock from packet</param>
+	/// <param name="packetModifiedAnimLock">Modified animation lock from packet</param>
+	/// <param name="gameCurrAnimLock">Current animation lock from game</param>
 	private static void SanityCheck(float packetOriginalAnimLock, float packetModifiedAnimLock, float gameCurrAnimLock)
 	{
 		if (!Service.Config.RemoveAnimationLockDelay)
-		{
-			return;
-		}
+			return; // Tweak is disabled
 
-		if (packetOriginalAnimLock == packetModifiedAnimLock && (packetOriginalAnimLock % 0.01f) is <= 0.0005f or >= 0.0095f)
-		{
+		if (DataCenter.IsActivated())
 			return;
-		}
+
+		// If we don't have distinct packet data, skip this check
+		if (packetOriginalAnimLock == packetModifiedAnimLock &&
+			packetOriginalAnimLock == gameCurrAnimLock)
+			return;
+
+		// If the packet value appears to be aligned to 10ms increments, it's likely untouched and fine
+		if ((packetOriginalAnimLock % 0.01f) is <= 0.0005f or >= 0.0095f)
+			return;
 
 		PluginLog.Warning($"[AnimLockTweak] Unexpected animation lock {packetOriginalAnimLock:f6} -> {packetModifiedAnimLock:f6} -> {gameCurrAnimLock:f6}, disabling animation lock tweak feature");
 
+		// Log warning to chat
 		if (Service.Config.InDebug)
 		{
 			PluginLog.Debug($"[RSR] Unexpected animation lock detected! Disabling animation lock reduction feature.");
 		}
 
+		// Temporarily disable the tweak (but don't save the config, in case this condition is temporary)
 		Service.Config.RemoveAnimationLockDelay.Value = false;
 	}
 }

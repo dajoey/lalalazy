@@ -1,17 +1,38 @@
-using RebornMaterial;
+﻿namespace RotationSolver.UI.SearchableConfigs;
 
-namespace RotationSolver.UI.SearchableConfigs;
-
-internal class DragFloatSearch : UnitSearchable
+internal class DragFloatSearch : Searchable
 {
 	public float Min { get; }
 	public float Max { get; }
+	public float Speed { get; }
+	public ConfigUnitType Unit { get; }
+
+	public override string Description
+	{
+		get
+		{
+			string baseDesc = base.Description;
+			return !string.IsNullOrEmpty(baseDesc) ? baseDesc + "\n" + Unit.ToString() : Unit.ToString();
+		}
+	}
 
 	public DragFloatSearch(PropertyInfo property) : base(property)
 	{
-		var range = _property.GetCustomAttribute<RangeAttribute>();
-		Min = range?.MinValue ?? 0f;
-		Max = range?.MaxValue ?? 1f;
+		RangeAttribute? range = _property.GetCustomAttribute<RangeAttribute>();
+		if (range != null)
+		{
+			Min = range.MinValue;
+			Max = range.MaxValue;
+			Speed = range.Speed;
+			Unit = range.UnitType;
+		}
+		else
+		{
+			Min = 0f;
+			Max = 1f;
+			Speed = 0.001f;
+			Unit = ConfigUnitType.None;
+		}
 	}
 
 	protected float Value
@@ -20,41 +41,63 @@ internal class DragFloatSearch : UnitSearchable
 		set => _property.SetValue(Service.Config, value);
 	}
 
-	internal void DrawCompact(float width)
+	protected override void DrawMain()
 	{
-		var value = Value;
-		var shown = value * SliderScale;
-		var trackWidth = MathF.Max(60f * Scale, width - M3Widgets.SliderValueGutter(Format(Max)));
+		float value = Value;
+		ImGui.SetNextItemWidth(Scale * DRAG_WIDTH);
 
-		if (M3Widgets.Slider($"##Config_{ID}{GetHashCode()}_compact", ref shown, Min * SliderScale, Max * SliderScale, Format(value), trackWidth))
+		// Cache the hash code to avoid multiple calls
+		int hashCode = GetHashCode();
+
+		// Draw slider or drag float based on unit type
+		if (Unit == ConfigUnitType.Percent)
 		{
-			Value = shown / SliderScale;
+			// Convert the value to percentage for display
+			float displayValue = value * 100f;
+			if (ImGui.SliderFloat($"##Config_{ID}{hashCode}", ref displayValue, Min * 100f, Max * 100f, $"{displayValue:F1}{Unit.ToSymbol()}"))
+			{
+				// Convert the display value back to the original scale
+				Value = displayValue / 100f;
+			}
+		}
+		else
+		{
+			if (ImGui.DragFloat($"##Config_{ID}{hashCode}", ref value, Speed, Min, Max, $"{value:F2}{Unit.ToSymbol()}"))
+			{
+				Value = value;
+			}
 		}
 
-		if (ImGui.IsItemHovered() && !ImGui.IsItemActive())
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
 		{
 			ShowTooltip();
 		}
 
-		PreparePopup();
-	}
-
-	protected override void DrawMain()
-	{
-		var value = Value;
-		var shown = value * SliderScale;
-		var trackWidth = Scale * DRAG_WIDTH;
-		var controlSize = new Vector2(trackWidth + M3Widgets.SliderValueGutter(Format(Max)), M3Widgets.ButtonHeight);
-
-		var row = M3SettingRow.Begin(Name, SupportingText, controlSize, leadingIcon: RowIcon);
-
-		ImGui.SetCursorScreenPos(row.ControlPosition);
-		if (M3Widgets.Slider($"##Config_{ID}{GetHashCode()}", ref shown, Min * SliderScale, Max * SliderScale, Format(value), trackWidth))
+		// Draw job icon if applicable
+		if (IsJob)
 		{
-			Value = shown / SliderScale;
+			DrawJobIcon();
 		}
 
-		RowInteractions(row);
-		M3SettingRow.End(row);
+		ImGui.SameLine();
+
+		// Set text color if specified
+		if (Color != 0)
+		{
+			ImGui.PushStyleColor(ImGuiCol.Text, Color);
+		}
+
+		ImGui.TextWrapped(Name);
+		if (Color != 0)
+		{
+			ImGui.PopStyleColor();
+		}
+
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
+		{
+			ShowTooltip(false);
+		}
 	}
 }

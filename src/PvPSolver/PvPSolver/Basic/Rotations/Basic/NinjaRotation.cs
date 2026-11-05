@@ -35,7 +35,7 @@ public partial class NinjaRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.RaijuReady);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.RaijuReady);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}

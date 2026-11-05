@@ -87,7 +87,7 @@ public class TerritoryInfo
 		Name = sheetType.PlaceName.Value.Name.ExtractText();
 		IsPvP = sheetType.IsPvpZone;
 
-		var contentFinder = sheetType.ContentFinderCondition.Value;
+		ContentFinderCondition contentFinder = sheetType.ContentFinderCondition.Value;
 		ContentFinderName = contentFinder.Name.ExtractText();
 		IsHighEndDuty = contentFinder.HighEndDuty;
 		ContentType = (TerritoryContentType)contentFinder.ContentType.Value.RowId;

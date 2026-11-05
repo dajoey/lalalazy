@@ -104,13 +104,15 @@ internal abstract class RotationConfigBase : IRotationConfig
 			Type = attr.Type;
 			Parent = attr.Parent;
 
+			// Use ParentValue from the attribute if specified
 			if (attr.ParentValue != null)
 			{
 				ParentValue = attr.ParentValue;
 			}
+			// Otherwise, get the actual value from the parent property
 			else if (!string.IsNullOrEmpty(Parent))
 			{
-				var parentProperty = rotation.GetType().GetProperty(Parent);
+				PropertyInfo? parentProperty = rotation.GetType().GetProperty(Parent);
 				if (parentProperty != null)
 				{
 					ParentValue = parentProperty.GetValue(rotation);
@@ -130,6 +132,12 @@ internal abstract class RotationConfigBase : IRotationConfig
 			SetValue(value);
 		}
 	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="RotationConfigBase"/> class.
+	/// </summary>
+	/// <param name="rotation">The custom rotation instance.</param>
+	/// <param name="property">The property information.</param>
 	protected RotationConfigBase(DutyRotation rotation, PropertyInfo property)
 	{
 		_property = property ?? throw new ArgumentNullException(nameof(property));
@@ -137,7 +145,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 
 		Name = property.Name;
 		DefaultValue = property.GetValue(rotation)?.ToString() ?? string.Empty;
-		var attr = property.GetCustomAttribute<RotationConfigAttribute>();
+		RotationConfigAttribute? attr = property.GetCustomAttribute<RotationConfigAttribute>();
 		if (attr != null)
 		{
 			DisplayName = attr.Name;
@@ -145,13 +153,15 @@ internal abstract class RotationConfigBase : IRotationConfig
 			PhantomJob = attr.PhantomJob;
 			Parent = attr.Parent;
 
+			// Use ParentValue from the attribute if specified
 			if (attr.ParentValue != null)
 			{
 				ParentValue = attr.ParentValue;
 			}
+			// Otherwise, get the actual value from the parent property
 			else if (!string.IsNullOrEmpty(Parent))
 			{
-				var parentProperty = rotation.GetType().GetProperty(Parent);
+				PropertyInfo? parentProperty = rotation.GetType().GetProperty(Parent);
 				if (parentProperty != null)
 				{
 					ParentValue = parentProperty.GetValue(rotation);
@@ -172,9 +182,13 @@ internal abstract class RotationConfigBase : IRotationConfig
 		}
 	}
 
+	/// <summary>
+	/// Sets the value of the property.
+	/// </summary>
+	/// <param name="value">The value to set.</param>
 	private void SetValue(string value)
 	{
-		var type = _property.PropertyType;
+		Type type = _property.PropertyType;
 		if (type == null)
 		{
 			return;
@@ -183,7 +197,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 		object? currentRotation = _rotation == null ? _dutyRotation : _rotation;
 		if (currentRotation == null)
 		{
-			return;
+			return; // can't possible update a null rotation
 		}
 
 		try
@@ -197,24 +211,33 @@ internal abstract class RotationConfigBase : IRotationConfig
 		}
 	}
 
+	/// <summary>
+	/// Changes the type of the value.
+	/// </summary>
+	/// <param name="value">The value to change.</param>
+	/// <param name="type">The target type.</param>
+	/// <returns>The converted value.</returns>
 	private static object ChangeType(string value, Type type)
 	{
 		if (type.IsEnum)
 		{
+			// Attempt to match the value with the enum name
 			if (Enum.IsDefined(type, value))
 			{
 				return Enum.Parse(type, value);
 			}
 
-			foreach (var field in type.GetFields())
+			// Attempt to match the value with the Description attribute
+			foreach (FieldInfo field in type.GetFields())
 			{
-				var descriptionAttribute = field.GetCustomAttribute<DescriptionAttribute>();
+				DescriptionAttribute? descriptionAttribute = field.GetCustomAttribute<DescriptionAttribute>();
 				if (descriptionAttribute != null && descriptionAttribute.Description == value)
 				{
 					return Enum.Parse(type, field.Name);
 				}
 			}
 
+			// Log a warning and return the default value if no match is found
 			PluginLog.Warning($"Invalid enum value '{value}' for type '{type.Name}'. Using default value.");
 			return Enum.GetValues(type).GetValue(0) ?? throw new InvalidOperationException($"No default value available for enum type '{type.Name}'.");
 		}
@@ -234,14 +257,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 	/// <returns><c>true</c> if the command was executed; otherwise, <c>false</c>.</returns>
 	public virtual bool DoCommand(IRotationConfigSet set, string str)
 	{
-		return IsCommandFor(Name, str);
-	}
-
-	internal static bool IsCommandFor(string name, string? str)
-	{
-		return str != null
-			&& str.StartsWith(name, StringComparison.Ordinal)
-			&& (str.Length == name.Length || char.IsWhiteSpace(str[name.Length]));
+		return str.StartsWith(Name);
 	}
 
 	/// <summary>

@@ -7,48 +7,22 @@ namespace RotationSolver.Basic.Rotations;
 /// </summary>
 public partial class CustomRotation
 {
-	internal static PhoenixDownItem[] PhoenixDowns { get; } = [new PhoenixDownItem(Service.GetSheet<Item>().GetRow(4570))];
+	private static readonly BaseItem PhoenixDownItemNumber = new(4570);
 
-	private static class Consumables
+	internal static PhoenixDownItem[] PhoenixDowns { get; } = GetPhoenixDownItem();
+
+	private static PhoenixDownItem[] GetPhoenixDownItem()
 	{
-		internal static readonly MedicineItem[] Medicines;
-		internal static readonly MpPotionItem[] MpPotions;
-		internal static readonly HpPotionItem[] HpPotions;
-
-		static Consumables()
+		var items = Service.GetSheet<Item>();
+		var list = new List<PhoenixDownItem>();
+		foreach (var i in items)
 		{
-			List<MedicineItem> medicines = [];
-			List<MpPotionItem> mpPotions = [];
-			List<HpPotionItem> hpPotions = [];
-			foreach (var i in Service.GetSheet<Item>())
+			if (i.RowId == PhoenixDownItemNumber.ID)
 			{
-				var isMedicineCategory = i.ItemSearchCategory.RowId == 43;
-				if (isMedicineCategory && i.FilterGroup == 6)
-				{
-					var medicine = new MedicineItem(i);
-					if (medicine.Type != MedicineType.None)
-					{
-						medicines.Add(medicine);
-					}
-				}
-				else if (isMedicineCategory && i.FilterGroup == 9)
-				{
-					mpPotions.Add(new MpPotionItem(i));
-				}
-
-				if ((isMedicineCategory && i.FilterGroup == 8) || i.RowId is 22306 or 47102 or 20309)
-				{
-					hpPotions.Add(new HpPotionItem(i));
-				}
+				list.Add(new PhoenixDownItem(i));
 			}
-
-			medicines.Reverse();
-			mpPotions.Reverse();
-			hpPotions.Reverse();
-			Medicines = [.. medicines];
-			MpPotions = [.. mpPotions];
-			HpPotions = [.. hpPotions];
 		}
+		return [.. list];
 	}
 
 	/// <summary>
@@ -57,7 +31,7 @@ public partial class CustomRotation
 	/// <param name="nextGCD">The next GCD action.</param>
 	/// <param name="act">The action to be performed.</param>
 	/// <returns>True if a Phoenix Down can be used; otherwise, false.</returns>
-	public static bool UsePhoenixDown(IAction nextGCD, out IAction? act)
+	public unsafe static bool UsePhoenixDown(IAction nextGCD, out IAction? act)
 	{
 		act = null;
 
@@ -71,14 +45,17 @@ public partial class CustomRotation
 		IBaseAction.TargetOverride = TargetType.Death;
 		try
 		{
-			foreach (var phoenixdown in PhoenixDowns)
+			foreach (PhoenixDownItem phoenixdown in PhoenixDowns)
 			{
+				// Ensure we propagate the action outward if needed by upstream code
 				if (phoenixdown.CanUse(out act, true))
 				{
+					// Use() handles HQ/NQ and correct target GameObjectId
 					if (phoenixdown.Use())
 					{
 						return true;
 					}
+					// If use failed, clear and continue scanning
 					act = null;
 				}
 			}
@@ -97,7 +74,35 @@ public partial class CustomRotation
 	/// </summary>
 	public abstract MedicineType MedicineType { get; }
 
-	internal static MedicineItem[] Medicines => Consumables.Medicines;
+	/// <summary>
+	/// Gets the collection of available medicines.
+	/// </summary>
+	internal static MedicineItem[] Medicines { get; } = GetMedicines();
+
+	private static MedicineItem[] GetMedicines()
+	{
+		var items = Service.GetSheet<Item>();
+		var list = new List<MedicineItem>();
+		foreach (var i in items)
+		{
+			if (i.FilterGroup == 6 && i.ItemSearchCategory.RowId == 43)
+			{
+				var med = new MedicineItem(i);
+				if (med.Type != MedicineType.None)
+				{
+					list.Add(med);
+				}
+			}
+		}
+		// Reverse the list
+		int n = list.Count;
+		var arr = new MedicineItem[n];
+		for (int i = 0; i < n; i++)
+		{
+			arr[i] = list[n - i - 1];
+		}
+		return arr;
+	}
 
 	/// <summary>
 	/// Uses the burst medicines.
@@ -109,13 +114,8 @@ public partial class CustomRotation
 	{
 		act = null;
 
-		if (!DataCenter.InCombat && Service.CountDownTime <= 0)
-		{
-			return false;
-		}
-
-		var isHostileTargetDummy = HostileTarget?.IsDummy() ?? false;
-		var isInHighEndDuty = DataCenter.Territory?.IsHighEndDuty ?? false;
+		bool isHostileTargetDummy = HostileTarget?.IsDummy() ?? false;
+		bool isInHighEndDuty = DataCenter.Territory?.IsHighEndDuty ?? false;
 
 		if (!isHostileTargetDummy && !isInHighEndDuty && DataCenter.CurrentTinctureUseType == TinctureUseType.InHighEndDuty)
 		{
@@ -127,7 +127,7 @@ public partial class CustomRotation
 			return false;
 		}
 
-		foreach (var medicine in Medicines)
+		foreach (MedicineItem medicine in Medicines)
 		{
 			if (medicine.Type != MedicineType)
 			{
@@ -146,8 +146,38 @@ public partial class CustomRotation
 
 	#region MP Potions
 
-	internal static MpPotionItem[] MpPotions => Consumables.MpPotions;
+	/// <summary>
+	/// Gets the collection of available MP potions.
+	/// </summary>
+	internal static MpPotionItem[] MpPotions { get; } = GetMpPotions();
 
+	private static MpPotionItem[] GetMpPotions()
+	{
+		var items = Service.GetSheet<Item>();
+		var list = new List<MpPotionItem>();
+		foreach (var i in items)
+		{
+			if (i.FilterGroup == 9 && i.ItemSearchCategory.RowId == 43)
+			{
+				list.Add(new MpPotionItem(i));
+			}
+		}
+		// Reverse the list
+		int n = list.Count;
+		var arr = new MpPotionItem[n];
+		for (int i = 0; i < n; i++)
+		{
+			arr[i] = list[n - i - 1];
+		}
+		return arr;
+	}
+
+	/// <summary>
+	/// Uses an MP potion.
+	/// </summary>
+	/// <param name="nextGCD">The next GCD action.</param>
+	/// <param name="act">The action to be performed.</param>
+	/// <returns>True if an MP potion was used; otherwise, false.</returns>
 	private static bool UseMpPotion(IAction nextGCD, out IAction? act)
 	{
 		MpPotionItem? best = null;
@@ -168,38 +198,45 @@ public partial class CustomRotation
 
 	#region HP Potions
 
-	internal static HpPotionItem[] HpPotions => Consumables.HpPotions;
+	/// <summary>
+	/// Gets the collection of available HP potions.
+	/// </summary>
+	internal static HpPotionItem[] HpPotions { get; } = GetHpPotions();
 
+	private static HpPotionItem[] GetHpPotions()
+	{
+		var items = Service.GetSheet<Item>();
+		var list = new List<HpPotionItem>();
+		foreach (var i in items)
+		{
+			if ((i.FilterGroup == 8 && i.ItemSearchCategory.RowId == 43) || i.RowId == 22306 || i.RowId == 47102 || i.RowId == 20309)
+			{
+				list.Add(new HpPotionItem(i));
+			}
+		}
+		// Reverse the list
+		int n = list.Count;
+		var arr = new HpPotionItem[n];
+		for (int i = 0; i < n; i++)
+		{
+			arr[i] = list[n - i - 1];
+		}
+		return arr;
+	}
+
+	/// <summary>
+	/// Uses an HP potion.
+	/// </summary>
+	/// <param name="nextGCD">The next GCD action.</param>
+	/// <param name="act">The action to be performed.</param>
+	/// <returns>True if an HP potion was used; otherwise, false.</returns>
 	private static bool UseHpPotion(IAction nextGCD, out IAction? act)
 	{
 		HpPotionItem? best = null;
 		foreach (var a in HpPotions)
 		{
-			if (a.ID != 47102 && a.ID != 22306 && a.ID != 20309 && a.CanUse(out _, true))
-			{
-				if (best == null || a.MaxHp >= best.MaxHp)
-				{
-					best = a;
-				}
-			}
-
-			if ((DataCenter.IsInPilgrimsTraverse || DataCenter.IsInTheFinalVerse) && a.ID == 47102 && a.CanUse(out _, true) && !StatusHelper.PlayerHasStatus(false, StatusID.Rehabilitation_4191))
-			{
-				if (best == null || a.MaxHp >= best.MaxHp)
-				{
-					best = a;
-				}
-			}
-
-			if (DataCenter.IsInEurekaFieldOp && a.ID == 22306 && !StatusHelper.PlayerHasStatus(false, StatusID.Rehabilitation_648) && a.CanUse(out _, true))
-			{
-				if (best == null || a.MaxHp >= best.MaxHp)
-				{
-					best = a;
-				}
-			}
-
-			if (DataCenter.IsInPalaceOfTheDead && a.ID == 20309 && !StatusHelper.PlayerHasStatus(false, StatusID.Rehabilitation_648) && a.CanUse(out _, true))
+			bool isDeepDungeons = DataCenter.Territory?.ContentType == TerritoryContentType.DeepDungeons;
+			if (a.CanUse(out _, true) && (a.ID != 47102 || (a.ID == 47102 && isDeepDungeons) || (a.ID == 20309 && isDeepDungeons && !StatusHelper.PlayerHasStatus(false, StatusID.Rehabilitation_648))))
 			{
 				if (best == null || a.MaxHp >= best.MaxHp)
 				{

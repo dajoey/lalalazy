@@ -3,21 +3,30 @@
 /// <summary>
 /// Randomly delays the change of a boolean value.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="RandomDelay"/> struct.
-/// </remarks>
-/// <param name="getRange">A function that returns the range of delay times.</param>
-public struct RandomDelay(Func<(float min, float max)> getRange)
+public struct RandomDelay
 {
-	private DateTime _startDelayTime = DateTime.Now;
-	private float _delayTime = -1;
-	private readonly Random _ran = new Random(DateTime.Now.Millisecond);
-	private bool _lastValue = false;
+	private DateTime _startDelayTime;
+	private float _delayTime;
+	private readonly Random _ran;
+	private bool _lastValue;
 
 	/// <summary>
 	/// Gets the function that returns the range of delay times.
 	/// </summary>
-	public readonly Func<(float min, float max)> GetRange = getRange ?? throw new ArgumentNullException(nameof(getRange));
+	public readonly Func<(float min, float max)> GetRange;
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="RandomDelay"/> struct.
+	/// </summary>
+	/// <param name="getRange">A function that returns the range of delay times.</param>
+	public RandomDelay(Func<(float min, float max)> getRange)
+	{
+		_startDelayTime = DateTime.Now;
+		_delayTime = -1;
+		_ran = new Random(DateTime.Now.Millisecond);
+		_lastValue = false;
+		GetRange = getRange ?? throw new ArgumentNullException(nameof(getRange));
+	}
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="RandomDelay"/> struct.
@@ -26,7 +35,7 @@ public struct RandomDelay(Func<(float min, float max)> getRange)
 	public RandomDelay(Func<Vector2> getRange)
 		: this(() =>
 		{
-			var vec = getRange();
+			Vector2 vec = getRange();
 			return (vec.X, vec.Y);
 		})
 	{
@@ -39,7 +48,7 @@ public struct RandomDelay(Func<(float min, float max)> getRange)
 	/// <returns>The delayed boolean value.</returns>
 	public bool Delay(bool originData)
 	{
-		(var min, var max) = GetRange();
+		(float min, float max) = GetRange();
 		if (min <= 0 || max <= 0)
 		{
 			return originData;
@@ -52,12 +61,14 @@ public struct RandomDelay(Func<(float min, float max)> getRange)
 			return false;
 		}
 
+		// Not started and changed.
 		if (_delayTime < 0 && !_lastValue)
 		{
 			_lastValue = true;
 			_startDelayTime = DateTime.Now;
 			_delayTime = min + ((float)_ran.NextDouble() * (max - min));
 		}
+		// Time's up
 		else if ((DateTime.Now - _startDelayTime).TotalSeconds >= _delayTime)
 		{
 			_delayTime = -1;
@@ -75,7 +86,7 @@ public struct RandomDelay(Func<(float min, float max)> getRange)
 	/// <returns>The delayed item.</returns>
 	public T? Delay<T>(T? originData) where T : class
 	{
-		var b = originData != null;
+		bool b = originData != null;
 
 		return Delay(b) ? originData : null;
 	}

@@ -1,13 +1,23 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
+﻿using ECommons.GameHelpers;
+using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace RotationSolver.Basic.Helpers
 {
+	/// <summary>
+	/// Provides helper methods for interacting with the ActionManager.
+	/// </summary>
 	internal static class ActionManagerHelper
 	{
+		/// <summary>
+		/// Gets the instance of the ActionManager.
+		/// </summary>
+		/// <returns>A pointer to the ActionManager instance.</returns>
 		private static unsafe ActionManager* GetActionManager()
 		{
 			return ActionManager.Instance();
 		}
+
+		public static unsafe float AnimationLock => Player.AnimationLock;
 
 		/// <summary>
 		/// Gets the recast time for a specific action.
@@ -17,7 +27,7 @@ namespace RotationSolver.Basic.Helpers
 		/// <returns>The recast time for the specified action.</returns>
 		public static unsafe float GetRecastTime(ActionType type, uint id)
 		{
-			var actionManager = GetActionManager();
+			ActionManager* actionManager = GetActionManager();
 			return actionManager == null ? 0 : actionManager->GetRecastTime(type, id);
 		}
 
@@ -38,7 +48,7 @@ namespace RotationSolver.Basic.Helpers
 		/// <returns>The elapsed recast time for the specified action.</returns>
 		public static unsafe float GetRecastTimeElapsed(ActionType type, uint id)
 		{
-			var actionManager = GetActionManager();
+			ActionManager* actionManager = GetActionManager();
 			return actionManager == null ? 0 : actionManager->GetRecastTimeElapsed(type, id);
 		}
 

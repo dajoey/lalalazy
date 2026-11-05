@@ -11,17 +11,7 @@ public partial class MonkRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public static BeastChakra BeastChakra1 => JobGauge.BeastChakra1;
-
-	/// <summary>
-	///
-	/// </summary>
-	public static BeastChakra BeastChakra2 => JobGauge.BeastChakra2;
-
-	/// <summary>
-	///
-	/// </summary>
-	public static BeastChakra BeastChakra3 => JobGauge.BeastChakra3;
+	protected static BeastChakra[] BeastChakras => JobGauge.BeastChakra;
 
 	/// <summary>
 	/// 
@@ -74,29 +64,43 @@ public partial class MonkRotation : CustomRotation
 	public static bool CoeurlUnlocked => DataCenter.PlayerSyncedLevel() >= 30;
 
 	/// <summary>
-	/// Determines whether all three Beast Chakra slots are the same.
+	/// Determines whether all elements in the <see cref="BeastChakras"/> array are the same.
 	/// </summary>
 	/// <returns>
-	/// <c>true</c> if all slots are equal; otherwise, <c>false</c>.
+	/// <c>true</c> if all elements are equal; otherwise, <c>false</c>.
 	/// </returns>
 	public static bool BeastChakrasAllSame()
 	{
-		return BeastChakra1 == BeastChakra2 && BeastChakra2 == BeastChakra3;
+		var first = BeastChakras[0];
+		for (int i = 1; i < BeastChakras.Length; i++)
+		{
+			if (!BeastChakras[i].Equals(first))
+				return false;
+		}
+		return true;
 	}
 
 	/// <summary>
-	/// Determines whether all three Beast Chakra slots are different from each other.
+	/// Determines whether all elements in the <see cref="BeastChakras"/> array are different from each other.
 	/// </summary>
 	/// <returns>
-	/// <c>true</c> if all slots are unique; otherwise, <c>false</c>.
+	/// <c>true</c> if all elements are unique or the array is empty; otherwise, <c>false</c>.
 	/// </returns>
 	public static bool BeastChakrasAllDifferent()
 	{
-		return BeastChakra1 != BeastChakra2 && BeastChakra1 != BeastChakra3 && BeastChakra2 != BeastChakra3;
+		for (int i = 0; i < BeastChakras.Length; i++)
+		{
+			for (int j = i + 1; j < BeastChakras.Length; j++)
+			{
+				if (BeastChakras[i].Equals(BeastChakras[j]))
+					return false;
+			}
+		}
+		return true;
 	}
 
 	/// <summary>
-	/// Determines whether the specified <paramref name="value"/> is in any of the three Beast Chakra slots.
+	/// Determines whether the specified <paramref name="value"/> exists in the <see cref="BeastChakras"/> array.
 	/// </summary>
 	/// <param name="value">The <see cref="BeastChakra"/> value to search for.</param>
 	/// <returns>
@@ -104,19 +108,29 @@ public partial class MonkRotation : CustomRotation
 	/// </returns>
 	public static bool BeastChakrasContains(BeastChakra value)
 	{
-		return BeastChakra1 == value || BeastChakra2 == value || BeastChakra3 == value;
+		for (int i = 0; i < BeastChakras.Length; i++)
+		{
+			if (BeastChakras[i].Equals(value))
+				return true;
+		}
+		return false;
 	}
 
 	/// <summary>
-	/// Determines whether none of the three Beast Chakra slots equal the specified <paramref name="value"/>.
+	/// Determines whether all elements in the <see cref="BeastChakras"/> array do <b>not</b> equal the specified <paramref name="value"/>.
 	/// </summary>
-	/// <param name="value">The <see cref="BeastChakra"/> value to compare against each slot.</param>
+	/// <param name="value">The <see cref="BeastChakra"/> value to compare against each element.</param>
 	/// <returns>
-	/// <c>true</c> if none of the slots equal <paramref name="value"/>; otherwise, <c>false</c>.
+	/// <c>true</c> if none of the elements equal <paramref name="value"/>; otherwise, <c>false</c>.
 	/// </returns>
 	public static bool BeastChakrasAllNot(BeastChakra value)
 	{
-		return !BeastChakrasContains(value);
+		for (int i = 0; i < BeastChakras.Length; i++)
+		{
+			if (BeastChakras[i].Equals(value))
+				return false;
+		}
+		return true;
 	}
 	#endregion
 
@@ -257,10 +271,7 @@ public partial class MonkRotation : CustomRotation
 
 	static partial void ModifyFiresReplyPvP(ref ActionSetting setting)
 	{
-		setting.CreateConfig = () => new ActionConfig()
-		{
-			AoeCount = 1,
-		};
+
 	}
 
 	static partial void ModifyEarthsReplyPvP(ref ActionSetting setting)

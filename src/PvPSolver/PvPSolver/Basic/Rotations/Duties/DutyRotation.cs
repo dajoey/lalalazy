@@ -1,6 +1,5 @@
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.ExcelServices;
-using System.Collections.Concurrent;
 
 namespace RotationSolver.Basic.Rotations.Duties;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -13,68 +12,57 @@ public partial class DutyRotation : IDisposable
 	#region GCD
 	public virtual bool EmergencyGCD(IAction? nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool ProvokeGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool MyInterruptGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool GeneralGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool RaiseGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DispelGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool MoveForwardGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool HealSingleGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool HealAreaGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DefenseSingleGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DefenseAreaGCD(out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 	#endregion
 
@@ -82,101 +70,75 @@ public partial class DutyRotation : IDisposable
 
 	public virtual bool InterruptAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DispelAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool AntiKnockbackAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool ProvokeAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool EmergencyAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool MoveForwardAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool MoveBackAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool HealSingleAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool HealAreaAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DefenseSingleAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool DefenseAreaAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool SpeedAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool GeneralAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	public virtual bool AttackAbility(IAction nextGCD, out IAction? act)
 	{
-		act = null;
-		return false;
+		act = null; return false;
 	}
 
 	#endregion
-
-	/// <summary>
-	/// Last used Combo Action.
-	/// <br>WARNING: Do Not make this method the main of your rotation.</br>
-	/// </summary>
-	/// <param name="ids">True if any of this is matched.</param>
-	/// <returns></returns>
-	public static bool IsLastComboAction(params ReadOnlySpan<ActionID> ids)
-	{
-		CustomRotation.CountingOfLastUsing++;
-		return IActionHelper.IsLastComboAction(ids);
-	}
 
 	public virtual void DisplayDutyStatus()
 	{
@@ -349,51 +311,54 @@ public partial class DutyRotation : IDisposable
 		MysticKnight,
 		Gladiator,
 		Dancer,
-		Ninja,
-		WhiteMage,
-		BlackMage,
-		Dragoon,
-		Summoner,
-		BlueMage,
-		RedMage,
-		Necromancer,
 		None
 	}
 
 	public static PhantomJob GetPhantomJob()
 	{
-		if (!DataCenter.IsInOccultCrescentOp)
-		{
-			return PhantomJob.None;
-		}
+		if (FreelancerLevel > 0) return PhantomJob.Freelancer;
+		if (KnightLevel > 0) return PhantomJob.Knight;
+		if (MonkLevel > 0) return PhantomJob.Monk;
+		if (BardLevel > 0) return PhantomJob.Bard;
+		if (ChemistLevel > 0) return PhantomJob.Chemist;
+		if (TimeMageLevel > 0) return PhantomJob.TimeMage;
+		if (CannoneerLevel > 0) return PhantomJob.Cannoneer;
+		if (OracleLevel > 0) return PhantomJob.Oracle;
+		if (BerserkerLevel > 0) return PhantomJob.Berserker;
+		if (RangerLevel > 0) return PhantomJob.Ranger;
+		if (ThiefLevel > 0) return PhantomJob.Thief;
+		if (SamuraiLevel > 0) return PhantomJob.Samurai;
+		if (GeomancerLevel > 0) return PhantomJob.Geomancer;
 
-		RefreshPhantomLevels();
-		return _activePhantomJob;
+		if (GladiatorLevel > 0) return PhantomJob.Gladiator;
+		if (DancerLevel > 0) return PhantomJob.Dancer;
+		if (MysticKnightLevel > 0) return PhantomJob.MysticKnight;
+		return PhantomJob.None;
 	}
 
 	/// <summary>
 	/// Does player have swift cast, dual cast or triple cast.
 	/// </summary>
 	[Description("Has Swift")]
-	public static bool HasSwift => CustomRotation.HasSwift;
+	public static bool HasSwift => Player?.HasStatus(true, StatusHelper.SwiftcastStatus) ?? false;
 
 	/// <summary>
-	///
+	/// 
 	/// </summary>
 	[Description("Has tank stance")]
-	public static bool HasTankStance => CustomRotation.HasTankStance;
+	public static bool HasTankStance => Player?.HasStatus(true, StatusHelper.TankStanceStatus) ?? false;
 
 	/// <summary>
-	///
+	/// 
 	/// </summary>
 	[Description("Has tank stance")]
-	public static bool HasTankInvuln => CustomRotation.HasTankInvuln;
+	public static bool HasTankInvuln => Player?.HasStatus(true, StatusHelper.NoNeedHealingStatus) ?? false;
 
 	/// <summary>
 	/// In the burst status.
 	/// </summary>
 	[Description("Is burst")]
-	public static bool IsBurst => CustomRotation.IsBurst;
+	public static bool IsBurst => MergedStatus.HasFlag(AutoStatus.Burst);
 
 	/// <summary>
 	/// Is PvP Solver enabled.
@@ -421,17 +386,6 @@ public partial class DutyRotation : IDisposable
 	/// The CMD status, which is checked from the player.
 	/// </summary>
 	public static AutoStatus CommandStatus => DataCenter.CommandStatus;
-
-	/// <summary>
-	/// Returns the number of hostile targets within the specified range from the player.
-	/// </summary>
-	/// <param name="range">The range to check (in yalms).</param>
-	/// <returns>The number of hostile targets within the given range.</returns>
-	[Description("The number of hostiles in specified range")]
-	public static int NumberOfHostilesInRangeOf(float range)
-	{
-		return DataCenter.NumberOfHostilesInRangeOf(range);
-	}
 
 	/// <summary>
 	/// Is there any hostile target in range? 25 for ranged jobs and healer, 3 for melee and tank.
@@ -476,170 +430,194 @@ public partial class DutyRotation : IDisposable
 	/// </summary>
 	public static string? ActivePhantomJob => GetPhantomJob().ToString();
 
-	private static readonly Dictionary<StatusID, PhantomJob> PhantomJobByStatus = new()
+	public static byte FreelancerLevel
 	{
-		[StatusID.PhantomFreelancer] = PhantomJob.Freelancer,
-		[StatusID.PhantomKnight] = PhantomJob.Knight,
-		[StatusID.PhantomMonk] = PhantomJob.Monk,
-		[StatusID.PhantomBard] = PhantomJob.Bard,
-		[StatusID.PhantomChemist] = PhantomJob.Chemist,
-		[StatusID.PhantomTimeMage] = PhantomJob.TimeMage,
-		[StatusID.PhantomCannoneer] = PhantomJob.Cannoneer,
-		[StatusID.PhantomOracle] = PhantomJob.Oracle,
-		[StatusID.PhantomBerserker] = PhantomJob.Berserker,
-		[StatusID.PhantomRanger] = PhantomJob.Ranger,
-		[StatusID.PhantomThief] = PhantomJob.Thief,
-		[StatusID.PhantomSamurai] = PhantomJob.Samurai,
-		[StatusID.PhantomGeomancer] = PhantomJob.Geomancer,
-		[StatusID.PhantomMysticKnight] = PhantomJob.MysticKnight,
-		[StatusID.PhantomDancer] = PhantomJob.Dancer,
-		[StatusID.PhantomGladiator] = PhantomJob.Gladiator,
-		[StatusID.PhantomNinja] = PhantomJob.Ninja,
-		[StatusID.PhantomBlackMage] = PhantomJob.BlackMage,
-		[StatusID.PhantomWhiteMage] = PhantomJob.WhiteMage,
-		[StatusID.PhantomDragoon] = PhantomJob.Dragoon,
-		[StatusID.PhantomSummoner] = PhantomJob.Summoner,
-		[StatusID.PhantomNecromancer] = PhantomJob.Necromancer,
-		[StatusID.PhantomBlueMage] = PhantomJob.BlueMage,
-		[StatusID.PhantomRedMage] = PhantomJob.RedMage,
-	};
-
-	private static readonly byte[] _phantomLevels = new byte[(int)PhantomJob.None];
-	private static PhantomJob _activePhantomJob = PhantomJob.None;
-	private static long _phantomLevelsTick = long.MinValue;
-
-	private static void RefreshPhantomLevels()
-	{
-		var now = Environment.TickCount64;
-		if (_phantomLevelsTick != long.MinValue && now - _phantomLevelsTick < 15)
+		get
 		{
-			return;
-		}
-
-		_phantomLevelsTick = now;
-		Array.Clear(_phantomLevels);
-		_activePhantomJob = PhantomJob.None;
-
-		var player = Player;
-		if (!DataCenter.IsInOccultCrescentOp || player?.StatusList is not { } statusList)
-		{
-			return;
-		}
-
-		foreach (var status in statusList)
-		{
-			if (status != null && status.SourceId == player.GameObjectId
-				&& PhantomJobByStatus.TryGetValue((StatusID)status.StatusId, out var job) && status.Param > 0)
-			{
-				_phantomLevels[(int)job] = (byte)status.Param;
-				if (_activePhantomJob == PhantomJob.None)
-				{
-					_activePhantomJob = job;
-				}
-			}
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomFreelancer);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
 		}
 	}
 
-	private static byte GetPhantomLevel(PhantomJob job)
+	public static byte KnightLevel
 	{
-		RefreshPhantomLevels();
-		return _phantomLevels[(int)job];
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomKnight);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
 	}
 
-	public static byte FreelancerLevel => GetPhantomLevel(PhantomJob.Freelancer);
+	public static byte MonkLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomMonk);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte KnightLevel => GetPhantomLevel(PhantomJob.Knight);
+	public static byte BardLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomBard);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte MonkLevel => GetPhantomLevel(PhantomJob.Monk);
+	public static byte ChemistLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomChemist);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte BardLevel => GetPhantomLevel(PhantomJob.Bard);
+	public static byte TimeMageLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomTimeMage);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte ChemistLevel => GetPhantomLevel(PhantomJob.Chemist);
+	public static byte CannoneerLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomCannoneer);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte TimeMageLevel => GetPhantomLevel(PhantomJob.TimeMage);
+	public static byte OracleLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomOracle);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte CannoneerLevel => GetPhantomLevel(PhantomJob.Cannoneer);
+	public static byte BerserkerLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomBerserker);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte OracleLevel => GetPhantomLevel(PhantomJob.Oracle);
+	public static byte RangerLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomRanger);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte BerserkerLevel => GetPhantomLevel(PhantomJob.Berserker);
+	public static byte ThiefLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomThief);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte RangerLevel => GetPhantomLevel(PhantomJob.Ranger);
+	public static byte SamuraiLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomSamurai);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte ThiefLevel => GetPhantomLevel(PhantomJob.Thief);
+	public static byte GeomancerLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomGeomancer);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte SamuraiLevel => GetPhantomLevel(PhantomJob.Samurai);
+	public static byte MysticKnightLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomMysticKnight);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte GeomancerLevel => GetPhantomLevel(PhantomJob.Geomancer);
+	public static byte DancerLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomDancer);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
-	public static byte MysticKnightLevel => GetPhantomLevel(PhantomJob.MysticKnight);
-
-	public static byte DancerLevel => GetPhantomLevel(PhantomJob.Dancer);
-
-	public static byte GladiatorLevel => GetPhantomLevel(PhantomJob.Gladiator);
-
-	public static byte NinjaLevel => GetPhantomLevel(PhantomJob.Ninja);
-
-	public static byte BlackMageLevel => GetPhantomLevel(PhantomJob.BlackMage);
-
-	public static byte WhiteMageLevel => GetPhantomLevel(PhantomJob.WhiteMage);
-
-	public static byte DragoonLevel => GetPhantomLevel(PhantomJob.Dragoon);
-
-	public static byte SummonerLevel => GetPhantomLevel(PhantomJob.Summoner);
-
-	public static byte NecromancerLevel => GetPhantomLevel(PhantomJob.Necromancer);
-
-	public static byte BlueMageLevel => GetPhantomLevel(PhantomJob.BlueMage);
-
-	public static byte RedMageLevel => GetPhantomLevel(PhantomJob.RedMage);
+	public static byte GladiatorLevel
+	{
+		get
+		{
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.PhantomGladiator);
+			return stacks == byte.MaxValue ? (byte)0 : stacks;
+		}
+	}
 
 	#endregion
-
 	/// <summary>
-	/// The specific duty action IDs that belong to this duty rotation. Overridden by duty rotation
-	/// base classes (e.g. <see cref="HardboiledRotation"/>) whose actions replace the player's normal
-	/// hotbars instead of occupying the dedicated duty action slots (Quest Battles), since those
-	/// duties can't be identified by matching against <see cref="DataCenter.DutyActions"/>.
+	/// Gets all actions available in the duty rotation.
 	/// </summary>
-	protected virtual uint[] QuestBattleActionIds => [];
-
 	internal IAction[] AllActions
 	{
 		get
 		{
-			var questBattleActionIds = DataCenter.IsInQuestBattle ? QuestBattleActionIds : [];
-			var actions = new List<IAction>();
-			foreach (var (property, id) in GetActionProperties(GetType()))
+			var runtimeProperties = GetType().GetRuntimeProperties();
+			var propertiesList = new List<PropertyInfo>();
+
+			foreach (var p in runtimeProperties)
 			{
-				if ((Array.IndexOf(DataCenter.DutyActions, id) >= 0 || Array.IndexOf(questBattleActionIds, id) >= 0)
-					&& property.GetValue(this) is IAction action)
+				var attr = p.GetCustomAttribute<IDAttribute>();
+				uint id = attr != null ? attr.ID : uint.MaxValue;
+
+				bool hasdutyAction = false;
+				foreach (var dutyaction in DataCenter.DutyActions)
 				{
-					actions.Add(action);
+					if (dutyaction == id)
+					{
+						hasdutyAction = true;
+						break;
+					}
+				}
+
+				if (hasdutyAction)
+				{
+					propertiesList.Add(p);
 				}
 			}
 
-			return [.. actions];
+			var actionsList = new List<IAction>();
+			foreach (var prop in propertiesList)
+			{
+				var value = prop.GetValue(this);
+				if (value is IAction action)
+				{
+					actionsList.Add(action);
+				}
+			}
+
+			return [.. actionsList];
 		}
-	}
-
-	private static readonly ConcurrentDictionary<Type, (PropertyInfo Property, uint Id)[]> _actionProperties = new();
-
-	private static (PropertyInfo Property, uint Id)[] GetActionProperties(Type type)
-	{
-		return _actionProperties.GetOrAdd(type, static t =>
-		{
-			List<(PropertyInfo, uint)> properties = [];
-			foreach (var p in t.GetRuntimeProperties())
-			{
-				if (p.GetCustomAttribute<IDAttribute>() is { } attr)
-				{
-					properties.Add((p, attr.ID));
-				}
-			}
-
-			return [.. properties];
-		});
 	}
 }
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member

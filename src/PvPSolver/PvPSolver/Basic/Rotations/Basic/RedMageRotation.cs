@@ -124,25 +124,13 @@ public partial class RedMageRotation : CustomRotation
 		get
 		{
 			if (!CanVerBoth)
-			{
 				return null;
-			}
-
 			if (VerStoneTime == null || VerFireTime == null)
-			{
 				return null;
-			}
-
 			if (VerStoneTime < VerFireTime)
-			{
 				return "VerStone";
-			}
-
 			if (VerFireTime < VerStoneTime)
-			{
 				return "VerFire";
-			}
-
 			return "Equal";
 		}
 	}
@@ -240,7 +228,7 @@ public partial class RedMageRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public static bool CanInstantCast => HasSwift;
+	public static bool CanInstantCast => HasSwift || HasAccelerate;
 	#endregion
 
 	#region Status Display

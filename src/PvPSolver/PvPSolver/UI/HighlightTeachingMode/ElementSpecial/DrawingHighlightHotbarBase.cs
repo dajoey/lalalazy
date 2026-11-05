@@ -1,7 +1,13 @@
 ﻿namespace RotationSolver.UI.HighlightTeachingMode.ElementSpecial;
 
+/// <summary> 
+/// Drawing element 
+/// </summary>
 public abstract class DrawingHighlightHotbarBase : IDisposable
 {
+	/// <summary> 
+	/// If it is enabled. 
+	/// </summary>
 	public virtual bool Enable { get; set; } = true;
 
 	private bool _disposed;
@@ -41,9 +47,9 @@ public abstract class DrawingHighlightHotbarBase : IDisposable
 		}
 	}
 
-	internal IEnumerable<IDrawing2D> To2DMain()
+	internal async Task<IEnumerable<IDrawing2D>> To2DMain()
 	{
-		return !Enable ? [] : To2D();
+		return !Enable ? [] : await Task.FromResult(To2D());
 	}
 
 	internal void UpdateOnFrameMain()
@@ -58,5 +64,8 @@ public abstract class DrawingHighlightHotbarBase : IDisposable
 
 	private protected abstract IEnumerable<IDrawing2D> To2D();
 
+	/// <summary> 
+	/// The things that it should update on every frame. 
+	/// </summary>
 	protected abstract void UpdateOnFrame();
 }

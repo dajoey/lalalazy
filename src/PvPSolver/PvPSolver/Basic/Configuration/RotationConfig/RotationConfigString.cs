@@ -2,6 +2,9 @@
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Represents a string rotation configuration.
+/// </summary>
 internal class RotationConfigString : RotationConfigBase
 {
 	/// <summary>
@@ -42,6 +45,7 @@ internal class RotationConfigString : RotationConfigBase
 			return false;
 		}
 
+		// Ensure the string has sufficient length before slicing
 		if (str.Length <= Name.Length)
 		{
 			return false;

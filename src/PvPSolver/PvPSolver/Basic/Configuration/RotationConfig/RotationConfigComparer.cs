@@ -2,6 +2,9 @@
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Compares two <see cref="IRotationConfig"/> objects for equality based on their names.
+/// </summary>
 internal class RotationConfigComparer : IEqualityComparer<IRotationConfig>
 {
 	/// <summary>
@@ -22,13 +25,6 @@ internal class RotationConfigComparer : IEqualityComparer<IRotationConfig>
 	/// <returns>A hash code for the specified <see cref="IRotationConfig"/>.</returns>
 	public int GetHashCode([DisallowNull] IRotationConfig obj)
 	{
-		if (obj.Name == null)
-		{
-			throw new ArgumentNullException(nameof(obj.Name));
-		}
-		else
-		{
-			return obj.Name.GetHashCode();
-		}
+		return obj.Name == null ? throw new ArgumentNullException(nameof(obj.Name)) : obj.Name.GetHashCode();
 	}
 }

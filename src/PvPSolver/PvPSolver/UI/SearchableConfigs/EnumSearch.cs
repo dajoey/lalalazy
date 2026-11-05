@@ -1,118 +1,134 @@
-using Dalamud.Interface.Utility.Raii;
-using ECommons.DalamudServices;
-using ECommons.ImGuiMethods;
-using RebornMaterial;
+﻿using Dalamud.Interface.Utility;
 using RotationSolver.Data;
 
 namespace RotationSolver.UI.SearchableConfigs;
 
 internal class EnumSearch(PropertyInfo property) : Searchable(property)
 {
-	private int[]? _enumKeys;
-	private string[]? _displayNames;
-
 	protected int Value
 	{
 		get => Convert.ToInt32(_property.GetValue(Service.Config));
 		set => _property.SetValue(Service.Config, Enum.ToObject(_property.PropertyType, value));
 	}
 
-	private void EnsureEnumCache()
+	protected override void DrawMain()
 	{
-		if (_enumKeys != null)
-		{
-			return;
-		}
+		int currentValue = Value;
 
+		// Create a map of enum values to their descriptions
 		Dictionary<int, string> enumValueToNameMap = [];
 		foreach (Enum enumValue in Enum.GetValues(_property.PropertyType))
 		{
 			enumValueToNameMap[Convert.ToInt32(enumValue)] = enumValue.GetDescription();
 		}
 
-		_enumKeys = [.. enumValueToNameMap.Keys];
-		_displayNames = [.. enumValueToNameMap.Values];
-	}
-
-	protected override void PreparePopup()
-	{
-		using var popup = ImRaii.Popup(PopupKey);
-		if (!popup.Success)
+		string[] displayNames;
 		{
-			return;
-		}
-
-		using var table = ImRaii.Table(PopupKey, 1, ImGuiTableFlags.BordersOuter);
-		if (!table)
-		{
-			return;
-		}
-
-		DrawPopupItem("Reset to Default Value.", ResetToDefault);
-
-		var isFirst = true;
-		foreach (Enum enumValue in Enum.GetValues(_property.PropertyType))
-		{
-			if (!isFirst)
+			displayNames = new string[enumValueToNameMap.Count];
+			int idx = 0;
+			foreach (var kv in enumValueToNameMap)
 			{
-				ImGui.TableNextRow();
-				ImGui.TableNextColumn();
-				ImGui.Separator();
+				displayNames[idx++] = kv.Value;
+			}
+		}
+
+		string name = Name;
+		bool drawLabelAbove = false;
+
+		if (displayNames.Length > 0)
+		{
+			// Set the width of the combo box
+			float maxText = 0f;
+			for (int i = 0; i < displayNames.Length; i++)
+			{
+				float w = ImGui.CalcTextSize(displayNames[i]).X;
+				if (w > maxText) maxText = w;
 			}
 
-			isFirst = false;
+			float comboWidth = Math.Max(maxText + 30, DRAG_WIDTH) * Scale;
 
-			var command = $"{Service.COMMAND} {OtherCommandType.Settings} {_property.Name} {enumValue}";
-			DrawPopupItem($"Execute \"{command}\"", () => Svc.Commands.ProcessCommand(command));
-			DrawPopupItem($"Copy \"{command}\"", () => CopyCommand(command));
+			if (!string.IsNullOrEmpty(name))
+			{
+				float availableWidth = ImGui.GetContentRegionAvail().X;
+				float spacing = ImGui.GetStyle().ItemSpacing.X;
+				float iconWidth = IsJob ? (24 * ImGuiHelpers.GlobalScale + spacing) : 0f;
+				float labelWidth = ImGui.CalcTextSize(name).X;
+
+				drawLabelAbove = comboWidth + spacing + iconWidth + labelWidth > availableWidth;
+				if (drawLabelAbove)
+				{
+					ImGui.TextWrapped(name);
+					if (ImGui.IsItemHovered())
+					{
+						ShowTooltip(false);
+					}
+				}
+			}
+
+			ImGui.SetNextItemWidth(comboWidth);
+
+			// Find the current index of the selected value
+			int currentIndex = 0;
+			int tmpIdx = 0;
+			bool found = false;
+			foreach (var kv in enumValueToNameMap)
+			{
+				if (kv.Key == currentValue)
+				{
+					currentIndex = tmpIdx;
+					found = true;
+					break;
+				}
+				tmpIdx++;
+			}
+			if (!found)
+			{
+				currentIndex = 0; // Default to first item if not found
+			}
+
+			// Cache the hash code to avoid multiple calls
+			int hashCode = GetHashCode();
+
+			// Draw the combo box
+			if (ImGui.Combo($"##Config_{ID}{hashCode}", ref currentIndex, displayNames, displayNames.Length))
+			{
+				int i = 0;
+				int selectedKey = currentValue;
+				foreach (var kv in enumValueToNameMap)
+				{
+					if (i == currentIndex)
+					{
+						selectedKey = kv.Key;
+						break;
+					}
+					i++;
+				}
+				Value = selectedKey;
+			}
 		}
-	}
 
-	private static void DrawPopupItem(string name, Action action)
-	{
-		ImGui.TableNextRow();
-		_ = ImGui.TableNextColumn();
-		if (ImGui.Selectable(name))
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
 		{
-			action();
-			ImGui.CloseCurrentPopup();
+			ShowTooltip();
 		}
-	}
 
-	private static void CopyCommand(string command)
-	{
-		ImGui.SetClipboardText(command);
-		Notify.Success($"\"{command}\" copied to clipboard.");
-	}
-
-	protected override void DrawMain()
-	{
-		EnsureEnumCache();
-		var enumKeys = _enumKeys!;
-		var displayNames = _displayNames!;
-
-		if (displayNames.Length == 0)
+		// Draw job icon if IsJob is true
+		if (IsJob)
 		{
-			return;
+			DrawJobIcon();
 		}
 
-		var currentIndex = Math.Max(0, Array.IndexOf(enumKeys, Value));
-		var comboWidth = MathF.Min(
-			MathF.Max(M3Widgets.ComboWidthFor(displayNames[currentIndex]), DRAG_WIDTH * Scale),
-			M3SettingRow.MaxControlWidth(RowIcon));
-
-		var row = M3SettingRow.Begin(Name, SupportingText, new Vector2(comboWidth, M3Widgets.ComboHeight),
-			leadingIcon: RowIcon);
-
-		ImGui.SetCursorScreenPos(row.ControlPosition);
-		if (M3Widgets.Combo($"##Config_{ID}{GetHashCode()}", ref currentIndex, displayNames, comboWidth)
-			&& currentIndex >= 0 && currentIndex < enumKeys.Length)
+		if (!drawLabelAbove && !string.IsNullOrEmpty(name))
 		{
-			Value = enumKeys[currentIndex];
-		}
+			ImGui.SameLine();
+			ImGui.TextWrapped(name);
 
-		RowTooltip(row, "Right-click for the matching chat commands.");
-		ImGuiHelper.ReactPopupAt(row.Hovered, PopupKey, false);
-		M3SettingRow.End(row);
+			// Show tooltip if item is hovered
+			if (ImGui.IsItemHovered())
+			{
+				ShowTooltip(false);
+			}
+		}
 	}
 }

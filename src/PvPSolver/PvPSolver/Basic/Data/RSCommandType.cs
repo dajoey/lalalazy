@@ -191,7 +191,7 @@ public enum OtherCommandType : byte
 	/// <summary>
 	/// Perform the actions.
 	/// </summary>
-	[Description("Use an action within the given seconds, e.g. \"Cure II-5\". End it with a macro target such as <t>, <f>, <mo> or <2>, or a targeting type such as <LowHP> or <Big>, to choose who it's used on.")]
+	[Description("Perform the actions.")]
 	DoActions,
 
 	/// <summary>
@@ -207,20 +207,8 @@ public enum OtherCommandType : byte
 	NextAction,
 
 	/// <summary>
-	/// Cycles between states following the /rotation Cycle behavior setting in Basic > Commands.
+	/// Cycles between states following settings in Target > Configuration.
 	/// </summary>
-	[Description("Cycles between states following the /rotation Cycle behavior setting in Basic > Commands.")]
+	[Description("Cycles between states following settings in Target > Configuration.")]
 	Cycle,
-
-	/// <summary>
-	/// Open the autorotation state window with the Auto, Manual and Off buttons.
-	/// </summary>
-	[Description("Open the autorotation state window with the Auto, Manual and Off buttons.")]
-	Control,
-
-	/// <summary>
-	/// Open the update notes.
-	/// </summary>
-	[Description("Open the update notes.")]
-	Changelog,
 }

@@ -21,8 +21,6 @@ internal static class ActionUpdater
 	[EzIPCEvent] public static Action<uint> NextGCDActionChanged = delegate { };
 	[EzIPCEvent] public static Action<uint> NextActionChanged = delegate { };
 
-	[EzIPCEvent] public static Action<byte> DesiredPositionalChanged = delegate { };
-
 	private static IAction? _nextAction;
 	internal static IAction? NextAction
 	{
@@ -47,95 +45,60 @@ internal static class ActionUpdater
 			{
 				_nextGCDAction = value;
 				NextGCDActionChanged?.Invoke(_nextGCDAction?.AdjustedID ?? 0);
-				DesiredPositional = CalculateDesiredPositional();
 			}
 		}
-	}
-
-	private static EnemyPositional _desiredPositional = EnemyPositional.None;
-
-	internal static EnemyPositional DesiredPositional
-	{
-		get => _desiredPositional;
-		private set
-		{
-			if (_desiredPositional != value)
-			{
-				_desiredPositional = value;
-				DesiredPositionalChanged?.Invoke((byte)_desiredPositional);
-			}
-		}
-	}
-
-	private static EnemyPositional CalculateDesiredPositional()
-	{
-		var action = NextGCDAction;
-		if (action == null)
-		{
-			return EnemyPositional.None;
-		}
-
-		if (action.Setting.EnemyPositional != EnemyPositional.None)
-		{
-			return action.Setting.EnemyPositional;
-		}
-
-		return ConfigurationHelper.ActionPositional.TryGetValue((ActionID)action.ID, out var positional)
-			? positional
-			: EnemyPositional.None;
 	}
 
 	internal static void ClearNextAction()
 	{
+		SetAction(0);
 		NextAction = NextGCDAction = null;
-		DesiredPositional = EnemyPositional.None;
 	}
 
 	internal static void UpdateNextAction()
 	{
-		ActionTracer.Enabled = Service.Config.EnableActionTracer;
-		ActionTracer.MirrorToPluginLog = Service.Config.TraceMirrorToPluginLog;
+		IPlayerCharacter? localPlayer = Player.Object;
+		ICustomRotation? customRotation = DataCenter.CurrentRotation;
 
-		var localPlayer = Player.Object;
-		var customRotation = DataCenter.CurrentRotation;
-
-		ActionTracer.BeginFrame();
 		try
 		{
 			if (localPlayer != null && customRotation != null
-				&& customRotation.TryInvoke(out var newAction, out var gcdAction))
+				&& customRotation.TryInvoke(out IAction? newAction, out IAction? gcdAction))
 			{
 				NextAction = newAction;
 				NextGCDAction = gcdAction as IBaseAction;
 				return;
 			}
-
-			NextAction = NextGCDAction = null;
 		}
 		catch (Exception ex)
 		{
 			LogError("Failed to update the next action in the rotation", ex);
-			NextAction = NextGCDAction = null;
 		}
-		finally
-		{
-			ActionTracer.EndFrame(NextAction);
-		}
+
+		NextAction = NextGCDAction = null;
 	}
 
 	internal static void UpdateCombatInfo()
 	{
 		var now = DateTime.Now;
+		SetAction(NextGCDAction?.AdjustedID ?? 0);
 		UpdateCombatTime(now);
 		UpdateSlots();
 		UpdateMoving(now);
 		UpdateLifetime(now);
+		UpdateMPTimer(now);
+	}
+
+	private static uint actionOverride = 0;
+	private static void SetAction(uint id)
+	{
+		actionOverride = id;
 	}
 
 	private static DateTime _startCombatTime = DateTime.MinValue;
 	private static void UpdateCombatTime(DateTime now)
 	{
-		var lastInCombat = DataCenter.InCombat;
+		bool lastInCombat = DataCenter.InCombat;
 		DataCenter.InCombat = Svc.Condition[ConditionFlag.InCombat];
 
 		if (!lastInCombat && DataCenter.InCombat)
@@ -146,7 +109,7 @@ internal static class ActionUpdater
 		{
 			_startCombatTime = DateTime.MinValue;
 
-			if (DataCenter.AutoOffAfterCombatEnabled && !DataCenter.IsHenched && !DataCenter.IsAutoDuty)
+			if (Service.Config.AutoOffAfterCombat && !DataCenter.IsHenched && !DataCenter.IsAutoDuty)
 			{
 				AutoCancelTime = now.AddSeconds(Service.Config.AutoOffAfterCombatTime);
 			}
@@ -159,7 +122,7 @@ internal static class ActionUpdater
 
 	private static unsafe void UpdateSlots()
 	{
-		var actionManager = ActionManager.Instance();
+		ActionManager* actionManager = ActionManager.Instance();
 		if (actionManager == null)
 		{
 			return;
@@ -167,7 +130,7 @@ internal static class ActionUpdater
 
 		if (DataCenter.Job == ECommons.ExcelServices.Job.BLU)
 		{
-			for (var i = 0; i < DataCenter.BluSlots.Length; i++)
+			for (int i = 0; i < DataCenter.BluSlots.Length; i++)
 			{
 				DataCenter.BluSlots[i] = actionManager->GetActiveBlueMageActionInSlot(i);
 			}
@@ -210,12 +173,6 @@ internal static class ActionUpdater
 	private static DateTime _startDeadTime = DateTime.MinValue;
 	private static DateTime _startAliveTime = DateTime.Now;
 	private static bool _isDead = true;
-	private static bool _changedArea;
-	internal static void MarkAreaChange()
-	{
-		_changedArea = true;
-	}
-
 	public static void UpdateLifetime(DateTime now)
 	{
 		var player = Player.Object;
@@ -226,12 +183,11 @@ internal static class ActionUpdater
 			return;
 		}
 
-		var lastDead = _isDead;
+		bool lastDead = _isDead;
 		_isDead = player.IsDead;
 
-		if (_changedArea)
+		if (Svc.Condition[ConditionFlag.BetweenAreas])
 		{
-			_changedArea = false;
 			_startAliveTime = now;
 		}
 		switch (lastDead)
@@ -253,8 +209,38 @@ internal static class ActionUpdater
 			: Math.Min(10, (float)(now - _startAliveTime).TotalSeconds);
 	}
 
+	private static uint _lastMP = 0;
+	private static DateTime _lastMPUpdate = DateTime.Now;
+
+	internal static float MPUpdateElapsed => (float)((DateTime.Now - _lastMPUpdate).TotalSeconds % 3);
+
+	private static void UpdateMPTimer(DateTime now)
+	{
+		if (Player.Object == null)
+		{
+			return;
+		}
+
+		if (Player.Object.ClassJob.RowId != (uint)ECommons.ExcelServices.Job.BLM)
+		{
+			return;
+		}
+
+		if (StatusHelper.PlayerHasStatus(true, StatusID.LucidDreaming))
+		{
+			return;
+		}
+
+		if (_lastMP < Player.Object.CurrentMp)
+		{
+			_lastMPUpdate = now;
+		}
+		_lastMP = Player.Object.CurrentMp;
+	}
+
 	internal static bool CanDoAction()
 	{
+		// In Target-Only mode we never perform actions.
 		if (DataCenter.IsTargetOnly)
 		{
 			return false;
@@ -266,7 +252,7 @@ internal static class ActionUpdater
 			return false;
 		}
 
-		var isPvPPurifyNeeded = DataCenter.IsPvP && StatusHelper.PlayerHasStatus(false, StatusHelper.PurifyPvPStatuses);
+		bool isPvPPurifyNeeded = DataCenter.IsPvP && StatusHelper.PlayerHasStatus(false, StatusHelper.PurifyPvPStatuses);
 		if (!isPvPPurifyNeeded && IsPlayerOccupied())
 		{
 			return false;
@@ -282,6 +268,7 @@ internal static class ActionUpdater
 			return false;
 		}
 
+		// Skip when casting
 		if (player.TotalCastTime - DataCenter.CalculatedActionAhead > 0)
 		{
 			return false;
@@ -292,28 +279,28 @@ internal static class ActionUpdater
 			return false;
 		}
 
+		// GCD
 		return RSCommands.CanDoAnAction(ActionHelper.CanUseGCD);
 	}
 
 	internal static bool PlayerHasLockActions()
 	{
-		if (DataCenter.IsPvP)
+		if (Player.Object == null)
 		{
 			return false;
 		}
 
-		var statusList = Player.Object?.StatusList;
-		if (statusList == null)
+		if (Player.Object.StatusList == null)
 		{
 			return false;
 		}
 
-		var minRemaining = 1 + DataCenter.DefaultGCDRemain;
-		foreach (var status in statusList)
+		foreach (var status in Player.Object.StatusList)
 		{
-			if (status != null && StatusHelper.LockActions(status) == true && status.RemainingTime > minRemaining)
+			if (!DataCenter.IsPvP)
 			{
-				return true;
+				if (status != null && status.GameData.Value.LockActions == true && status.RemainingTime > 1 + DataCenter.DefaultGCDRemain)
+					return true;
 			}
 		}
 		return false;
@@ -335,18 +322,18 @@ internal static class ActionUpdater
 			|| Svc.Condition[ConditionFlag.BetweenAreas51]
 			|| Svc.Condition[ConditionFlag.Mounted]
 			|| Svc.Condition[ConditionFlag.SufferingStatusAffliction2]
-			|| (Svc.Condition[ConditionFlag.RolePlaying] && !DataCenter.IsInQuestBattle)
+			|| Svc.Condition[ConditionFlag.RolePlaying]
 			|| Svc.Condition[ConditionFlag.InFlight]
 			|| Svc.Condition[ConditionFlag.Diving]
 			|| Svc.Condition[ConditionFlag.Swimming]
 			|| Svc.Condition[ConditionFlag.Unconscious]
-			|| Svc.Condition[ConditionFlag.InThisState89]
+			|| Svc.Condition[ConditionFlag.InThisState89] // frog state in Tower of Babil
 			|| Svc.Condition[ConditionFlag.MeldingMateria])
 		{
 			return true;
 		}
 
-		var am = ActionManager.Instance();
+		ActionManager* am = ActionManager.Instance();
 		if (am != null
 			&& am->ActionQueued
 			&& NextAction != null

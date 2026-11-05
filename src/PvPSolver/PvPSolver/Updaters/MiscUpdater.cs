@@ -4,37 +4,32 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using RotationSolver.Basic.Configuration;
 using RotationSolver.Commands;
-using RotationSolver.UI.HighlightTeachingMode;
 
 namespace RotationSolver.Updaters;
 
 internal static class MiscUpdater
 {
+
 	internal static void UpdateMisc()
 	{
 		UpdateEntry();
-		CancelCastUpdater.UpdateCancelCast();
+		UpdateCancelCast();
 	}
 
 	private static IDtrBarEntry? _dtrEntry;
-	private static string? _dtrText;
-	private static BitmapFontIcon _dtrIcon;
-	private static DTRType? _dtrClickType;
 
 	internal static void UpdateEntry()
 	{
-		if (!Service.Config.ShowInfoOnDtr)
-		{
-			HideEntry();
-			return;
-		}
+		string showStr = RSCommands.EntryString;
+		BitmapFontIcon icon = GetJobIcon(Player.Job);
 
-		var showStr = RSCommands.EntryString;
-		if (string.IsNullOrEmpty(showStr))
+		if (Service.Config.ShowInfoOnDtr && !string.IsNullOrEmpty(showStr))
 		{
 			try
 			{
@@ -46,56 +41,41 @@ internal static class MiscUpdater
 				return;
 			}
 
-		try
-		{
-			_dtrEntry ??= Svc.DtrBar.Get("Rotation Solver Reborn");
-		}
-		catch
-		{
-			BasicWarningHelper.AddSystemWarning("Unable to add server bar entry");
-			return;
-		}
-
-		if (_dtrEntry == null)
-		{
-			return;
-		}
-
-		if (!_dtrEntry.Shown)
-		{
-			_dtrEntry.Shown = true;
-		}
-
-		var icon = GetJobIcon(Player.Job);
-		if (showStr != _dtrText || icon != _dtrIcon)
-		{
-			_dtrEntry.Text = new SeString(
-				new IconPayload(icon),
-				new TextPayload(showStr)
-			);
-			_dtrText = showStr;
-			_dtrIcon = icon;
-		}
-
-		var dtrType = Service.Config.DTRType;
-		if (dtrType != _dtrClickType)
-		{
-			_dtrEntry.OnClick = dtrType switch
+			if (_dtrEntry != null && !_dtrEntry.Shown)
 			{
-				DTRType.DTRNormal => _ => RSCommands.CycleStateWithOneTargetTypes(),
-				DTRType.DTRAllAuto => _ => RSCommands.CycleStateWithAllTargetTypes(),
-				DTRType.DTRAuto => _ => RSCommands.CycleStateAuto(),
-				DTRType.DTRManual => _ => RSCommands.CycleStateManual(),
-				DTRType.DTRManualAuto => _ => RSCommands.CycleStateManualAuto(),
-				_ => _dtrEntry.OnClick,
-			};
-			_dtrClickType = dtrType;
-		}
-	}
+				_dtrEntry.Shown = true;
+			}
 
-	private static void HideEntry()
-	{
-		if (_dtrEntry != null && _dtrEntry.Shown)
+			if (_dtrEntry != null)
+			{
+				_dtrEntry.Text = new SeString(
+					new IconPayload(icon),
+					new TextPayload(showStr)
+				);
+
+				if (Service.Config.DTRType == DTRType.DTRNormal)
+				{
+					_dtrEntry.OnClick = _ => RSCommands.CycleStateWithOneTargetTypes();
+				}
+				else if (Service.Config.DTRType == DTRType.DTRAllAuto)
+				{
+					_dtrEntry.OnClick = _ => RSCommands.CycleStateWithAllTargetTypes();
+				}
+				else if (Service.Config.DTRType == DTRType.DTRAuto)
+				{
+					_dtrEntry.OnClick = _ => RSCommands.CycleStateAuto();
+				}
+				else if (Service.Config.DTRType == DTRType.DTRManual)
+				{
+					_dtrEntry.OnClick = _ => RSCommands.CycleStateManual();
+				}
+				else if (Service.Config.DTRType == DTRType.DTRManualAuto)
+				{
+					_dtrEntry.OnClick = _ => RSCommands.CycleStateManualAuto();
+				}
+			}
+		}
+		else if (_dtrEntry != null && _dtrEntry.Shown)
 		{
 			_dtrEntry.Shown = false;
 		}
@@ -147,82 +127,166 @@ internal static class MiscUpdater
 			Job.ARC => BitmapFontIcon.Archer,
 			Job.THM => BitmapFontIcon.Thaumaturge,
 			Job.ACN => BitmapFontIcon.Arcanist,
-			Job.BST => BitmapFontIcon.Beastmaster,
 			_ => BitmapFontIcon.ExclamationRectangle,
 		};
 	}
 
-	internal readonly record struct ActionBarSlotRef(int AddonIndex, int SlotIndex);
+	private static RandomDelay _tarStopCastDelay = new(() => Service.Config.StopCastingDelay);
 
-	internal static unsafe void FindActionBarSlots(uint actionID, List<ActionBarSlotRef> slots)
+	private static unsafe void UpdateCancelCast()
 	{
-		slots.Clear();
-
-		var framework = Framework.Instance();
-		var uiModule = framework == null ? null : framework->GetUIModule();
-		var raptureModule = uiModule == null ? null : uiModule->GetRaptureHotbarModule();
-		if (raptureModule == null)
+		if (Player.Object == null || !Player.Object.IsCasting)
 		{
 			return;
 		}
 
-		for (var addonIndex = 0; addonIndex < HotbarAddonHelper.AddonCount; addonIndex++)
+		if (!DataCenter.State)
 		{
-			var addon = HotbarAddonHelper.GetHotbarAddon(addonIndex);
-			if (addon == nint.Zero)
+			return;
+		}
+
+		IBattleChara? castTarget = Svc.Objects.SearchById(Player.Object.CastTargetObjectId) as IBattleChara;
+
+		bool tarDead = Service.Config.UseStopCasting
+			&& castTarget != null
+			&& castTarget.IsEnemy()
+			&& castTarget.CurrentHp == 0;
+
+		// Cancel raise cast if target already has Raise status
+		bool tarHasRaise = castTarget != null && castTarget.HasStatus(false, StatusID.Raise);
+
+		float[] statusTimes = GetStatusTimes();
+
+		float minStatusTime = float.MaxValue;
+		for (int i = 0; i < statusTimes.Length; i++)
+		{
+			if (statusTimes[i] < minStatusTime)
 			{
-				continue;
+				minStatusTime = statusTimes[i];
 			}
+		}
 
-			var hotSlots = HotbarAddonHelper.TryGetRaptureHotbarIndex(addon, addonIndex, raptureModule, out var hotBarIndex)
-				? raptureModule->Hotbars[hotBarIndex].Slots
-				: default;
+		float remainingCast = MathF.Max(0, Player.Object.TotalCastTime - Player.Object.CurrentCastTime);
 
-			var slotIndex = -1;
-			foreach (var slot in ((AddonActionBarBase*)addon)->ActionBarSlotVector.AsSpan())
+		// Cancel if a "no-casting" status will expire before the cast completes and it's soon (<3s)
+		bool stopDueStatus = statusTimes.Length > 0
+			&& minStatusTime <= remainingCast
+			&& minStatusTime < 3f;
+
+		bool shouldStopHealing =
+			Service.Config.StopHealingAfterThresholdExperimental2
+			&& DataCenter.InCombat
+			&& !CustomRotation.HealingWhileDoingNothing
+			&& DataCenter.CommandNextAction?.AdjustedID != Player.Object.CastActionId
+			&& ((ActionID)Player.Object.CastActionId).GetActionFromID(true, RotationUpdater.CurrentRotationActions)
+				is IBaseAction { Setting.GCDSingleHeal: true }
+			&& (DataCenter.MergedStatus & (AutoStatus.HealAreaSpell | AutoStatus.HealSingleSpell)) == 0;
+
+		if (_tarStopCastDelay.Delay(tarDead) || stopDueStatus || tarHasRaise || shouldStopHealing)
+		{
+			UIState* uiState = UIState.Instance();
+			if (uiState != null)
 			{
-				slotIndex++;
+				uiState->Hotbar.CancelCast();
+			}
+		}
+	}
 
-				RaptureHotbarModule.HotbarSlot? hotSlot = slotIndex < hotSlots.Length ? hotSlots[slotIndex] : null;
-				if (slot.Icon != null && IsActionSlotRight(slot, hotSlot, actionID))
+	private static float[] GetStatusTimes()
+	{
+		List<float> statusTimes = [];
+		if (Player.Object?.StatusList != null)
+		{
+			foreach (Dalamud.Game.ClientState.Statuses.IStatus status in Player.Object.StatusList)
+			{
+				if (OtherConfiguration.NoCastingStatus.Contains(status.StatusId))
 				{
-					slots.Add(new ActionBarSlotRef(addonIndex, slotIndex));
+					statusTimes.Add(status.RemainingTime);
 				}
 			}
 		}
+		return [.. statusTimes];
 	}
 
-	internal static unsafe void PulseActionBarSlots(List<ActionBarSlotRef> slots)
+	internal static unsafe void PulseActionBar(uint actionID)
 	{
-		foreach (var (addonIndex, slotIndex) in slots)
+		LoopAllSlotBar((bar, hot, index) =>
 		{
-			var actionBar = (AddonActionBarBase*)HotbarAddonHelper.GetHotbarAddon(addonIndex);
-			if (actionBar == null)
+			return IsActionSlotRight(bar, hot, actionID);
+		});
+	}
+
+	private static unsafe bool IsActionSlotRight(ActionBarSlot slot, RaptureHotbarModule.HotbarSlot? hot, uint actionID)
+	{
+		if (hot.HasValue)
+		{
+			if (hot.Value.OriginalApparentSlotType is not RaptureHotbarModule.HotbarSlotType.CraftAction and not RaptureHotbarModule.HotbarSlotType.Action)
+			{
+				return false;
+			}
+
+			if (hot.Value.ApparentSlotType is not RaptureHotbarModule.HotbarSlotType.CraftAction and not RaptureHotbarModule.HotbarSlotType.Action)
+			{
+				return false;
+			}
+
+			if (hot.Value.OriginalApparentSlotType == RaptureHotbarModule.HotbarSlotType.Macro)
+			{
+				return false;
+			}
+
+			if (hot.Value.ApparentSlotType == RaptureHotbarModule.HotbarSlotType.Macro)
+			{
+				return false;
+			}
+		}
+
+		return Service.GetAdjustedActionId((uint)slot.ActionId) == actionID;
+	}
+
+	private unsafe delegate bool ActionBarAction(ActionBarSlot bar, RaptureHotbarModule.HotbarSlot? hot, uint highLightID);
+	private unsafe delegate bool ActionBarPredicate(ActionBarSlot bar, RaptureHotbarModule.HotbarSlot* hot);
+	private static unsafe void LoopAllSlotBar(ActionBarAction doingSomething)
+	{
+		int index = 0;
+		int hotBarIndex = 0;
+
+		List<nint> addonPtrs =
+		[
+			.. Service.GetAddons<AddonActionBar>(),
+			.. Service.GetAddons<AddonActionBarX>(),
+			.. Service.GetAddons<AddonActionCross>(),
+			.. Service.GetAddons<AddonActionDoubleCrossBase>(),
+		];
+
+		foreach (nint intPtr in addonPtrs)
+		{
+			if (intPtr == IntPtr.Zero)
 			{
 				continue;
 			}
 
-			var barSlots = actionBar->ActionBarSlotVector.AsSpan();
-			if (slotIndex >= barSlots.Length)
-			{
-				continue;
-			}
+			AddonActionBarBase* actionBar = (AddonActionBarBase*)intPtr;
+			RaptureHotbarModule.Hotbar hotBar = Framework.Instance()->GetUIModule()->GetRaptureHotbarModule()->Hotbars[hotBarIndex];
 
-			var iconAddon = barSlots[slotIndex].Icon;
-			if (iconAddon != null && iconAddon->AtkResNode.IsVisible())
-			{
-				actionBar->PulseActionBarSlot(slotIndex);
-				UIGlobals.PlaySoundEffect(12);
-			}
-		}
-	}
+			int slotIndex = 0;
 
-	private static bool IsActionSlotRight(ActionBarSlot slot, RaptureHotbarModule.HotbarSlot? hot, uint actionID)
-	{
-		if (hot.HasValue && HotbarAddonHelper.TryMatchPvPCombo(hot.Value, actionID, out var comboMatch))
-		{
-			return comboMatch;
-		}
+			foreach (ActionBarSlot slot in actionBar->ActionBarSlotVector.AsSpan())
+			{
+				int highLightId = 0x53550000 + index;
+
+				if (doingSomething(slot, hotBarIndex > 9 ? null : hotBar.Slots[slotIndex], (uint)highLightId))
+				{
+					FFXIVClientStructs.FFXIV.Component.GUI.AtkComponentNode* iconAddon = slot.Icon;
+					if ((IntPtr)iconAddon == IntPtr.Zero)
+					{
+						continue;
+					}
+
+					if (!iconAddon->AtkResNode.IsVisible())
+					{
+						continue;
+					}
 
 					actionBar->PulseActionBarSlot(slotIndex);
 					//UIGlobals.PlaySoundEffect(12, 0, 0, 0); // API changed in FFXIVClientStructs
@@ -232,20 +296,13 @@ internal static class MiscUpdater
 			}
 			hotBarIndex++;
 		}
-
-		return Service.GetAdjustedActionId((uint)slot.ActionId) == actionID;
 	}
 
-	public static void Dispose()
+	public static unsafe void Dispose()
 	{
-		if (_dtrEntry == null)
+		if (_dtrEntry?.Title != null)
 		{
-			return;
+			Svc.DtrBar.Remove(_dtrEntry.Title);
 		}
-
-		_dtrEntry.Remove();
-		_dtrEntry = null;
-		_dtrText = null;
-		_dtrClickType = null;
 	}
 }

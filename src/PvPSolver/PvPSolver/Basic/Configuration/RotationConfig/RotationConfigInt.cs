@@ -2,6 +2,9 @@
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Represents an integer rotation configuration.
+/// </summary>
 internal class RotationConfigInt : RotationConfigBase
 {
 	/// <summary>
@@ -27,7 +30,7 @@ internal class RotationConfigInt : RotationConfigBase
 	public RotationConfigInt(ICustomRotation rotation, PropertyInfo property)
 		: base(rotation, property)
 	{
-		var attr = property.GetCustomAttribute<RangeAttribute>();
+		RangeAttribute? attr = property.GetCustomAttribute<RangeAttribute>();
 		if (attr != null)
 		{
 			Min = (int)attr.MinValue;
@@ -50,7 +53,7 @@ internal class RotationConfigInt : RotationConfigBase
 	public RotationConfigInt(DutyRotation rotation, PropertyInfo property)
 		: base(rotation, property)
 	{
-		var attr = property.GetCustomAttribute<RangeAttribute>();
+		RangeAttribute? attr = property.GetCustomAttribute<RangeAttribute>();
 		if (attr != null)
 		{
 			Min = (int)attr.MinValue;
@@ -83,16 +86,18 @@ internal class RotationConfigInt : RotationConfigBase
 			return false;
 		}
 
+		// Ensure the string has sufficient length before slicing
 		if (str.Length <= Name.Length)
 		{
 			return false;
 		}
 
-		var numStr = str[Name.Length..].Trim();
+		string numStr = str[Name.Length..].Trim();
 
-		if (int.TryParse(numStr, out var parsedValue))
+		// Parse the integer value and set it
+		if (int.TryParse(numStr, out int parsedValue))
 		{
-			Value = parsedValue.ToString();
+			Value = parsedValue.ToString(); // Convert int to string
 			return true;
 		}
 

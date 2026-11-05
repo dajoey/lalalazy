@@ -21,7 +21,7 @@ namespace RotationSolver.Commands
 				return;
 			}
 
-			var currentMessage = $" {EntryString}";
+			string currentMessage = $" {EntryString}";
 			if (currentMessage == _lastToastMessage)
 			{
 				return;
@@ -37,7 +37,7 @@ namespace RotationSolver.Commands
 
 		public static void DoStateCommandType(StateCommandType stateType, int index = -1)
 		{
-			DoOneCommandType(role =>
+			DoOneCommandType((type, role) => type.ToStateString(role), role =>
 			{
 				if (!DataCenter.State && stateType != StateCommandType.Off && !DataCenter.IsPvP)
 				{
@@ -55,71 +55,22 @@ namespace RotationSolver.Commands
 				{
 					stateType = AdjustStateType(stateType, ref index);
 				}
-				else if (stateType != StateCommandType.Off && DataCenter.IsInDutyReplay())
-				{
-					stateType = StateCommandType.Off;
-				}
-				else if (index != -1 && stateType is StateCommandType.Auto or StateCommandType.TargetOnly)
-				{
-					UpdateTargetingIndex(ref index);
-				}
 				UpdateState(stateType, role);
 
 				if (!DataCenter.AutoFaceTargetOnActionSetting() && DataCenter.MoveModeSetting() == 1)
 				{
 					Svc.GameConfig.UiControl.Set(UiControlOption.AutoFaceTargetOnAction.ToString(), 1);
 				}
+				return stateType;
 			});
-		}
-
-		public static void SetStateCommandType(StateCommandType stateType)
-		{
-			DoOneCommandType(role =>
-			{
-				if (stateType != StateCommandType.Off)
-				{
-					if (DataCenter.IsInDutyReplay())
-					{
-						stateType = StateCommandType.Off;
-					}
-					else if (DataCenter.IsPvP && Service.Config.PvpStateControl)
-					{
-						stateType = StateCommandType.PvP;
-					}
-				}
-
-				UpdateState(stateType, role);
-
-				if (!DataCenter.AutoFaceTargetOnActionSetting() && DataCenter.MoveModeSetting() == 1)
-				{
-					Svc.GameConfig.UiControl.Set(UiControlOption.AutoFaceTargetOnAction.ToString(), 1);
-				}
-			});
-		}
-
-		public static void SetTargetingIndex(int index)
-		{
-			var count = Service.Config.TargetingTypes.Count;
-			if (count == 0)
-			{
-				return;
-			}
-
-			Service.Config.TargetingIndex = ((index % count) + count) % count;
-
-			if (!DataCenter.State || DataCenter.IsManual || DataCenter.IsAutoDuty || DataCenter.IsPvPStateEnabled)
-			{
-				return;
-			}
-
-			SetStateCommandType(DataCenter.IsTargetOnly ? StateCommandType.TargetOnly : StateCommandType.Auto);
 		}
 
 		public static void DoAutodutyStateCommandType(StateCommandType stateType, TargetingType targetingType)
 		{
-			DoOneCommandType(role =>
+			DoOneCommandType((type, role) => type.ToStateString(role), role =>
 			{
 				AutodutyUpdateState(stateType, role, targetingType);
+				return stateType;
 			});
 		}
 
@@ -177,7 +128,7 @@ namespace RotationSolver.Commands
 
 		private static void UpdateTargetingIndex(ref int index)
 		{
-			var count = Service.Config.TargetingTypes.Count;
+			int count = Service.Config.TargetingTypes.Count;
 			if (count == 0)
 			{
 				index = 0;
@@ -193,7 +144,7 @@ namespace RotationSolver.Commands
 			Service.Config.TargetingIndex = index;
 		}
 
-		public static void UpdateState(StateCommandType stateType, JobRole role, IpcStateOverrides? ipcOverrides = null)
+		public static void UpdateState(StateCommandType stateType, JobRole role)
 		{
 			if (stateType == StateCommandType.PvP && !DataCenter.IsPvP)
 			{
@@ -293,7 +244,7 @@ namespace RotationSolver.Commands
 			UpdateToast();
 		}
 
-		public static void AutodutyUpdateState(StateCommandType stateType, JobRole role, TargetingType targetingType, IpcStateOverrides? ipcOverrides = null)
+		public static void AutodutyUpdateState(StateCommandType stateType, JobRole role, TargetingType targetingType)
 		{
 			switch (stateType)
 			{
@@ -389,78 +340,32 @@ namespace RotationSolver.Commands
 			UpdateToast();
 		}
 
-		private static void ApplyState(StateCommandType stateType, JobRole role, TargetingType? autodutyTargeting, IpcStateOverrides? ipcOverrides)
-		{
-			if (DataCenter.PvPAutomationBlocked && stateType != StateCommandType.Off)
-			{
-				Svc.Chat.PrintError("Rotation Solver Reborn: Autorotation is blocked in PvP while 'Auto PVP Series Grind' is enabled. It is an AI generated plugin and has been breaking RSR installations.");
-				stateType = StateCommandType.Off;
-			}
-
-			DataCenter.State = stateType != StateCommandType.Off;
-			DataCenter.IsManual = stateType is StateCommandType.Manual or StateCommandType.Henched;
-			DataCenter.IsTargetOnly = stateType == StateCommandType.TargetOnly;
-			DataCenter.IsAutoDuty = stateType == StateCommandType.AutoDuty;
-			DataCenter.IsHenched = stateType == StateCommandType.Henched;
-			DataCenter.IsPvPStateEnabled = stateType == StateCommandType.PvP;
-			DataCenter.TargetingTypeOverride = stateType switch
-			{
-				StateCommandType.PvP => TargetingType.LowHP,
-				StateCommandType.TargetOnly or StateCommandType.AutoDuty => autodutyTargeting,
-				_ => null,
-			};
-
-			if (DataCenter.State)
-			{
-				ActionUpdater.AutoCancelTime = DateTime.MinValue;
-			}
-			else
-			{
-				DataCenter.ResetAllRecords();
-				Wrath_IPCSubscriber.Release();
-				ActionUpdater.NextAction = ActionUpdater.NextGCDAction = null;
-				Service.CanMove = true;
-			}
-
-			if (Service.Config.ShowToggledSettingInChat)
-			{
-				Svc.Chat.Print(stateType switch
-				{
-					StateCommandType.Auto => $"Auto Targeting : {DataCenter.TargetingType}",
-					StateCommandType.TargetOnly => $"Auto Targeting Only : {DataCenter.TargetingType}",
-					_ => $"Targeting : {stateType}",
-				});
-			}
-
-			DataCenter.IpcOverrides = DataCenter.State ? ipcOverrides : null;
-			_stateString = stateType == StateCommandType.AutoDuty && autodutyTargeting.HasValue
-				? $"{stateType.ToStateString()} ({autodutyTargeting})"
-				: stateType.ToStateString();
-			UpdateToast();
-		}
 		public static void DoSpecialCommandType(SpecialCommandType specialType, bool sayout = true)
 		{
-			DoOneCommandType(role =>
+			DoOneCommandType((type, role) => type.ToSpecialString(role), role =>
 			{
-				_specialString = specialType.ToSpecialString();
+				_specialString = specialType.ToSpecialString(role);
 				DataCenter.SpecialType = specialType;
 				if (sayout)
 				{
 					UpdateToast();
 				}
+
+				return specialType;
 			});
 		}
 
-		private static void DoOneCommandType(Action<JobRole> doingSomething)
+		private static void DoOneCommandType<T>(Func<T, JobRole, string> sayout, Func<JobRole, T> doingSomething)
+			where T : struct, Enum
 		{
-			var role = Player.Object?.ClassJob.Value.GetJobRole() ?? JobRole.None;
+			JobRole role = Player.Object?.ClassJob.Value.GetJobRole() ?? JobRole.None;
 
 			if (role == JobRole.None)
 			{
 				return;
 			}
 
-			doingSomething(role);
+			_ = doingSomething(role);
 		}
 	}
 }

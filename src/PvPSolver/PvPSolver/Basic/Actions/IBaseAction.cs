@@ -15,16 +15,6 @@ public interface IBaseAction : IAction
 	internal static bool AllEmpty { get; set; } = false;
 	internal static bool ShouldEndSpecial { get; set; } = false;
 
-	internal static void ResetOverrides()
-	{
-		TargetOverride = null;
-		ForceEnable = false;
-		AutoHealCheck = false;
-		IgnoreClipping = false;
-		AllEmpty = false;
-		ShouldEndSpecial = false;
-	}
-
 	/// <summary>
 	/// The action itself.
 	/// </summary>

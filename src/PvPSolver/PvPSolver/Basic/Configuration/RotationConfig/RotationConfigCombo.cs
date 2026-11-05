@@ -2,6 +2,9 @@
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
+/// <summary>
+/// Represents a combo box rotation configuration.
+/// </summary>
 internal class RotationConfigCombo : RotationConfigBase
 {
 	/// <summary>
@@ -31,25 +34,27 @@ internal class RotationConfigCombo : RotationConfigBase
 		List<string> enumNames = [];
 		foreach (Enum v in Enum.GetValues(property.PropertyType))
 		{
-			var fieldInfo = property.PropertyType.GetField(v.ToString());
-			var descriptionAttribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
+			// Retrieve the Description attribute if it exists
+			FieldInfo? fieldInfo = property.PropertyType.GetField(v.ToString());
+			DescriptionAttribute? descriptionAttribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
 			names.Add(descriptionAttribute?.Description ?? v.ToString());
 			enumNames.Add(v.ToString());
 		}
 
-		DisplayValues = [.. names];
-		EnumNames = [.. enumNames];
+		DisplayValues = names.ToArray();
+		EnumNames = enumNames.ToArray();
 
-		var defaultEnumValue = property.GetValue(rotation);
+		// Set the Value to the display value of the default enum value
+		object? defaultEnumValue = property.GetValue(rotation);
 		if (defaultEnumValue is Enum defaultEnum)
 		{
-			var defaultFieldInfo = property.PropertyType.GetField(defaultEnum.ToString());
-			var defaultDescriptionAttribute = defaultFieldInfo?.GetCustomAttribute<DescriptionAttribute>();
+			FieldInfo? defaultFieldInfo = property.PropertyType.GetField(defaultEnum.ToString());
+			DescriptionAttribute? defaultDescriptionAttribute = defaultFieldInfo?.GetCustomAttribute<DescriptionAttribute>();
 			Value = defaultDescriptionAttribute?.Description ?? defaultEnum.ToString();
 		}
 		else
 		{
-			Value = DisplayValues[0];
+			Value = DisplayValues[0]; // Fallback to the first item if no default is found
 		}
 	}
 
@@ -70,25 +75,27 @@ internal class RotationConfigCombo : RotationConfigBase
 		List<string> enumNames = [];
 		foreach (Enum v in Enum.GetValues(property.PropertyType))
 		{
-			var fieldInfo = property.PropertyType.GetField(v.ToString());
-			var descriptionAttribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
+			// Retrieve the Description attribute if it exists
+			FieldInfo? fieldInfo = property.PropertyType.GetField(v.ToString());
+			DescriptionAttribute? descriptionAttribute = fieldInfo?.GetCustomAttribute<DescriptionAttribute>();
 			names.Add(descriptionAttribute?.Description ?? v.ToString());
 			enumNames.Add(v.ToString());
 		}
 
-		DisplayValues = [.. names];
-		EnumNames = [.. enumNames];
+		DisplayValues = names.ToArray();
+		EnumNames = enumNames.ToArray();
 
-		var defaultEnumValue = property.GetValue(rotation);
+		// Set the Value to the display value of the default enum value
+		object? defaultEnumValue = property.GetValue(rotation);
 		if (defaultEnumValue is Enum defaultEnum)
 		{
-			var defaultFieldInfo = property.PropertyType.GetField(defaultEnum.ToString());
-			var defaultDescriptionAttribute = defaultFieldInfo?.GetCustomAttribute<DescriptionAttribute>();
+			FieldInfo? defaultFieldInfo = property.PropertyType.GetField(defaultEnum.ToString());
+			DescriptionAttribute? defaultDescriptionAttribute = defaultFieldInfo?.GetCustomAttribute<DescriptionAttribute>();
 			Value = defaultDescriptionAttribute?.Description ?? defaultEnum.ToString();
 		}
 		else
 		{
-			Value = DisplayValues[0];
+			Value = DisplayValues[0]; // Fallback to the first item if no default is found
 		}
 	}
 
@@ -114,28 +121,30 @@ internal class RotationConfigCombo : RotationConfigBase
 			return false;
 		}
 
-		Value = DisplayValues[ResolveIndex(DisplayValues, EnumNames, Value, str[Name.Length..].Trim())];
-		return true;
-	}
+		string numStr = str[Name.Length..].Trim();
+		int length = DisplayValues.Length;
 
-	internal static int ResolveIndex(string[] displayValues, string[] enumNames, string current, string arg)
-	{
-		var length = displayValues.Length;
-
-		if (int.TryParse(arg, out var num))
+		int currentIndex = Array.IndexOf(DisplayValues, Value);
+		if (currentIndex == -1) currentIndex = 0;
+		int nextId = (currentIndex + 1) % length;
+		if (int.TryParse(numStr, out int num))
 		{
-			return ((num % length) + length) % length;
+			nextId = num % length;
 		}
-
-		for (var i = 0; i < length; i++)
+		else
 		{
-			if (displayValues[i].Equals(arg, StringComparison.OrdinalIgnoreCase) ||
-				enumNames[i].Equals(arg, StringComparison.OrdinalIgnoreCase))
+			for (int i = 0; i < length; i++)
 			{
-				return i;
+				if (DisplayValues[i].Equals(numStr, StringComparison.OrdinalIgnoreCase) ||
+					EnumNames[i].Equals(numStr, StringComparison.OrdinalIgnoreCase))
+				{
+					nextId = i;
+					break;
+				}
 			}
 		}
 
-		return (Math.Max(Array.IndexOf(displayValues, current), 0) + 1) % length;
+		Value = DisplayValues[nextId];
+		return true;
 	}
 }

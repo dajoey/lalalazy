@@ -1,4 +1,7 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
+﻿using ECommons.DalamudServices;
+using ECommons.Logging;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using Action = Lumina.Excel.Sheets.Action;
 
 namespace RotationSolver.Basic.Helpers;
 
@@ -14,8 +17,14 @@ public static class ActionIdHelper
 	/// <returns>True if the action is cooling down, otherwise false.</returns>
 	public static unsafe bool IsCoolingDown(this ActionID actionID)
 	{
-		var actionManager = ActionManager.Instance();
-		return actionManager != null && !actionManager->IsActionOffCooldown(ActionType.Action, (uint)actionID);
+		Action? action = actionID.GetAction();
+		if (!action.HasValue)
+		{
+			return false;
+		}
+
+		// Use IsActionOffCooldown to determine if the action is off cooldown
+		return !ActionManager.Instance()->IsActionOffCooldown(ActionType.Action, (uint)actionID);
 	}
 
 	/// <summary>
@@ -25,8 +34,8 @@ public static class ActionIdHelper
 	/// <returns>True if the action is cooling down, otherwise false.</returns>
 	public static unsafe bool IsCoolingDownGroup(byte cdGroup)
 	{
-		var detail = GetCoolDownDetail(cdGroup);
-		return detail != null && detail->IsActive;
+		RecastDetail* detail = GetCoolDownDetail(cdGroup);
+		return detail != null && detail->IsActive != false;
 	}
 
 	/// <summary>
@@ -36,9 +45,10 @@ public static class ActionIdHelper
 	/// <returns>A pointer to the cooldown details.</returns>
 	public static unsafe RecastDetail* GetCoolDownDetail(byte cdGroup)
 	{
-		var actionManager = ActionManager.Instance();
+		ActionManager* actionManager = ActionManager.Instance();
 		if (actionManager == null)
 		{
+			PluginLog.Error("ActionManager.Instance() returned null.");
 			return null;
 		}
 		if (cdGroup == 0)
@@ -46,6 +56,16 @@ public static class ActionIdHelper
 			return null;
 		}
 		return actionManager->GetRecastGroupDetail((byte)(cdGroup - 1));
+	}
+
+	/// <summary>
+	/// Gets the action associated with the action ID.
+	/// </summary>
+	/// <param name="actionID">The action ID.</param>
+	/// <returns>The action associated with the action ID.</returns>
+	private static Action? GetAction(this ActionID actionID)
+	{
+		return Svc.Data.GetExcelSheet<Action>()?.GetRow((uint)actionID);
 	}
 
 	/// <summary>

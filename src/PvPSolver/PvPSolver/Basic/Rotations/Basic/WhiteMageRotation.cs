@@ -38,16 +38,14 @@ public partial class WhiteMageRotation : CustomRotation
 	public static byte BloodLily => JobGauge.BloodLily;
 
 	/// <summary>
-	/// Gets the raw Lily timer value in seconds remaining until the next lily.
-	/// Lily timer counts up from 0 to 20000ms, so we subtract from 20 to get remaining time.
+	/// Gets the raw Lily timer value in seconds.
 	/// </summary>
-	private static float LilyTimeRaw => (20000f - JobGauge.LilyTimer) / 1000f;
+	private static float LilyTimeRaw => JobGauge.LilyTimer / 1000f;
 
 	/// <summary>
 	/// Gets the Lily timer value adjusted by the default GCD remain.
-	/// Returns the time remaining until the next lily is generated.
 	/// </summary>
-	public static float LilyTime => LilyTimeRaw - DataCenter.DefaultGCDRemain;
+	public static float LilyTime => LilyTimeRaw + DataCenter.DefaultGCDRemain;
 
 	/// <summary>
 	/// Determines if the Lily timer will expire after the specified time.
@@ -77,7 +75,7 @@ public partial class WhiteMageRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.SacredSight);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.SacredSight);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}
@@ -93,23 +91,6 @@ public partial class WhiteMageRotation : CustomRotation
 	/// Player has Presence Of Mind.
 	/// </summary>
 	public static bool HasPresenceOfMind => StatusHelper.PlayerHasStatus(true, StatusID.PresenceOfMind);
-	#endregion
-
-	#region DoT Data
-	// Best single target filler at the current level, for DoT break-even checks.
-	private static float SingleTargetFiller()
-	{
-		return (Player?.Level ?? 0) switch
-		{
-			>= 94 => 350, // Glare III
-			>= 82 => 310,
-			>= 72 => 290, // Glare
-			>= 64 => 260, // Stone IV
-			>= 54 => 220, // Stone III
-			>= 18 => 190, // Stone II
-			_ => 140, // Stone
-		};
-	}
 	#endregion
 
 	#region Debug
@@ -158,7 +139,7 @@ public partial class WhiteMageRotation : CustomRotation
 
 	static partial void ModifySeraphStrikePvP(ref ActionSetting setting)
 	{
-		setting.SpecialType = SpecialActionType.HostileMovingAttack;
+		//setting.SpecialType = SpecialActionType.MovingForward;
 		setting.CreateConfig = () => new ActionConfig()
 		{
 			AoeCount = 1,

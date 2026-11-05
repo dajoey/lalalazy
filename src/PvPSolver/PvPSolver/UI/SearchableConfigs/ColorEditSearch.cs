@@ -1,6 +1,4 @@
-﻿using RebornMaterial;
-
-namespace RotationSolver.UI.SearchableConfigs;
+﻿namespace RotationSolver.UI.SearchableConfigs;
 
 internal class ColorEditSearch(PropertyInfo property) : Searchable(property)
 {
@@ -12,18 +10,22 @@ internal class ColorEditSearch(PropertyInfo property) : Searchable(property)
 
 	protected override void DrawMain()
 	{
-		var value = Value;
-		var controlSize = Vector2.One * 28f * Scale;
+		Vector4 value = Value;
+		ImGui.SetNextItemWidth(DRAG_WIDTH * 1.5f * Scale);
 
-		var row = M3SettingRow.Begin(Name, SupportingText, controlSize, leadingIcon: RowIcon);
+		// Cache the hash code to avoid multiple calls
+		int hashCode = GetHashCode();
 
-		ImGui.SetCursorScreenPos(row.ControlPosition);
-		if (M3Widgets.ColorSwatch($"##Config_{ID}{GetHashCode()}", ref value))
+		// Draw the color edit control
+		if (ImGui.ColorEdit4($"{Name}##Config_{ID}{hashCode}", ref value))
 		{
 			Value = value;
 		}
 
-		RowInteractions(row);
-		M3SettingRow.End(row);
+		// Show tooltip if item is hovered
+		if (ImGui.IsItemHovered())
+		{
+			ShowTooltip();
+		}
 	}
 }

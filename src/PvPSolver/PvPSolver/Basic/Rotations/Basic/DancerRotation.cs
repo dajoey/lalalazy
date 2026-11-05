@@ -42,9 +42,7 @@ public partial class DancerRotation : CustomRotation
 				foreach (var member in PartyMembers)
 				{
 					if (member.HasStatus(true, StatusID.DancePartner))
-					{
 						return member;
-					}
 				}
 			}
 			return null;

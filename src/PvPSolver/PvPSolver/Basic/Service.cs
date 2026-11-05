@@ -7,7 +7,6 @@ using FFXIVClientStructs.Attributes;
 using Lalalazy.HookGuard;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel;
-using RebornMaterial;
 using RotationSolver.Basic.Configuration;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -16,6 +15,9 @@ using System.Text;
 
 namespace RotationSolver.Basic;
 
+/// <summary>
+/// Provides various services and utilities for the RotationSolver.
+/// </summary>
 internal class Service : IDisposable
 {
 	public const string COMMAND = "/pvpsolver";
@@ -43,12 +45,15 @@ internal class Service : IDisposable
 
 	private static bool _canMove = true;
 
-	internal static bool CanMove
+	/// <summary>
+	/// Gets or sets a value indicating whether the player can move.
+	/// </summary>
+	internal static unsafe bool CanMove
 	{
 		get => ForceDisableMovement == 0;
 		set
 		{
-			var realCanMove = value || DataCenter.NoPoslock;
+			bool realCanMove = value || DataCenter.NoPoslock;
 			if (_canMove == realCanMove)
 			{
 				return;
@@ -80,8 +85,8 @@ internal class Service : IDisposable
 
 		try
 		{
-			var path = Dalamud.Memory.MemoryHelper.ReadString(new nint(a1), Encoding.ASCII, 256);
-			if (string.IsNullOrEmpty(path) || !DataCenter.IsTrackedVfxPath(path) || Svc.Objects.CreateObjectReference(a2) is not IBattleChara battleChara)
+			string path = Dalamud.Memory.MemoryHelper.ReadString(new nint(a1), Encoding.ASCII, 256);
+			if (Svc.Objects.CreateObjectReference(a2) is not IBattleChara battleChara || string.IsNullOrEmpty(path))
 			{
 				return hook.Original(a1, a2, a3, a4, a5, a6, a7);
 			}
@@ -105,18 +110,7 @@ internal class Service : IDisposable
 	/// <summary>
 	/// Gets or sets the configuration.
 	/// </summary>
-	public static Configs Config
-	{
-		get => _config;
-		set
-		{
-			_config = value;
-
-			M3.Settings = value;
-		}
-	}
-
-	private static Configs _config = new();
+	public static Configs Config { get; set; } = new Configs();
 
 	/// <summary>
 	/// Gets the default configuration.
@@ -161,14 +155,14 @@ internal class Service : IDisposable
 	/// <returns>A collection of addon pointers.</returns>
 	public static IEnumerable<IntPtr> GetAddons<T>() where T : struct
 	{
-		var addon = AddonCache.GetOrAdd(typeof(T), t => t.GetCustomAttribute<AddonAttribute>());
+		AddonAttribute? addon = AddonCache.GetOrAdd(typeof(T), t => t.GetCustomAttribute<AddonAttribute>());
 
 		if (addon is null)
 		{
 			return [];
 		}
 
-		var identifierCount = 0;
+		int identifierCount = 0;
 		foreach (var _ in addon.AddonIdentifiers)
 		{
 			identifierCount++;
@@ -178,13 +172,14 @@ internal class Service : IDisposable
 			return [];
 		}
 
+		// Use ArrayPool to minimize allocations
 		var pool = ArrayPool<nint>.Shared;
 		var buffer = pool.Rent(identifierCount);
-		var count = 0;
+		int count = 0;
 
 		try
 		{
-			foreach (var str in addon.AddonIdentifiers)
+			foreach (string str in addon.AddonIdentifiers)
 			{
 				nint ptr = Svc.GameGui.GetAddonByName(str, 1);
 				if (ptr != IntPtr.Zero)
@@ -194,7 +189,7 @@ internal class Service : IDisposable
 			}
 
 			var result = new nint[count];
-			for (var i = 0; i < count; i++)
+			for (int i = 0; i < count; i++)
 			{
 				result[i] = buffer[i];
 			}

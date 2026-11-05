@@ -30,24 +30,28 @@ public sealed class CooldownDelayTweak
 	/// </summary>
 	public void StopAdjustment() => Adjustment = 0;
 
+	/// <summary>
+	/// Calculate the adjustment value based on previous conditions
+	/// </summary>
+	/// <param name="prevAnimLock">Previous animation lock value</param>
+	/// <param name="prevRemainingCooldown">Previous remaining cooldown value</param>
+	/// <param name="deltaTime">Frame delta time</param>
+	/// <returns>Calculated adjustment value</returns>
 	private static float CalculateAdjustment(float prevAnimLock, float prevRemainingCooldown, float deltaTime)
 	{
 		if (!Service.Config.RemoveCooldownDelay)
-		{
-			return 0;
-		}
+			return 0; // Tweak is disabled, so no adjustment
 
+		// Clamp inputs to avoid negative values
 		prevAnimLock = Math.Max(0, prevAnimLock);
 		prevRemainingCooldown = Math.Max(0, prevRemainingCooldown);
 		deltaTime = Math.Max(0, deltaTime);
 
 		var maxDelay = Math.Max(prevAnimLock, prevRemainingCooldown);
 		if (maxDelay <= 0)
-		{
-			return 0;
-		}
+			return 0; // Nothing prevented us from executing the action on previous frame, so no adjustment
 
-		var overflow = deltaTime - maxDelay;
-		return Math.Clamp(overflow, 0, MaxCooldownAdjust);
+		var overflow = deltaTime - maxDelay; // Both cooldown and animation lock should expire this much before current frame start
+		return Math.Clamp(overflow, 0, MaxCooldownAdjust); // Use upper limit for time adjustment (if you have very low fps, adjusting too much could be suspicious)
 	}
 }

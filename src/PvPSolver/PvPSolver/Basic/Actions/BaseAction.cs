@@ -17,7 +17,9 @@ public class BaseAction : IBaseAction
 	/// <value>
 	/// A <see cref="TargetResult"/> representing the target of the action.
 	/// </value>
-	public TargetResult Target { get; set; } = default;
+	public TargetResult Target { get; set; } = Player.Object is IBattleChara bc
+	? new(bc, [], null)
+	: default;
 
 	/// <summary>
 	/// Gets the target for preview purposes.
@@ -46,6 +48,9 @@ public class BaseAction : IBaseAction
 
 	/// <inheritdoc/>
 	public uint AdjustedID => Info.AdjustedID;
+
+	/// <inheritdoc/>
+	public static float AnimationLockTime => Player.AnimationLock;
 
 	/// <inheritdoc/>
 	public uint SortKey => Cooldown.CoolDownGroup;
@@ -86,17 +91,17 @@ public class BaseAction : IBaseAction
 	}
 
 	/// <inheritdoc/>
+	public bool IsOnCooldownWindow
+	{
+		get => Config.IsOnCooldownWindow;
+		set => Config.IsOnCooldownWindow = value;
+	}
+
+	/// <inheritdoc/>
 	public bool MinHPFeature
 	{
 		get => Config.MinHPFeature;
 		set => Config.MinHPFeature = value;
-	}
-
-	/// <inheritdoc/>
-	public bool SkipPositionSafetyCheck
-	{
-		get => Config.SkipPositionSafetyCheck;
-		set => Config.SkipPositionSafetyCheck = value;
 	}
 
 	/// <inheritdoc/>
@@ -112,21 +117,19 @@ public class BaseAction : IBaseAction
 	/// <inheritdoc/>
 	public ActionSetting Setting { get; set; }
 
-	private bool _defaultsInSync;
-
 	/// <inheritdoc/>
 	public ActionConfig Config
 	{
 		get
 		{
-			if (!Service.Config.RotationActionConfig.TryGetValue(ID, out var value) || DataCenter.ResetActionConfigs)
+			if (!Service.Config.RotationActionConfig.TryGetValue(ID, out ActionConfig? value) || DataCenter.ResetActionConfigs)
 			{
 				value = Setting.CreateConfig?.Invoke() ?? new ActionConfig();
 				Service.Config.RotationActionConfig[ID] = value;
-				_defaultsInSync = false;
 
 				if (!Action.ClassJob.IsValid)
 				{
+					// Log the error for debugging purposes
 					if (Service.Config.InDebug)
 					{
 						PluginLog.Debug($"ClassJob is not valid for Action ID: {ID}");
@@ -142,39 +145,19 @@ public class BaseAction : IBaseAction
 				}
 			}
 
-			if (_defaultsInSync)
+			// One-time AoE count reset: force AOE Count to rotation default (or global default),
+			// without touching other user-configured fields.
+			if (!value.AoeResetDone)
 			{
-				return value;
-			}
-
-			ActionConfig? defaults = null;
-			ActionConfig GetDefaults() => defaults ??= Setting.CreateConfig?.Invoke() ?? new ActionConfig();
-
-			var changed = false;
-
-			var defaultAoe = GetDefaults().AoeCount;
-			if (!value.AoeResetDone || value.AppliedDefaultAoeCount != defaultAoe)
-			{
+				byte defaultAoe = (Setting.CreateConfig?.Invoke()?.AoeCount) ?? new ActionConfig().AoeCount;
 				value.AoeCount = defaultAoe;
-				value.AppliedDefaultAoeCount = defaultAoe;
 				value.AoeResetDone = true;
-				changed = true;
-			}
 
-			var defaultStatusRefresh = GetDefaults().StatusRefreshGcdCount;
-			if (value.AppliedDefaultStatusRefreshGcdCount != defaultStatusRefresh)
-			{
-				value.StatusRefreshGcdCount = defaultStatusRefresh;
-				value.AppliedDefaultStatusRefreshGcdCount = defaultStatusRefresh;
-				changed = true;
-			}
-
-			if (changed)
-			{
 				Service.Config.RotationActionConfig[ID] = value;
+				// Optionally persist immediately:
+				// Service.Config.Save();
 			}
 
-			_defaultsInSync = true;
 			return value;
 		}
 	}
@@ -262,17 +245,17 @@ public class BaseAction : IBaseAction
 
 		if (!Info.BasicCheck(skipStatusProvideCheck, skipStatusNeed, skipComboCheck, skipCastingCheck, checkActionManagerDirectly, targetOverride))
 		{
-			return ActionTracer.Reject(this, "BasicCheck");
+			return false;
 		}
 
 		if (!Cooldown.CooldownCheck(usedUp, gcdCountForAbility))
 		{
-			return ActionTracer.Reject(this, "Cooldown");
+			return false;
 		}
 
-		if (Setting.SpecialType == SpecialActionType.MeleeRangedAttack && IActionHelper.IsLastAction(IActionHelper.MovingActions))
+		if (Setting.SpecialType == SpecialActionType.MeleeRange && IActionHelper.IsLastAction(IActionHelper.MovingActions))
 		{
-			return ActionTracer.Reject(this, "MeleeRangedAfterMove");
+			return false; // No range actions after moving.
 		}
 
 		if (!skipTTKCheck)
@@ -281,61 +264,75 @@ public class BaseAction : IBaseAction
 			{
 				if (!IsTimeToKillValid())
 				{
-					return ActionTracer.Reject(this, "TTKBelowThreshold");
+					return false;
 				}
 			}
 		}
 		PreviewTarget = TargetInfo.FindTarget(skipAoeCheck, skipStatusProvideCheck, skipTargetStatusNeedCheck, targetOverride);
 		if (PreviewTarget == null)
 		{
-			return ActionTracer.Reject(this, "NoTarget");
+			return false;
 		}
 
-		Target = PreviewTarget.Value;
+		if (!IBaseAction.ActionPreview)
+		{
+			Target = PreviewTarget.Value;
+		}
 
-		ActionTracer.Accept(this);
 		return true;
 	}
 
 	private bool IsTimeToKillValid()
 	{
-		return Config.TimeToKill <= 0 || !DataCenter.IsAverageTTKKnown || DataCenter.AverageTTK >= Config.TimeToKill;
+		return DataCenter.AverageTTK >= Config.TimeToKill;
 	}
 
 	/// <inheritdoc/>
 	public unsafe bool Use()
 	{
-		if (Player.Object == null)
-		{
-			return false;
-		}
+		if (Player.Object == null) return false;
 
-		var actionManager = ActionManager.Instance();
-		if (actionManager == null)
-		{
-			return false;
-		}
+		TargetResult target = Target;
+		uint adjustId = AdjustedID;
 
-		var target = Target;
-		var adjustId = AdjustedID;
 		if (TargetInfo.IsTargetArea)
 		{
 			if (adjustId != ID || !target.Position.HasValue)
-			{
 				return false;
+
+			Vector3 loc = target.Position.Value;
+
+			// Use ActionManagerEx for enhanced timing if tweaks are enabled
+			if (Service.Config.RemoveAnimationLockDelay || Service.Config.RemoveCooldownDelay)
+			{
+				return ActionManagerEx.Instance.UseActionLocationWithTweaks(ActionType.Action, ID, Player.Object.GameObjectId, &loc);
 			}
-
-			var loc = target.Position.Value;
-			return actionManager->UseActionLocation(ActionType.Action, ID, Player.Object.GameObjectId, &loc);
+			else
+			{
+				var actionManager = ActionManager.Instance();
+				return actionManager != null &&
+					   actionManager->UseActionLocation(ActionType.Action, ID, Player.Object.GameObjectId, &loc);
+			}
 		}
-
-		var targetId = target.Target?.GameObjectId ?? Player.Object.GameObjectId;
-		if (targetId == 0 || Svc.Objects.SearchById(targetId) == null)
+		else
 		{
-			return false;
-		}
+			ulong targetId = target.Target?.GameObjectId ?? Player.Object.GameObjectId;
 
-		return actionManager->UseAction(ActionType.Action, adjustId, targetId);
+			if (targetId == 0 || Svc.Objects.SearchById(targetId) == null)
+				return false;
+
+			// Use ActionManagerEx for enhanced timing if tweaks are enabled
+			if (Service.Config.RemoveAnimationLockDelay || Service.Config.RemoveCooldownDelay)
+			{
+				return ActionManagerEx.Instance.UseActionWithTweaks(ActionType.Action, adjustId, targetId);
+			}
+			else
+			{
+				var actionManager = ActionManager.Instance();
+				return actionManager != null &&
+					   actionManager->UseAction(ActionType.Action, adjustId, targetId);
+			}
+		}
 	}
 
 	/// <inheritdoc/>

@@ -32,27 +32,38 @@ internal static class ConfigurationHelper
 		{ ActionID.SwiftskinsCoilPvE, EnemyPositional.Rear }
 	};
 
-	public static readonly ActionStatus[] BadStatus =
+	public static readonly uint[] BadStatus =
 	[
-		ActionStatus.NoItem,
-		ActionStatus.OnCooldown,
-		ActionStatus.StatusAffliction,
-		ActionStatus.CannotExecute,
-		ActionStatus.WrongClass,
-		ActionStatus.NotLearned,
-		ActionStatus.RequirementNotMet,
-	];
+		583, // No items
+        582, // Item on cooldown
+        581, // Unable to use item
+        579, // Between Area
+        574, // Wrong Job
+        573, // Not learned or not high enough level
+        572, // Unable to use action
+    ];
 
-	public static readonly ActionStatus[] BadStatusAction =
+	public static readonly uint[] BadStatusGCD =
 	[
-		ActionStatus.NoItem,
-		ActionStatus.CannotExecute,
-		ActionStatus.WrongClass,
-		ActionStatus.NotLearned,
-		ActionStatus.RequirementNotMet,
-		ActionStatus.NoDutyActionCharges,
-		ActionStatus.NotInActiveSet,
-	];
+		583, // Action not ready
+        579, // Between Area
+        574, // Wrong Job
+        573, // Not learned or not high enough level
+        572, // Unable to use action
+        5209, // Duty Action out of charges
+        9301, // BLU action not in slot
+    ];
+
+	public static readonly uint[] BadStatusAbility =
+	[
+		583, // Action not ready
+        579, // Between Area
+        574, // Wrong Job
+        573, // Not learned or not high enough level
+        572, // Unable to use action
+        5209, // Duty Action out of charges
+        9301, // BLU action not in slot
+    ];
 
 	public static VirtualKey ToVirtual(this ConsoleModifiers modifiers)
 	{
@@ -66,53 +77,206 @@ internal static class ConfigurationHelper
 
 	public static bool DoesJobMatchCategory(this ClassJobCategory cat, Job job)
 	{
-		return job switch
+		if (job == Job.ADV && cat.ADV)
 		{
-			Job.ADV => cat.ADV,
-			Job.GLA => cat.GLA,
-			Job.PGL => cat.PGL,
-			Job.MRD => cat.MRD,
-			Job.LNC => cat.LNC,
-			Job.ARC => cat.ARC,
-			Job.CNJ => cat.CNJ,
-			Job.THM => cat.THM,
-			Job.CRP => cat.CRP,
-			Job.BSM => cat.BSM,
-			Job.ARM => cat.ARM,
-			Job.GSM => cat.GSM,
-			Job.LTW => cat.LTW,
-			Job.WVR => cat.WVR,
-			Job.ALC => cat.ALC,
-			Job.CUL => cat.CUL,
-			Job.MIN => cat.MIN,
-			Job.BTN => cat.BTN,
-			Job.FSH => cat.FSH,
-			Job.PLD => cat.PLD,
-			Job.MNK => cat.MNK,
-			Job.WAR => cat.WAR,
-			Job.DRG => cat.DRG,
-			Job.BRD => cat.BRD,
-			Job.WHM => cat.WHM,
-			Job.BLM => cat.BLM,
-			Job.ACN => cat.ACN,
-			Job.SMN => cat.SMN,
-			Job.SCH => cat.SCH,
-			Job.ROG => cat.ROG,
-			Job.NIN => cat.NIN,
-			Job.MCH => cat.MCH,
-			Job.DRK => cat.DRK,
-			Job.AST => cat.AST,
-			Job.SAM => cat.SAM,
-			Job.RDM => cat.RDM,
-			Job.BLU => cat.BLU,
-			Job.GNB => cat.GNB,
-			Job.DNC => cat.DNC,
-			Job.RPR => cat.RPR,
-			Job.SGE => cat.SGE,
-			Job.VPR => cat.VPR,
-			Job.PCT => cat.PCT,
-			Job.BST => cat.Unknown0,
-			_ => false,
-		};
+			return true;
+		}
+
+		if (job == Job.GLA && cat.GLA)
+		{
+			return true;
+		}
+
+		if (job == Job.PGL && cat.PGL)
+		{
+			return true;
+		}
+
+		if (job == Job.MRD && cat.MRD)
+		{
+			return true;
+		}
+
+		if (job == Job.LNC && cat.LNC)
+		{
+			return true;
+		}
+
+		if (job == Job.ARC && cat.ARC)
+		{
+			return true;
+		}
+
+		if (job == Job.CNJ && cat.CNJ)
+		{
+			return true;
+		}
+
+		if (job == Job.THM && cat.THM)
+		{
+			return true;
+		}
+
+		if (job == Job.CRP && cat.CRP)
+		{
+			return true;
+		}
+
+		if (job == Job.BSM && cat.BSM)
+		{
+			return true;
+		}
+
+		if (job == Job.ARM && cat.ARM)
+		{
+			return true;
+		}
+
+		if (job == Job.GSM && cat.GSM)
+		{
+			return true;
+		}
+
+		if (job == Job.LTW && cat.LTW)
+		{
+			return true;
+		}
+
+		if (job == Job.WVR && cat.WVR)
+		{
+			return true;
+		}
+
+		if (job == Job.ALC && cat.ALC)
+		{
+			return true;
+		}
+
+		if (job == Job.CUL && cat.CUL)
+		{
+			return true;
+		}
+
+		if (job == Job.MIN && cat.MIN)
+		{
+			return true;
+		}
+
+		if (job == Job.BTN && cat.BTN)
+		{
+			return true;
+		}
+
+		if (job == Job.FSH && cat.FSH)
+		{
+			return true;
+		}
+
+		if (job == Job.PLD && cat.PLD)
+		{
+			return true;
+		}
+
+		if (job == Job.MNK && cat.MNK)
+		{
+			return true;
+		}
+
+		if (job == Job.WAR && cat.WAR)
+		{
+			return true;
+		}
+
+		if (job == Job.DRG && cat.DRG)
+		{
+			return true;
+		}
+
+		if (job == Job.BRD && cat.BRD)
+		{
+			return true;
+		}
+
+		if (job == Job.WHM && cat.WHM)
+		{
+			return true;
+		}
+
+		if (job == Job.BLM && cat.BLM)
+		{
+			return true;
+		}
+
+		if (job == Job.ACN && cat.ACN)
+		{
+			return true;
+		}
+
+		if (job == Job.SMN && cat.SMN)
+		{
+			return true;
+		}
+
+		if (job == Job.SCH && cat.SCH)
+		{
+			return true;
+		}
+
+		if (job == Job.ROG && cat.ROG)
+		{
+			return true;
+		}
+
+		if (job == Job.NIN && cat.NIN)
+		{
+			return true;
+		}
+
+		if (job == Job.MCH && cat.MCH)
+		{
+			return true;
+		}
+
+		if (job == Job.DRK && cat.DRK)
+		{
+			return true;
+		}
+
+		if (job == Job.AST && cat.AST)
+		{
+			return true;
+		}
+
+		if (job == Job.SAM && cat.SAM)
+		{
+			return true;
+		}
+
+		if (job == Job.RDM && cat.RDM)
+		{
+			return true;
+		}
+
+		if (job == Job.BLU && cat.BLU)
+		{
+			return true;
+		}
+
+		if (job == Job.GNB && cat.GNB)
+		{
+			return true;
+		}
+
+		if (job == Job.DNC && cat.DNC)
+		{
+			return true;
+		}
+
+		if (job == Job.RPR && cat.RPR)
+		{
+			return true;
+		}
+
+		return job == Job.SGE && cat.SGE || (job == Job.VPR && cat.VPR) || (job == Job.PCT && cat.PCT);
 	}
 }

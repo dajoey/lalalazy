@@ -92,7 +92,7 @@ public partial class DarkKnightRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.BloodWeapon);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.BloodWeapon);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}
@@ -104,7 +104,7 @@ public partial class DarkKnightRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.Delirium_3836);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.Delirium_3836);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}
@@ -116,7 +116,7 @@ public partial class DarkKnightRotation : CustomRotation
 	{
 		get
 		{
-			var stacks = StatusHelper.PlayerStatusStack(true, StatusID.Delirium_1972);
+			byte stacks = StatusHelper.PlayerStatusStack(true, StatusID.Delirium_1972);
 			return stacks == byte.MaxValue ? (byte)3 : stacks;
 		}
 	}
@@ -238,13 +238,4 @@ public partial class DarkKnightRotation : CustomRotation
 	}
 
 	#endregion
-
-	public override bool IsBursting()
-	{
-		if (DarkSideTimeRemainingRaw > 0f)
-		{
-			return true;
-		}
-		return false;
-	}
 }

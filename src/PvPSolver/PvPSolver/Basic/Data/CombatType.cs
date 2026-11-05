@@ -53,6 +53,9 @@ public enum CombatRole
 	DPS
 }
 
+/// <summary>
+/// Extension methods for the CombatType enum.
+/// </summary>
 internal static class CombatTypeExtension
 {
 	/// <summary>

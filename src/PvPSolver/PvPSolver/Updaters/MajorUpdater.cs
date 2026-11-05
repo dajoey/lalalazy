@@ -3,6 +3,7 @@ using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
+using Lumina.Excel.Sheets;
 using RotationSolver.Commands;
 using RotationSolver.IPC;
 using RotationSolver.UI.HighlightTeachingMode;
@@ -14,11 +15,18 @@ namespace RotationSolver.Updaters;
 internal static class MajorUpdater
 {
 	private static TimeSpan _timeSinceUpdate = TimeSpan.Zero;
-	private static bool _rotationsLoaded;
-	private static bool _bmrDataLive;
 
+	// Gating and state for segmented updates
+	private static bool _shouldRunThisCycle;
+	private static bool _isValidThisCycle;
+	private static bool _isActivatedThisCycle;
+	private static bool _rotationsLoaded;
+
+	// Cached GeneralAction sheet lookup (RowId -> GeneralAction RowId) for teaching mode highlighting
+	private static Dictionary<uint, uint>? _generalActionLookup;
+
+	// Reusable list for VFX cleanup to avoid per-frame allocations
 	private static readonly List<VfxNewData> _vfxRemaining = [];
-	private static readonly List<string> _expiredWarnings = [];
 
 	public static bool IsValid
 	{
@@ -26,10 +34,18 @@ internal static class MajorUpdater
 		{
 			if (!Player.Available)
 			{
+				_rotationsLoaded = false;
 				return false;
 			}
 
-			return !Svc.Condition[ConditionFlag.BetweenAreas] && !Svc.Condition[ConditionFlag.BetweenAreas51] && !Svc.Condition[ConditionFlag.LoggingOut];
+			// Consider the game valid when not transitioning or logging out.
+			if (Svc.Condition[ConditionFlag.BetweenAreas] || Svc.Condition[ConditionFlag.BetweenAreas51] || Svc.Condition[ConditionFlag.LoggingOut])
+			{
+				_rotationsLoaded = false;
+				return false;
+			}
+
+			return true;
 		}
 	}
 
@@ -50,46 +66,16 @@ internal static class MajorUpdater
 		Svc.Framework.Update += RSRResetUpdate;
 	}
 
-	private static void OnUpdate(IFramework framework)
+	private static void RSRGateUpdate(IFramework framework)
 	{
-		if (!ShouldRunThisCycle(framework, out var isValid))
-		{
-			return;
-		}
-
-		if (Service.Config.TeachingMode)
-		{
-			Run("HotbarHighlightManager.HotbarIDs.Clear", HotbarHighlightManager.HotbarIDs.Clear);
-		}
-
-		if (!isValid)
-		{
-			Run("RSRInvalidUpdate", InvalidUpdate);
-			return;
-		}
-
-		Run("ActionUpdater.UpdateCombatInfo", ActionUpdater.UpdateCombatInfo);
-		Run("RotationUpdater.UpdateRotation", RotationUpdater.UpdateRotation);
-
-		var isActivated = DataCenter.IsActivated();
-		ActivatedCoreUpdate(isActivated);
-		ActivatedHighlightUpdate(isActivated);
-		CommonUpdate();
-		Run("CleanupUpdate", CleanupUpdate);
-		StateUpdate();
-		Run("Secondary RSRUpdate", MiscAndTargetFreelyUpdate);
-	}
-
-	private static bool ShouldRunThisCycle(IFramework framework, out bool isValid)
-	{
-		isValid = false;
 		try
 		{
+			// Throttle by MinUpdatingTime
 			_timeSinceUpdate += framework.UpdateDelta;
-
-			if (Service.Config.MinUpdatingTime > 0f && _timeSinceUpdate < TimeSpan.FromSeconds(Service.Config.MinUpdatingTime))
+			if (Service.Config.MinUpdatingTime > 0 && _timeSinceUpdate < TimeSpan.FromSeconds(Service.Config.MinUpdatingTime))
 			{
-				return false;
+				_shouldRunThisCycle = false;
+				return;
 			}
 
 			_timeSinceUpdate = TimeSpan.Zero;
@@ -101,52 +87,85 @@ internal static class MajorUpdater
 				PvPSolverPlugin.OpenFirstStartTutorial();
 			}
 
-			if (isValid)
+			// Opportunistically load rotations if not yet loaded
+			if (_isValidThisCycle && !_rotationsLoaded)
 			{
 				PluginLog.Information($"MajorUpdater: first valid cycle, IsPvP={DataCenter.IsPvP}, TerritoryId={DataCenter.Territory?.Id}, PlayerAvail={Player.Available}");
 				PluginLog.Information("MajorUpdater: triggering rotation load...");
 				RotationUpdater.LoadBuiltInRotations();
 				_rotationsLoaded = true;
 			}
-
-			return true;
 		}
 		catch (Exception ex)
 		{
 			LogOnce("GateUpdate Exception", ex);
-			return false;
 		}
 	}
 
-	private static void InvalidUpdate()
+	private static void RSRTeachingClearUpdate(IFramework framework)
 	{
-		if (Svc.Condition[ConditionFlag.BetweenAreas])
+		if (!_shouldRunThisCycle)
+			return;
+
+		if (Service.Config.TeachingMode)
 		{
-			ActionUpdater.MarkAreaChange();
+			try
+			{
+				HotbarHighlightManager.HotbarIDs.Clear();
+			}
+			catch (Exception ex)
+			{
+				LogOnce("HotbarHighlightManager.HotbarIDs.Clear Exception", ex);
+			}
 		}
-
-		RSCommands.UpdateRotationState();
-		ActionUpdater.ClearNextAction();
-		MiscUpdater.UpdateEntry();
 	}
 
-	private static void ActivatedCoreUpdate(bool isActivated)
+	private static void RSRInvalidUpdate(IFramework framework)
 	{
+		if (!_shouldRunThisCycle)
+			return;
+
+		if (!_isValidThisCycle)
+		{
+			try
+			{
+				RSCommands.UpdateRotationState();
+				ActionUpdater.ClearNextAction();
+				MiscUpdater.UpdateEntry();
+				ActionUpdater.NextAction = ActionUpdater.NextGCDAction = null;
+			}
+			catch (Exception ex)
+			{
+				LogOnce("RSRInvalidUpdate Exception", ex);
+			}
+
+			// Do not run the rest of the cycle
+			_shouldRunThisCycle = false;
+		}
+	}
+
+	private static void RSRActivatedCoreUpdate(IFramework framework)
+	{
+		if (!_shouldRunThisCycle)
+			return;
+
 		var autoOnEnabled = Service.Config.AutoOnYes && (Service.Config.StartOnAllianceIsInCombat2
 			|| Service.Config.StartOnAttackedBySomeone2
 			|| Service.Config.StartOnFieldOpInCombat2
 			|| Service.Config.StartOnPartyIsInCombat2) && !DataCenter.IsInDutyReplay();
 
-		if (autoOnEnabled || isActivated)
+		try
 		{
-			Run("(RSRActivatedCore): TargetUpdater.UpdateTargets", TargetUpdater.UpdateTargets);
-		}
+			// Only call UpdateTargets once — cover both the auto-on check and the activated path
+			if (autoOnEnabled || _isActivatedThisCycle)
+			{
+				TargetUpdater.UpdateTargets();
+			}
+			if (!_isActivatedThisCycle)
+				return;
 
-		if (!isActivated)
-		{
-			ResetBmrDataIfLive();
-			return;
-		}
+			// Target updater always needs to be first to update
+			MacroUpdater.UpdateMacro();
 
 			// Through the presence latch, so an unload seen here resets the BMR timings once (BMRTimeline_IPCSubscriber).
 			if (BMRTimeline_IPCSubscriber.IsEnabled)
@@ -154,207 +173,190 @@ internal static class MajorUpdater
 				BossModUpdater.Update();
 			}
 
-		if (DataCenter.BMREnabled)
-		{
-			_bmrDataLive = true;
-			Run("(RSRActivatedCore): BossModUpdater.Update", BossModUpdater.Update);
-			Run("(RSRActivatedCore): BMRPlanUpdater.Update", BMRPlanUpdater.Update);
-		}
-		else
-		{
-			ResetBmrDataIfLive();
-		}
+			StateUpdater.UpdateState();
 
-		Run("(RSRActivatedCore): StateUpdater.UpdateState", StateUpdater.UpdateState);
-		Run("(RSRActivatedCore): AutoAttackUpdater.Update", AutoAttackUpdater.Update);
-		Run("(RSRActivatedCore): ActionUpdater.UpdateNextAction", ActionUpdater.UpdateNextAction);
+			ActionUpdater.UpdateNextAction();
 
-		var canDoAction = false;
-		try
-		{
-			canDoAction = ActionUpdater.CanDoAction();
-		}
-		catch (Exception ex)
-		{
-			LogOnce("(RSRActivatedCore): ActionUpdater.CanDoAction Exception", ex);
-		}
-
-		try
-		{
+			bool canDoAction = ActionUpdater.CanDoAction();
 			MovingUpdater.UpdateCanMove(canDoAction);
-		}
-		catch (Exception ex)
-		{
-			LogOnce("(RSRActivatedCore): MovingUpdater.UpdateCanMove Exception", ex);
-		}
 
-		if (canDoAction)
-		{
-			Run("(RSRActivatedCore): RSCommands.DoAction", RSCommands.DoAction);
-		}
+			if (canDoAction)
+			{
+				RSCommands.DoAction();
+			}
 
-		if (DataCenter.IsTargetOnly)
-		{
-			Run("(RSRActivatedCore): RSCommands.UpdateTargetFromNextAction (TargetOnly)", RSCommands.UpdateTargetFromNextAction);
-		}
+			// In Target-Only mode, update the player's target from the computed next action without executing it.
+			if (DataCenter.IsTargetOnly)
+			{
+				RSCommands.UpdateTargetFromNextAction();
+			}
+
+			// In Teaching Mode with auto-target enabled, also update the player's target so it matches
+			// the rotation's suggestion (important for tanks/healers where the optimal target varies).
+			if (!DataCenter.IsTargetOnly && Service.Config.TeachingMode && Service.Config.TeachingModeAutoTarget && DataCenter.InCombat)
+			{
+				RSCommands.UpdateTargetFromNextAction();
+			}
 
 			// PvPSolver is PvP-only, Wrath Combo handles PvE — no conflict, no IPC needed
 
 		}
-
-		Run("(RSRActivatedCore): Wrath_IPCSubscriber.DisableAutoRotation", Wrath_IPCSubscriber.DisableAutoRotation);
+		catch (Exception ex)
+		{
+			LogOnce("RSRUpdate DC Exception", ex);
+		}
 	}
 
-	private static void ResetBmrDataIfLive()
+	private static void RSRActivatedHighlightUpdate(IFramework framework)
 	{
-		if (!_bmrDataLive)
-		{
+		if (!_shouldRunThisCycle || !_isActivatedThisCycle)
 			return;
-		}
 
-		_bmrDataLive = false;
-		DataCenter.ResetBmrData();
-		DataCenter.ResetBmrPlanData();
-	}
-
-	private static void ActivatedHighlightUpdate(bool isActivated)
-	{
-		if (!isActivated)
-		{
-			HotbarHighlightManager.ClearElements();
-
-			if (HotbarDisabledColor.HasTint)
-			{
-				Run("Hotbar Disabled Redden", HotbarDisabledColor.Reset);
-			}
-			return;
-		}
-
+		// Handle Teaching Mode Highlighting
 		if (Service.Config.TeachingMode && ActionUpdater.NextAction is not null)
 		{
-			Run("Hotbar Highlighting", () =>
+			try
 			{
-				var hotbar = HotbarAddonHelper.GetHotbarID(ActionUpdater.NextAction);
+				IAction nextAction = ActionUpdater.NextAction;
+				HotbarID? hotbar = null;
+				if (nextAction is IBaseItem item)
+				{
+					hotbar = new HotbarID(HotbarSlotType.Item, item.ID);
+				}
+				else if (nextAction is IBaseAction baseAction)
+				{
+					hotbar = baseAction.Action.ActionCategory.RowId is 10 or 11
+							? GetGeneralActionHotbarID(baseAction)
+							: new HotbarID(HotbarSlotType.Action, baseAction.AdjustedID);
+				}
+
 				if (hotbar.HasValue)
 				{
 					_ = HotbarHighlightManager.HotbarIDs.Add(hotbar.Value);
 				}
-			});
-
-			Run("Hotbar Highlight Update", HotbarHighlightManager.UpdateElements);
-		}
-		else
-		{
-			HotbarHighlightManager.ClearElements();
-		}
-
-		if (Service.Config.ReddenDisabledHotbarActions || HotbarDisabledColor.HasTint)
-		{
-			Run("Hotbar Disabled Redden", HotbarDisabledColor.ApplyFrame);
-		}
-	}
-
-	private static void CommonUpdate()
-	{
-		Run("CommonUpdate", PvPSolverPlugin.UpdateDisplayWindow);
-
-		Run("HotbarKeybindHelper.Update", HotbarKeybindHelper.Update);
-	}
-
-	private static void CleanupUpdate()
-	{
-		if (DataCenter.SystemWarnings.Count > 0)
-		{
-			var expiry = DateTime.Now - TimeSpan.FromMinutes(10);
-			_expiredWarnings.Clear();
-			foreach (var kvp in DataCenter.SystemWarnings)
-			{
-				if (kvp.Value < expiry)
-				{
-					_expiredWarnings.Add(kvp.Key);
-				}
 			}
-			foreach (var key in _expiredWarnings)
+			catch (Exception ex)
 			{
-				_ = DataCenter.SystemWarnings.Remove(key);
+				LogOnce("Hotbar Highlighting Exception", ex);
 			}
 		}
 
-		if (DataCenter.VfxDataQueue.IsEmpty)
-		{
-			return;
-		}
-
-		_vfxRemaining.Clear();
-		while (DataCenter.VfxDataQueue.TryDequeue(out var vfx))
+		// Apply reddening of disabled actions on hotbars alongside highlight
+		if (Service.Config.ReddenDisabledHotbarActions)
 		{
 			try
 			{
-				var keepFor = vfx.Duration >= 0.5f ? vfx.Duration : 5.0;
-				if (vfx.TimeDuration.TotalSeconds <= keepFor)
-				{
-					_vfxRemaining.Add(vfx);
-				}
+				HotbarDisabledColor.ApplyFrame();
 			}
-			catch
+			catch (Exception ex)
 			{
-				_vfxRemaining.Add(vfx);
+				LogOnce("Hotbar Disabled Redden Exception", ex);
 			}
-		}
-
-		foreach (var item in _vfxRemaining)
-		{
-			DataCenter.VfxDataQueue.Enqueue(item);
 		}
 	}
 
-	private static void StateUpdate()
+	private static void RSRCommonUpdate(IFramework framework)
 	{
-		Run("RotationAndStateUpdate", RSCommands.UpdateRotationState);
+		if (!_shouldRunThisCycle)
+			return;
+
+		try
+		{
+			// Update various combat tracking parameters,
+			ActionUpdater.UpdateCombatInfo();
+
+			// Update timing tweaks
+			ActionManagerEx.Instance.UpdateTweaks();
 
 			// Update displaying the additional UI windows
 			PvPSolverPlugin.UpdateDisplayWindow();
 		}
 		catch (Exception ex)
 		{
-			Run("HotbarHighlightManager.UpdateSettings", HotbarHighlightManager.UpdateSettings);
+			LogOnce("CommonUpdate Exception", ex);
 		}
 	}
 
-	private static void MiscAndTargetFreelyUpdate()
+	private static void RSRCleanupUpdate(IFramework framework)
 	{
-		MiscUpdater.UpdateMisc();
-
-		if (!DataCenter.TargetFreelyEnabled || DataCenter.IsPvP || !DataCenter.State || !DataCenter.InCombat
-			|| ActionUpdater.NextAction != null || Player.Object == null || Svc.Targets.Target != null)
-		{
+		if (!_shouldRunThisCycle)
 			return;
-		}
 
-		IBattleChara? closestEnemy = null;
-		var minDistance = float.MaxValue;
-
-		foreach (var enemy in DataCenter.AllHostileTargets)
+		try
 		{
-			if (enemy == null || !enemy.IsEnemy() || enemy == Player.Object)
+			// Handle system warnings
+			if (DataCenter.SystemWarnings.Count > 0)
 			{
-				continue;
+				DateTime now = DateTime.Now;
+				List<string> keysToRemove = [];
+				foreach (KeyValuePair<string, DateTime> kvp in DataCenter.SystemWarnings)
+				{
+					if (kvp.Value + TimeSpan.FromMinutes(10) < now)
+					{
+						keysToRemove.Add(kvp.Key);
+					}
+				}
+				foreach (string key in keysToRemove)
+				{
+					_ = DataCenter.SystemWarnings.Remove(key);
+				}
 			}
 
-			var distance = Vector3.Distance(Player.Object.Position, enemy.Position);
-			if (distance < minDistance)
+			// Clear old VFX data
+			if (!DataCenter.VfxDataQueue.IsEmpty)
 			{
-				minDistance = distance;
-				closestEnemy = enemy;
+				// ConcurrentQueue does not support removal from the middle, and the previous
+				// logic only removed from the head while the head entry was finished.
+				// That could leave finished entries behind if an unfinished entry was at the front.
+				// To reliably remove finished VFX entries, drain the queue and re-enqueue only
+				// the unfinished items.
+				_vfxRemaining.Clear();
+				while (DataCenter.VfxDataQueue.TryDequeue(out var vfx))
+				{
+					try
+					{
+						// If we have a reasonable estimated duration, use it to determine whether the
+						// VFX is still active. The hook currently provides remaining cast time at
+						// creation which can be very small or zero; treat very small values as unknown
+						// and keep those entries for a short default window to avoid immediate drops.
+						if (vfx.Duration >= 0.5f)
+						{
+							if (vfx.TimeDuration.TotalSeconds <= vfx.Duration)
+								_vfxRemaining.Add(vfx);
+						}
+						else
+						{
+							// Unknown / very short duration: keep for up to 5 seconds by default
+							if (vfx.TimeDuration.TotalSeconds <= 5.0)
+								_vfxRemaining.Add(vfx);
+						}
+					}
+					catch
+					{
+						// On any unexpected error, keep the item to avoid data loss
+						_vfxRemaining.Add(vfx);
+					}
+				}
+
+				// Re-enqueue items that are still active
+				foreach (var item in _vfxRemaining)
+				{
+					DataCenter.VfxDataQueue.Enqueue(item);
+				}
 			}
 		}
-
-		if (closestEnemy == null)
+		catch (Exception ex)
 		{
-			return;
+			LogOnce("CleanupUpdate Exception", ex);
 		}
+	}
 
-		if (!Service.Config.TargetDelayEnable)
+	private static void RSRRotationAndStateUpdate(IFramework framework)
+	{
+		if (!_shouldRunThisCycle)
+			return;
+
+		try
 		{
 			// Change loaded rotation based on job
 			RotationUpdater.UpdateRotation();
@@ -377,14 +379,17 @@ internal static class MajorUpdater
 				}
 			}
 		}
-		else
+		catch (Exception ex)
 		{
-			RSCommands.SetTargetWithDelay(closestEnemy);
+			LogOnce("RotationAndStateUpdate Exception", ex);
 		}
 	}
 
-	private static void Run(string context, Action action)
+	private static void RSRMiscAndTargetFreelyUpdate(IFramework framework)
 	{
+		if (!_shouldRunThisCycle)
+			return;
+
 		try
 		{
 			if (DataCenter.State && !DataCenter.IsPvP && Service.Config.ForlornPriority && DataCenter.IsInFate && Player.Object != null)
@@ -456,16 +461,34 @@ internal static class MajorUpdater
 		}
 		catch (Exception ex)
 		{
-			LogOnce(context + " Exception", ex);
+			LogOnce("Secondary RSRUpdate Exception", ex);
 		}
 	}
 
-	private static void LogOnce(string context, Exception ex)
+	private static void RSRResetUpdate(IFramework framework)
 	{
-		var key = $"{context}|{ex.GetType().FullName}|{ex.Message}";
-		if (_loggedErrors.Count >= MaxLoggedErrors)
+		if (!_shouldRunThisCycle)
+			return;
+
+		_shouldRunThisCycle = false;
+	}
+
+	private static HotbarID? GetGeneralActionHotbarID(IBaseAction baseAction)
+	{
+		// Build the lookup once and cache it to avoid a full sheet scan every frame
+		if (_generalActionLookup == null)
 		{
-			_loggedErrors.Clear();
+			var sheet = Svc.Data.GetExcelSheet<GeneralAction>();
+			if (sheet == null)
+				return null;
+
+			_generalActionLookup = [];
+			foreach (GeneralAction gAct in sheet)
+			{
+				var actionRowId = gAct.Action.RowId;
+				if (actionRowId != 0)
+					_generalActionLookup.TryAdd(actionRowId, gAct.RowId);
+			}
 		}
 
 		return _generalActionLookup.TryGetValue(baseAction.ID, out uint generalActionRowId)
@@ -491,10 +514,18 @@ internal static class MajorUpdater
 
 	public static void Dispose()
 	{
-		Svc.Framework.Update -= OnUpdate;
+		Svc.Framework.Update -= RSRGateUpdate;
+		Svc.Framework.Update -= RSRTeachingClearUpdate;
+		Svc.Framework.Update -= RSRInvalidUpdate;
+		Svc.Framework.Update -= RSRActivatedCoreUpdate;
+		Svc.Framework.Update -= RSRActivatedHighlightUpdate;
+		Svc.Framework.Update -= RSRCommonUpdate;
+		Svc.Framework.Update -= RSRCleanupUpdate;
+		Svc.Framework.Update -= RSRRotationAndStateUpdate;
+		Svc.Framework.Update -= RSRMiscAndTargetFreelyUpdate;
+		Svc.Framework.Update -= RSRResetUpdate;
 
 		MiscUpdater.Dispose();
 		ActionUpdater.ClearNextAction();
-		AutoAttackUpdater.Disable();
 	}
 }
