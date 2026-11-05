@@ -260,7 +260,7 @@ internal static class MovementRecorder
         MovementUploader.Enqueue(MovementFormat.BuildTickLine(
             unixMs, _pullId, _zoneId, 0, (uint)Player.Job,
             self.Position.X, self.Position.Y, self.Position.Z, self.Rotation,
-            flags, Target.GetNamePlateIconId(self)));
+            flags, CustomComboFunctions.GetNamePlateIconId(self)));
 
         // Slots 1..7: the party list, in its own order; cross-world members have no GameObject.
         var slot = 1;
@@ -278,9 +278,9 @@ internal static class MovementRecorder
             var mFlags = MovementFormat.FlagInCombat
                          | (IsMoving(slot, obj.Position) ? MovementFormat.FlagMoving : 0);
             MovementUploader.Enqueue(MovementFormat.BuildTickLine(
-                unixMs, _pullId, _zoneId, slot, obj is IPlayerCharacter pc ? pc.ClassJob : 0,
+                unixMs, _pullId, _zoneId, slot, obj is IPlayerCharacter pc ? pc.ClassJob.RowId : 0,
                 obj.Position.X, obj.Position.Y, obj.Position.Z, obj.Rotation,
-                mFlags, Target.GetNamePlateIconId(obj)));
+                mFlags, CustomComboFunctions.GetNamePlateIconId(obj)));
             slot++;
         }
 
