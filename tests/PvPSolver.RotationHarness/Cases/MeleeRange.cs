@@ -54,7 +54,7 @@ internal static class MeleeRange
             oldBad.Length == JobRanges.Count(r => r != 5f) && oldBad.All(x => x.StartsWith("pvp=True,melee=True")), $"{oldBad.Length} rows");
 
         // Call sites in Ability(): both AttackAbility gates use the new radius; neither still uses HasHostilesInRange.
-        var abilityPath = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "CustomRotation_Ability.cs");
+        var abilityPath = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "CustomRotation_Ability.cs");
         var ability = CsSource.Sanitize(File.ReadAllText(abilityPath));
         Harness.Case("Ability() counts hostiles with NumberOfHostilesInRangeOf(AttackRangeGate.Radius(IsPvP, Role == Melee, JobRange))",
             Regex.IsMatch(ability, @"DataCenter\.NumberOfHostilesInRangeOf\(\s*RotationSolver\.Decisions\.AttackRangeGate\.Radius\(\s*DataCenter\.IsPvP\s*,\s*DataCenter\.Role\s*==\s*JobRole\.Melee\s*,\s*DataCenter\.JobRange\s*\)\s*\)\s*>\s*0"));
@@ -64,7 +64,7 @@ internal static class MeleeRange
         Harness.Case("both AttackAbility gates (duty rotation, job) use the new radius count", gated == 2, $"{gated} gates");
 
         // DataCenter: JobRange is untouched, and NumberOfHostilesInRangeOf measures exactly what NumberOfHostilesInRange does.
-        var dc = CsSource.Sanitize(File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "DataCenter.cs")));
+        var dc = CsSource.Sanitize(File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "DataCenter.cs")));
         var jobRange = Between(dc, "public static float JobRange", "SylphManagementFinished"); // comments are blanked by Sanitize, so cut at the next member
         Harness.Case("DataCenter.JobRange still returns 3 for Tank and Melee and 25 otherwise",
             Regex.IsMatch(jobRange, @"float radius = 25;") && Regex.IsMatch(jobRange, @"case JobRole\.Tank:\s*case JobRole\.Melee:\s*radius = 3;"), "JobRange body unchanged");

@@ -74,7 +74,7 @@ internal static class SettingsShapeCases
 
     private static void StoreShape()
     {
-        string san = Sanitized("PvPSolver.Basic", "Configuration", "RotationConfig", "RotationConfigBase.cs");
+        string san = Sanitized("PvPSolver", "Basic", "Configuration", "RotationConfig", "RotationConfigBase.cs");
         int legacyAccessor = Regex.Matches(san, @"Service\.Config\.RotationConfigurations\b").Count;
         string store = BodyOf(san, "Store");
         Harness.Case("RotationConfigBase.cs reads the player-keyed Service.Config.RotationConfigurations only on the duty-rotation path (once, inside Store, after the _rotation test)",
@@ -84,7 +84,7 @@ internal static class SettingsShapeCases
             Regex.Matches(san, @"\bStore\((?:false|true)\)").Count == 4 && Regex.IsMatch(san, @"get\s*=>\s*Store\(false\)") && Regex.IsMatch(san, @"Store\(true\)")
             && Regex.Matches(san, @"Store\(false\) is \{ \} stored").Count == 2);
 
-        string settings = Sanitized("PvPSolver.Basic", "Configuration", "Configs.PvpSettings.cs");
+        string settings = Sanitized("PvPSolver", "Basic", "Configuration", "Configs.PvpSettings.cs");
         string accessor = BodyOf(settings, "RotationSettingsFor");
         Harness.Case("Configs.RotationSettingsFor keys by the job asked for, never by DataCenter.Job, never stores the shared field and creates only when asked",
             accessor.Length > 0 && !accessor.Contains("DataCenter") && !Regex.IsMatch(accessor, @"\b_rotationConfigurations\b") && Regex.Matches(accessor, @"if\s*\(\s*!create\s*\)").Count == 2

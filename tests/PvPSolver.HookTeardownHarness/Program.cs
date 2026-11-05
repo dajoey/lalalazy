@@ -55,7 +55,7 @@ internal static class Program
 
         // Service's ctor initializes hooks through Dalamud services; the uninitialized object is exactly
         // the torn-down state (hook field null) the game can still be inside a detour of.
-        var service = Uninitialized(Type.GetType("RotationSolver.Basic.Service, PvPSolver.Basic")
+        var service = Uninitialized(Type.GetType("RotationSolver.Basic.Service, PvPSolver")
                                    ?? throw new MissingMemberException("RotationSolver.Basic.Service not found"));
         var detour = Private(service.GetType(), "ActorVfxCreateDetour");
         var pathType = detour.GetParameters()[0].ParameterType;
@@ -117,7 +117,7 @@ internal static class Program
     private static void CaseB()
     {
         Console.WriteLine("-- case B: teardown waits for an in-flight detour --");
-        var service = Uninitialized(Type.GetType("RotationSolver.Basic.Service, PvPSolver.Basic")!);
+        var service = Uninitialized(Type.GetType("RotationSolver.Basic.Service, PvPSolver")!);
         RunStopsWaiting(service.GetType(), service, "Service", "Dispose", instance: true);
 
         var timeline = Uninitialized(Type.GetType("RotationSolver.ActionTimeline.ActionTimelineManager, PvPSolver")!);

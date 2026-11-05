@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Config;
 using ECommons;
 using ECommons.DalamudServices;
@@ -415,7 +415,7 @@ internal static class DataCenter
 	#region Territory Info Tracking
 
 	public static Data.TerritoryInfo? Territory { get; set; }
-	public static ushort TerritoryID => (ushort)Svc.ClientState.TerritoryType;
+	public static uint TerritoryID => (ushort)Svc.ClientState.TerritoryType;
 
 	public static bool IsPvP => Territory?.IsPvP ?? false;
 

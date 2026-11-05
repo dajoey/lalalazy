@@ -24,7 +24,7 @@ internal static class RealHpGuard
 
     private static (string Path, string Sanitized) BasicFile(params string[] below)
     {
-        var parts = new List<string> { Program.SrcRoot, "PvPSolver.Basic" };
+        var parts = new List<string> { Program.SrcRoot, "PvPSolver", "Basic" };
         parts.AddRange(below);
         var path = Path.Combine(parts.ToArray());
         if (!File.Exists(path)) throw new FileNotFoundException(path);

@@ -178,9 +178,9 @@ internal static class DefensiveTableCases
         Harness.Case("every rotation file named in a DefersTo note exists", missingFiles.Count == 0, string.Join(",", missingFiles));
 
         // ---- the action each row names is declared by the job's rotation (T2 over the Basic rotation sources) ---------
-        var basicDir = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "Basic");
+        var basicDir = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "Basic");
         var allBasic = string.Join("\n", Directory.GetFiles(basicDir, "*.cs").Select(File.ReadAllText));
-        var shared = File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "CustomRotation_Actions.cs"));
+        var shared = File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "CustomRotation_Actions.cs"));
         var generatedActions = Regex.Matches(File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.SourceGenerators", "Properties", "Resources.resx")), @"static partial void Modify(\w+)\(").Select(m => m.Groups[1].Value).ToHashSet();
         var notModifiable = rows.Where(r => !generatedActions.Contains(r.ActionName)).Select(r => r.ActionName).ToArray();
         Harness.Case("every row's action is an action the rotation generator declares (a Modify<Name> hook exists)", notModifiable.Length == 0, string.Join(",", notModifiable));

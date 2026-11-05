@@ -50,7 +50,7 @@ internal static class UtilityAllowlist
             oldWrong.OrderBy(x => x).SequenceEqual(["29056", "29057", "29484", "3"]), string.Join(",", oldWrong));
 
         // Call site: BaseAction.CanUse uses the pure core and no longer carries the raw literals.
-        var path = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Actions", "BaseAction.cs");
+        var path = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Actions", "BaseAction.cs");
         var san = CsSource.Sanitize(File.ReadAllText(path));
         var uses = Regex.IsMatch(san, @"RotationSolver\.Decisions\.PvpUtilityActionIds\.IsAllowedWithoutHostiles\(\s*ID\s*\)");
         var literals = Regex.Matches(san, @"\bID\s*==\s*(3|29711|29054|29055|29484)\b").Select(m => m.Value).ToArray();

@@ -5,8 +5,9 @@
     <InternalName>PvPSolver</InternalName>
     <Punchline>PvP-only auto-rotation</Punchline>
     <Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-    <Version>0.1.2.10</Version>
-    <Changelog>v0.1.2.4 - 2026-10-22: Upstream sync (RotationSolverReborn 79f60d87c) - all 21 PvP rotations now carry the 'Reborn' rotation-type tag, upstream's marker for rotations written for the pre-Evercold job kits. Metadata only; no gameplay change.
+    <Version>0.1.2.11</Version>
+    <Changelog>v0.1.2.11 - 2026-11-05: Upstream engine sync (RotationSolverReborn a560469db). The engine now builds in upstream's merged single-project layout. Ports upstream engine fixes: the action manager is read at call time instead of a pointer cached at startup, config saves are atomic, and the shield-value math can no longer overflow on very large HP values. No rotation behavior change.
+v0.1.2.4 - 2026-10-22: Upstream sync (RotationSolverReborn 79f60d87c) - all 21 PvP rotations now carry the 'Reborn' rotation-type tag, upstream's marker for rotations written for the pre-Evercold job kits. Metadata only; no gameplay change.
 v0.1.0.13 - 2026-08-25: Adds a "PvPHighestPressure" targeting mode that focuses whichever enemy your own team is already piling onto, and target stickiness so auto-target stops abandoning an enemy while your own timed debuff (Wildfire and similar) is still ticking on it. Both requested in issue #4.
 v0.1.0.12 - 2026-08-06: Upstream sync (RotationSolverReborn 35ceb6e82) - all 21 PvP rotations now declare GameVersion 7.55. Metadata-only; no gameplay change. The Doom-guard logic in that commit lives in upstream base classes this fork does not track.
 v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP (issue #3) - UpdateCustomRotation returns early when not in PvP and the remaining no-rotation warnings are throttled.</Changelog>
@@ -40,9 +41,13 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
     <Compile Include="..\..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
+    <Compile Include="..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
+    <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" ExcludeAssets="runtime">
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -54,7 +59,8 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\PvPSolver.Basic\PvPSolver.Basic.csproj" />
+    <ProjectReference Include="..\PvPSolver.SourceGenerators\PvPSolver.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Using Include="System.ComponentModel" />
     <Using Include="Dalamud.Game.ClientState.Objects.Types" />
     <Using Include="RotationSolver.Basic" />
     <Using Include="RotationSolver.Basic.Actions" />
@@ -64,6 +70,7 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     <Using Include="RotationSolver.Basic.Helpers" />
     <Using Include="RotationSolver.Basic.Rotations" />
     <Using Include="RotationSolver.Basic.Rotations.Basic" />
+    <Using Include="Dalamud.Game.ClientState.JobGauge.Types" />
     <Using Include="Dalamud.Game.ClientState.JobGauge.Enums" />
     <Using Include="Dalamud.Interface" />
     <Using Include="Dalamud.Bindings.ImGui" />
@@ -75,8 +82,8 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
   </ItemGroup>
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="      '%(Filename)' == 'PvPSolver' or      '%(Filename)' == 'PvPSolver.Basic' or      '%(Filename)' == 'ECommons'     " />
-      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="!('%(Filename)' == 'PvPSolver' or '%(Filename)' == 'PvPSolver.Basic' or '%(Filename)' == 'ECommons')" />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="      '%(Filename)' == 'PvPSolver' or           '%(Filename)' == 'ECommons'     " />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="!('%(Filename)' == 'PvPSolver' or '%(Filename)' == 'ECommons')" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>
   </Target>

@@ -1,3 +1,9 @@
+## 0.1.2.11 (2026-11-05)
+
+- Upstream engine sync (RotationSolverReborn a560469db): the rotation engine now builds in upstream's merged single-project layout.
+- Ports upstream engine fixes: the action manager is read at call time instead of a pointer cached at startup (a stale-pointer crash class), configuration saves are atomic (write to a temp file, then replace), and the shield-value calculation can no longer overflow on very large HP values.
+- No rotation behavior change; the 21 PvP rotations and their presets are untouched.
+
 # Changelog - PvP Solver
 
 ## v0.1.2.10 (2026-11-01) [testing]

@@ -1325,8 +1325,10 @@ internal partial class Configs : IPluginConfiguration
 #if DEBUG
 		PluginLog.Information("Saved configurations.");
 #endif
-		File.WriteAllText(Svc.PluginInterface.ConfigFile.FullName,
-			JsonConvert.SerializeObject(this, Formatting.Indented));
+		var path = Svc.PluginInterface.ConfigFile.FullName;
+		var tempPath = path + ".tmp";
+		File.WriteAllText(tempPath, JsonConvert.SerializeObject(this, Formatting.Indented));
+		File.Move(tempPath, path, true);
 	}
 
 	public static Configs Migrate(Configs oldConfigs)

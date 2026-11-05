@@ -13,7 +13,7 @@ internal static class AllyCleanse
 {
     public static void Check(string label, string basicFile, string method, string rotationFile, string option)
     {
-        var path = Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "Rotations", "Basic", basicFile);
+        var path = Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Rotations", "Basic", basicFile);
         var san = CsSource.Sanitize(File.ReadAllText(path));
         var head = new Regex(@"\bstatic\s+partial\s+void\s+(?<name>" + method + @")\s*\(");
         var m = CsSource.Methods(san, basicFile, head).SingleOrDefault();
