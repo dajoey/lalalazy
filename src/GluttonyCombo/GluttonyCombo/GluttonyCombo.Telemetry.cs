@@ -7,7 +7,9 @@ using System.Linq;
 using System.Text;
 using Dalamud.Plugin;
 using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
 using GluttonyCombo.Services;
 using Lalalazy.Telemetry;
 

@@ -341,7 +341,7 @@ public partial class Configuration : IPluginConfiguration
     ///     <c>/gluttony moverelay &lt;url&gt;</c>; empty switches the uploads off.
     ///     <seealso cref="Data.MovementUploader"/>
     /// </summary>
-    public string MovementRelayUrl = GluttonyCombo.Data.MovementUploader.DefaultRelayBaseUrl;
+    public string MovementRelayUrl = global::GluttonyCombo.Data.MovementUploader.DefaultRelayBaseUrl;
 
     #endregion
 

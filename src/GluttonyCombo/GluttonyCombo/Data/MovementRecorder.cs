@@ -1,16 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.Loader;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
+using ECommons.GameFunctions;
 using ECommons.Logging;
 using GluttonyCombo.Core;
-using GluttonyCombo.Extensions;
+using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Services.IPC_Subscriber;
 using Lalalazy.Telemetry;
 
@@ -73,6 +76,7 @@ internal static class MovementRecorder
     public static uint Pulls { get; private set; }
 
     private static BossModIPC? _bmr;
+    private static AssemblyLoadContext? _alc;
 
     public static void Install()
     {
@@ -85,7 +89,11 @@ internal static class MovementRecorder
 
         Svc.Framework.Update += OnTick;
         Svc.ClientState.TerritoryChanged += OnTerritoryChanged;
-        Svc.PluginInterface.Disposing += Dispose;
+        // Safety net for a Dispose Dalamud never calls (same pattern as src/Shared/LalaTelemetry):
+        // Unloading fires when Dalamud unloads the plugin's AssemblyLoadContext.
+        _alc = AssemblyLoadContext.GetLoadContext(typeof(MovementRecorder).Assembly);
+        if (_alc is not null && _alc != AssemblyLoadContext.Default)
+            _alc.Unloading += OnUnloading;
         try
         {
             _bmr = new BossModIPC("BossModReborn", new Version(7, 2, 5, 90));
@@ -98,6 +106,8 @@ internal static class MovementRecorder
             _bmr = null;
         }
     }
+
+    private static void OnUnloading(AssemblyLoadContext context) => Dispose();
 
     public static void Dispose()
     {
@@ -112,7 +122,8 @@ internal static class MovementRecorder
         {
             Svc.Framework.Update -= OnTick;
             Svc.ClientState.TerritoryChanged -= OnTerritoryChanged;
-            Svc.PluginInterface.Disposing -= Dispose;
+            if (_alc is not null)
+                _alc.Unloading -= OnUnloading;
         }
         catch (Exception ex)
         {
@@ -248,7 +259,7 @@ internal static class MovementRecorder
         MovementUploader.Enqueue(MovementFormat.BuildTickLine(
             unixMs, _pullId, _zoneId, 0, (uint)Player.Job,
             self.Position.X, self.Position.Y, self.Position.Z, self.Rotation,
-            flags, self.NameplateIconId));
+            flags, Target.GetNamePlateIconId(self)));
 
         // Slots 1..7: the party list, in its own order; cross-world members have no GameObject.
         var slot = 1;
@@ -266,9 +277,9 @@ internal static class MovementRecorder
             var mFlags = MovementFormat.FlagInCombat
                          | (IsMoving(slot, obj.Position) ? MovementFormat.FlagMoving : 0);
             MovementUploader.Enqueue(MovementFormat.BuildTickLine(
-                unixMs, _pullId, _zoneId, slot, member.Job,
+                unixMs, _pullId, _zoneId, slot, obj is IPlayerCharacter pc ? pc.ClassJob : 0,
                 obj.Position.X, obj.Position.Y, obj.Position.Z, obj.Rotation,
-                mFlags, obj.NameplateIconId));
+                mFlags, Target.GetNamePlateIconId(obj)));
             slot++;
         }
 
