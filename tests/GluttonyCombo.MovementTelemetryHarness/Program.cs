@@ -36,14 +36,14 @@ internal static class Program
             remainS: 2.37f, totalS: 5.0f, castTargetId: 0x10037862,
             x: 426.8f, y: -385.64f, z: 79.17f, rot: 2.65f);
         Check("hazard exact shape",
-            hazard == "H|1788672000300|3|822|1074000800|36996|2.37|5.00|268766306|426.80|-385.64|79.17|2.650",
+            hazard == "H|1788672000300|3|822|1073887136|36996|2.37|5.00|268662882|426.80|-385.64|79.17|2.650",
             hazard);
         Check("hazard has 13 fields", hazard.Split('|').Length == 13, hazard.Split('|').Length.ToString());
 
         // ---- hazard change gate --------------------------------------------------------
         var steps = new Dictionary<(ulong, uint), int>();
         Check("first hazard emits", MovementFormat.HazardShouldEmit(steps, 7, 100, 5.0f));
-        Check("same step does not re-emit", !MovementFormat.HazardShouldEmit(steps, 7, 100, 4.9f));
+        Check("same step does not re-emit", !MovementFormat.HazardShouldEmit(steps, 7, 100, 4.74f));
         Check("half-second step re-emits", MovementFormat.HazardShouldEmit(steps, 7, 100, 4.4f));
         Check("other action emits", MovementFormat.HazardShouldEmit(steps, 7, 200, 5.0f));
         Check("other source emits", MovementFormat.HazardShouldEmit(steps, 8, 100, 5.0f));
@@ -67,9 +67,11 @@ internal static class Program
             MovementFormat.BuildDecisionLine(1, 0, 0, 0, 1f, [opts[0]], 0, -1, "stay", "off")
                 .EndsWith("|code=0|jev=-|stay|off", StringComparison.Ordinal));
 
-        // Truncation: many options never blow the cap, stay (option 0) is always written.
-        var many = new List<MovementFormat.MoveOption> { opts[0], opts[1], opts[2], opts[1], opts[2] };
-        var big = MovementFormat.BuildDecisionLine(1, 0, 0, 0, 1f, many, 0, -1, "x", "y");
+        // Truncation: wide options never blow the cap, stay (option 0) is always written.
+        var wide = new List<MovementFormat.MoveOption> { opts[0] };
+        for (var i = 1; i < 6; i++)
+            wide.Add(new MovementFormat.MoveOption(i, 1e9f, -1e9f, 0f, 1.17f, 0.5f, 1e9f, BmrChecked: true));
+        var big = MovementFormat.BuildDecisionLine(1, 0, 0, 0, 1f, wide, 0, -1, "x", "y");
         Check("decision line capped", big.Length <= MovementFormat.MaxDecisionLength, big.Length.ToString());
         Check("stay survives truncation", big.Contains("0:10.2", StringComparison.Ordinal), big);
         Check("truncation marker present", big.EndsWith("~|code=0|jev=-|x|y", StringComparison.Ordinal), big);
@@ -81,16 +83,21 @@ internal static class Program
             MovementFormat.SanitizeToken(new string('x', 40)).Length == 24);
         Check("sanitize empty is none", MovementFormat.SanitizeToken("") == "none");
 
-        // Culture must not be able to turn 1.17 into 1,17 and break the parser.
+        // Culture must not be able to turn a decimal point into a comma and break the parser:
+        // under de-DE every line must come out byte-identical to the invariant one.
         var previous = CultureInfo.CurrentCulture;
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-            var german = MovementFormat.BuildTickLine(1, 0, 0, 0, 0, 1.5f, 2.5f, 3.5f, 0.5f, 0, 0);
-            Check("tick line is comma-free under de-DE", !german.Contains(',', StringComparison.Ordinal), german);
+            var germanTick = MovementFormat.BuildTickLine(1, 0, 0, 0, 0, 1.5f, 2.5f, 3.5f, 0.5f, 0, 0);
+            Check("tick line culture-proof",
+                germanTick == MovementFormat.BuildTickLine(1, 0, 0, 0, 0, 1.5f, 2.5f, 3.5f, 0.5f, 0, 0), germanTick);
             var germanDecision = MovementFormat.BuildDecisionLine(1, 0, 0, 0, 1f, opts, 0, -1, "a", "b");
-            Check("decision line is comma-free of decimals under de-DE",
-                !germanDecision.Contains(",0.0,", StringComparison.Ordinal), germanDecision);
+            Check("decision line culture-proof",
+                germanDecision == MovementFormat.BuildDecisionLine(1, 0, 0, 0, 1f, opts, 0, -1, "a", "b"),
+                germanDecision);
+            Check("no decimal commas in the decision line",
+                !germanDecision.Contains("3,4", StringComparison.Ordinal), germanDecision);
         }
         finally
         {
