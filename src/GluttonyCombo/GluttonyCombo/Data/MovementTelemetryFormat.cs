@@ -232,4 +232,22 @@ internal static class MovementFormat
 
         return sb.Length > 0 ? sb.ToString() : "none";
     }
+
+    /// <summary> The shared LAN relay base the movement ingest lives on (jobunthree). </summary>
+    public const string DefaultRelayBaseUrl = "http://192.168.10.44:8797";
+
+    /// <summary>
+    ///     Pure policy for the tap's relay base (2026-11-06 fix): a configured URL wins
+    ///     (whitespace and a trailing slash trimmed); null - the config not loaded yet, which
+    ///     crashed the 1.0.4.332 install with a NullReferenceException at Telemetry.cs:61 - or
+    ///     a blank setting falls back to <see cref="DefaultRelayBaseUrl"/>, so the recorder
+    ///     never silently loses its uploads. Override it with
+    ///     <c>/gluttony movelog relay &lt;url&gt;</c>; uploads stop with <c>/gluttony movelog off</c>.
+    /// </summary>
+    public static string ResolveRelayBaseUrl(string? configured)
+    {
+        if (string.IsNullOrWhiteSpace(configured))
+            return DefaultRelayBaseUrl;
+        return configured.Trim().TrimEnd('/');
+    }
 }

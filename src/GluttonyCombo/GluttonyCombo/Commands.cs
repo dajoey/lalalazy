@@ -740,13 +740,15 @@ public partial class GluttonyCombo
             {
                 Service.Configuration.MovementRelayUrl = argument[2].Trim();
                 Service.Configuration.Save();
-                MovementUploader.RelayBaseUrl = Service.Configuration.MovementRelayUrl;
-                DuoLog.Information($"Movement relay URL set ({(MovementUploader.RelayBaseUrl.Length == 0 ? "uploads off" : MovementUploader.RelayBaseUrl)}).");
+                MovementUploader.RelayBaseUrl = MovementFormat.ResolveRelayBaseUrl(Service.Configuration.MovementRelayUrl);
+                DuoLog.Information(Service.Configuration.MovementRelayUrl.Length == 0
+                    ? $"Movement relay URL cleared - falling back to the shared default ({MovementUploader.RelayBaseUrl})."
+                    : $"Movement relay URL set ({MovementUploader.RelayBaseUrl}).");
             }
             else
             {
-                DuoLog.Information($"Movement relay URL: {(MovementUploader.RelayBaseUrl.Length == 0 ? "(empty - uploads off)" : MovementUploader.RelayBaseUrl)} " +
-                                   $"- set it with /gluttony movelog relay <url>");
+                DuoLog.Information($"Movement relay URL: {MovementUploader.RelayBaseUrl} (a blank setting falls back to this) " +
+                                   $"- override it with /gluttony movelog relay <url>");
             }
             return;
         }
@@ -772,7 +774,7 @@ public partial class GluttonyCombo
                 $"Movement: recorder {(Service.Configuration.MovementRecorderOn ? "ON" : "OFF")}, " +
                 $"planner shadow {(Service.Configuration.MovementPlannerShadow ? "ON" : "OFF")}, " +
                 $"Jev questions {(Service.Configuration.MovementJevQuestions ? "ON" : "OFF")}, " +
-                $"relay {(MovementUploader.RelayBaseUrl.Length == 0 ? "off" : MovementUploader.RelayBaseUrl)}; " +
+                $"relay {MovementUploader.RelayBaseUrl}; " +
                 $"samples={MovementRecorder.Samples} pulls={MovementRecorder.Pulls} " +
                 $"pending={MovementUploader.Pending} dropped={MovementUploader.DroppedBatches}. " +
                 $"Lines: M| (ticks), H| (casts), MP| (decisions).");

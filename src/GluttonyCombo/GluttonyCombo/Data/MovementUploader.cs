@@ -19,8 +19,12 @@ namespace GluttonyCombo.Data;
 /// </summary>
 internal static class MovementUploader
 {
-    /// <summary> LAN relay base, overridable in config like PvP Solver's JevRelayUrl. Empty = uploads off. </summary>
-    public const string DefaultRelayBaseUrl = "http://192.168.10.44:8797";
+    /// <summary>
+    ///     LAN relay base, overridable in config like PvP Solver's JevRelayUrl. Owned by
+    ///     <see cref="MovementFormat"/> since 2026-11-06 so the harness pins it; a blank
+    ///     config falls back to this (it used to switch the uploads off silently).
+    /// </summary>
+    public const string DefaultRelayBaseUrl = MovementFormat.DefaultRelayBaseUrl;
 
     /// <summary> The relay base actually used (config override lands here on load). </summary>
     public static string RelayBaseUrl { get; set; } = DefaultRelayBaseUrl;

@@ -255,6 +255,11 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         RemoveNullAutos();
         Service.Configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         MigrateConfiguration(pluginInterface, Service.Configuration);
+        // Fork (movement tap, decision B): install AFTER the configuration exists - the tap
+        // reads MovementRelayUrl at install time. It used to install inside InstallTelemetry()
+        // above, before Service.Configuration was assigned, and died on a
+        // NullReferenceException at every load (Dalamud ER| movement.install, 1.0.4.328-332).
+        InstallMovementTap();
         Service.Address = new AddressResolver();
         Service.Address.Setup(Svc.SigScanner);
         MoveHook = new();
@@ -751,6 +756,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.Framework.Update -= OnFrameworkUpdate;
         IpcStallTrace.Emit = null;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
+        DisarmMovementTapRetry();  // fork: the movement tap's install-retry handlers ride the same teardown
         AutoRotation.FightBrainPlan.Unsubscribe();
         AutoRotation.FightBrainCallout.Unsubscribe();
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;

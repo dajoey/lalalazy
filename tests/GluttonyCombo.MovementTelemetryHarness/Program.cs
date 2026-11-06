@@ -114,6 +114,25 @@ internal static class Program
             CultureInfo.CurrentCulture = previous;
         }
 
+        // ---- relay URL resolve policy (2026-11-06 fix: the movement.install crash) ------
+        // The tap resolves its relay base while installing. Before the fix the shipped code
+        // read the config un-guarded (GluttonyCombo.Telemetry.cs:61): a not-yet-loaded config
+        // crashed the install with a NullReferenceException (Dalamud ER| movement.install,
+        // 1.0.4.332 on omasky, 2026-11-05 19:01 ET) and a blank setting switched uploads off.
+        Check("null config falls back to the shared relay",
+            MovementFormat.ResolveRelayBaseUrl(null) == MovementFormat.DefaultRelayBaseUrl,
+            MovementFormat.ResolveRelayBaseUrl(null));
+        Check("blank config falls back to the shared relay",
+            MovementFormat.ResolveRelayBaseUrl("") == MovementFormat.DefaultRelayBaseUrl &&
+            MovementFormat.ResolveRelayBaseUrl("   ") == MovementFormat.DefaultRelayBaseUrl,
+            MovementFormat.ResolveRelayBaseUrl("   "));
+        Check("configured relay is used trimmed",
+            MovementFormat.ResolveRelayBaseUrl("  http://192.168.10.7:9999/  ") == "http://192.168.10.7:9999",
+            MovementFormat.ResolveRelayBaseUrl("  http://192.168.10.7:9999/  "));
+        Check("shared relay default is the LAN ingest host",
+            MovementFormat.DefaultRelayBaseUrl == "http://192.168.10.44:8797",
+            MovementFormat.DefaultRelayBaseUrl);
+
         Console.WriteLine($"movement format harness: {_pass} passed, {_fail} failed");
         return _fail == 0 ? 0 : 1;
     }
