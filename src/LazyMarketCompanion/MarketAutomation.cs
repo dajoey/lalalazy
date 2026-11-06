@@ -393,10 +393,7 @@ internal sealed class MarketAutomation : Window, IDisposable
           return;
 
         var oldSize = ImGuiSetup(node);
-        DrawButtons(
-          ("Auto Pinch", "Re-price every listing on every enabled retainer (match, never undercut).", () => SweepAllRetainers(false)),
-          ("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)),
-          ("Sweep to Bags", "Move MARKETABLE items that are NOT on the Auto-Market list (the grey marker ones) from retainer inventory into the character's bags for manual review.\r\nItems on the Auto-Market list and unmarketable items are never touched. Stops cleanly when bags are full.\r\nNever runs on its own - only when this button is pressed.", SweepEligibleToBags));
+        DrawButtons(OverlayButtonsForRetainerList());
         ImGuiPostSetup(oldSize);
       }
     }
@@ -416,12 +413,39 @@ internal sealed class MarketAutomation : Window, IDisposable
           return;
 
         var oldSize = ImGuiSetup(node);
-        DrawButtons(
-          ("Auto Pinch", "Re-price every listing of this retainer.", PinchCurrentRetainer),
-          ("Auto Market", "List your always-sell items on this retainer, then price the new listings.\r\nIf nothing can be listed, nothing is re-priced - use Auto Pinch for that.", AutoMarketCurrentRetainer));
+        DrawButtons(OverlayButtonsForRetainerSellList());
         ImGuiPostSetup(oldSize);
       }
     }
+  }
+
+  /// <summary>
+  /// The RetainerList overlay buttons, filtered by each button's visibility setting (issue #12).
+  /// An empty selection draws nothing: the in-run Cancel button (DrawButtons) is unaffected.
+  /// </summary>
+  private (string Label, string Tooltip, Action Run)[] OverlayButtonsForRetainerList()
+  {
+    var c = Plugin.Configuration;
+    var buttons = new List<(string Label, string Tooltip, Action Run)>();
+    if (c.ShowAutoPinchOverlayButton)
+      buttons.Add(("Auto Pinch", "Re-price every listing on every enabled retainer (match, never undercut).", () => SweepAllRetainers(false)));
+    if (c.ShowAutoMarketOverlayButton)
+      buttons.Add(("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)));
+    if (c.ShowSweepToBagsOverlayButton)
+      buttons.Add(("Sweep to Bags", "Move MARKETABLE items that are NOT on the Auto-Market list (the grey marker ones) from retainer inventory into the character's bags for manual review.\r\nItems on the Auto-Market list and unmarketable items are never touched. Stops cleanly when bags are full.\r\nNever runs on its own - only when this button is pressed.", SweepEligibleToBags));
+    return buttons.ToArray();
+  }
+
+  /// <summary>The RetainerSellList overlay buttons, filtered the same way (issue #12).</summary>
+  private (string Label, string Tooltip, Action Run)[] OverlayButtonsForRetainerSellList()
+  {
+    var c = Plugin.Configuration;
+    var buttons = new List<(string Label, string Tooltip, Action Run)>();
+    if (c.ShowAutoPinchOverlayButton)
+      buttons.Add(("Auto Pinch", "Re-price every listing of this retainer.", PinchCurrentRetainer));
+    if (c.ShowAutoMarketOverlayButton)
+      buttons.Add(("Auto Market", "List your always-sell items on this retainer, then price the new listings.\r\nIf nothing can be listed, nothing is re-priced - use Auto Pinch for that.", AutoMarketCurrentRetainer));
+    return buttons.ToArray();
   }
 
   private unsafe float ImGuiSetup(AtkResNode* node)

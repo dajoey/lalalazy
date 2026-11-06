@@ -893,6 +893,24 @@ public sealed class ConfigWindow : Window
       var index = Array.IndexOf(_virtualKeyStrings, c.PinchKey.ToString());
       if (ImGui.Combo("##pinchKeyCombo", ref index, _virtualKeyStrings, _virtualKeyStrings.Length)) { c.PinchKey = Enum.Parse<VirtualKey>(_virtualKeyStrings[index]); c.Save(); }
     }
+
+    ImGui.Separator();
+
+    // Issue #12: the overlay buttons sit top-right on the retainer windows and can cover the
+    // venture currency and the close button, so each one can be hidden here.
+    ImGui.Text("Retainer window buttons");
+    Tip("Which overlay buttons are drawn on the game's retainer list and retainer sell list.\r\nThey sit top-right on those windows; hide any that cover something you need.\r\nHidden actions stay available through the /lmc subcommands.");
+
+    var showPinch = c.ShowAutoPinchOverlayButton;
+    if (ImGui.Checkbox("Show 'Auto Pinch'", ref showPinch)) { c.ShowAutoPinchOverlayButton = showPinch; c.Save(); }
+
+    ImGui.SameLine(0, 20);
+    var showAutoMarket = c.ShowAutoMarketOverlayButton;
+    if (ImGui.Checkbox("Show 'Auto Market'", ref showAutoMarket)) { c.ShowAutoMarketOverlayButton = showAutoMarket; c.Save(); }
+
+    ImGui.SameLine(0, 20);
+    var showSweep = c.ShowSweepToBagsOverlayButton;
+    if (ImGui.Checkbox("Show 'Sweep to Bags'", ref showSweep)) { c.ShowSweepToBagsOverlayButton = showSweep; c.Save(); }
   }
 
   private static void Tip(string text)

@@ -1,3 +1,10 @@
+## v0.2.8.17 (2026-11-06) [testing]
+### Fixed
+- **The overlay buttons no longer have to cover the retainer windows' own controls.** The Auto Pinch, Auto Market and Sweep to Bags buttons are pinned to the top-right corner of the retainer list and retainer sell list windows, where they can cover the venture currency and the windows' close button (reported in issue #12). Each of the three buttons can now be hidden individually under Settings -> Retainers & Hotkeys -> "Retainer window buttons". A hidden button's action stays reachable through the /lmc subcommands, and the Cancel button shown while a run is in progress is never hidden. All three default to shown, so existing settings keep working exactly as before.
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.16 (2026-10-17) [testing]
 ### Fixed
 - **Fresh installs no longer show an import notice for a plugin that was never installed.** A leftover line in the configuration loader set the "imported from Dagobert Price Matcher" flag true on every load that created a new configuration, so a brand-new install showed the import notice and the uninstall hint even though no settings were ever imported. The flag now keeps its false default; a genuine import from a found Dagobert configuration still sets it, and the load log's imported= field reports the real value.

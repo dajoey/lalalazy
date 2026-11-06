@@ -265,6 +265,20 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>The all-retainers "Auto Pinch" sweep also auto-markets each retainer.</summary>
   public bool AutoMarketInPinchAllSweep { get; set; } = true;
 
+  /// <summary>
+  /// Per-button visibility for the overlay buttons the plugin paints on the game's retainer windows
+  /// (issue #12: on RetainerList / RetainerSellList they sit top-right and can cover the venture
+  /// currency and the window's close button). All default on - today's behaviour, so an existing
+  /// config picks them up as-is: no Version bump, no migration (same reasoning as
+  /// <see cref="AutoMarketMarkersEnabled"/>). A hidden button's action stays reachable through the
+  /// /lmc subcommands; the Cancel button shown while a run is in progress is never hidden.
+  /// </summary>
+  public bool ShowAutoPinchOverlayButton { get; set; } = true;
+
+  public bool ShowAutoMarketOverlayButton { get; set; } = true;
+
+  public bool ShowSweepToBagsOverlayButton { get; set; } = true;
+
   /// <summary>Run auto-market (then pinch) during AutoRetainer's venture cycle via its postprocess hook.</summary>
   public bool AutoMarketDuringAutoRetainer { get; set; } = false;
 
