@@ -242,6 +242,112 @@ internal static class Program
               $"Invoke(Helios) returns MicroCosmos ({AST.MicroCosmos}) — the gate still fires for reachable members",
             gotMicroNear == AST.MicroCosmos, $"returned {gotMicroNear}");
 
+        // ==== AOE-NEARFULL (2026-11-07 follow-up report): "multiple helios back to back when ====
+        // everyone is full". Recorded live (PotD floors 51+, ffxivdb action_events 13:53:42-52):
+        // nineteen Helios/Aspected Helios cast starts in ~10 seconds while three of four members
+        // read 97.9-99% (bars that look full — regen-tick oscillation and display rounding) and
+        // the fourth sat at 67.7% that one AoE heal could not top; the auto-rotation was leased
+        // with InCombatOnly=0 so the presses continued out of combat. Neither trigger had a
+        // notion of "near-full is full": the one-button average counted a 98-99% member as a
+        // deficit, and the auto-rotation's member count did the same at any threshold >= 98.
+
+        // The reported shape: everyone effectively full (97-100%), Helios threshold 99.
+        // OLD average (97 + 98.5 + 99 + 100) / 4 = 98.625 <= 99 -> the priority loop fired
+        // plain Helios on a party that looked full. NEW: near-full members (>= 98%) contribute
+        // a full bar, the average reads 99.25 > 99, the loop cannot fire.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 99,
+            (97f, 0f, true, true), (98.5f, 5f, true, true), (99f, 8f, true, true), (100f, 10f, true, true));
+        uint gotNearFull = InvokeAoeHeal();
+        Check("AOE-NEARFULL: everyone effectively full (97-100%), Helios threshold 99 (old average " +
+              $"98.625): Invoke(Helios) does NOT return Helios ({AST.Helios}) — a near-full party " +
+              $"(>= {AoEHealReachGate.NearFullPercent}%) no longer trips the trigger",
+            gotNearFull != AST.Helios, $"returned {gotNearFull}");
+
+        // Control: a literally-full party never trips it, before and after.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 99,
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (100f, 10f, true, true));
+        uint gotFull = InvokeAoeHeal();
+        Check("AOE-NEARFULL-FULLPARTY control: everyone at 100%, threshold 99: " +
+              $"Invoke(Helios) does NOT return Helios — a full party never fires",
+            gotFull != AST.Helios, $"returned {gotFull}");
+
+        // Control: a REAL deficit still triggers exactly as before.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 85,
+            (100f, 0f, true, true), (30f, 5f, true, true), (100f, 8f, true, true), (100f, 10f, true, true));
+        uint gotRealDeficit = InvokeAoeHeal();
+        Check("AOE-NEARFULL control: one member at 30% (a real deficit), threshold 85: " +
+              $"Invoke(Helios) returns Helios ({AST.Helios}) — real damage still heals",
+            gotRealDeficit == AST.Helios, $"returned {gotRealDeficit}");
+
+        // The back-to-back shape from the same log: a Helios GCD just went out (13:53:41.5
+        // landed, another was pressed at 42.9, and four more cast starts followed inside 1.3s).
+        // The one-button's fallback always names a heal for a human press, so "not back to
+        // back" is owned by the PRESS path: the loop must not fire on a near-full party, and
+        // the press gate must stand the auto path down for the whole land window of the cast
+        // that just went out.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 99,
+            (97f, 0f, true, true), (98.5f, 5f, true, true), (99f, 8f, true, true), (100f, 10f, true, true));
+        uint gotFirstGcd = InvokeAoeHeal();                       // the GCD that just went out
+        AoEHealPressGate.Reset();
+        AoEHealPressGate.NotePress(2140, 900_000);                // its 2.14s cast left the gate
+        Check("AOE-BACKTOBACK: first GCD on a near-full party (97-100%, threshold 99) picks no " +
+              $"thresholded AoE heal, and while that cast is in flight the auto press path stands " +
+              $"down — no second Helios back to back",
+            gotFirstGcd != AST.Helios && AoEHealPressGate.StandsDown(900_500),
+            $"first returned {gotFirstGcd}, press stands down {AoEHealPressGate.StandsDown(900_500)}");
+        AoEHealPressGate.Reset();
+
+        // Gate units: the count-gate twin of the average clamp — the auto-rotation's member
+        // count reads IsActuallyBelowThreshold, so a full party cannot pass at ANY configured
+        // threshold (including the 100 "always" setting), while real deficits always count.
+        Check("AOE-NEARFULL-GATE: IsActuallyBelowThreshold pins (100/99/98 never count at any " +
+              "threshold; 97.9 counts at 99+; 70 counts at 80; 85 does not)",
+            !AoEHealReachGate.IsActuallyBelowThreshold(100f, 100f) &&
+            !AoEHealReachGate.IsActuallyBelowThreshold(99f, 100f) &&
+            !AoEHealReachGate.IsActuallyBelowThreshold(98f, 100f) &&
+            !AoEHealReachGate.IsActuallyBelowThreshold(100f, 80f) &&
+            AoEHealReachGate.IsActuallyBelowThreshold(97.9f, 100f) &&
+            AoEHealReachGate.IsActuallyBelowThreshold(70f, 80f) &&
+            !AoEHealReachGate.IsActuallyBelowThreshold(85f, 80f),
+            "threshold table wrong");
+
+        Check("AOE-NEARFULL-AVG: near-full members contribute a full bar to the reach average " +
+              "(the recorded 97/98.5/99/100 party reads 99.25, not 98.625)",
+            AoEHealReachGate.EffectiveContribution(98.5f) == 100f &&
+            AoEHealReachGate.EffectiveContribution(100f) == 100f &&
+            AoEHealReachGate.EffectiveContribution(97.9f) == 97.9f &&
+            Math.Abs(AoEHealReachGate.AverageHPPercent(
+                new[]
+                {
+                    new AoEHealReachGate.PartyMember(97f, true, true, 0f),
+                    new AoEHealReachGate.PartyMember(98.5f, true, true, 5f),
+                    new AoEHealReachGate.PartyMember(99f, true, true, 8f),
+                    new AoEHealReachGate.PartyMember(100f, true, true, 10f),
+                }, 15f) - 99.25f) < 0.01f,
+            "clamp wrong");
+
+        // Press-cadence units: the auto-rotation's ExecuteAoE heal branch stands down behind
+        // AoEHealPressGate while an AoE heal is in flight (cast time + land grace). This is the
+        // back-to-back breaker for the PRESS path (the one-button tail always names a heal, so
+        // the press path must own "not back to back"): a cancelled cast still spends its window,
+        // so the recorded 0.3s re-issue loop cannot restart it.
+        AoEHealPressGate.Reset();
+        const long pressT0 = 1_000_000;
+        Check("AOE-PRESSGATE: the first press is never stood down",
+            !AoEHealPressGate.StandsDown(pressT0), "stood down before any press");
+        AoEHealPressGate.NotePress(2140, pressT0);   // a Helios press: 2.14s adjusted cast time
+        Check("AOE-PRESSGATE: after a press, the path stands down for cast flight + land grace " +
+              "(no second press inside the window, eligible again right after)",
+            AoEHealPressGate.StandsDown(pressT0 + 300) &&
+            AoEHealPressGate.StandsDown(pressT0 + 2140 + AoEHealPressGate.LandGraceMs - 1) &&
+            !AoEHealPressGate.StandsDown(pressT0 + 2140 + AoEHealPressGate.LandGraceMs + 1),
+            "window wrong");
+        Check("AOE-PRESSGATE: a movement-cancelled cast still spends its window (the 0.3s " +
+              "re-issue loop cannot restart it)",
+            AoEHealPressGate.StandsDown(pressT0 + 1500), "cancelled window wrong");
+        AoEHealPressGate.Reset();
+
+
         // ==== CLEANSE (2026-10-24 FATE report): Esuna only when the debuff is worth the cast, and once ====
         // Recorded scenario (CT 2026-10-24 13:29:56.507): solo FATE grind, the heal combo chose
         // Esuna (7568) 21 times in 3 minutes; every decision saw the mob's own Combust III

@@ -187,6 +187,26 @@ internal static class Program
               $"Invoke(Medica1) returns Medica II ({WHM.Medica2}) — a reachable hurt member still triggers the heal",
             gotWhmReachNear == WHM.Medica2, $"returned {gotWhmReachNear}");
 
+        // ==== AOE-NEARFULL (2026-11-07 follow-up report, shared healer logic): "multiple AoE ====
+        // heals back to back when everyone is full". AST was reported; WHM's one-button loop
+        // reads the same reach-aware average, so the near-full clamp applies here too. The
+        // recorded live shape: everyone effectively full (97-100%), threshold 99 — the OLD
+        // average (98.625) sat under the threshold and Medica II fired on a full-looking party.
+        SetAoEReachState(99,
+            (97f, 0f, true, true), (98.5f, 5f, true, true), (99f, 8f, true, true), (100f, 10f, true, true));
+        uint gotWhmNearFull = InvokeRaidwideHeal();
+        Check("AOE-NEARFULL: everyone effectively full (97-100%), Medica threshold 99 (old average " +
+              $"98.625): Invoke(Medica1) does NOT return Medica II ({WHM.Medica2}) — a near-full party " +
+              $"(>= {AoEHealReachGate.NearFullPercent}%) no longer trips the trigger",
+            gotWhmNearFull != WHM.Medica2, $"returned {gotWhmNearFull}");
+
+        SetAoEReachState(99,
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (100f, 10f, true, true));
+        uint gotWhmFull = InvokeRaidwideHeal();
+        Check("AOE-NEARFULL-FULLPARTY control: everyone at 100%, threshold 99: " +
+              $"Invoke(Medica1) does NOT return Medica II — a full party never fires",
+            gotWhmFull != WHM.Medica2, $"returned {gotWhmFull}");
+
 
         // ==== CLEANSE wiring (2026-10-24 FATE report): this job's Esuna branch must consult the
         // shared CleanseGate — control (worth it) and refusal (trivial debuff, never worth it).
@@ -327,7 +347,10 @@ internal static class Program
     ///     targetability drive the range-aware average. PartyAvgHP mirrors the OLD whole-party
     ///     average (alive members only).
     /// </summary>
-    private static void SetAoEReachState(params (float Hp, float Distance, bool Alive, bool Targetable)[] party)
+    private static void SetAoEReachState(params (float Hp, float Distance, bool Alive, bool Targetable)[] party) =>
+        SetAoEReachState(85, party);
+
+    private static void SetAoEReachState(int threshold, params (float Hp, float Distance, bool Alive, bool Targetable)[] party)
     {
         FakeGame.Reset();
         TimedRegenGate.Reset();
@@ -338,7 +361,7 @@ internal static class Program
                  })
             FakeGame.EnabledPresets.Add(p);
 
-        FakeGame.IntValues["WHM_AoEHeals_Medica2HP"] = 85;
+        FakeGame.IntValues["WHM_AoEHeals_Medica2HP"] = threshold;
         FakeGame.InCombat = true;
         FakeGame.PartyInCombatFlag = true;
         FakeGame.IsMovingFlag = false;

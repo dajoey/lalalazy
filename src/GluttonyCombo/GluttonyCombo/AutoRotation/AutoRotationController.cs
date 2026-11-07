@@ -2442,6 +2442,14 @@ internal unsafe class AutoRotationController
                 LockedAoE = false;
                 LockedST = false;
 
+                // Fork (1.0.4.335): one AoE heal press in flight at a time. The one-button tail
+                // always names a heal, so without this the press path re-issued on every tick a
+                // cast that movement had cancelled (the recorded back-to-back spam: four Helios
+                // cast starts in 1.3s, then fifteen more across ten seconds, party effectively
+                // full). Decision core: AoEHealPressGate (cast flight + land grace).
+                if (AoEHealPressGate.StandsDown(Environment.TickCount64))
+                    return false;
+
                 uint outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, Player.Object));
                 if (!ActionReady(outAct))
                     return false;
@@ -2475,6 +2483,8 @@ internal unsafe class AutoRotationController
                     WouldLikeToGroundTarget = false;
                     if (ret && IsTimedRegenAction(outAct))
                         TimedRegenGate.MarkCast(TimeSpan.FromSeconds(castTime / 1000f + 15f));
+                    if (ret)
+                        AoEHealPressGate.NotePress((int)castTime, Environment.TickCount64);
 
                     return true;
                 }
@@ -3197,7 +3207,9 @@ internal unsafe class AutoRotationController
                                     ? GetTargetDistance(x.BattleChara) <= 20f
                                     : InActionRange(outAct, x.BattleChara)) &&
                                 (NeedsDoomTopUp(x.BattleChara) ||
-                                 GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <= cfg.HealerSettings.AoETargetHPP));
+                                 AoEHealReachGate.IsActuallyBelowThreshold(
+                                     GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields),
+                                     cfg.HealerSettings.AoETargetHPP)));
             }
             catch (Exception ex)
             {
@@ -3206,7 +3218,15 @@ internal unsafe class AutoRotationController
                 Lalalazy.Telemetry.LalaTelemetry.Swallowed("autorot.aoe-heal-count", ex);
             }
 
-            return memberCount >= cfg.HealerSettings.AoEHealTargetCount;
+            // Fork (1.0.4.335): "enough members actually below the threshold" — a member only
+            // counts on a REAL deficit (IsActuallyBelowThreshold clamps near-full bars out, so a
+            // threshold set to ~100 can no longer make a full party eligible), and the count
+            // floor is 1: a configured target count of 0 would make this comparison
+            // tautological (0 hurt members is "enough") and the rotation would press AoE heals
+            // on a full party every GCD — the reported back-to-back Helios spam. A null count
+            // keeps its current meaning: the AoE heal gate is off entirely.
+            var needCount = cfg.HealerSettings.AoEHealTargetCount;
+            return needCount is not null && memberCount >= Math.Max(1, needCount.Value);
         }
 
         private static bool TargetHasRegen(IBattleChara target)

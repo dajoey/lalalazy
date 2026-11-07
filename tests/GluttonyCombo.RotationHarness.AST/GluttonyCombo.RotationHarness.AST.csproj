@@ -29,6 +29,8 @@
     <Compile Include="FakeGame.cs" />
     <!-- The shared one-button AoE heal reach gate, REAL and unchanged (pure member data in, average out). -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AoEHealReachGate.cs" Link="AutoRotation\AoEHealReachGate.cs" />
+    <!-- The shared AoE-heal press cadence gate, REAL and unchanged (pure clock state in, verdict out). -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AoEHealPressGate.cs" Link="AutoRotation\AoEHealPressGate.cs" />
     <!-- ==== THE CODE UNDER TEST: the real Astrologian job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\AST\AST.cs" Link="AST\AST.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\AST\AST_Helper.cs" Link="AST\AST_Helper.cs" />
