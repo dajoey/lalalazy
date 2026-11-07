@@ -1,6 +1,16 @@
 # Changelog
 
+## v0.1.1.2 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The hub window is unchanged.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.1.1 (2026-11-05) [testing]
+
+## v0.1.1.2 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The hub window is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 - Updated the bundled KamiToolKit UI library to the current upstream version; the hub window is built on the framework's current internals now, and the window-frame tint targets the framework's texture-backed chrome nodes.
 - The native window is created on the game's main thread after the UI framework finishes initializing, instead of during plugin load.
@@ -8,6 +18,11 @@
 - Testing channel only; the production channel is unchanged.
 
 ## v0.1.1.0 (2026-10-03) [testing]
+
+## v0.1.1.2 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The hub window is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 ### Added
 - **Switches and settings for the whole suite.** Plugins that offer controls can be turned on or off and have their common settings changed from the hub, over Dalamud IPC. Each change does exactly what the matching setting in the owning plugin's own window does; the hub never writes another plugin's configuration.
@@ -26,6 +41,11 @@
 - After an update the "What's new" window shows these notes once. `/lazy changelog` reopens them.
 
 ## v0.1.0.0 (2026-10-03)
+
+## v0.1.1.2 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The hub window is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 ### Added
 - **First release: one in-game window for the whole lalalazy suite.** `/lazy` (or `/lazyhub`) opens a native game-style window with two tabs.
