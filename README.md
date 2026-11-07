@@ -16,7 +16,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Production 3.2.3.1 · Testing 3.2.3.3 |
 | **Lazy Currency Spender** | Finds the best way to spend your tomestones, scrips, and Poetics — backed by live Universalis market prices. Surfaces tomestone gear and missing collectibles you can buy. Fork of CurrencySpender. | Production 1.3.1.1 · Testing 1.3.1.3 |
 | **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Production 0.0.3.10 |
-| **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Production 0.0.3.0 · Testing 0.0.3.1 |
+| **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Production 0.0.3.1 |
 | **LazyFoodBuff** | Auto-eats food in combat duties incl. deep dungeons. Per-job food selection, auto-select based on best stats, and a low-food (running-out) warning. | Production 0.1.5.1 |
 | **LazyRetainerLive** | Serves the logged-in character's live retainer/venture table to the ffxiv dashboard over loopback HTTP, so venture countdowns stay current. Read-only AutoRetainer companion. | Production 0.1.0.2 |
 | **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Production 0.1.7.8 · Testing 0.1.7.9 |
