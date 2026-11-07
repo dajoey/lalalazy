@@ -28,6 +28,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Fakes.cs" />
     <Compile Include="FakeGame.cs" />
+    <!-- The shared one-button AoE heal reach gate, REAL and unchanged (pure member data in, average out). -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AoEHealReachGate.cs" Link="AutoRotation\AoEHealReachGate.cs" />
     <!-- ==== THE CODE UNDER TEST: the real Sage job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SGE\SGE.cs" Link="SGE\SGE.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SGE\SGE_Helper.cs" Link="SGE\SGE_Helper.cs" />

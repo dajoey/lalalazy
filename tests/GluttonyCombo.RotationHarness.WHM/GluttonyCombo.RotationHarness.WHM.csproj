@@ -27,6 +27,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Fakes.cs" />
     <Compile Include="FakeGame.cs" />
+    <!-- The shared one-button AoE heal reach gate, REAL and unchanged (pure member data in, average out). -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AoEHealReachGate.cs" Link="AutoRotation\AoEHealReachGate.cs" />
     <!-- ==== THE CODE UNDER TEST: the real White Mage job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\WHM\WHM.cs" Link="WHM\WHM.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\WHM\WHM_Helper.cs" Link="WHM\WHM_Helper.cs" />

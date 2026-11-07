@@ -386,6 +386,23 @@ namespace GluttonyCombo.CustomComboNS.Functions
 
         public static float GetPartyAvgHPPercent() => GluttonyCombo.RotationHarness.FakeGame.PartyAvgHP;
 
+        /// <summary>
+        ///     FAKE of the range-aware AoE heal average (1.0.4.334): the REAL decision core
+        ///     (AutoRotation/AoEHealReachGate.cs, compiled in unchanged) over
+        ///     <see cref="FakeGame.RangePartyMembers"/>. No member data (null) or a
+        ///     non-positive effect range falls back to the canned whole-party average,
+        ///     mirroring the production overload's fallback to the whole-party loop.
+        /// </summary>
+        public static float GetPartyAvgHPPercent(uint aoeHealActionId)
+        {
+            var range = GluttonyCombo.RotationHarness.FakeGame.EffectRange(aoeHealActionId);
+            var members = GluttonyCombo.RotationHarness.FakeGame.RangePartyMembers;
+            if (range <= 0f || members is null)
+                return GluttonyCombo.RotationHarness.FakeGame.PartyAvgHP;
+
+            return GluttonyCombo.AutoRotation.AoEHealReachGate.AverageHPPercent(members, range);
+        }
+
         public static float GetPartyBuffPercent(ushort buff) => 0f;
 
         public static bool HasOrExpectsOccultInstantCast => GluttonyCombo.RotationHarness.FakeGame.OccultInstantCast;

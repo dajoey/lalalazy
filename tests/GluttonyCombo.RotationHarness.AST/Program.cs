@@ -164,6 +164,84 @@ internal static class Program
               $"Invoke(Helios) returns the Aspected HoT ({AST.HeliosConjuction}) — the HoT heal is available again",
             gotRwOwnedFree == AST.HeliosConjuction, $"returned {gotRwOwnedFree}");
 
+        // ==== AOE-REACH (2026-11-07 report): the AoE heal trigger counts only members the heal can reach ====
+        // Reported live: with one party member out of range, AST's one-button/auto-rotation kept
+        // choosing AoE heals. The trigger (AST_AoE_Heals' priority loop, and the Simple preset's
+        // MicroCosmos gate) read the WHOLE-party average: the out-of-range member's low HP kept
+        // the average under the threshold, so Helios-family heals stayed selected forever while
+        // never healing the member that drove them. The fix averages only members inside the
+        // heal's own effect range (15y), alive and targetable — decision core AoEHealReachGate,
+        // fed by CustomComboFunctions.GetPartyAvgHPPercent(uint). Each case's PartyAvgHP mirrors
+        // what the OLD whole-party average read (alive members only, as the old loop skipped the
+        // dead), so these cases run red against the old code and green against the fix.
+
+        // The report: one member out of Helios's 15y at 30% HP, everyone reachable at full.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 85,
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (30f, 25f, true, true));
+        uint gotReachSpam = InvokeAoeHeal();
+        Check("AOE-REACH-SPAM: one member out of range (25y) at 30% HP, everyone reachable at full, " +
+              $"Helios threshold 85 (whole-party average 82.5): Invoke(Helios) does NOT return Helios — " +
+              "the out-of-range member no longer trips the trigger",
+            gotReachSpam != AST.Helios, $"returned {gotReachSpam}");
+
+        // Control: the same member back inside the heal's radius — the trigger still fires.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 85,
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (30f, 12f, true, true));
+        uint gotReachNear = InvokeAoeHeal();
+        Check("AOE-REACH control: the hurt member back at 12y (inside the 15y radius): " +
+              $"Invoke(Helios) returns Helios ({AST.Helios}) — a reachable hurt member still triggers the heal",
+            gotReachNear == AST.Helios, $"returned {gotReachNear}");
+
+        // Control: a DEAD member's HP never counted (the old loop skipped the dead too).
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 85,
+            (100f, 0f, true, true), (100f, 5f, true, true), (30f, 5f, false, true), (100f, 8f, true, true));
+        uint gotReachDead = InvokeAoeHeal();
+        Check("AOE-REACH-DEAD control: a dead member at 5y and 30% HP: " +
+              $"Invoke(Helios) does NOT return Helios — the dead never counted",
+            gotReachDead != AST.Helios, $"returned {gotReachDead}");
+
+        // An untargetable member at full reach distance did count before the fix.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 85,
+            (100f, 0f, true, true), (100f, 5f, true, true), (30f, 5f, true, false), (100f, 8f, true, true));
+        uint gotReachUntargetable = InvokeAoeHeal();
+        Check("AOE-REACH-UNTARGETABLE: an untargetable member at 5y and 30% HP: " +
+              $"Invoke(Helios) does NOT return Helios — members the heal cannot land on no longer count",
+            gotReachUntargetable != AST.Helios, $"returned {gotReachUntargetable}");
+
+        // The default threshold (80) with a hurt in-range member plus an out-of-range one:
+        // the reachable average (90) stays above the trigger; the whole-party one (72.5) did not.
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 80,
+            (100f, 0f, true, true), (70f, 5f, true, true), (100f, 8f, true, true), (20f, 25f, true, true));
+        uint gotReachDefault = InvokeAoeHeal();
+        Check("AOE-REACH-DEFAULT: hurt member at 5y (70%) + out-of-range member at 25y (20%), threshold 80: " +
+              $"Invoke(Helios) does NOT return Helios — the reachable average (90) governs, not 72.5",
+            gotReachDefault != AST.Helios, $"returned {gotReachDefault}");
+
+        // The oGCD shape of the same defect: the Horoscope entry of the same priority list.
+        SetAoEReachState(Preset.AST_AoE_Heals_Horoscope, "AST_AoE_SimpleHeals_Horoscope", 85,
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (30f, 25f, true, true));
+        uint gotReachHoroscope = InvokeAoeHeal();
+        Check("AOE-REACH-OGCD: one member out of range at 30% HP, Horoscope threshold 85: " +
+              $"Invoke(Helios) does NOT return Horoscope ({AST.Horoscope}) — the oGCD entries of the " +
+              "priority list use the same reach-aware average",
+            gotReachHoroscope != AST.Horoscope, $"returned {gotReachHoroscope}");
+
+        // The Simple preset's MicroCosmos gate (its only whole-party average read).
+        SetMicroCosmosState(
+            (60f, 0f, true, true), (60f, 5f, true, true), (60f, 8f, true, true), (10f, 25f, true, true));
+        uint gotMicroFar = new AST.AST_Simple_AoE_Heals().RunInvoke(AST.Helios);
+        Check("AOE-REACH-MICROCOSMOS: one member out of range at 10% HP, the rest at 60% " +
+              $"(whole-party average 47.5 < 50): Invoke(Helios) does NOT return MicroCosmos " +
+              $"({AST.MicroCosmos}) — the out-of-range member no longer trips the gate",
+            gotMicroFar != AST.MicroCosmos, $"returned {gotMicroFar}");
+
+        SetMicroCosmosState(
+            (60f, 0f, true, true), (60f, 5f, true, true), (60f, 8f, true, true), (10f, 10f, true, true));
+        uint gotMicroNear = new AST.AST_Simple_AoE_Heals().RunInvoke(AST.Helios);
+        Check("AOE-REACH-MICROCOSMOS control: the same member at 10y (average 47.5 < 50 within reach): " +
+              $"Invoke(Helios) returns MicroCosmos ({AST.MicroCosmos}) — the gate still fires for reachable members",
+            gotMicroNear == AST.MicroCosmos, $"returned {gotMicroNear}");
+
         // ==== CLEANSE (2026-10-24 FATE report): Esuna only when the debuff is worth the cast, and once ====
         // Recorded scenario (CT 2026-10-24 13:29:56.507): solo FATE grind, the heal combo chose
         // Esuna (7568) 21 times in 3 minutes; every decision saw the mob's own Combust III
@@ -426,6 +504,56 @@ internal static class Program
     }
 
     private static uint InvokeRaidwideHeal() => new AST.AST_AoE_Heals().RunInvoke(AST.Helios);
+
+    /// <summary>
+    ///     The AoE-heal reach state (2026-11-07 report): AST_AoE_Heals with one sub-preset entry
+    ///     enabled and its threshold set, level 100, in combat, weave window open, no raidwide, and
+    ///     a party whose per-member HP / distance / targetability drive the range-aware average
+    ///     (FakeGame.RangePartyMembers). PartyAvgHP is set to what the OLD whole-party average read
+    ///     (alive members only — the old loop skipped the dead), so every case here runs red
+    ///     against the whole-party trigger and green against the reach-aware one.
+    /// </summary>
+    private static void SetAoEReachState(Preset subPreset, string thresholdConfig, int threshold,
+        params (float Hp, float Distance, bool Alive, bool Targetable)[] party)
+    {
+        FakeGame.Reset();
+        TimedRegenGate.Reset();
+
+        FakeGame.EnabledPresets.Add(Preset.AST_AoE_Heals);
+        FakeGame.EnabledPresets.Add(subPreset);
+        FakeGame.IntValues[thresholdConfig] = threshold;
+        // AltMode 0 => the class's fallback after the priority list is Aspected Helios (3601),
+        // so a loop-fired plain Helios (3600) is distinguishable from the fallback.
+        FakeGame.IntValues["AST_AoE_SimpleHeals_AltMode"] = 0;
+        FakeGame.InCombat = true;
+        FakeGame.PartyInCombatFlag = true;
+        FakeGame.CanWeave = true;
+        FakeGame.IsMovingFlag = false;
+
+        FakeGame.RangePartyMembers = party
+            .Select(m => new AoEHealReachGate.PartyMember(m.Hp, m.Alive, m.Targetable, m.Distance))
+            .ToList();
+        var alive = party.Where(m => m.Alive).ToArray();
+        FakeGame.PartyAvgHP = alive.Length == 0 ? 0f : alive.Average(m => m.Hp);
+    }
+
+    /// <summary>
+    ///     The MicroCosmos reach state: AST_Simple_AoE_Heals with the level-90+ hook
+    ///     (Macrocosmos resolves to MicroCosmos), Astral Draw on cooldown so the draw branch
+    ///     cannot preempt the gate, and the party driving both averages as above.
+    /// </summary>
+    private static void SetMicroCosmosState(params (float Hp, float Distance, bool Alive, bool Targetable)[] party)
+    {
+        SetAoEReachState(Preset.AST_AoE_Heals_Helios, "AST_AoE_SimpleHeals_Helios", 80, party);
+        FakeGame.EnabledPresets.Remove(Preset.AST_AoE_Heals);
+        FakeGame.EnabledPresets.Add(Preset.AST_Simple_AoE_Heals);
+        FakeGame.HookOverrides[AST.Macrocosmos] = AST.MicroCosmos;
+        var drawCd = FakeGame.Cooldown(AST.AstralDraw);
+        drawCd.IsCooldown = true;
+        drawCd.CooldownRemaining = 20f;
+    }
+
+    private static uint InvokeAoeHeal() => new AST.AST_AoE_Heals().RunInvoke(AST.Helios);
 
     private static void Check(string desc, bool ok, string detail = "")
     {

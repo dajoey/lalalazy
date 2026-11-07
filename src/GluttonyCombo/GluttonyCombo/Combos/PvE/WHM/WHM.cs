@@ -477,7 +477,8 @@ internal partial class WHM : Healer
                 return Role.LucidDreaming;
 
             if (ActionReady(Temperance) && 
-                (GetPartyAvgHPPercent() <= 70 ||
+                // Fork (1.0.4.334): range-aware average — only members this heal can reach
+                (GetPartyAvgHPPercent(Temperance) <= 70 ||
                  GroupDamageIncoming()))
                 return Temperance;
 
@@ -486,12 +487,14 @@ internal partial class WHM : Healer
 
             if (ActionLearned(LiturgyOfTheBell) &&
                 IsOffCooldown(LiturgyOfTheBell) &&
-                (GetPartyAvgHPPercent() <= 50 ||
+                // Fork (1.0.4.334): range-aware average — only members this heal can reach
+                (GetPartyAvgHPPercent(LiturgyOfTheBell) <= 50 ||
                  GroupDamageIncoming()))
                 return LiturgyOfTheBell;
 
             if (ActionReady(PlenaryIndulgence) &&
-                (GetPartyAvgHPPercent() <= 70 ||
+                // Fork (1.0.4.334): range-aware average — only members this heal can reach
+                (GetPartyAvgHPPercent(PlenaryIndulgence) <= 70 ||
                  GroupDamageIncoming()))
                 return PlenaryIndulgence;
 
@@ -665,7 +668,9 @@ internal partial class WHM : Healer
                 // holds the scheduling, or a committed timed cast's own HoT is still live, the
                 // Medica II/III family stands down here too - a second caster of the same AoE HoT
                 // heal would double-cast it.
-                if (enabled && GetPartyAvgHPPercent() <= config &&
+                // Fork (1.0.4.334): the trigger averages only the members THIS heal can
+                // reach (alive, targetable, inside its effect range), not the whole party.
+                if (enabled && GetPartyAvgHPPercent(spell) <= config &&
                     ActionReady(spell) &&
                     !(TimedRegenGate.Owned && IsTimedRegenHot(spell)))
                 {

@@ -524,14 +524,16 @@ internal partial class SGE : Healer
                     return Rhizomata;
             }
 
-            float averagePartyHP = GetPartyAvgHPPercent();
+            // Fork (1.0.4.334): the trigger averages only the members THIS heal can reach
+            // (alive, targetable, inside its effect range), not the whole party — an
+            // out-of-range member's low HP no longer keeps the AoE heal trigger true.
             for(var i = 0; i < SGE_AoE_Heals_Priority.Count; i++)
             {
                 int index = SGE_AoE_Heals_Priority.IndexOf(i + 1);
                 if (!TryAoEHealOption(index, out uint spell, out int config))
                     continue;
 
-                if (averagePartyHP <= config && ActionReady(spell))
+                if (GetPartyAvgHPPercent(spell) <= config && ActionReady(spell))
                     return spell;
             }
 

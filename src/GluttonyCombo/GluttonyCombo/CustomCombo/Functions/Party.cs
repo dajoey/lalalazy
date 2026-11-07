@@ -160,6 +160,35 @@ internal abstract partial class CustomComboFunctions
         return count == 0 ? 0 : totalHP / count;
     }
 
+    /// <summary>
+    ///     Fork (1.0.4.334): the one-button healer AoE heal trigger averaged the whole
+    ///     party's HP, so a member out of the heal's radius kept the average low and the
+    ///     trigger spammed AoE heals that could never reach them. This overload averages
+    ///     only the members the given AoE heal can actually reach: alive, targetable, and
+    ///     inside the action's effect range around the caster. Decision core:
+    ///     <see cref="AoEHealReachGate"/>. Actions with no positive effect range
+    ///     (self-buffs, unknown sheet rows) keep the whole-party average.
+    /// </summary>
+    public static float GetPartyAvgHPPercent(uint aoeHealActionId)
+    {
+        var range = GetActionEffectRange(aoeHealActionId);
+        if (range <= 0f)
+            return GetPartyAvgHPPercent();
+
+        var members = new List<AoEHealReachGate.PartyMember>();
+        for (int i = 1; i <= 8; i++)
+        {
+            if (SimpleTarget.GetPartyMemberInSlotSlot(i) is IBattleChara member)
+                members.Add(new AoEHealReachGate.PartyMember(
+                    GetTargetHPPercent(member),
+                    !member.IsDead,
+                    member.IsTargetable,
+                    GetTargetDistance(member) - member.HitboxRadius));
+        }
+
+        return AoEHealReachGate.AverageHPPercent(members, range);
+    }
+
     public static float GetPartyBuffPercent(ushort buff)
     {
         int buffCount = 0;

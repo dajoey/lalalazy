@@ -41,6 +41,16 @@ internal static class FakeGame
     public static bool OccultDualcast = false;
     public static float PartyAvgHP = 100f;
 
+    // ---- AoE heal reach (1.0.4.334): per-member data for the range-aware party average ----
+    // Null (the default) means "no member data": the fake range-aware overload falls back to the
+    // canned whole-party PartyAvgHP, which is exactly what the pre-fix code read — so cases that
+    // do not opt in keep the legacy semantics unchanged.
+    public static List<GluttonyCombo.AutoRotation.AoEHealReachGate.PartyMember>? RangePartyMembers;
+    public static Dictionary<uint, float> ActionEffectRanges = [];   // GetActionEffectRange fake
+
+    /// <summary>The fake sheet radius of an action; every healer AoE heal is 15y unless overridden.</summary>
+    public static float EffectRange(uint actionID) => ActionEffectRanges.GetValueOrDefault(actionID, 15f);
+
     // Cleanse-gate knobs (Esuna worth/in-flight cases, 2026-10-24 FATE report).
     public static bool RetargetingOn = false;
     public static Dalamud.Game.ClientState.Objects.Types.IGameObject? CleanseTarget;
@@ -143,6 +153,8 @@ internal static class FakeGame
         OccultInstantCast = false;
         OccultDualcast = false;
         PartyAvgHP = 100f;
+        RangePartyMembers = null;
+        ActionEffectRanges = [];
         RetargetingOn = false;
         CleanseTarget = null;
         CleanseTargetStatusIds = [];

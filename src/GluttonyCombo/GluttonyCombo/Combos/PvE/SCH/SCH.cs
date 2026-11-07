@@ -601,7 +601,9 @@ internal partial class SCH : Healer
                 return Role.LucidDreaming;
 
             //Priority List
-            float averagePartyHP = GetPartyAvgHPPercent();
+            // Fork (1.0.4.334): the trigger averages only the members THIS heal can reach
+            // (alive, targetable, inside its effect range), not the whole party — an
+            // out-of-range member's low HP no longer keeps the AoE heal trigger true.
             for (int i = 0; i < SCH_AoE_Heals_Priority.Count; i++)
             {
                 int index = SCH_AoE_Heals_Priority.IndexOf(i + 1);
@@ -609,7 +611,7 @@ internal partial class SCH : Healer
                 bool onIdom = SCH_AoE_Heal_Indomitability_Recitation && spell is Indomitability;
                 bool onSuccor = SCH_AoE_Heal_Succor_Options[1] && spell is Succor or Concitation or Accession;
 
-                if (enabled && averagePartyHP <= config && ActionReady(spell))
+                if (enabled && GetPartyAvgHPPercent(spell) <= config && ActionReady(spell))
                     return ActionReady(Recitation) && (onIdom || onSuccor) ?
                        Recitation :
                        spell;

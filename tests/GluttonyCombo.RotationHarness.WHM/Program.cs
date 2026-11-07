@@ -166,6 +166,27 @@ internal static class Program
               $"Invoke(Medica1) returns the Medica HoT ({WHM.Medica3}) — the HoT heal is available again",
             gotRwOwnedFree == WHM.Medica3, $"returned {gotRwOwnedFree}");
 
+        // ==== AOE-REACH (2026-11-07 report, shared healer logic): the AoE heal trigger counts ====
+        // only members the heal can reach. AST was reported spamming AoE heals while one party
+        // member sat out of range; WHM's one-button AoE heal loop read the same whole-party
+        // average, so the same defect shape applies here. PartyAvgHP mirrors what the OLD
+        // whole-party average read, so the first case runs red against the old code.
+
+        SetAoEReachState(
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (30f, 25f, true, true));
+        uint gotWhmReach = InvokeRaidwideHeal();
+        Check("AOE-REACH: one member out of range (25y) at 30% HP, everyone reachable at full, " +
+              $"Medica threshold 85 (whole-party average 82.5): Invoke(Medica1) does NOT return " +
+              $"Medica II ({WHM.Medica2}) — the out-of-range member no longer trips the trigger",
+            gotWhmReach != WHM.Medica2, $"returned {gotWhmReach}");
+
+        SetAoEReachState(
+            (100f, 0f, true, true), (100f, 5f, true, true), (100f, 8f, true, true), (30f, 12f, true, true));
+        uint gotWhmReachNear = InvokeRaidwideHeal();
+        Check("AOE-REACH control: the hurt member back at 12y (inside the 15y radius): " +
+              $"Invoke(Medica1) returns Medica II ({WHM.Medica2}) — a reachable hurt member still triggers the heal",
+            gotWhmReachNear == WHM.Medica2, $"returned {gotWhmReachNear}");
+
 
         // ==== CLEANSE wiring (2026-10-24 FATE report): this job's Esuna branch must consult the
         // shared CleanseGate — control (worth it) and refusal (trivial debuff, never worth it).
@@ -298,6 +319,37 @@ internal static class Program
     }
 
     private static uint InvokeRaidwideHeal() => new WHM.WHM_AoEHeals().RunInvoke(WHM.Medica1);
+
+    /// <summary>
+    ///     The AoE-heal reach state (2026-11-07 report): WHM_AoEHeals with the Medica II entry
+    ///     enabled and its threshold at 85, NO raidwide detection (the raidwide presets stay off
+    ///     so the loop under test decides), and a party whose per-member HP / distance /
+    ///     targetability drive the range-aware average. PartyAvgHP mirrors the OLD whole-party
+    ///     average (alive members only).
+    /// </summary>
+    private static void SetAoEReachState(params (float Hp, float Distance, bool Alive, bool Targetable)[] party)
+    {
+        FakeGame.Reset();
+        TimedRegenGate.Reset();
+
+        foreach (var p in new[]
+                 {
+                     Preset.WHM_AoEHeals, Preset.WHM_AoEHeals_Medica2,
+                 })
+            FakeGame.EnabledPresets.Add(p);
+
+        FakeGame.IntValues["WHM_AoEHeals_Medica2HP"] = 85;
+        FakeGame.InCombat = true;
+        FakeGame.PartyInCombatFlag = true;
+        FakeGame.IsMovingFlag = false;
+        FakeGame.GroupDamageIncoming = false;
+
+        FakeGame.RangePartyMembers = party
+            .Select(m => new AoEHealReachGate.PartyMember(m.Hp, m.Alive, m.Targetable, m.Distance))
+            .ToList();
+        var alive = party.Where(m => m.Alive).ToArray();
+        FakeGame.PartyAvgHP = alive.Length == 0 ? 0f : alive.Average(m => m.Hp);
+    }
 
     /// <summary>
     ///     The AoE damage weave state for the out-of-combat cases: WHM_AoE_Simple_DPS with Assize

@@ -589,7 +589,7 @@ internal partial class AST : Healer
             if (Role.CanLucidDream(6500))
                 return Role.LucidDreaming;
 
-            if (OriginalHook(Macrocosmos) == MicroCosmos && GetPartyAvgHPPercent() < 50)
+            if (OriginalHook(Macrocosmos) == MicroCosmos && GetPartyAvgHPPercent(MicroCosmos) < 50)
                 return MicroCosmos;
 
             if (LocalPlayer.HasStatus(Buffs.GiantDominance))
@@ -734,13 +734,15 @@ internal partial class AST : Healer
                 return Role.LucidDreaming;
 
             //Priority List
-            float averagePartyHP = GetPartyAvgHPPercent();
+            // Fork (1.0.4.334): the trigger averages only the members THIS heal can reach
+            // (alive, targetable, inside its effect range), not the whole party — an
+            // out-of-range member's low HP no longer keeps the AoE heal trigger true.
             for (int i = 0; i < AST_AoE_SimpleHeals_Priority.Count; i++)
             {
                 int index = AST_AoE_SimpleHeals_Priority.IndexOf(i + 1);
                 int config = GetMatchingConfigAoE(index, out uint spell, out bool enabled);
 
-                if (enabled && averagePartyHP <= config && ActionReady(spell) &&
+                if (enabled && GetPartyAvgHPPercent(spell) <= config && ActionReady(spell) &&
                     !(TimedRegenGate.Owned && IsTimedRegenHot(spell)))
                     return spell;
             }

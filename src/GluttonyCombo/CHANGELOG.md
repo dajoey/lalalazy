@@ -1,3 +1,8 @@
+## v1.0.4.334 (2026-11-07) [testing]
+### Fixed
+- **Healer one-button AoE heals no longer trigger off party members the heal cannot reach.** The Astrologian, White Mage, Scholar and Sage one-button AoE heal rotations averaged the whole party's HP: a member standing outside the heal's radius kept the average under the threshold, so the rotation kept choosing AoE heals (Helios, Medica, Succor, Prognosis and their oGCD neighbours) that could never heal that member - reported live as Astrologian repeatedly casting AoE heals whenever someone was out of range. The trigger now averages only the members inside the heal's own effect radius (15y for the Helios family), alive and targetable, so the rotation returns to damaging while nobody reachable needs healing, and heals again the moment the far member comes back into range. Single-target healing is untouched: a member returning to range is picked up by the single-target path exactly as before. Raidwide pre-casts and the auto-rotation's own cast gate are unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v1.0.4.333 (2026-11-06) [testing]
 ### Fixed
 - **The movement recorder and the shadow move planner actually start now.** Every load of 1.0.4.328-1.0.4.332 killed them at startup: the tap installed itself before the settings existed and died on an error the moment the plugin loaded, so your November 5 session recorded no movement at all and nothing reached the movement database. The tap now installs after the settings load, the settings read can no longer fail that way, and if an install ever fails again it retries on the framework tick and on every zone change (a login is one) instead of staying dead for the whole session.
