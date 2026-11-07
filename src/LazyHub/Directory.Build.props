@@ -1,0 +1,7 @@
+<Project>
+    <!-- KamiToolKit consumer Dalamud payload pin: all logic and the pin data itself live in
+         src/Shared/DalamudPin/DalamudPin.props (single source of truth) - see that file for
+         why this exists and how to bump the pin. Applies to every project under src/LazyHub/
+         (LazyHub; its KamiToolKit copy is reached through the src/LazyWTMath/ pin as well). -->
+    <Import Project="$(MSBuildThisFileDirectory)..\Shared\DalamudPin\DalamudPin.props" />
+</Project>

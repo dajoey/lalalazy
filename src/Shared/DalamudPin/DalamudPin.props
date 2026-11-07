@@ -1,0 +1,69 @@
+<Project>
+    <!--
+      Dalamud payload pin for the KamiToolKit consumers (LazyWTMath, LazyHub, the vendored
+      src/LazyWTMath/KamiToolKit).
+
+      Why (2026-11-07): the vendored KamiToolKit and its consumer adaptations target Dalamud /
+      FFXIVClientStructs APIs from staging Dalamud 15.0.3.9 (upstream KamiToolKit tip tracks FCS
+      master), while a build host's installed XIVLauncher dev payload can lag (DAJOEYROG's
+      Hooks/dev carried 15.0.3.4). Builds resolved Dalamud + FFXIVClientStructs from whatever dev
+      payload was installed that day, so packaging LazyWTMath / LazyHub failed mid-release with
+      33 CS1061 (RentedSeStringBuilder.Append/GetViewAsSpan, AtkComponentListItemRenderer.EventNode,
+      RaptureHotbarModule.HotbarSlot.Clear/Initialize/UsesGeneralDragDropType,
+      HotbarUIIntermediate.CurrentChargeCount/Type). Upstream's own CI builds against a staging
+      payload via DALAMUD_HOME (KamiToolKit .github/workflows/publish-nuget.yml); that is how
+      LazyWTMath 3.2.3.3 / LazyHub 0.1.1.1 were built. This pin gives every build of these trees
+      the same payload contract, independent of launcher updates.
+
+      How it works: src/LazyWTMath/Directory.Build.props and src/LazyHub/Directory.Build.props
+      import this file (all logic lives HERE - single source of truth). Directory.Build.props is
+      evaluated by Microsoft.Common.props BEFORE Dalamud.NET.Sdk's Sdk.props assigns
+      DalamudLibPath, so when no explicit payload was requested we set the DALAMUD_HOME MSBuild
+      property to the pinned cache folder and the SDK's own precedence applies it to
+      DalamudLibPath, the reference search paths, and its exists-check. An explicit DALAMUD_HOME
+      (environment variable or -p:DALAMUD_HOME=...) still wins, matching upstream CI semantics;
+      -p:DalamudPinEnabled=false opts out entirely.
+
+      Provisioning: on a host without the payload yet, the EnsureDalamudPinPayload target runs
+      tools/Update-DalamudPin.ps1 (downloads the pinned staging distrib once into
+      <profile>\.dalamud-refs\<version>) before the SDK's exists-check. The payload's Dalamud.dll
+      ProductVersion must equal DalamudPinVersion - a mismatch fails loudly instead of
+      mis-building. The staging distrib always serves the CURRENT staging build, so when staging
+      moves past the pin, bump DalamudPinVersion here after tools/Test-DalamudPin.ps1 passes
+      against the new payload (both consumers build clean, releases re-verified), or seed a host
+      from an archived copy with Update-DalamudPin.ps1 -Source <dir>.
+    -->
+    <PropertyGroup>
+        <DalamudPinVersion Condition="'$(DalamudPinVersion)' == ''">15.0.3.9</DalamudPinVersion>
+        <DalamudPinUrl Condition="'$(DalamudPinUrl)' == ''">https://goatcorp.github.io/dalamud-distrib/stg/latest.zip</DalamudPinUrl>
+        <DalamudPinEnabled Condition="'$(DalamudPinEnabled)' == ''">true</DalamudPinEnabled>
+        <DalamudPinCacheRoot Condition="'$(DalamudPinCacheRoot)' == '' And '$(USERPROFILE)' != ''">$(USERPROFILE)\.dalamud-refs</DalamudPinCacheRoot>
+        <DalamudPinCacheRoot Condition="'$(DalamudPinCacheRoot)' == '' And '$(HOME)' != ''">$(HOME)/.dalamud-refs</DalamudPinCacheRoot>
+        <DalamudPinCache Condition="'$(DalamudPinCache)' == ''">$(DalamudPinCacheRoot)\$(DalamudPinVersion)</DalamudPinCache>
+        <DalamudPinToolsDir Condition="'$(DalamudPinToolsDir)' == ''">$(MSBuildThisFileDirectory)..\..\tools</DalamudPinToolsDir>
+        <DalamudPinPowerShell Condition="'$(DalamudPinPowerShell)' == ''">powershell</DalamudPinPowerShell>
+        <DalamudPinPowerShell Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([MSBuild]::IsOSPlatform('OSX'))">pwsh</DalamudPinPowerShell>
+    </PropertyGroup>
+
+    <!-- Stamp contract with tools/Update-DalamudPin.ps1: payload-pin.json is compact JSON whose
+         first field is exactly "version":"<pin>". -->
+    <PropertyGroup>
+        <DalamudPinStampFile Condition="'$(DalamudPinStampFile)' == ''">$(DalamudPinCache)\payload-pin.json</DalamudPinStampFile>
+        <DalamudPinStampOk Condition="Exists('$(DalamudPinStampFile)') And '$(DalamudPinStampOk)' == ''">$([System.IO.File]::ReadAllText('$(DalamudPinStampFile)').Contains('"version":"$(DalamudPinVersion)"'))</DalamudPinStampOk>
+        <DalamudPinStampOk Condition="'$(DalamudPinStampOk)' == ''">false</DalamudPinStampOk>
+    </PropertyGroup>
+
+    <!-- No explicit payload requested by the caller: aim Dalamud.NET.Sdk at the pinned cache. -->
+    <PropertyGroup Condition="'$(DalamudPinEnabled)' == 'true' And '$(DALAMUD_HOME)' == ''">
+        <DALAMUD_HOME>$(DalamudPinCache)</DALAMUD_HOME>
+    </PropertyGroup>
+
+    <!-- Cache missing (or foreign/stale stamp): provision it BEFORE the SDK refuses to build
+         on a missing DalamudLibPath (EnsureDalamudLibPathExists) and before references resolve. -->
+    <Target Name="EnsureDalamudPinPayload"
+            BeforeTargets="EnsureDalamudLibPathExists;BeforeBuild"
+            Condition="'$(DalamudPinEnabled)' == 'true' And '$(DALAMUD_HOME)' == '$(DalamudPinCache)' And ('$(DalamudPinStampOk)' != 'true' Or !Exists('$(DalamudPinCache)\Dalamud.dll'))">
+        <Message Text="DalamudPin: pinned payload $(DalamudPinVersion) not ready at $(DalamudPinCache); provisioning" Importance="high" />
+        <Exec Command="&quot;$(DalamudPinPowerShell)&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;$(DalamudPinToolsDir)\Update-DalamudPin.ps1&quot; -Version &quot;$(DalamudPinVersion)&quot; -Url &quot;$(DalamudPinUrl)&quot;" />
+    </Target>
+</Project>
