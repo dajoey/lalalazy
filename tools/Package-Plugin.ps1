@@ -229,6 +229,22 @@ if (Test-Path $changelogPath) {
     $releaseNotes = $formattedEntries | Select-Object -First 1
 }
 
+# 0. Privacy gate: everything above ships verbatim to three PUBLIC surfaces -
+#    the pluginmaster.json Changelog field (the Dalamud plugin feed), the zip's
+#    embedded manifest (the in-game "What's new" popup) and the GitHub Release
+#    body. No requester names, quoted reports, internal tracker ids, private
+#    session references or internal network details may appear in it
+#    (CLAUDE.md "Changelog voice"). Added 2026-11-07 after quoted requester
+#    text shipped in GluttonyCombo 1.0.4.333-335 and LazyWTMath 3.2.3.1-3.
+$privacyGate = Join-Path $PSScriptRoot 'check-changelog-privacy.py'
+if ((Test-Path $privacyGate) -and (Test-Path $changelogPath)) {
+    Write-Host "Running changelog privacy gate..."
+    & python $privacyGate --changelog "$changelogPath"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Changelog privacy gate FAILED for $PluginName. Rewrite the flagged lines as neutral, user-facing descriptions of the change. Nothing was built or published."
+    }
+}
+
 # 1. Clean old outputs
 Write-Host "Cleaning build folders..."
 $cleanPaths = @(

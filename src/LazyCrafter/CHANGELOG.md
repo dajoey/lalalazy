@@ -400,7 +400,6 @@
 ## v0.1.1.0 (2026-09-03)
 
 Testing-channel fix build (production pointer stays 0.0.0.0). **"Owned" is not "in the bags."** Fixes the defect
-a retainer, Artisan could not start, and LazyCrafter reported `1/1 craft finished` 1.25 s later. The test verdict, verbatim:
-*"needs to grab stock before attempting craft"*.
+a retainer, Artisan could not start, and LazyCrafter reported `1/1 craft finished` 1.25 s later. Early testing showed the same gap: the stock has to be fetched into the bags before the craft can start.
 
 ### Fixed

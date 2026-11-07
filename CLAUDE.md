@@ -69,7 +69,7 @@ market/vendor machinery:
 
 Exceptions, kept verbatim:
 - **Quoted UI labels and setting names** (e.g. `"Also shield tankbusters outside your party"`, `"Only skip when nobody else is undercutting you"`) — they name real config strings; paraphrasing them makes the note useless. Renaming the label is a code change, not a changelog fix.
-- Verbatim quotes of a player's report may keep their wording, but prefer indirect speech ("Reported: the proc is not permanent") over pasting "you" statements.
+- **NEVER quote a person** (STANDING RULE, tightened 2026-11-07). No verbatim quotes of the requester's words, in-game reports, chat lines, test verdicts or card text — not even "prefer indirect speech" framing like "live report:", "reported live as", "the test verdict, verbatim", "recorded from the <date> session". Describe the defect in neutral words ("Fixed AoE heals casting when a party member is out of range"), with no requester name, no session reference, no internal ids, no internal host/IP detail. The requester's words are private; the changelog is public (plugin feed, in-game popup, GitHub Release). `tools/check-changelog-privacy.py` (run automatically by `tools/Package-Plugin.ps1`) fails the release on any of these.
 - The landing site (`docs/`) is marketing copy and MAY address the reader.
 
 ### In-game changelog popup (STANDING RULE, decided 2026-09-05 — Hermes card `t_add3c479`)
@@ -92,6 +92,7 @@ TEST BUILD (default for every change):
 2. Update csproj + src/<Plugin>/CHANGELOG.md (player-facing: the in-game popup renders it verbatim)
 2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
 2c. python tools/check-preset-ids.py .  — MUST print 0 duplicate values (silent-breakage gate, see Rules)
+2d. python tools/check-changelog-privacy.py --changelog src/<Plugin>/CHANGELOG.md — MUST print OK (privacy gate; the packager runs it too and refuses to publish on failure)
 3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing   (it commits the release commit itself and pushes it — see step 6)
 4. ** VERIFY: git show HEAD -- pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel + DownloadLinkTesting moved; AssemblyVersion and the production links untouched, no regression **
 4b. ** VERIFY: DownloadLinkTesting == https://github.com/dajoey/lalalazy/releases/download/<Plugin>-v<version>/<Plugin>-testing.zip (a testing-exclusive plugin's Install/Update move with it). A raw.githubusercontent.com link means the packager printed "GitHub Release publish failed" and pushed the raw fallback: fix the cause, re-run with -Republish **

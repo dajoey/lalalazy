@@ -62,7 +62,7 @@ python3 tools/check-preset-ids.py .
 - You cannot run the game. Every PR names the exact thing to check in game.
 
 ## 6. Public repo: what never goes in
-Code, comments, tests, commit messages, PR text and changelog bullets never contain: my name, character or retainer names, machine or host names, IP addresses, file paths from my machines, internal task or ticket ids, secrets or tokens. Changelog bullets are impersonal: they describe what the plugin does and never say "you" or "your" (CLAUDE.md, "Changelog voice").
+Code, comments, tests, commit messages, PR text and changelog bullets never contain: my name, character or retainer names, machine or host names, IP addresses, file paths from my machines, internal task or ticket ids, secrets or tokens. Changelog bullets are impersonal: they describe what the plugin does and never say "you" or "your" (CLAUDE.md, "Changelog voice"). Changelog bullets also never quote anyone - not the owner's words, in-game reports, chat lines or test verdicts; describe the change in neutral words instead (CLAUDE.md, "NEVER quote a person"; `tools/check-changelog-privacy.py` enforces it at release time).
 
 ## 7. Every PR description has these sections
 - **What and why:** 2 to 4 plain sentences.
