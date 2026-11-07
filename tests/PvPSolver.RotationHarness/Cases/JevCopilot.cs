@@ -281,6 +281,38 @@ internal static class JevCopilot
         Harness.Case("heal shadow: after a fight ends, the next fight's first call is logged even when it matches the last one",
             flap.Next("4242") == "JV|heal-shadow heal=4242");
 
+        // ---- T1: the plain rules ride beside Jev (card joey-20261105-ffxiv-start-jev, relay 2026-11-06+) ------
+        Harness.Case("reply: the plain rules' answers parse (rule_focus, rule_lb, rule_lb_target)",
+            JevCall.Parse("{\"focus\": 11, \"rule_focus\": 12, \"rule_lb\": \"fire\", \"rule_lb_target\": 12}", 7.0) is { RuleFocus: 12UL, RuleLb: "fire", RuleLbTarget: 12UL });
+        Harness.Case("reply: rule_lb hold carries no target, and a reply without the fields (an older relay) parses them as null",
+            JevCall.Parse("{\"focus\": 1, \"rule_lb\": \"hold\"}", 7.0) is { RuleLb: "hold", RuleLbTarget: null, RuleFocus: null }
+            && JevCall.Parse("{\"focus\": 1}", 7.0) is { RuleLb: null, RuleFocus: null });
+        Harness.Case("reply: explicitly null rule fields are null, and a malformed rule target is dropped while the rest parses",
+            JevCall.Parse("{\"focus\": 1, \"rule_focus\": null, \"rule_lb\": null, \"rule_lb_target\": null}", 1.0) is { RuleFocus: null, RuleLb: null, RuleLbTarget: null }
+            && JevCall.Parse("{\"focus\": 1, \"rule_lb\": \"fire\", \"rule_lb_target\": -3}", 1.0) is { RuleLb: "fire", RuleLbTarget: null });
+        var fshadow = new JevFocusShadow();
+        Harness.Case("focus shadow: one JV|focus-pick line per change, both picks in the same line",
+            fshadow.Next(new JevAnswer(11UL, false, null, 1.0, RuleFocus: 12UL)) == "JV|focus-pick jev=11 rule=12"
+            && fshadow.Next(new JevAnswer(11UL, false, null, 2.0, RuleFocus: 12UL)) == null
+            && fshadow.Next(new JevAnswer(12UL, false, null, 3.0, RuleFocus: 12UL)) == "JV|focus-pick jev=12 rule=12"
+            && fshadow.Next(new JevAnswer(null, false, null, 4.0, RuleFocus: null)) == "JV|focus-pick jev=none rule=none");
+        var fkept = new JevFocusShadow();
+        Harness.Case("focus shadow: a pick kept from an earlier answer is marked; Reset logs the next fight's first pick again",
+            fkept.Next(new JevAnswer(9UL, false, null, 1.0)) == "JV|focus-pick jev=9 rule=none"
+            && fkept.Next(new JevAnswer(9UL, false, null, 2.0, FocusReceivedAt: 1.0)) == "JV|focus-pick jev=9 rule=none kept=yes");
+        fkept.Reset();
+        Harness.Case("focus shadow: after Reset the same picks log once more", fkept.Next(new JevAnswer(9UL, false, null, 3.0)) == "JV|focus-pick jev=9 rule=none");
+        var lshadow = new JevLbShadow();
+        Harness.Case("lb shadow: one JV|lb-shadow line per change, both calls in the same line (fire@id / fire / hold / none)",
+            lshadow.Next(new JevAnswer(1UL, false, null, 1.0, RuleLb: "hold")) == "JV|lb-shadow jev=hold rule=hold"
+            && lshadow.Next(new JevAnswer(1UL, false, null, 2.0, RuleLb: "hold")) == null
+            && lshadow.Next(new JevAnswer(1UL, true, 1UL, 3.0, RuleLb: "hold")) == "JV|lb-shadow jev=fire@1 rule=hold"
+            && lshadow.Next(new JevAnswer(1UL, true, 1UL, 4.0, RuleLb: "fire", RuleLbTarget: 1UL)) == "JV|lb-shadow jev=fire@1 rule=fire@1"
+            && lshadow.Next(new JevAnswer(1UL, true, null, 5.0, RuleLb: "fire")) == "JV|lb-shadow jev=fire rule=fire"
+            && lshadow.Next(new JevAnswer(1UL, false, null, 6.0)) == "JV|lb-shadow jev=hold rule=none");
+        Harness.Case("lb shadow: only the question's two calls gate the line - a rule the relay did not answer shows as none",
+            new JevLbShadow().Next(new JevAnswer(null, false, null, 1.0, RuleLb: "fire", RuleLbTarget: 7UL)) == "JV|lb-shadow jev=hold rule=fire@7");
+
         // ---- T1: Fix 7, relay failures are visible: one Information summary per fight or per 60 s of failures -----
         var st = new JevCallStats();
         Harness.Case("stats: nothing before or during a quiet fight", st.Tick(0.0, true) == null);
@@ -415,7 +447,7 @@ internal static class JevCopilot
             Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*used = \[\.\. UsedSinceSnapshot\];\s*UsedSinceSnapshot\.Clear\(\);")
             && caller.IndexOf("used = [.. UsedSinceSnapshot];", StringComparison.Ordinal) < caller.IndexOf("if (hostiles.Count == 0)", StringComparison.Ordinal));
         Harness.Case("no snapshot this frame (switch off, not PvP, not in combat): recorded casts are dropped",
-            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);(\s*HealShadow\.Reset\(\);)?\s*return;"));
+            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);(\s*(?:HealShadow|FocusShadow|LbShadow)\.Reset\(\);)+\s*return;"));
         Harness.Case("TryLimitBreak: a re-aimed Limit Break must be in range and sight of the chosen enemy (the usable check ignores range)",
             Regex.IsMatch(caller, @"if\s*\(!InRangeAndSight\(limitBreak\.AdjustedID, chosen\)\)")
             && caller.IndexOf("InRangeAndSight(limitBreak.AdjustedID, chosen)", StringComparison.Ordinal) < caller.IndexOf("limitBreak.Target = new TargetResult(", StringComparison.Ordinal)
@@ -433,18 +465,25 @@ internal static class JevCopilot
             && Regex.IsMatch(caller, @"foreach \(IBattleChara a in allianceMembers\)\s*\{\s*allies\.Add\(Ally\(a, alliance: true\)\);")
             && Regex.IsMatch(caller, @"foreach \(IBattleChara a in party\)\s*\{\s*allies\.Add\(Ally\(a, alliance: false\)\);"));
         Harness.Case("relay reply: an answer with no focus keeps the last good pick (KeepLastPick against the hostiles of that snapshot) before it is stored",
-            Regex.IsMatch(caller, @"Volatile\.Write\(ref _latest, JevCall\.KeepLastPick\(Volatile\.Read\(ref _latest\), answer, hostileIds\.Contains\)\);")
+            Regex.IsMatch(caller, @"JevAnswer applied = JevCall\.KeepLastPick\(Volatile\.Read\(ref _latest\), answer, hostileIds\.Contains\);")
+            && Regex.IsMatch(caller, @"Volatile\.Write\(ref _latest, applied\);")
             && Regex.Matches(caller, @"Volatile\.Write\(ref _latest,").Count == 1
             && Regex.IsMatch(caller, @"BuildSnapshot\(HashSet<ulong> hostileIds\)") && caller.Contains("_ = hostileIds.Add(b.GameObjectId);"));
         Harness.Case("NoteActionUsed: the same action on the same target within 1.5 s is recorded once (RecentUses under the lock)",
             Regex.IsMatch(caller, @"lock \(UsedLock\)\s*\{\s*if\s*\(UsedSinceSnapshot\.Count < 16 && RecentUses\.IsNew\(actionId, target, now\)\)"));
         Harness.Case("relay reply: the heal field is logged as JV|heal-shadow at Information, once per change, and nothing acts on it",
-            Regex.IsMatch(caller, @"HealShadow\.Next\(answer\.Heal\) is \{\s*\} healLine")
+            Regex.IsMatch(caller, @"HealShadow\.Next\(answer\.Heal\) is \{ \} healLine")
             && callerRaw.Contains("PluginLog.Information($\"[JevCaller] {healLine}\")")
             && Regex.Matches(caller, @"\.Heal\b").Count == 1 && !caller.Contains("_lastHeal")
             && !Regex.IsMatch(target + invoke, @"Latest\??\.Heal\b"));
+        Harness.Case("relay reply: the plain rules' answers are logged beside Jev's from the applied answer (JV|focus-pick, JV|lb-shadow), and nothing acts on them",
+            Regex.IsMatch(caller, @"FocusShadow\.Next\(applied\) is \{ \} focusLine")
+            && Regex.IsMatch(caller, @"LbShadow\.Next\(applied\) is \{ \} lbLine")
+            && callerRaw.Contains("PluginLog.Information($\"[JevCaller] {focusLine}\")")
+            && callerRaw.Contains("PluginLog.Information($\"[JevCaller] {lbLine}\")")
+            && !Regex.IsMatch(target + invoke, @"RuleFocus|RuleLb"));
         Harness.Case("relay reply: the heal shadow restarts whenever no Jev fight is on (frame update, out-of-fight gate)",
-            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);\s*HealShadow\.Reset\(\);\s*return;")
+            Regex.IsMatch(caller, @"!DataCenter\.InCombat\s*\|\|\s*Player\.Object == null\)\s*\{\s*DropUsed\(\);\s*HealShadow\.Reset\(\);\s*FocusShadow\.Reset\(\);\s*LbShadow\.Reset\(\);\s*return;")
             && Regex.Matches(caller, @"HealShadow\.Reset\(\)").Count == 1);
         Harness.Case("TryLimitBreak: a window closed because the Limit Break turned into its follow-up says follow-up, not unusable",
             callerRaw.Contains("FireLog.Close(now, limitBreak.Info.AdjustedID != limitBreak.ID ? \"follow-up\" : \"unusable\");")
@@ -454,7 +493,7 @@ internal static class JevCopilot
             && Regex.IsMatch(caller, @"Stats\.Count\(JevCall\.Classify\(ex\)\)") && Regex.Matches(caller, @"Stats\.Count\(JevCallOutcome\.Error\)").Count >= 2
             && callerRaw.IndexOf("private static async Task SendAsync(", StringComparison.Ordinal) is int sa && sa > 0
             && callerRaw.IndexOf("private static string? BuildSnapshot(", sa, StringComparison.Ordinal) is int sb && sb > sa
-            && Regex.Matches(callerRaw[sa..sb], @"PluginLog\.Information\(").Count == 1);
+            && Regex.Matches(callerRaw[sa..sb], @"PluginLog\.Information\(").Count == 3);
         var jevCore = Src("PvPSolver", "Basic", "Decisions", "JevCall.cs");
         Harness.Case("no movement: PvP Solver's Jev code never moves the character (no navmesh IPC, no move or position calls)",
             !Regex.IsMatch(callerRaw + File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "Decisions", "JevCall.cs")), @"vnavmesh", RegexOptions.IgnoreCase)

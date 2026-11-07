@@ -36,6 +36,8 @@ public static class JevCaller
     private static readonly JevFireLog FireLog = new();
     private static readonly JevCallStats Stats = new();
     private static readonly JevHealShadow HealShadow = new();
+    private static readonly JevFocusShadow FocusShadow = new();
+    private static readonly JevLbShadow LbShadow = new();
 
     /// <summary>
     /// Called when the game reports an action the player used (PvP Solver's Watcher): kept until the next snapshot,
@@ -116,6 +118,8 @@ public static class JevCaller
         {
             DropUsed();
             HealShadow.Reset();
+            FocusShadow.Reset();
+            LbShadow.Reset();
             return;
         }
 
@@ -340,7 +344,20 @@ public static class JevCaller
             }
 
             // An unsure answer keeps the last good pick while it is fresh and still hostile (as of this snapshot).
-            Volatile.Write(ref _latest, JevCall.KeepLastPick(Volatile.Read(ref _latest), answer, hostileIds.Contains));
+            JevAnswer applied = JevCall.KeepLastPick(Volatile.Read(ref _latest), answer, hostileIds.Contains);
+            // The plain rules' answers ride in the same reply (relay 2026-11-06+): one line per change puts Jev's
+            // pick and the rule's pick side by side for the head-to-head grading. Log only; nothing acts on the rule.
+            if (FocusShadow.Next(applied) is { } focusLine)
+            {
+                PluginLog.Information($"[JevCaller] {focusLine}");
+            }
+
+            if (LbShadow.Next(applied) is { } lbLine)
+            {
+                PluginLog.Information($"[JevCaller] {lbLine}");
+            }
+
+            Volatile.Write(ref _latest, applied);
         }
         catch (Exception ex)
         {

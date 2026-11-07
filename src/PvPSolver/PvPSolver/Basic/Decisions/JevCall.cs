@@ -34,9 +34,13 @@ public sealed record JevSelf(string Job, uint HpNow, uint HpMax, float Facing, b
 /// optional healer call ("self", "attack", "guard" or an ally's object id), logged only. <see cref="FocusReceivedAt"/> is set
 /// when the focus was kept from an earlier answer, so a kept focus ages from the moment Jev gave it. <see cref="RelayKeeps"/>:
 /// the reply came from a relay that keeps picks itself (it carries "kept_why"), so the plugin never re-keeps one.
+/// <see cref="RuleFocus"/>/<see cref="RuleLb"/>/<see cref="RuleLbTarget"/> are the plain code rules' answers to the
+/// same questions (relay 2026-11-06+), logged beside Jev's for the head-to-head grading; null when the relay
+/// sent none (an older relay, or no Limit Break question asked - <see cref="RuleLb"/> is exactly then).
 /// </summary>
 public sealed record JevAnswer(ulong? Focus, bool FireLimitBreak, ulong? LimitBreakTarget, double ReceivedAt,
-    string? Heal = null, double? FocusReceivedAt = null, bool RelayKeeps = false)
+    string? Heal = null, double? FocusReceivedAt = null, bool RelayKeeps = false,
+    ulong? RuleFocus = null, string? RuleLb = null, ulong? RuleLbTarget = null)
 {
     /// <summary>When Jev gave the focus in this answer.</summary>
     public double FocusAt => FocusReceivedAt ?? ReceivedAt;
@@ -187,7 +191,10 @@ public static class JevCall
             ulong? focus = Id(root, "focus");
             bool fire = root.TryGetProperty("lb", out var lb) && Text(lb) == "fire";
             return new JevAnswer(focus, fire, fire ? Id(root, "lb_target") : null, now, HealCall(root),
-                RelayKeeps: root.TryGetProperty("kept_why", out _));
+                RelayKeeps: root.TryGetProperty("kept_why", out _),
+                RuleFocus: Id(root, "rule_focus"),
+                RuleLb: root.TryGetProperty("rule_lb", out var ruleLb) ? Text(ruleLb) : null,
+                RuleLbTarget: Id(root, "rule_lb_target"));
         }
         catch (Exception ex) when (ex is Stj.JsonException or InvalidOperationException)
         {
@@ -404,6 +411,92 @@ public sealed class JevHealShadow
             _last = null;
         }
     }
+}
+
+/// <summary>
+/// The side-by-side log for the focus question: one <c>JV|focus-pick</c> line whenever the applied pick or the plain
+/// rule's pick changes, carrying both in the same line for the head-to-head grading (card joey-20261105-ffxiv-start-jev).
+/// <c>rule=none</c> means the plain rule had no pick (or the relay predates 2026-11-06 and sends none);
+/// <c>kept=yes</c> marks a pick kept from an earlier answer rather than freshly chosen. Nothing here changes which
+/// enemy is attacked. Thread-safe: answers arrive on pool threads.
+/// </summary>
+public sealed class JevFocusShadow
+{
+    private readonly object _lock = new();
+    private (ulong? Jev, ulong? Rule, bool Kept)? _last;
+
+    /// <summary>The line to log for this answer, or null (same picks as the last line; the relay log has every second).</summary>
+    public string? Next(JevAnswer answer)
+    {
+        string line;
+        lock (_lock)
+        {
+            bool kept = answer.FocusReceivedAt != null;
+            var now = (answer.Focus, answer.RuleFocus, kept);
+            if (_last == now)
+            {
+                return null;
+            }
+
+            _last = now;
+            line = $"JV|focus-pick jev={Whom(answer.Focus)} rule={Whom(answer.RuleFocus)}"
+                   + (kept ? " kept=yes" : string.Empty);
+        }
+
+        return line;
+    }
+
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _last = null;
+        }
+    }
+
+    private static string Whom(ulong? id) => id?.ToString() ?? "none";
+}
+
+/// <summary>
+/// The side-by-side log for the Limit Break question: one <c>JV|lb-shadow</c> line whenever Jev's call or the plain
+/// rule's call changes, both in the same line (<c>fire@&lt;id&gt;</c> / <c>fire</c> / <c>hold</c>; <c>rule=none</c>
+/// when the relay asked no Limit Break question this answer). Graded against the fire windows and uses in the same
+/// log. Nothing here fires or holds anything. Thread-safe: answers arrive on pool threads.
+/// </summary>
+public sealed class JevLbShadow
+{
+    private readonly object _lock = new();
+    private (string Jev, string Rule)? _last;
+
+    /// <summary>The line to log for this answer, or null (both calls same as the last line).</summary>
+    public string? Next(JevAnswer answer)
+    {
+        string line;
+        lock (_lock)
+        {
+            (string, string) now = (JevCallText(answer.FireLimitBreak, answer.LimitBreakTarget),
+                answer.RuleLb is null ? "none" : JevCallText(answer.RuleLb == "fire", answer.RuleLbTarget));
+            if (_last == now)
+            {
+                return null;
+            }
+
+            _last = now;
+            line = $"JV|lb-shadow jev={now.Item1} rule={now.Item2}";
+        }
+
+        return line;
+    }
+
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _last = null;
+        }
+    }
+
+    private static string JevCallText(bool fire, ulong? target) => !fire ? "hold" : target is { } id ? $"fire@{id}" : "fire";
 }
 
 /// <summary>

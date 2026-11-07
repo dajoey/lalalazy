@@ -1,3 +1,8 @@
+## 0.1.2.12 (2026-11-06) [testing]
+
+- **The Jev co-pilot logs the plain code rule's answer beside Jev's, for both of its questions.** Each `JV|focus-pick` line names the enemy Jev picked and the enemy the plain rule would pick (the lowest-HP enemy in attack range); each `JV|lb-shadow` line names Jev's Limit Break call and the code rule's. Both answers are recorded side by side and graded after the session, to show which one decides better. Log only: targeting, Limit Break firing and every other behavior are unchanged.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## 0.1.2.11 (2026-11-05)
 
 - Upstream engine sync (RotationSolverReborn a560469db): the rotation engine now builds in upstream's merged single-project layout.
