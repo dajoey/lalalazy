@@ -1,6 +1,16 @@
 # Changelog - Lazy WT Math
 
+## v3.2.3.4 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The Wondrous Tails probability readout is unchanged.
+- Testing channel only; the production channel is unchanged.
+
 ## v3.2.3.3 (2026-11-05) [testing]
+
+## v3.2.3.4 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The Wondrous Tails probability readout is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 - Updated the UI framework bundled inside the plugin to the current upstream KamiToolKit; the Wondrous Tails probability readout is built on the framework's current internals now.
 - Kept the fork's hot-reload safety guard: the plugin's hooks disable, let any call already inside them finish, and only then dispose, so an update while the game is running can no longer crash the game from a call landing on a hook that is gone.
@@ -8,16 +18,31 @@
 
 ## v3.2.3.2 (2026-10-04) [testing]
 
+## v3.2.3.4 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The Wondrous Tails probability readout is unchanged.
+- Testing channel only; the production channel is unchanged.
+
 - Fixed a rare game crash when the plugin updates while the game is running: while its hooks are active and the plugin is updated again, they are disabled only after any call still inside them has finished, so a call can no longer land on a hook that is already gone. The Wondrous Tails math readout is unchanged.
 - Testing channel only; the production channel is unchanged.
 
 ## v3.2.3.1 (2026-09-07)
+
+## v3.2.3.4 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The Wondrous Tails probability readout is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 - Removed the `/lazywtmath` command introduced in 3.2.3.0. It existed only to reopen the "What's new" popup, and this plugin's only interface is the probability readout inside the Wondrous Tails window itself.
 - The changelog popup itself is unchanged: it still opens once automatically after an update, and it can be reopened any time from the Dalamud plugin installer (the plugin's "Open" button).
 - No math, plugin behaviour or configuration changed.
 
 ## v3.2.3.0 (2026-09-05)
+
+## v3.2.3.4 (2026-11-07) [testing]
+
+- No plugin-code changes: the plugin now builds against a fixed Dalamud library set (the pinned staging 15.0.3.9 payload) instead of whichever libraries the build machine happens to have installed, so packaging this plugin works reliably again. The Wondrous Tails probability readout is unchanged.
+- Testing channel only; the production channel is unchanged.
 
 - Added the in-game "What's new" popup. After Lazy WT Math updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.
 - New command `/lazywtmath` reopens that popup. This plugin had no command at all before: the probabilities still appear inside the Wondrous Tails window itself, exactly as before, and nothing about how they are calculated has changed.
