@@ -13,7 +13,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **Lazy Market Companion** | Auto-lists your always-sell items through your retainers (bags + retainer inventory, configurable stack size / reserve), matches board prices, optional AutoRetainer hook. Successor to Dagobert Price Matcher. | Production 0.2.8.17 |
 | **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Production 0.2.5.2 |
 | **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Production 0.5.7.0 |
-| **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Production 3.2.3.1 · Testing 3.2.3.3 |
+| **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Production 3.2.3.3 |
 | **Lazy Currency Spender** | Finds the best way to spend your tomestones, scrips, and Poetics — backed by live Universalis market prices. Surfaces tomestone gear and missing collectibles you can buy. Fork of CurrencySpender. | Production 1.3.1.3 |
 | **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Production 0.0.3.10 |
 | **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Production 0.0.3.1 |
