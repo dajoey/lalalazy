@@ -25,9 +25,9 @@ internal static class GnbHeart
         var cond = CsSource.IfConditions(emergency.Body).Single(c => c.Contains("HeartOfCorundumPvP.CanUse("));
         // Round 3: the fixed 30 became the Heart of Corundum row's setting (default 30, the same <= comparison on the
         // 0-100 scale); the LiteralSwaps case proves the rest of the condition is unchanged. 0.1.2.10: the row's HP
-        // read is the real-HP read (JevCall.HpRatio), not the predicted GetHealthRatio.
+        // read is the real-HP read (RealHp.HpRatio), not the predicted GetHealthRatio.
         Harness.Case("EmergencyAbility still gates on the player's own HP <= the Heart of Corundum percent (default 30)",
-            Regex.IsMatch(cond, @"JevCall\.HpRatio\(self\.CurrentHp,\s*self\.MaxHp\)\s*\*\s*100\s*<=\s*Service\.Config\.DefensivePercentPoints\(RotationSolver\.Decisions\.DefensiveTable\.HeartOfCorundum\)")
+            Regex.IsMatch(cond, @"RealHp\.HpRatio\(self\.CurrentHp,\s*self\.MaxHp\)\s*\*\s*100\s*<=\s*Service\.Config\.DefensivePercentPoints\(RotationSolver\.Decisions\.DefensiveTable\.HeartOfCorundum\)")
             && RotationSolver.Decisions.DefensiveTable.ToPercentPoints(RotationSolver.Decisions.DefensiveTable.ResolvePercent(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum, null)) == 30f, cond);
 
         var defense = SourceFiles.OverrideMethod("GNB_Default.PVP.cs", "DefenseSingleAbility");

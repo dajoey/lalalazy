@@ -6,8 +6,8 @@ using System.Text;
 namespace GluttonyCombo.Data;
 
 /// <summary>
-///     The pure half of the fork's movement tap (2026-11-05, decision B of the Jev Fight Brain
-///     plan): the line formats and emit gates for the 10 Hz movement recorder and the shadow move
+///     The pure half of the fork's movement tap (2026-11-05): the line formats and emit
+///     gates for the 10 Hz movement recorder and the shadow move
 ///     planner, with no Dalamud or game types, so <c>tests/GluttonyCombo.MovementTelemetryHarness</c>
 ///     can assert the exact shape of what ships. <see cref="MovementRecorder"/> and
 ///     <see cref="MovementPlanner"/> are the live halves that read the game state and call in here.
@@ -30,7 +30,7 @@ internal static class MovementFormat
     /// <summary> One casting hostile (the telegraph signal) at one tick, change-gated. </summary>
     public const string HazardPrefix = "H|";
 
-    /// <summary> One shadow move decision: options, code pick, Jev pick. </summary>
+    /// <summary> One shadow move decision: options, code pick, and the second pick slot (schema-stable, now always "-"). </summary>
     public const string DecisionPrefix = "MP|";
 
     /// <summary> The forecast's next mechanic (Fight Brain Stage 1a join), change-gated. </summary>
@@ -130,6 +130,9 @@ internal static class MovementFormat
     /// <summary>
     ///     Builds one decision line:
     ///     <c>MP|unixms|pull|zone|castActionId|hitIn|opts|code=i|jev=i|-|codeWhy|jevWhy</c>.
+    ///     The <c>jev</c> slot name is the wire schema the movement ingest and the decision
+    ///     table parse; the decision layer that used to fill it was removed on 2026-11-09,
+    ///     so callers now always pass <c>jevPick: -1</c> and the slot reads <c>-</c>/<c>off</c>.
     ///     The option list is the only part allowed to be cut short (the stay option is
     ///     always written first, so a truncated line still carries a pickable baseline).
     /// </summary>

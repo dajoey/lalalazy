@@ -30,12 +30,12 @@ public class AST_DefaultPVP : AstrologianRotation
 		}
 
 		var self = Player;
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && LadyOfCrownsPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && self is { } && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && LadyOfCrownsPvP.CanUse(out action))
 		{
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Microcosmos) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Microcosmos) && MicrocosmosPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Microcosmos) && self is { } && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Microcosmos) && MicrocosmosPvP.CanUse(out action))
 		{
 			return true;
 		}

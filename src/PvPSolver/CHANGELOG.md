@@ -1,3 +1,10 @@
+## 0.1.2.13 (2026-11-09) [testing]
+
+- **Removed the AI decision layer.** The optional relayed decision model (focus picking, Limit Break firing and the healer-call shadow lines, with their "call the shots" settings row and its relay address field) is gone from the plugin. No fight snapshot is built or sent anywhere anymore, and the plugin makes no decision calls of any kind.
+- Targeting, Guard, Recuperate, the defensive table, StickyTarget and every other rotation behavior are unchanged. The defensive rules keep reading real HP (current HP out of the maximum) under the neutral name `RealHp.HpRatio`; no threshold or default moved.
+- PvP Solver still never moves the character and never fires a PvP Limit Break on its own logic, exactly as before.
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## 0.1.2.12 (2026-11-06) [testing]
 
 - **The Jev co-pilot logs the plain code rule's answer beside Jev's, for both of its questions.** Each `JV|focus-pick` line names the enemy Jev picked and the enemy the plain rule would pick (the lowest-HP enemy in attack range); each `JV|lb-shadow` line names Jev's Limit Break call and the code rule's. Both answers are recorded side by side and graded after the session, to show which one decides better. Log only: targeting, Limit Break firing and every other behavior are unchanged.

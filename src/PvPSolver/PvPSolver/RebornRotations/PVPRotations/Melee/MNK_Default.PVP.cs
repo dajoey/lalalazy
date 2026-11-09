@@ -39,7 +39,7 @@ public sealed class MNK_DefaultPvP : MonkRotation
 		}
 
 		var self = Player;
-		if (self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= EarthsReplyPercent && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance))
+		if (self is { } && RealHp.HpRatio(self.CurrentHp, self.MaxHp) <= EarthsReplyPercent && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance))
 		{
 			if (EarthsReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true, skipStatusNeed: true))
 			{
@@ -47,12 +47,12 @@ public sealed class MNK_DefaultPvP : MonkRotation
 			}
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth) && RiddleOfEarthPvP.CanUse(out action) && InCombat && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth) && RiddleOfEarthPvP.CanUse(out action) && InCombat && self is { } && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth))
 		{
 			return true;
 		}
 
-		if (BloodbathPvP.CanUse(out action) && self is { } && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
+		if (BloodbathPvP.CanUse(out action) && self is { } && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 		{
 			return true;
 		}

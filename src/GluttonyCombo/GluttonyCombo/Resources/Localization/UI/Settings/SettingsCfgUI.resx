@@ -814,21 +814,9 @@ Also: /gluttony movelog on|off|toggle|status</value>
     <value>On</value>
   </data>
   <data name="MovementPlannerShadow_helpMark" xml:space="preserve">
-    <value>The shadow move planner. For each nearby hostile cast it builds a few checked candidate spots a few seconds ahead (each with its consequence: arrival time, GCDs lost, distance from the party centre), picks one by a plain code rule, and writes ONE MP| line with the options, the code pick and Jev's pick. Nothing is executed: BossMod Reborn still does all dodging, no preset is touched, the character is never moved. Needs the movement recorder's hazards, so it runs only while a pull is on, and never in PvP.</value>
+    <value>The shadow move planner. For each nearby hostile cast it builds a few checked candidate spots a few seconds ahead (each with its consequence: arrival time, GCDs lost, distance from the party centre), picks one by a plain code rule, and writes ONE MP| line with the options and the code pick. Nothing is executed: BossMod Reborn still does all dodging, no preset is touched, the character is never moved. Needs the movement recorder's hazards, so it runs only while a pull is on, and never in PvP.</value>
   </data>
   <data name="MovementPlannerShadow_recommendedValue" xml:space="preserve">
-    <value>On</value>
-  </data>
-  <data name="MovementJevQuestions_Name" xml:space="preserve">
-    <value>Movement Jev Questions</value>
-  </data>
-  <data name="MovementJevQuestions_defaultValue" xml:space="preserve">
-    <value>On</value>
-  </data>
-  <data name="MovementJevQuestions_helpMark" xml:space="preserve">
-    <value>Let the shadow move planner also ask Jev the same question through the LAN relay (at most one call a second, the relay's own daily cap for the move mode, stop cleanly at the cap). The code rule's pick is logged either way; Jev's pick beside it is for grading. Off = the planner stays purely local. The relay URL is set with /gluttony movelog relay (command only).</value>
-  </data>
-  <data name="MovementJevQuestions_recommendedValue" xml:space="preserve">
     <value>On</value>
   </data>
 </root>

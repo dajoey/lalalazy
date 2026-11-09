@@ -364,9 +364,6 @@ internal static class MajorUpdater
 			// Change RS state
 			RSCommands.UpdateRotationState();
 
-			// "Let Jev call the shots": at most one relay call a second, never awaited here.
-			JevCaller.Update();
-
 			if (Service.Config.TeachingMode)
 			{
 				try

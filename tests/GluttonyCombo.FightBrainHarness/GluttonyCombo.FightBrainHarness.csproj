@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Fight Brain 1a (notebook Projects/Jev Fight Brain): offline asserts of the pure
+  <!-- Fight Brain offline asserts of the pure
        forecast cores, compiled from the REAL
        src/GluttonyCombo/GluttonyCombo/AutoRotation/FightBrain/FightBrainHit.cs — any
        Dalamud type leaking in breaks this build, which is the point.
@@ -21,7 +21,5 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainHit.cs" Link="FightBrainHit.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainPlanCore.cs" Link="FightBrainPlanCore.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\FightBrain\FightBrainCalloutCore.cs" Link="FightBrainCalloutCore.cs" />
   </ItemGroup>
 </Project>

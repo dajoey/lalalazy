@@ -1,6 +1,6 @@
 // Fork (Fight Brain 1a): the countdown strip — a small, click-through list of what the code
 // forecast says is coming, newest first. CODE FORECASTS ONLY, exactly as the notebook page
-// scopes Stage 1a: no Jev pick is shown until a question has passed its grade.
+// scopes Stage 1a.
 
 using Dalamud.Interface.Utility;
 using ECommons.DalamudServices;

@@ -679,7 +679,7 @@ public partial class CustomRotation
 
 			// Self-defence reads REAL HP, same as the Guard branch in EmergencyAbility: the predicted
 			// value (pending heals added) can read healthy while the body dies.
-			if (GuardPvP.CanUse(out act) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= Service.Config.HealthForGuard && !StatusHelper.PlayerHasStatus(true, StatusID.UndeadRedemption) && !StatusHelper.PlayerHasStatus(true, StatusID.InnerRelease_1303))
+			if (GuardPvP.CanUse(out act) && Player is { } self && RealHp.HpRatio(self.CurrentHp, self.MaxHp) <= Service.Config.HealthForGuard && !StatusHelper.PlayerHasStatus(true, StatusID.UndeadRedemption) && !StatusHelper.PlayerHasStatus(true, StatusID.InnerRelease_1303))
 			{
 				return true;
 			}

@@ -3526,37 +3526,12 @@ public struct ActionTargetInfo(IBaseAction action)
 
 			// Hold the current target while our own timed debuff is still running on it instead of
 			// re-picking from scratch on every action (github.com/dajoey/lalalazy issue #4).
-			// A live Jev Limit Break fire goes to Jev's target even over the sticky-target hold below.
-			if (Service.Config.JevCallsShots && DataCenter.IsPvP && JevCaller.PendingLimitBreakTarget is ulong jevLimitBreak)
-			{
-				foreach (var obj in filtered)
-				{
-					if (obj.GameObjectId == jevLimitBreak)
-					{
-						return obj;
-					}
-				}
-			}
-
 			if (Service.Config.StickyTarget)
 			{
 				IBattleChara? sticky = FindStickyTarget(filtered);
 				if (sticky != null)
 				{
 					return sticky;
-				}
-			}
-
-			// "Let Jev call the shots" (Projects/PvP Jev Co-pilot): a fresh Jev focus call goes first when that
-			// enemy is among this action's candidates under the current targeting mode; otherwise the order stands.
-			if (Service.Config.JevCallsShots && DataCenter.IsPvP && JevCall.FocusPick(JevCaller.Latest, JevCaller.Now) is ulong jevFocus)
-			{
-				foreach (var obj in filtered)
-				{
-					if (obj.GameObjectId == jevFocus)
-					{
-						return obj;
-					}
 				}
 			}
 

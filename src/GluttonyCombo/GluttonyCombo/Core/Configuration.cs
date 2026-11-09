@@ -311,7 +311,7 @@ public partial class Configuration : IPluginConfiguration
     [Setting(type: Setting.Type.Toggle)]
     public bool ComboTelemetry = false;
 
-    /// Fork (2026-11-05, Jev Fight Brain decision B): the 10 Hz movement recorder.
+    /// Fork (2026-11-05): the 10 Hz movement recorder.
     /// While a PvE pull is on, one `M|`/`H|` sample set per tick goes to the relay's
     /// /move/ingest (ffxivdb, 365-day retention). Observes only - nothing here moves
     /// the character. PvP is a hard stop.
@@ -321,23 +321,16 @@ public partial class Configuration : IPluginConfiguration
     public bool MovementRecorderOn = true;
 
     /// Fork (2026-11-05): the shadow move planner. For each forecast-ish cast it builds
-    /// checked options and logs ONE `MP|` line (options, code pick, Jev pick). Log only:
+    /// checked options and logs ONE `MP|` line (options, code pick). Log only:
     /// nothing is executed, no BMR preset is touched, the character is never moved.
     /// <seealso cref="Data.MovementPlanner"/>
     [SettingCategory(Rotation_Behavior_Options)]
     [Setting(type: Setting.Type.Toggle)]
     public bool MovementPlannerShadow = true;
 
-    /// Fork (2026-11-05): let the shadow move planner also ask Jev through the relay
-    /// (at most one call a second, the relay's own daily cap for the "move" mode).
-    /// <seealso cref="Data.MovementPlanner"/>
-    [SettingCategory(Rotation_Behavior_Options)]
-    [Setting(type: Setting.Type.Toggle)]
-    public bool MovementJevQuestions = true;
-
     /// <summary>
-    ///     Fork (2026-11-05): the relay base URL for the movement ingest and move questions.
-    ///     LAN address, never proxied, same default as PvP Solver's JevRelayUrl. Change with
+    ///     Fork (2026-11-05): the relay base URL for the movement ingest.
+    ///     LAN address, never proxied. Change with
     ///     <c>/gluttony movelog relay &lt;url&gt;</c>; since 2026-11-06 a blank value falls
     ///     back to the shared default instead of switching the uploads off (uploads stop with
     ///     <c>/gluttony movelog off</c>).

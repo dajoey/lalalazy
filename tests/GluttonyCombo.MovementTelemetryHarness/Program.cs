@@ -4,7 +4,7 @@ using GluttonyCombo.Data;
 namespace GluttonyCombo.MovementTelemetryHarness;
 
 /// <summary>
-///     Offline assertions on the fork's movement tap (2026-11-05, Jev Fight Brain decision B).
+///     Offline assertions on the fork's movement tap (2026-11-05).
 ///     Compiles the real <see cref="MovementFormat"/> - no Dalamud, no game - so the M|/H|/MP|
 ///     shapes the relay ingest and the ffxivdb tables depend on are proven before shipping.
 /// </summary>

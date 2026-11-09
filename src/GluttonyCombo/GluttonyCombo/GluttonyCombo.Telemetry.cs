@@ -50,7 +50,7 @@ public sealed partial class GluttonyCombo
     }
 
     /// <summary>
-    ///     Fork (2026-11-05, Jev Fight Brain decision B): install the movement tap. Lives in
+    ///     Fork (2026-11-05): install the movement tap. Lives in
     ///     this fork-owned file so the entry file stays out of the movement feature entirely.
     ///     The tap's Dispose rides PluginInterface.Disposing.
     ///     2026-11-06 fix (movement.install NullReferenceException at Telemetry.cs:61, every

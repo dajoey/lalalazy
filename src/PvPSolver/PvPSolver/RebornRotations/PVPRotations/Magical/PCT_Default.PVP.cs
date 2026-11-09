@@ -23,7 +23,7 @@ public class PCT_DefaultPvP : PictomancerRotation
 	#region oGCDs
 	protected override bool DefenseSingleAbility(IAction nextGCD, out IAction? action)
 	{
-		if (TemperaCoatPvP.CanUse(out action) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) <= TempuraThreshold)
+		if (TemperaCoatPvP.CanUse(out action) && Player is { } self && RealHp.HpRatio(self.CurrentHp, self.MaxHp) <= TempuraThreshold)
 		{
 			return true;
 		}

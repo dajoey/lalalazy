@@ -11,16 +11,18 @@ namespace GluttonyCombo.Data;
 
 /// <summary>
 ///     The movement tap's one transport: batches <c>M|</c>/<c>H|</c>/<c>MP|</c> lines and POSTs
-///     them to the PvP Jev relay's <c>/move/ingest</c> endpoint on jobunthree, which alone writes
-///     ffxivdb (the game PC never sees a credential, same trust line as the Jev calls). Nothing
+///     them to the movement ingest endpoint (<c>/move/ingest</c>) on jobunthree, which alone writes
+///     ffxivdb (the game PC never sees a credential). Nothing
 ///     here touches the game thread: the batch is filled on the framework tick (one list add per
 ///     line) and the POST runs on a pool thread with a single request in flight; any failure just
 ///     drops the batch and counts it. Nothing here moves the character or presses anything.
+///     The decision-question transport that used to share this client was removed on
+///     2026-11-09 with the AI decision layer; the ingest path is unchanged.
 /// </summary>
 internal static class MovementUploader
 {
     /// <summary>
-    ///     LAN relay base, overridable in config like PvP Solver's JevRelayUrl. Owned by
+    ///     LAN relay base, overridable in config. Owned by
     ///     <see cref="MovementFormat"/> since 2026-11-06 so the harness pins it; a blank
     ///     config falls back to this (it used to switch the uploads off silently).
     /// </summary>
@@ -125,38 +127,5 @@ internal static class MovementUploader
         if (dropped > 0)
             LalaTelemetry.Swallowed("movement.ingest",
                 new Exception($"{dropped} movement batch(es) dropped - relay /move/ingest unreachable"));
-    }
-
-    /// <summary>
-    ///     One Jev question via the relay's <c>POST /decide</c> (mode "move"). Returns the picked
-    ///     option id (or -1) and a short reason token: <c>ok</c>, <c>cap</c>, <c>down</c>,
-    ///     <c>slow</c>, <c>bad</c>. Never throws; never touches the game thread.
-    /// </summary>
-    public static async Task<(int Pick, string Why)> DecideAsync(string snapshotJson)
-    {
-        try
-        {
-            var base_ = RelayBaseUrl.TrimEnd('/');
-            using var content = new StringContent(snapshotJson, Encoding.UTF8, "application/json");
-            using var resp = await Http.PostAsync(base_ + "/decide", content).ConfigureAwait(false);
-            var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if ((int)resp.StatusCode == 429)
-                return (-1, "cap");
-            if (!resp.IsSuccessStatusCode)
-                return (-1, "down");
-            // The move answer is {"move": <option id>, "move_conf": ...}; parse only that.
-            using var doc = System.Text.Json.JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("move", out var move) && move.TryGetInt32(out var pick) && pick >= 0)
-                return (pick, "ok");
-            return (-1, "none");
-        }
-        catch (TaskCanceledException)
-        {
-            return (-1, "slow");
-        }
-        catch (Exception)
-        {
-            return (-1, "down");
-        }
     }
 }

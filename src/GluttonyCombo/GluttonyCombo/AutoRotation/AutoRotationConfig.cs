@@ -41,29 +41,20 @@ public class AutoRotationConfig
 
 /// <summary>
 ///     Fork (Fight Brain 1a): the log-only Fight Brain. Everything here only reads, logs
-///     (FB| lines) and draws the countdown strip — nothing presses an action. Jev's shadow
-///     mitigate questions go to the LAN relay (its own pve daily cap); an empty relay URL
-///     switches them off. Deliberately not exposed over IPC: only the user controls it.
+///     (FB| lines) and draws the countdown strip — nothing presses an action and nothing
+///     sends a snapshot anywhere (the AI decision layer was removed 2026-11-09).
+///     Deliberately not exposed over IPC: only the user controls it.
 /// </summary>
 public class FightBrainSettings
 {
-    /// <summary> The whole module (forecast reads, FB| lines, cast-gate shadow, the strip, shadow asks). </summary>
+    /// <summary> The whole module (forecast reads, FB| lines, cast-gate shadow, the strip, party shadow rules). </summary>
     public bool Enabled = true;
 
-    /// <summary> The countdown strip draws the code forecast only (never a Jev pick). </summary>
+    /// <summary> The countdown strip draws the code forecast. </summary>
     public bool ShowStrip = true;
 
-    /// <summary> The ~/ops/pvp-jev relay /decide endpoint; empty switches the shadow asks off. </summary>
-    public string RelayUrl = "http://192.168.10.44:8797/decide";
-
-    /// <summary> Card 609a863c Part A: the pre-pull plan reader (party finder text + one Jev question per pull, logged). </summary>
-    public bool PlanReader = true;
-
-    /// <summary> Card 609a863c Part B: the party-data shadow rules (party-mit tally, position-zone lines). </summary>
+    /// <summary> The party-data shadow rules (party-mit tally, position-zone lines). </summary>
     public bool PartyShadow = true;
-
-    /// <summary> Card 271c4b4e: the party-callout reader (party/alliance chat in combat joined to live state, one Jev question per line, logged). </summary>
-    public bool CalloutReader = true;
 }
 
 public class DPSSettings

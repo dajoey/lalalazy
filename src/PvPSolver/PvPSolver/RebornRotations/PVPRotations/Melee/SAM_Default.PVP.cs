@@ -36,7 +36,7 @@ public sealed class SAM_DefaultPvP : SamuraiRotation
 
 		if (BloodbathPvP.CanUse(out action))
 		{
-			if (Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
+			if (Player is { } self && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 			{
 				return true;
 			}

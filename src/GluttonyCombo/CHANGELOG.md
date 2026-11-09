@@ -1,3 +1,10 @@
+## v1.0.4.337 (2026-11-09) [testing]
+### Removed
+- **The AI decision layer is gone.** The Fight Brain's question side - the raidwide mitigation ask, the pre-pull plan reader (party finder text and the `/gluttony plan` note command), and the party-callout reader - has been removed from the plugin, together with its relay address setting and the two "Plan Reader"/"Callout Reader" switches. GluttonyCombo no longer asks any decision model anything, sends no snapshot anywhere, and keeps no relay URL: the only network path it still uses is the movement tap's `/move/ingest` upload, which records the movement profiles and never carried a decision.
+- What stays is pure code and unchanged: the rotation and every combo, the Fight Brain forecast reads and `FB|forecast` lines, the countdown strip, the shadow cast-gate lines, the party-data shadow rules (`FB|party-mit`, `FB|pos-zone`), and the movement recorder and shadow move planner. The move planner's `MP|` decision lines keep their exact format and now always carry the code pick only.
+- The shadow move planner no longer has its ask-side toggle; `/gluttony movelog` now switches the recorder and the planner together, and its status line reads two switches instead of three.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
 ## v1.0.4.336 (2026-11-09) [testing]
 ### Fixed
 - **Saving a custom action to a hotbar while in PvP now writes the PvP layout.** The custom-action editor's hotbar save told the game the write was a normal-slot write regardless of the current content, so a save made while in PvP updated the regular hotbar set instead of the PvP one; the call now passes the content check (upstream's fix), so the PvP variant of the slot is the one written.

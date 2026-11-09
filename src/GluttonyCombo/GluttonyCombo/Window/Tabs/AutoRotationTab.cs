@@ -122,8 +122,8 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSTargettingMode);
 
-            // Fork (Fight Brain 1a): log-only Fight Brain — the forecast strip and the shadow
-            // mitigate asks. Nothing here changes what the rotation presses.
+            // Fork (Fight Brain 1a): log-only Fight Brain — the forecast strip and the party
+            // shadow rules. Nothing here changes what the rotation presses.
             if (ImGui.CollapsingHeader("Fight Brain (log-only)"))
             {
                 var fb = cfg.FightBrain;
@@ -131,33 +131,15 @@ internal class AutoRotationTab : ConfigWindow
                 changed |= ImGui.Checkbox("Show the countdown strip", ref fb.ShowStrip);
                 ImGuiComponents.HelpMarker(
                     "The strip lists what the code forecast says is coming (BossMod Reborn's " +
-                    "timeline and hints plus enemy casts), code forecasts only. It never shows " +
-                    "a Jev pick: every question stays shadow until it passes its grade.");
-                changed |= ImGui.Checkbox("Plan Reader (Jev)", ref fb.PlanReader);
+                    "timeline and hints plus enemy casts), code forecasts only.");
                 changed |= ImGui.Checkbox("Party Shadow", ref fb.PartyShadow);
-                changed |= ImGui.Checkbox("Callout Reader (Jev)", ref fb.CalloutReader);
                 ImGuiComponents.HelpMarker(
-                    "Plan Reader (Jev): at each pull start the party finder text of the group " +
-                    "in the party (plus /gluttony plan <note>) is read and the relay is asked " +
-                    "once which candidate cooldown plan fits it - one FB|plan line, log only. " +
                     "Party Shadow: the FB|party-mit mitigation tally and the FB|pos-zone " +
-                    "position lines. Callout Reader (Jev): while in combat inside a duty, " +
-                    "short party and alliance chat lines are read, joined to the live state " +
-                    "(head markers and on whom, tethers, party positions, the forecast's next " +
-                    "mechanic), and the relay is asked which candidate response each line " +
-                    "means - one FB|callout line, log only; the head-marker signs, tethers, " +
-                    "positions and forecast are what the code reads, not the map waymarks. " +
-                    "All three default on and log only; clearing the relay URL switches " +
-                    "their questions off.");
-                changed |= ImGui.InputText("Relay URL (shadow mitigate asks)", ref fb.RelayUrl, 256);
-                ImGuiComponents.HelpMarker(
-                    "The LAN relay that asks Jev the healer's raidwide mitigation question in " +
-                    "shadow. Clear it to switch the asks off; the forecast, the strip and the " +
-                    "cast-gate lines keep working without it.");
+                    "position lines. Log only, pure code.");
                 ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
                     "Log-only: the Fight Brain never presses an action. The forecast, the " +
-                    "cast-gate shadow and the mitigate questions only write FB| lines and the " +
-                    "countdown strip.");
+                    "cast-gate shadow and the party shadow rules only write FB| lines and " +
+                    "draw the countdown strip.");
             }
 
             // Fork (1.0.4.258): out-of-range fallback - decision core AutoRotation/RangeFallbackGate.cs.

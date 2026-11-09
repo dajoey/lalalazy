@@ -21,8 +21,8 @@ using Lalalazy.Telemetry;
 namespace GluttonyCombo.Data;
 
 /// <summary>
-///     The 10 Hz movement recorder (fork, 2026-11-05; decision B of the Jev Fight Brain plan,
-///     part 1). While a pull is on in a PvE duty it samples, a hundred times a second times ten
+///     The 10 Hz movement recorder (fork, 2026-11-05, part 1 of the movement tap). While a
+///     pull is on in a PvE duty it samples, a hundred times a second times ten
 ///     (10 Hz): Joey's position, facing and whether a movement key is held, every party member's
 ///     position and facing, every casting hostile (the telegraph signal), head markers, and the
 ///     self/BMR activity flags. Lines go to the relay's <c>/move/ingest</c> (ffxivdb, 365-day

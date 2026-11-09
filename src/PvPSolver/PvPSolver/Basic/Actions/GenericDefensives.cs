@@ -51,7 +51,7 @@ internal static class GenericDefensives
         long now = Environment.TickCount64;
         // Self-defence rows read REAL HP (current over max), not the predicted value with pending
         // heals added: the predicted read misses the moment the body is actually dying.
-        float health = JevCall.HpRatio(player.CurrentHp, player.MaxHp);
+        float health = RealHp.HpRatio(player.CurrentHp, player.MaxHp);
         foreach (DefensiveRow row in rows)
         {
             if (row.Mode != DefensiveMode.Fire)
@@ -106,7 +106,7 @@ internal static class GenericDefensives
         Configs config = Service.Config;
         DefensiveRow row = DefensiveTable.Recuperate;
         // Real HP, same as TryFire: the Recuperate row protects the body taking damage now.
-        float ratio = player is null ? float.NaN : JevCall.HpRatio(player.CurrentHp, player.MaxHp);
+        float ratio = player is null ? float.NaN : RealHp.HpRatio(player.CurrentHp, player.MaxHp);
         return DefensiveGate.RecuperateAllows(config.DefensiveActive(row), ratio, config.DefensivePercent(row));
     }
 

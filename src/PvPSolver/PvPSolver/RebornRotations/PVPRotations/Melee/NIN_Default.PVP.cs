@@ -25,7 +25,7 @@ public sealed class NIN_DefaultPvP : NinjaRotation
 			return base.EmergencyAbility(nextGCD, out action);
 		}
 
-		if (BloodbathPvP.CanUse(out action) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
+		if (BloodbathPvP.CanUse(out action) && Player is { } self && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < BloodBathPvPPercent)
 		{
 			return true;
 		}
@@ -92,7 +92,7 @@ public sealed class NIN_DefaultPvP : NinjaRotation
 			return true;
 		}
 
-		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Meisui) && Player is { } self && JevCall.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Meisui))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Meisui) && Player is { } self && RealHp.HpRatio(self.CurrentHp, self.MaxHp) < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Meisui))
 		{
 			if (MeisuiPvP.CanUse(out action))
 			{

@@ -90,7 +90,7 @@ public class BLM_DefaultPVP : BlackMageRotation
 		}
 
 		if (XenoglossyPvP.CanUse(out action, usedUp: true)
-			&& Player is { } self && (JevCall.HpRatio(self.CurrentHp, self.MaxHp) < XenoglossyLowHP || JevCall.HpRatio(self.CurrentHp, self.MaxHp) > XenoglossyHighHP))
+			&& Player is { } self && (RealHp.HpRatio(self.CurrentHp, self.MaxHp) < XenoglossyLowHP || RealHp.HpRatio(self.CurrentHp, self.MaxHp) > XenoglossyHighHP))
 		{
 			return true;
 		}

@@ -1,7 +1,7 @@
 // Fork (Fight Brain 1a): the forecast's data model and its pure merge/drop rules.
 // Deliberately free of Dalamud and ECommons types so the offline harness
 // (tests/GluttonyCombo.FightBrainHarness) compiles THIS file and asserts the
-// exact semantics that ship — notebook Projects/Jev Fight Brain, "Rules":
+// exact semantics that ship — the Fight Brain rules:
 // duplicate entries for the same hit within 3 s merge and the most specific
 // source sets the time; anything 3 s overdue is dropped.
 

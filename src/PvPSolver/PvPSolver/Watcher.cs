@@ -187,9 +187,6 @@ public static class Watcher
 				return;
 			}
 
-			// Before the no-target-effects exit: a Jev Limit Break that hits nobody still went off.
-			JevCaller.NoteActionEffect(set.Action!.Value.RowId);
-
 			if (set.TargetEffects.Length == 0)
 			{
 				//PluginLog.Debug("ActionFromSelf: No TargetEffects. Exiting.");
@@ -202,7 +199,6 @@ public static class Watcher
 			// Record
 			//PluginLog.Debug($"ActionFromSelf: ActionType is {set.Header.ActionType}.");
 			DataCenter.AddActionRec(action!.Value);
-			JevCaller.NoteActionUsed(action.Value.RowId, tar?.GameObjectId);
 			ShowStrSelf = set.ToString();
 
 			DataCenter.HealHP = set.GetSpecificTypeEffect(ActionEffectType.Heal);

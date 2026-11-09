@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
@@ -14,20 +12,19 @@ using Lalalazy.Telemetry;
 namespace GluttonyCombo.Data;
 
 /// <summary>
-///     The Jev move planner, <b>shadow</b> (fork, 2026-11-05; decision B of the Jev Fight Brain
-///     plan, part 2). For each casting hostile that lands within the horizon it builds a few
-///     checked options a few seconds ahead - when to leave, which spot (near the group, least
-///     travel), how long to stay (v1: one arrival decision per cast) - carries each option's
-///     consequence, picks one by a plain code rule, and asks Jev the same question in shadow
-///     (at most one relay call a second, its own daily cap, stop cleanly at the cap).
-///     It logs ONE <c>MP|</c> line per decision: the options, the code pick, Jev's pick.
+///     The shadow move planner (fork, 2026-11-05; part 2 of the movement tap). For each
+///     casting hostile that lands within the horizon it builds a few checked options a few
+///     seconds ahead - when to leave, which spot (near the group, least travel), how long to
+///     stay (v1: one arrival decision per cast) - carries each option's consequence, and
+///     picks one by a plain code rule.
+///     It logs ONE <c>MP|</c> line per decision: the options and the code pick.
 ///     What BMR actually did and what Joey actually did are not logged here - the 10 Hz
 ///     recorder captures both, and the grader joins them.
 /// </summary>
 /// <remarks>
 ///     <b>Log only.</b> This class never presses a button, never writes a BMR preset or transient,
-///     never calls pathfinding, and never moves the character - its only outputs are lines and one
-///     relay question. Executing the motion (curved path, natural start and stop, timing drawn from
+///     never calls pathfinding, and never moves the character - its only outputs are lines.
+///     Executing the motion (curved path, natural start and stop, timing drawn from
 ///     the human profile) is a later build behind the Fight Brain fail-safes, gated on these shadow
 ///     results. When stock BMR is present its <c>Hints.IsDashSafe</c> endpoint checks each spot;
 ///     when it is absent the options say so (<c>c0</c>) and the code rule downgrades to
@@ -42,12 +39,9 @@ internal static class MovementPlanner
     private const float GcdSeconds = 2.5f;
     private const float StayNearCasterYalms = 6f;  // inside this radius a cast is "his problem"
     private const float StepOutYalms = 7f;         // candidate spots sit this far from the current spot
-    private const long MinJevGapMs = 1000;         // the plan-wide one-call-a-second budget
 
     private static readonly object Lock = new();
     private static long _lastTick;
-    private static long _lastJevMs = long.MinValue;
-    private static int _jevInFlight;
 
     private sealed class CastState
     {
@@ -81,9 +75,6 @@ internal static class MovementPlanner
             }
 
             var partyMean = PartyMean(playerPos);
-            var jevAllowed = Service.Configuration.MovementJevQuestions
-                             && Interlocked.CompareExchange(ref _jevInFlight, 1, 0) == 0
-                             && nowMs - _lastJevMs >= MinJevGapMs;
 
             foreach (var h in hazards)
             {
@@ -120,16 +111,7 @@ internal static class MovementPlanner
                 state.Decisions++;
                 state.LastSignature = signature;
 
-                if (jevAllowed)
-                {
-                    Interlocked.Exchange(ref _lastJevMs, nowMs);
-                    AskJevAsync(decisionMs, pullId, zoneId, h, options, codePick, codeWhy);
-                }
-                else
-                {
-                    Emit(decisionMs, pullId, zoneId, h, options, codePick, -1,
-                         codeWhy, Service.Configuration.MovementJevQuestions ? "busy" : "off");
-                }
+                Emit(decisionMs, pullId, zoneId, h, options, codePick, codeWhy);
             }
 
             // Drop bookkeeping for casts that ended (the dictionary stays tiny either way).
@@ -269,65 +251,21 @@ internal static class MovementPlanner
         return true;
     }
 
-    // ---------------------------------------------------------------- Jev (shadow)
-
-    private static void AskJevAsync(
-        long decisionMs, uint pullId, uint zoneId, MovementRecorder.Hazard h,
-        List<MovementFormat.MoveOption> options, int codePick, string codeWhy)
-    {
-        var snapshot = BuildSnapshot(h, options);
-        Task.Run(async () =>
-        {
-            try
-            {
-                var (jevPick, jevWhy) = await MovementUploader.DecideAsync(snapshot).ConfigureAwait(false);
-                Emit(decisionMs, pullId, zoneId, h, options, codePick, jevPick, codeWhy, jevWhy);
-            }
-            catch (Exception ex)
-            {
-                LalaTelemetry.Swallowed("movement.planner.jev", ex);
-                Emit(decisionMs, pullId, zoneId, h, options, codePick, -1, codeWhy, "error");
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _jevInFlight, 0);
-            }
-        });
-    }
-
-    private static string BuildSnapshot(MovementRecorder.Hazard h, List<MovementFormat.MoveOption> options)
-    {
-        var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var sb = new StringBuilder(512);
-        sb.Append("{\"v\":1,\"mode\":\"move\",\"job\":\"").Append(Player.Job.ToString())
-          .Append("\",\"cast\":").Append(h.CastActionId)
-          .Append(",\"hit_in\":").Append(h.RemainS.ToString("F1", inv))
-          .Append(",\"opts\":[");
-        for (var i = 0; i < options.Count; i++)
-        {
-            var o = options[i];
-            if (i > 0)
-                sb.Append(',');
-            sb.Append("{\"i\":").Append(o.Id)
-              .Append(",\"arrive\":").Append(o.ArriveInS.ToString("F2", inv))
-              .Append(",\"gcd\":").Append(o.GcdsLost.ToString("F2", inv))
-              .Append(",\"party\":").Append(o.PartyDist.ToString("F1", inv))
-              .Append(",\"chk\":").Append(o.BmrChecked ? '1' : '0').Append('}');
-        }
-
-        sb.Append("]}");
-        return sb.ToString();
-    }
+    // ------------------------------------------------------------- emit (log + ingest)
 
     private static void Emit(
         long decisionMs, uint pullId, uint zoneId, MovementRecorder.Hazard h,
-        List<MovementFormat.MoveOption> options, int codePick, int jevPick, string codeWhy, string jevWhy)
+        List<MovementFormat.MoveOption> options, int codePick, string codeWhy)
     {
         try
         {
+            // The MP| wire format keeps its second pick slot for schema stability (the
+            // movement database's decision table parses it); the decision layer that used
+            // to fill it was removed, so it now always carries "-"/"off", the same values
+            // it carried whenever the ask side was switched off before.
             var line = MovementFormat.BuildDecisionLine(
                 decisionMs, pullId, zoneId, h.CastActionId, h.RemainS,
-                options, codePick, jevPick, codeWhy, jevWhy);
+                options, codePick, jevPick: -1, codeWhy, jevWhy: "off");
             Svc.Log.Information(line);
             MovementUploader.Enqueue(line);
         }

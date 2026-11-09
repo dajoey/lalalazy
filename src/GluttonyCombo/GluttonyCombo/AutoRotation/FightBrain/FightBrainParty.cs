@@ -3,7 +3,7 @@
 // would have done, beside what actually happened. LOG ONLY: nothing here presses an
 // action or moves anyone.
 //   FB|party-mit   which party member used which mitigation and when (status-gain diff),
-//                  so our own mitigation choice (FB|mitigate) can be judged against overlap
+//                  the mitigation-overlap tally
 //   FB|pos-zone    while a forecast zone is active or incoming: party spread, how many
 //                  members stand in an unsafe position, and what a spread rule would do
 // Member labels are job + slot index only — player names are never logged.
