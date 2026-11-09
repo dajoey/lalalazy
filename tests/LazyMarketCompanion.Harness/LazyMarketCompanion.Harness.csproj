@@ -16,6 +16,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchScope.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\ListingConfirmation.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PriceMath.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchKeyEdge.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchPreflight.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\AllaganFlags.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketGate.cs" />
@@ -66,6 +67,7 @@
     <Compile Include="StallCases.cs" />
     <Compile Include="ConfigurationStubs.cs" />
     <Compile Include="PanelFilterCases.cs" />
+    <Compile Include="PinchKeyCases.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>
