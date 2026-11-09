@@ -36,6 +36,6 @@ internal static class PinchKeyCases
     // cannot know history before its first read; upstream's port source behaves the same.
     was = false;
     var first = PinchKeyEdge.Consume(true, ref was);
-    check("174 pinch key: key already down on the first drawn frame fires once", first);
+    check("174 pinch key: key already down on the first drawn frame fires once", first, "");
   }
 }
