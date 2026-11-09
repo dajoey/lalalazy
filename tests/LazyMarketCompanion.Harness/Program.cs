@@ -5910,6 +5910,9 @@ StallCases.Run((name, ok, detail) => Check(name, ok, detail));
 // 170-173. The panel filter dropdowns remember their setting (0.2.8.15): see PanelFilterCases.cs.
 PanelFilterCases.Run((name, ok, detail) => Check(name, ok, detail));
 
+// 174. The pinch-hotkey edge reader (0.2.8.18): see PinchKeyCases.cs.
+PinchKeyCases.Run((name, ok, detail) => Check(name, ok, detail));
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

@@ -47,6 +47,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _universalisPriceRequestId;
   private bool _disposed;
   private CancellationTokenSource? _universalisPriceRequestCts;
+  // The pinch hotkey's edge state (0.2.8.18, ported from upstream Dagobert 0020488611): see
+  // PinchKeyEdge.Consume. One cell shared by the retainer list and sell list draws, consumed
+  // once per frame in Draw.
+  private bool _pinchKeyWasDown;
 
   // Auto-market run bookkeeping
   private readonly List<ListingOp> _listedThisRetainer = [];
@@ -361,8 +365,12 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (_buybackParkRequested)
         BuybackParkStop();
       ArSessionWatchdog();
-      DrawForRetainerList();
-      DrawForRetainerSellList();
+      // The pinch hotkey is consumed as an edge once per frame (0.2.8.18, ported from upstream
+      // Dagobert 0020488611): one press is one fire, a held key does not repeat.
+      var pinchKeyPressed = PinchKeyEdge.Consume(
+        Plugin.Configuration.EnablePinchKey && Plugin.KeyState[Plugin.Configuration.PinchKey], ref _pinchKeyWasDown);
+      DrawForRetainerList(pinchKeyPressed);
+      DrawForRetainerSellList(pinchKeyPressed);
     }
     catch (Exception ex)
     {
@@ -379,13 +387,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
   }
 
-  private void DrawForRetainerList()
+  private void DrawForRetainerList(bool pinchKeyPressed)
   {
     unsafe
     {
       if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) && GenericHelpers.IsAddonReady(addon))
       {
-        if (Plugin.Configuration.EnablePinchKey && Plugin.KeyState[Plugin.Configuration.PinchKey])
+        if (pinchKeyPressed)
           SweepAllRetainers(Plugin.Configuration.AutoMarketInPinchAllSweep);
 
         var node = addon->UldManager.NodeList[27];
@@ -399,13 +407,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
   }
 
-  private void DrawForRetainerSellList()
+  private void DrawForRetainerSellList(bool pinchKeyPressed)
   {
     unsafe
     {
       if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon))
       {
-        if (Plugin.Configuration.EnablePinchKey && Plugin.KeyState[Plugin.Configuration.PinchKey])
+        if (pinchKeyPressed)
           PinchCurrentRetainer();
 
         var node = addon->UldManager.NodeList[17];

@@ -1,3 +1,9 @@
+## v0.2.8.18 (2026-11-09) [testing]
+### Fixed
+- **Holding the pinch hotkey no longer re-fires the pinch.** The hotkey was read as a level: on every frame the key stayed down the retainer list and sell list draws each re-ran their pinch check, so holding the key queued a new Auto Pinch every drawn frame - and fired again the moment a finished run freed the busy guard. The key is now read as an edge: one press is one fire, and a held key stays quiet until it is released and pressed again (the fix is ported from upstream Dagobert's Auto Pinch, whose absorbed price formula this plugin already carries). Cancelling a run is unchanged: the Cancel button and the /lmc command; the upstream press-again-to-cancel shortcut was deliberately not adopted.
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
 ## v0.2.8.17 (2026-11-06) [testing]
 ### Fixed
 - **The overlay buttons no longer have to cover the retainer windows' own controls.** The Auto Pinch, Auto Market and Sweep to Bags buttons are pinned to the top-right corner of the retainer list and retainer sell list windows, where they can cover the venture currency and the windows' close button (reported in issue #12). Each of the three buttons can now be hidden individually under Settings -> Retainers & Hotkeys -> "Retainer window buttons". A hidden button's action stays reachable through the /lmc subcommands, and the Cancel button shown while a run is in progress is never hidden. All three default to shown, so existing settings keep working exactly as before.
