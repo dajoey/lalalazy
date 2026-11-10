@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <!-- Package Metadata -->
@@ -51,6 +51,10 @@
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
         <DalamudLibPath>$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/dev/</DalamudLibPath>
+    </PropertyGroup>
+    <!-- Patch-day payload override: explicit DALAMUD_HOME wins (see GluttonyCombo.csproj). -->
+    <PropertyGroup Condition="'$(DALAMUD_HOME)' != ''">
+        <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
     </PropertyGroup>
     <!-- Dalamud Requirements -->
     <ItemGroup>

@@ -89,6 +89,12 @@
     <DalamudLibPath>$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/dev/</DalamudLibPath>
     <DalamudDevPlugins>$(HOME)/Library/Application Support/XIV on Mac/devPlugins/</DalamudDevPlugins>
   </PropertyGroup>
+  <!-- Patch-day payload override (2026-11-10): an explicit DALAMUD_HOME wins over the
+       installed dev payload, matching upstream CI semantics, the DalamudPin contract and
+       the ECommons/PunishLib pattern. Normal builds (no DALAMUD_HOME) are unchanged. -->
+  <PropertyGroup Condition="'$(DALAMUD_HOME)' != ''">
+    <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
+  </PropertyGroup>
   <!-- Build Parameter Overrides for Debug -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <OutputPath>$(DalamudDevPlugins)</OutputPath>

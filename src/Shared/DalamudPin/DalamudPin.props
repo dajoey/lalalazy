@@ -34,7 +34,7 @@
       from an archived copy with Update-DalamudPin.ps1 -Source <dir>.
     -->
     <PropertyGroup>
-        <DalamudPinVersion Condition="'$(DalamudPinVersion)' == ''">15.0.3.9</DalamudPinVersion>
+        <DalamudPinVersion Condition="'$(DalamudPinVersion)' == ''">15.0.4.0</DalamudPinVersion>
         <DalamudPinUrl Condition="'$(DalamudPinUrl)' == ''">https://goatcorp.github.io/dalamud-distrib/stg/latest.zip</DalamudPinUrl>
         <DalamudPinEnabled Condition="'$(DalamudPinEnabled)' == ''">true</DalamudPinEnabled>
         <DalamudPinCacheRoot Condition="'$(DalamudPinCacheRoot)' == '' And '$(USERPROFILE)' != ''">$(USERPROFILE)\.dalamud-refs</DalamudPinCacheRoot>
