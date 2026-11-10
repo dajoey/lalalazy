@@ -1,3 +1,6 @@
+## v0.1.9.17 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # LazyCrucible — Changelog
 
 
