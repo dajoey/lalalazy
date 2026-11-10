@@ -1,3 +1,6 @@
+## v0.2.5.3 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # Changelog - AutoPotion
 
 ## v0.2.5.2 (2026-10-10) [testing]
