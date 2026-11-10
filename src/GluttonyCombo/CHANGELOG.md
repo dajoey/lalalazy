@@ -1,3 +1,6 @@
+## v1.0.4.338 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 ## v1.0.4.337 (2026-11-09) [testing]
 ### Removed
 - **The AI decision layer is gone.** The Fight Brain's question side - the raidwide mitigation ask, the pre-pull plan reader (party finder text and the `/gluttony plan` note command), and the party-callout reader - has been removed from the plugin, together with its relay address setting and the two "Plan Reader"/"Callout Reader" switches. GluttonyCombo no longer asks any decision model anything, sends no snapshot anywhere, and keeps no relay URL: the only network path it still uses is the movement tap's `/move/ingest` upload, which records the movement profiles and never carried a decision.
