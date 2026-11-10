@@ -1,3 +1,6 @@
+## v0.1.1.3 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # Changelog
 
 ## v0.1.1.2 (2026-11-07) [testing]
