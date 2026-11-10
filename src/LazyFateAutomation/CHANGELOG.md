@@ -1,3 +1,6 @@
+## v0.0.3.11 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # Changelog - Lazy Fate Automation
 
 ## v0.0.3.10 (2026-10-31) [testing]
