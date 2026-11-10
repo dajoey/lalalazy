@@ -1,3 +1,6 @@
+## v0.2.8.20 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 ## v0.2.8.19 (2026-11-10) [testing]
 ### Fixed
 - **Mannequin listings are now detected on clients in any language.** The mannequin check matched a hardcoded English/German/French list of the context menu's "adjust price" label, so on a client in any other language a mannequin listing was never detected and the automation clicked "adjust price" on a mannequin item. The check now compares the menu against the client's own localized Adjust Price label (the fix is ported from upstream Dagobert's Auto Pinch, whose absorbed price formula this plugin already carries).
