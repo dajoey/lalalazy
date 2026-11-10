@@ -5913,6 +5913,9 @@ PanelFilterCases.Run((name, ok, detail) => Check(name, ok, detail));
 // 174. The pinch-hotkey edge reader (0.2.8.18): see PinchKeyCases.cs.
 PinchKeyCases.Run((name, ok, detail) => Check(name, ok, detail));
 
+// 175. The mannequin listing gate (0.2.8.19): see MannequinCases.cs.
+MannequinCases.Run((name, ok, detail) => Check(name, ok, detail));
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

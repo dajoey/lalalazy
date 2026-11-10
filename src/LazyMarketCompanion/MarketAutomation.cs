@@ -293,7 +293,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       AbortOnTimeout = true
     };
 
-    Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, RetainerSellPostSetup);
+    Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "RetainerSell", RetainerSellPostSetup);
 
     // 0.1.52.0: the reconciliation ledger survives reloads from disk (see
     // LoadReconcileLedger) - otherwise the first sweep after a reload re-fires every
@@ -323,7 +323,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     CancelGateLookup();
     CancelUniversalisPriceRequest();
     _universalisPriceProvider.Dispose();
-    Svc.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, RetainerSellPostSetup);
+    Svc.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "RetainerSell", RetainerSellPostSetup);
     _mbHandler.NewPriceReceived -= MBHandler_NewPriceReceived;
     _mbHandler.Dispose();
     RemoveTalkAddonListeners();
@@ -2775,7 +2775,10 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       var reader = new ReaderContextMenu(addon);
-      if (!IsItemMannequin(reader.Entries))
+      // Addon sheet row 930 is the client's localized "Adjust Price" context-menu label
+      // (upstream Dagobert 811a5cddb: match the client's own text, not a hardcoded language list).
+      var adjustPriceText = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Addon>().GetRow(930).Text.GetText();
+      if (!MannequinGate.IsMannequin(reader.Entries.Select(entry => entry.Name), adjustPriceText))
       {
         Svc.Log.Debug("[LMC] clicking adjust price");
         ECommons.Automation.Callback.Fire(addon, true, 0, 0, 0, 0, 0);
@@ -2789,13 +2792,6 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
     return false;
-  }
-
-  private static bool IsItemMannequin(List<ContextMenuEntry> contextMenuEntries)
-  {
-    return !contextMenuEntries.Any((e) => e.Name.Equals("adjust price", StringComparison.CurrentCultureIgnoreCase)
-                                      || e.Name.Equals("preis \u00e4ndern", StringComparison.CurrentCultureIgnoreCase)
-                                      || e.Name.Equals("changer le prix", StringComparison.CurrentCultureIgnoreCase));
   }
 
   private unsafe bool? DelayMarketBoard()
@@ -3188,6 +3184,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     if (_taskManager.IsBusy)
       return;
+
+    // Fresh prices for a manual post (upstream Dagobert 1c4877485): the previous session's
+    // cached board prices, in-flight lookups and per-run gates must not leak into this one.
+    ClearState();
 
     if (Plugin.Configuration.EnablePostPinchkey && Plugin.KeyState[Plugin.Configuration.PostPinchKey])
     {

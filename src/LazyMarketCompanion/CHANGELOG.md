@@ -1,3 +1,12 @@
+## v0.2.8.19 (2026-11-10) [testing]
+### Fixed
+- **Mannequin listings are now detected on clients in any language.** The mannequin check matched a hardcoded English/German/French list of the context menu's "adjust price" label, so on a client in any other language a mannequin listing was never detected and the automation clicked "adjust price" on a mannequin item. The check now compares the menu against the client's own localized Adjust Price label (the fix is ported from upstream Dagobert's Auto Pinch, whose absorbed price formula this plugin already carries).
+- **The manual post hotkey now starts from fresh prices.** Opening a retainer's sell dialog while the post hotkey was held kept whatever the previous session had left behind - cached board prices, an in-flight price lookup, per-session gates - so the price written into the dialog could be stale. The session state is now cleared when the sell dialog opens, before the post chain runs (the fix is ported from upstream Dagobert's Auto Pinch).
+- **The manual post chain no longer fires from unrelated windows.** The listener behind the post hotkey was registered for every addon opening, so any window that opened while the hotkey was held could queue a manual post chain for a window that was not the retainer sell dialog. It is now scoped to the retainer sell dialog itself (the fix is ported from upstream Dagobert's Auto Pinch).
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.18 (2026-11-09) [testing]
 ### Fixed
 - **Holding the pinch hotkey no longer re-fires the pinch.** The hotkey was read as a level: on every frame the key stayed down the retainer list and sell list draws each re-ran their pinch check, so holding the key queued a new Auto Pinch every drawn frame - and fired again the moment a finished run freed the busy guard. The key is now read as an edge: one press is one fire, and a held key stays quiet until it is released and pressed again (the fix is ported from upstream Dagobert's Auto Pinch, whose absorbed price formula this plugin already carries). Cancelling a run is unchanged: the Cancel button and the /lmc command; the upstream press-again-to-cancel shortcut was deliberately not adopted.
