@@ -1,3 +1,6 @@
+## v0.5.7.1 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # Changelog - ArmoireAutoFill
 
 ## v0.5.7.0 (2026-10-10)
