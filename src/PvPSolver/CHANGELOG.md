@@ -1,3 +1,6 @@
+## v0.1.2.14 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 ## 0.1.2.13 (2026-11-09) [testing]
 
 - **Removed the AI decision layer.** The optional relayed decision model (focus picking, Limit Break firing and the healer-call shadow lines, with their "call the shots" settings row and its relay address field) is gone from the plugin. No fight snapshot is built or sent anywhere anymore, and the plugin makes no decision calls of any kind.
