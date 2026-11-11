@@ -1,3 +1,6 @@
+## v3.2.3.5 (2026-11-10) [testing]
+- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
+
 # Changelog - Lazy WT Math
 
 ## v3.2.3.4 (2026-11-07) [testing]
