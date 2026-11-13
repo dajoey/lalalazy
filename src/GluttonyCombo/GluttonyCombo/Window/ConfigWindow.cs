@@ -1,4 +1,4 @@
-using Dalamud.Interface;
+﻿using Dalamud.Interface;
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -41,7 +41,6 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     /// </summary>
     internal static readonly Dictionary<Preset, (Preset Preset, PresetData Attr)[]> presetChildren = GetPresetChildren();
 
-    internal static float lastLeftColumnWidth;
 
     #region Search Variables
     internal static string Search = string.Empty;
@@ -200,7 +199,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         // Section/feature row (R1 layer 2): icon + live dot; the accent outline marks
         // exactly the selected entry (R4). The AutoRotation entry carries the live dot.
         if (Layout.NavSection("gc_nav_pve", MainWindowUI.Button_PvEFeatures, null,
-                FontAwesomeIcon.ShieldHalved.ToIconString(), UiState.Ready,
+                FontAwesomeIcon.ShieldAlt.ToIconString(), UiState.Ready,
                 OpenWindow == OpenWindow.PvE))
             OpenWindow = OpenWindow.PvE;
 
@@ -210,7 +209,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             OpenWindow = OpenWindow.PvP;
 
         if (Layout.NavSection("gc_nav_autorotation", MainWindowUI.Button_AutoRotation, null,
-                FontAwesomeIcon.Gears.ToIconString(), AutoRotationState(),
+                FontAwesomeIcon.Cogs.ToIconString(), AutoRotationState(),
                 OpenWindow == OpenWindow.AutoRotation))
             OpenWindow = OpenWindow.AutoRotation;
 
@@ -225,7 +224,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             OpenWindow = OpenWindow.Settings;
 
         if (Layout.NavSection("gc_nav_about", MainWindowUI.Button_About, null,
-                FontAwesomeIcon.CircleInfo.ToIconString(), UiState.Ready,
+                FontAwesomeIcon.InfoCircle.ToIconString(), UiState.Ready,
                 OpenWindow == OpenWindow.About))
             OpenWindow = OpenWindow.About;
 
@@ -277,7 +276,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Settings.Draw();
                 break;
             case OpenWindow.About:
-                Layout.PageHeader(null, FontAwesomeIcon.CircleInfo.ToIconString(),
+                Layout.PageHeader(null, FontAwesomeIcon.InfoCircle.ToIconString(),
                     GluttonyCombo.P.Name,
                     "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.",
                     $"{groupedPresets.Values.Sum(list => list.Count)} job presets");
@@ -329,10 +328,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             "Stop",
             out var stopClicked);
         if (stopClicked)
-        {
-            cfg.Enabled = false;
-            Service.Configuration.Save();
-        }
+            AutoRotationController.ToggleAutoRotation(false);
     }
 
     public static void ClearAnySearches()
