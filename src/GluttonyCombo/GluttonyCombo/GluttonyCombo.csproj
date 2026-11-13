@@ -69,6 +69,11 @@
     <Compile Include="..\..\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
     <Using Include="Lalalazy.Crucible" />
   </ItemGroup>
+  <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL
+       (each plugin lives in its own AssemblyLoadContext), same as LalaChangelog. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
   <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
