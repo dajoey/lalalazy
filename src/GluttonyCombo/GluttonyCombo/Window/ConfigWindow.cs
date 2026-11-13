@@ -14,12 +14,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Core;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.Tabs;
+using LalaUiKit;
 using static GluttonyCombo.Core.PresetStorage;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 using Debug = GluttonyCombo.Window.Tabs.Debug;
@@ -134,152 +136,129 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             MinimumSize = new Vector2(700, 100),
         };
 
+    // ---- LalaUiKit conversion (UI Refresh 2026-11, Brief R1-R13) ----
+    // The Dalamud Window base auto-begins/ends this window, so the Shell top bar is
+    // drawn with the same kit primitives Layout.Shell uses, and the suite frame comes
+    // from Theme.PushFrame/PopFrame. Background activity = AutoRotation; its live
+    // state shows in the pill (R3 place 1), the nav dot (place 2) and the footer
+    // with a Stop button (place 3).
+
+    /// <summary>Live state of the plugin's background activity (AutoRotation), per Brief R5.</summary>
+    internal static UiState AutoRotationState()
+    {
+        var cfg = AutoRotationController.cfg;
+        if (cfg is null || !cfg.Enabled)
+            return UiState.Ready;
+        return AutoRotationController.Paused ? UiState.Blocked : UiState.Running;
+    }
+
     public override void Draw()
     {
-        var region = ImGui.GetContentRegionAvail();
-        var topLeftSideHeight = region.Y;
-        var columns = 2;
-        var tableName = "###MainTable";
-        if (Service.Configuration.UILeftColumnCollapsed)
+        Theme.PushFrame();
+        try
         {
-            columns = 1;
-            tableName = "###NoSidebarMainTable";
-        }
-
-        using var style = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(4, 0).Scale());
-        using (var table = ImRaii.Table(tableName, columns, ImGuiTableFlags.Resizable))
-        {
-            if (!table) return;
-
+            DrawTopBar();
             if (!Service.Configuration.UILeftColumnCollapsed)
-                DrawSidebar(topLeftSideHeight);
+                DrawNav();
             else
-                ImGui.Indent(45f.Scale());
-
+                DrawExpandButton();
             DrawBody();
+            DrawFooter();
         }
-
-        DrawCollapseButton();
-
+        finally
+        {
+            Theme.PopFrame();
+        }
 
         Presets.DrawDragDrop();
     }
 
-    public static void ClearAnySearches()
+    private void DrawTopBar()
     {
-        Search = string.Empty;
-        SearchDescription = true;
+        // Top bar: title left, live-state pill right (R3 place 1) — the same primitives
+        // Layout.Shell draws for self-beginning windows.
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted($"{GluttonyCombo.P.Name} {GluttonyCombo.P.GetType().Assembly.GetName().Version}");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        var state = AutoRotationState();
+        Widgets.StatusPill(state, "AutoRotation",
+            state == UiState.Blocked ? "paused" : null, alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
     }
 
-    public override void OnClose()
+    private void DrawNav()
     {
-        ClearAnySearches();
-
-        // Normal close
-        base.OnClose();
-    }
-
-    private void DrawSidebar(float topLeftSideHeight)
-    {
-        var imageSize = new Vector2(125).Scale();
-        var leftColumnFlags = ImGuiTableColumnFlags.WidthFixed;
-        if (lastLeftColumnWidth < imageSize.X)
-            leftColumnFlags |= ImGuiTableColumnFlags.NoResize;
-
-        ImGui.TableSetupColumn("##LeftColumn", leftColumnFlags, imageSize.X + 10f.Scale());
-        ImGui.TableNextColumn();
-
-        var regionSize = ImGui.GetContentRegionAvail();
-        lastLeftColumnWidth = regionSize.X;
-
-        using var alignText = ImRaii.PushStyle(ImGuiStyleVar.SelectableTextAlign, new Vector2(0.5f, 0.5f));
-
-        using var leftSide = (ImRaii.Child("###WrathLeftSide", regionSize with { Y = topLeftSideHeight }, false, ImGuiWindowFlags.NoDecoration));
-        if (!leftSide)
-        {
-            ImGui.Dummy(Vector2.Zero);
-            return;
-        }
-
-        string? imagePath;
-        try
-        {
-            // Use the local image over a remote one
-            imagePath = Path.Combine(
-                Svc.PluginInterface.AssemblyLocation.Directory?.FullName!,
-                "images\\wrathcombo.png");
-            if (EzThrottler.Throttle("logTypeOfWrathIconUsed", 45000))
-                PluginLog.Verbose("Using Local GluttonyCombo Icon");
-        }
-        catch (Exception)
-        {
-            // Fallback to the remote icon if there are any issues
-            imagePath = Svc.PluginInterface.Manifest.IconUrl ?? "";
-            if (EzThrottler.Throttle("logTypeOfWrathIconUsed", 45000))
-                PluginLog.Verbose(
-                    "Using Remote GluttonyCombo Icon\n             " +
-                    Svc.PluginInterface.AssemblyLocation.Directory?.FullName! +
-                    "images\\wrathcombo.png");
-        }
-
-        if (ThreadLoadImageHandler.TryGetTextureWrap(imagePath, out var logo))
-            ImGuiEx.LineCentered("###WrathLogo", () =>
-                ImGui.Image(logo.Handle, imageSize));
-
-        ImGui.Spacing();
-        ImGui.Separator();
-
-        ImGui.Spacing();
-        if (ImGui.Selectable(MainWindowUI.Button_PvEFeatures, OpenWindow == OpenWindow.PvE))
+        // Section/feature row (R1 layer 2): icon + live dot; the accent outline marks
+        // exactly the selected entry (R4). The AutoRotation entry carries the live dot.
+        if (Layout.NavSection("gc_nav_pve", MainWindowUI.Button_PvEFeatures, null,
+                FontAwesomeIcon.ShieldHalved.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.PvE))
             OpenWindow = OpenWindow.PvE;
 
-        ImGui.Spacing();
-        if (ImGui.Selectable(MainWindowUI.Button_PvPFeatures, OpenWindow == OpenWindow.PvP))
+        if (Layout.NavSection("gc_nav_pvp", MainWindowUI.Button_PvPFeatures, null,
+                FontAwesomeIcon.SkullCrossbones.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.PvP))
             OpenWindow = OpenWindow.PvP;
 
-        ImGui.Spacing();
-        if (ImGui.Selectable(MainWindowUI.Button_AutoRotation, OpenWindow == OpenWindow.AutoRotation))
+        if (Layout.NavSection("gc_nav_autorotation", MainWindowUI.Button_AutoRotation, null,
+                FontAwesomeIcon.Gears.ToIconString(), AutoRotationState(),
+                OpenWindow == OpenWindow.AutoRotation))
             OpenWindow = OpenWindow.AutoRotation;
 
-        ImGui.Spacing();
-        if (ImGui.Selectable("Custom Actions", OpenWindow == OpenWindow.CustomActions))
+        if (Layout.NavSection("gc_nav_customactions", "Custom Actions", null,
+                FontAwesomeIcon.HandPointer.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.CustomActions))
             OpenWindow = OpenWindow.CustomActions;
 
-        ImGui.Spacing();
-        ImGui.Spacing();
-
-        ImGui.Spacing();
-        if (ImGui.Selectable(MainWindowUI.Button_Settings, OpenWindow == OpenWindow.Settings))
+        if (Layout.NavSection("gc_nav_settings", MainWindowUI.Button_Settings, null,
+                FontAwesomeIcon.Cog.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.Settings))
             OpenWindow = OpenWindow.Settings;
 
-        ImGui.Spacing();
-        if (ImGui.Selectable(MainWindowUI.Button_About, OpenWindow == OpenWindow.About))
+        if (Layout.NavSection("gc_nav_about", MainWindowUI.Button_About, null,
+                FontAwesomeIcon.CircleInfo.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.About))
             OpenWindow = OpenWindow.About;
+
+#if DEBUG
+        if (Layout.NavSection("gc_nav_debug", "DEBUG", null,
+                FontAwesomeIcon.Bug.ToIconString(), UiState.Ready,
+                OpenWindow == OpenWindow.Debug))
+            OpenWindow = OpenWindow.Debug;
+#endif
 
         // Fork (error reporting): shared "Report a problem" button + popup - writes an RP| report (game
         // state, recent decisions, open windows) to the plugin log. src/Shared/LalaTelemetry.
-        ImGui.Spacing();
+        ImGui.Dummy(new Vector2(0, Theme.Unit));
         P.Telemetry?.DrawReportButton();
-
-#if DEBUG
-        ImGui.Spacing();
-        ImGui.Spacing();
-
-        ImGui.Spacing();
-        if (ImGui.Selectable("DEBUG", OpenWindow == OpenWindow.Debug))
-            OpenWindow = OpenWindow.Debug;
-
-        ImGui.Spacing();
-#endif
 
         ConflictingPlugins.Draw();
     }
 
+    private void DrawExpandButton()
+    {
+        // Sidebar collapse kept: when collapsed, one kit-styled button re-expands the
+        // section row (no ad-hoc font scale, Brief R7).
+        if (ImGuiEx.IconButton(FontAwesomeIcon.CaretRight, "CollapseButton"))
+        {
+            Service.Configuration.UILeftColumnCollapsed = false;
+            Service.Configuration.Save();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(MainWindowUI.Button_ExpandSidebar);
+    }
+
     private void DrawBody()
     {
-        ImGui.TableSetupColumn("##RightColumn", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableNextColumn();
-
         using var rightChild = ImRaii.Child("###WrathRightSide", Vector2.Zero, false);
         if (!rightChild) return;
 
@@ -298,30 +277,28 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Settings.Draw();
                 break;
             case OpenWindow.About:
-                ImGuiEx.LineCentered(() => ImGuiEx.Text(P.Name));
-                ImGuiEx.TextWrapped("A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.");
-                ImGuiEx.LineCentered(() =>
+                Layout.PageHeader(null, FontAwesomeIcon.CircleInfo.ToIconString(),
+                    GluttonyCombo.P.Name,
+                    "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.",
+                    $"{groupedPresets.Values.Sum(list => list.Count)} job presets");
+                ImGui.Dummy(new Vector2(0, Theme.Unit));
+                if (ImGuiEx.Button("GitHub: dajoey/lalalazy"))
                 {
-                    if (ImGuiEx.Button("GitHub: dajoey/lalalazy"))
+                    Process.Start(new ProcessStartInfo()
                     {
-                        Process.Start(new ProcessStartInfo()
-                        {
-                            FileName = "https://github.com/dajoey/lalalazy",
-                            UseShellExecute = true
-                        });
-                    }
-                });
-                ImGuiEx.LineCentered(() =>
+                        FileName = "https://github.com/dajoey/lalalazy",
+                        UseShellExecute = true
+                    });
+                }
+                ImGui.SameLine();
+                if (ImGuiEx.Button("Additional custom action icons by alexisoffline"))
                 {
-                    if (ImGuiEx.Button($"Additional custom action icons by alexisoffline"))
+                    Process.Start(new ProcessStartInfo()
                     {
-                        Process.Start(new ProcessStartInfo()
-                        {
-                            FileName = "https://ko-fi.com/alexisoffline/",
-                            UseShellExecute = true
-                        });
-                    }
-                });
+                        FileName = "https://ko-fi.com/alexisoffline/",
+                        UseShellExecute = true
+                    });
+                }
                 break;
             case OpenWindow.Debug:
                 Debug.Draw();
@@ -336,55 +313,41 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         ;
     }
 
-    private static void DrawCollapseButton()
+    private void DrawFooter()
     {
-        var collapsed = Service.Configuration.UILeftColumnCollapsed;
+        // Footer (R3 place 3) for the plugin's background activity: current action and
+        // a Stop button. Stop turns AutoRotation off — the same semantics as unchecking
+        // its enable checkbox, saved immediately.
+        var cfg = AutoRotationController.cfg;
+        if (cfg is not { Enabled: true })
+            return;
 
-        // Go to the bottom of the window
-        ImGui.SetCursorPos(ImGui.GetCursorPos() with
+        Layout.Footer(
+            AutoRotationController.Paused ? UiState.Blocked : UiState.Running,
+            "AutoRotation",
+            AutoRotationController.Paused ? "paused" : null,
+            "Stop",
+            out var stopClicked);
+        if (stopClicked)
         {
-            X = 12f.Scale(),
-            Y = ImGui.GetContentRegionMax().Y - 45f.Scale(),
-        });
-
-        // Calculate the size needed for the button
-        var fPad = ImGui.GetStyle().FramePadding;
-        Vector2 faSz;
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            faSz = ImGui.CalcTextSize("\uF0D9");
-        }
-
-        // Draw a window for the button, so clicks don't leak behind it
-        using var overlay = ImRaii.Child("ButtonOverlay",
-            new Vector2(faSz.X * 2 + fPad.X * 2,
-                faSz.Y + 10f.Scale() + fPad.Y * 2),
-            false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
-        if (!overlay) return;
-
-        // Set up how the button should display
-        var icon = FontAwesomeIcon.CaretLeft;
-        var hoverText = MainWindowUI.Button_CollapseSidebar;
-        ImGui.SetWindowFontScale(1.5f.Scale());
-        if (collapsed)
-        {
-            icon = FontAwesomeIcon.CaretRight;
-            hoverText = MainWindowUI.Button_ExpandSidebar;
-        }
-
-        // Draw the button
-        if (ImGuiEx.IconButton(icon, "CollapseButton"))
-        {
-            Service.Configuration.UILeftColumnCollapsed = !collapsed;
+            cfg.Enabled = false;
             Service.Configuration.Save();
         }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(hoverText);
-
-
-        ImGui.SetWindowFontScale(1f);
     }
 
+    public static void ClearAnySearches()
+    {
+        Search = string.Empty;
+        SearchDescription = true;
+    }
+
+    public override void OnClose()
+    {
+        ClearAnySearches();
+
+        // Normal close
+        base.OnClose();
+    }
 
     public void Dispose()
     {
