@@ -29,6 +29,7 @@ using GluttonyCombo.Resources.Localization.UI.Features;
 using GluttonyCombo.Resources.Localization.UI.Misc;
 using GluttonyCombo.Resources.Localization.UI.Settings;
 using GluttonyCombo.Services;
+using LalaUiKit;
 using static GluttonyCombo.Attributes.PossiblyRetargetedAttribute;
 using static GluttonyCombo.Core.PresetStorage;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
@@ -398,14 +399,6 @@ internal class Presets : ConfigWindow
                 mousePos.X -= 5;
                 mousePos.Y -= 5;
 
-                ImGui.SetNextWindowPos(mousePos);
-                ImGui.SetNextWindowBgAlpha(0.5f);
-
-                ImGui.Begin(
-                    $"{act}DragDrops",
-                    ImGuiWindowFlags.NoDecoration |
-                    ImGuiWindowFlags.AlwaysAutoResize);
-
                 ushort icon = (ushort)(act >= All.SingleTargetDPS ? 1 : Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Action>().GetRow(act).Icon);
                 IDalamudTextureWrap? texture;
                 if (act >= All.SingleTargetDPS)
@@ -417,10 +410,7 @@ internal class Presets : ConfigWindow
                     texture = Svc.Texture.GetFromGameIcon(new(icon)).GetWrapOrEmpty();
                 }
 
-                if (texture is not null)
-                    ImGui.Image(texture.Handle, new(50f.Scale()));
-
-                ImGui.End();
+                Widgets.DragGhost(texture?.Handle, mousePos, 50f.Scale());
 
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) || (ImGui.IsMouseReleased(ImGuiMouseButton.Left) && DragDropMode))
                 {
