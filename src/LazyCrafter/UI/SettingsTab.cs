@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using LalaUiKit;
 using Dalamud.Interface.Components;
 using LazyCrafter.Adapters;
 using LazyCrafter.Core.Model;
@@ -31,39 +31,39 @@ public sealed class SettingsTab
         if (_plugin.Dispatch.VendorsIfBuilt is { } vl) supFailures.AddRange(vl.SupplementalFailures);
         if (supFailures.Count > 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudRed, $"Supplemental data failed to load ({supFailures.Count} resource(s)) - this build is broken.");
-            ImGui.TextColored(ImGuiColors.DalamudRed, "Drop classification, desynth values and gil-vendor locations are missing or incomplete.");
-            foreach (var f in supFailures.Take(8)) ImGui.TextColored(ImGuiColors.DalamudRed, $"    {f}");
-            if (supFailures.Count > 8) ImGui.TextColored(ImGuiColors.DalamudRed, $"    ... and {supFailures.Count - 8} more");
-            ImGui.TextColored(ImGuiColors.DalamudRed, "Report it: the plugin package is missing a dependency, reinstalling will not help.");
+            ImGui.TextColored(Copy.MarkColor(UiState.Failed), $"Supplemental data failed to load ({supFailures.Count} resource(s)) - this build is broken.");
+            ImGui.TextColored(Copy.MarkColor(UiState.Failed), "Drop classification, desynth values and gil-vendor locations are missing or incomplete.");
+            foreach (var f in supFailures.Take(8)) ImGui.TextColored(Copy.MarkColor(UiState.Failed), $"    {f}");
+            if (supFailures.Count > 8) ImGui.TextColored(Copy.MarkColor(UiState.Failed), $"    ... and {supFailures.Count - 8} more");
+            ImGui.TextColored(Copy.MarkColor(UiState.Failed), "Report it: the plugin package is missing a dependency, reinstalling will not help.");
             ImGui.Separator();
         }
         else if (_plugin.GameData is { } okGd)
         {
-            ImGui.TextColored(ImGuiColors.HealerGreen, $"Supplemental data OK - {okGd.DropCount:N0} drop items, {okGd.DesynthSourceCount:N0} desynth sources.");
+            ImGui.TextColored(Copy.MarkColor(UiState.Ready), $"Supplemental data OK - {okGd.DropCount:N0} drop items, {okGd.DesynthSourceCount:N0} desynth sources.");
             ImGui.Spacing();
         }
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Inventory sources");
+        Widgets.Title("Inventory sources");
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Where AllaganTools may look when counting what you have. Each source is one toggle; the FC chest is off by default because it is shared property.");
         if (_plugin.Inventory.Degraded)
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "AllaganTools is not available - only the current character's bags are counted until it is.");
+            ImGui.TextColored(Copy.MarkColor(UiState.Missing), "AllaganTools is not available - only the current character's bags are counted until it is.");
         foreach (var s in Enum.GetValues<InventorySource>())
         {
             var on = cfg.IsSourceEnabled(s);
-            if (ImGui.Checkbox(SourceLabel(s), ref on)) { cfg.SetSourceEnabled(s, on); changed = true; }
+            if (Widgets.Checkbox(SourceLabel(s), ref on)) { cfg.SetSourceEnabled(s, on); changed = true; }
         }
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Prices");
+        Widgets.Title("Prices");
         var basis = (int)cfg.RevenueBasis;
         ImGui.SetNextItemWidth(220f);
         if (ImGui.Combo("Revenue basis", ref basis, ["Cheapest listing", "Median listing", "Average sale price"], 3)) { cfg.RevenueBasis = (RevenueBasis)basis; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Which Universalis number stands in for 'what it sells for'. Cheapest listing overstates on thin markets; the /day column's velocity cap keeps the ranking honest.");
         var byWorld = cfg.PriceByWorld;
-        if (ImGui.Checkbox("Price at home world only (instead of the whole data centre)", ref byWorld))
+        if (Widgets.Checkbox("Price at home world only (instead of the whole data centre)", ref byWorld))
         {
             cfg.PriceByWorld = byWorld;
             _plugin.Prices.Scope = byWorld ? _plugin.Player.HomeWorldName : _plugin.Player.DataCenterName;
@@ -78,9 +78,9 @@ public sealed class SettingsTab
         ImGui.TextDisabled($"scope {(_plugin.Prices.Scope.Length == 0 ? "(none - log in)" : _plugin.Prices.Scope)}, {_plugin.Prices.CacheSize} quotes cached, tax {_plugin.Prices.BestTaxPct:0}%");
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Catalog");
+        Widgets.Title("Catalog");
         var above = cfg.ShowAboveLevel;
-        if (ImGui.Checkbox("Show recipes above my job level / for jobs I have not unlocked", ref above)) { cfg.ShowAboveLevel = above; changed = true; }
+        if (Widgets.Checkbox("Show recipes above my job level / for jobs I have not unlocked", ref above)) { cfg.ShowAboveLevel = above; changed = true; }
         var minVel = cfg.UndersuppliedMinVelocity;
         ImGui.SetNextItemWidth(120f);
         if (ImGui.InputDouble("Undersupplied: min sales per day", ref minVel, 0, 0, "%.1f")) { cfg.UndersuppliedMinVelocity = Math.Max(0, minVel); changed = true; }
@@ -89,7 +89,7 @@ public sealed class SettingsTab
         if (ImGui.InputInt("Undersupplied: max listings on the board", ref maxList)) { cfg.UndersuppliedMaxListings = Math.Max(0, maxList); changed = true; }
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Dispatch");
+        Widgets.Title("Dispatch");
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Hand-off behaviour. Both are off by default.");
         var g = _plugin.Dispatch.Guard;
@@ -98,28 +98,28 @@ public sealed class SettingsTab
             var installed = g.InstalledVersion(pin.InternalName, out var loaded);
             var min = g.Overrides.TryGetValue(pin.InternalName, out var o) ? o : pin.MinVersion;
             var ok = installed is not null && loaded && installed >= min;
-            ImGui.TextColored(ok ? ImGuiColors.HealerGreen : ImGuiColors.DalamudOrange,
+            ImGui.TextColored(ok ? Copy.MarkColor(UiState.Ready) : Copy.MarkColor(UiState.Missing),
                 $"{pin.InternalName}: {(installed is null ? "not installed" : loaded ? installed.ToString() : installed + " (not loaded)")} - reflection pinned to [{min}, {pin.MaxVerified}){(o is not null ? " [session override]" : "")}");
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{pin.Members.Count} member names verified against {pin.VerifiedAgainst}. A mismatch refuses the hand-off with a chat error instead of throwing. Test it with /lcraft guard {pin.InternalName} 99.0");
         }
         ImGui.TextDisabled($"Artisan {(_plugin.Dispatch.Artisan.Installed ? "loaded" : "missing")} · Lifestream {(_plugin.Dispatch.Lifestream.Installed ? "loaded" : "missing")} · Price match (Lazy Market Companion) {(_plugin.Dispatch.PriceMatch.Installed ? "loaded" : "missing")} (IPC)");
         var fetch = cfg.RetrieveFromRetainers;
-        if (ImGui.Checkbox("Fetch missing materials from your retainers before crafting (needs a summoning bell)", ref fetch)) { cfg.RetrieveFromRetainers = fetch; changed = true; }
+        if (Widgets.Checkbox("Fetch missing materials from your retainers before crafting (needs a summoning bell)", ref fetch)) { cfg.RetrieveFromRetainers = fetch; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default. When a craft's materials are owned but sitting on a retainer, Dispatch walks Artisan's retainer withdrawal (bell -> retainer -> Entrust Items -> withdraw) to move them into your bags, then crafts. Needs Artisan and AllaganTools, and you must be standing next to a summoning bell. Off: LazyCrafter only tells you what to fetch by hand.");
 
         var bell = cfg.WalkToBellWhenBlocked;
-        if (ImGui.Checkbox("Walk to the nearest summoning bell when a fetch needs one, or when a run ends blocked on your own market listings", ref bell)) { cfg.WalkToBellWhenBlocked = bell; changed = true; }
+        if (Widgets.Checkbox("Walk to the nearest summoning bell when a fetch needs one, or when a run ends blocked on your own market listings", ref bell)) { cfg.WalkToBellWhenBlocked = bell; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default (cards t_35be7be5 and t_034884f4). Two trips share this toggle. (1) When a craft's materials are on the retainers and no summoning bell is reachable, Dispatch queues the work and walks the character to the bell via Lifestream's 'go to market board' (/li mb) instead of refusing at the button - the fetch starts once a bell is actually reachable, and if the bell is still unreachable after 3 minutes the fetch is refused once in red. (2) When a run ENDS blocked on your own market listings, LazyCrafter sends you to the bell the same way so the listings can be pulled. Never mid-craft, never on a clean run. Off: no walking - a fetch without a bell is refused at press time, and a listing-blocked run just prints the summary. Either way, '/lcraft blocked' reprints the full detail.");
 
         var vendorWalk = cfg.WalkToVendorsOnCart;
-        if (ImGui.Checkbox("Walk to gil vendors during a cart run, one vendor per stop (buy, press Resume, next vendor)", ref vendorWalk)) { cfg.WalkToVendorsOnCart = vendorWalk; changed = true; }
+        if (Widgets.Checkbox("Walk to gil vendors during a cart run, one vendor per stop (buy, press Resume, next vendor)", ref vendorWalk)) { cfg.WalkToVendorsOnCart = vendorWalk; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default. When a cart is missing gil-vendor items, the run walks the character to the vendor NPCs - one vendor per stop, exactly like the summoning-bell walk: teleport to the nearest aetheryte, map flag, shopping line. Buy at the NPC, press Resume, and the run re-plans and walks to the next vendor. It never buys anything itself and never fires mid-craft. If Lifestream is missing, busy, or the teleport is refused, the stop falls back to flagging the vendor on the map and naming it in chat - the behaviour before this toggle existed. Off: vendors are flagged on the map only; buy at each and press Resume.");
 
         var currency = cfg.PreferCurrencyShops;
-        if (ImGui.Checkbox("Prefer a currency shop over the market board when you can already afford it", ref currency)) { cfg.PreferCurrencyShops = currency; changed = true; }
+        if (Widgets.Checkbox("Prefer a currency shop over the market board when you can already afford it", ref currency)) { cfg.PreferCurrencyShops = currency; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker(
             "On by default (card t_b431de3a). Many materials are sold by currency vendors - beast-tribe traders, Grand Company quartermasters, scrip counters - " +
@@ -132,13 +132,13 @@ public sealed class SettingsTab
         // 0.1.7.0 (card t_5191608a): the sequential resume-mode toggle. The feature's first build
         // ships it ON; off restores the monolithic run exactly (no stage controller, no popups).
         var seq = cfg.SequentialInterventionMode;
-        if (ImGui.Checkbox("Run shopping stops first (buy, press Resume, then unattended)", ref seq)) { cfg.SequentialInterventionMode = seq; changed = true; }
+        if (Widgets.Checkbox("Run shopping stops first (buy, press Resume, then unattended)", ref seq)) { cfg.SequentialInterventionMode = seq; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default (0.1.7.0). A cart run takes its user-intervention-requiring parts first: each shopping stop (gil vendor, market board, currency shop, manual source) is named in chat and on the Run tab exactly once - buy what is named and press Resume (Run tab button, /lcraft resume, or the copied report). When the run believes the rest of the cart needs no player, it goes unattended and behaves exactly as before. Off: the run is one continuous wave loop, identical to every version before 0.1.7.0.");
 
         // 0.1.7.7: the Knightshopper buy leg. ON by default; needs Knightshopper loaded AND allowed.
         var ks = cfg.BuyVendorItemsWithKnightshopper;
-        if (ImGui.Checkbox("Buy vendor items through Knightshopper during a dispatch (one attempt, target totals)", ref ks)) { cfg.BuyVendorItemsWithKnightshopper = ks; changed = true; }
+        if (Widgets.Checkbox("Buy vendor items through Knightshopper during a dispatch (one attempt, target totals)", ref ks)) { cfg.BuyVendorItemsWithKnightshopper = ks; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker(
             "On by default (0.1.7.7). When a dispatch is missing materials that a vendor sells - gil vendors, and currency vendors priced in one currency Knightshopper supports - the run hands the list to Knightshopper's purchase IPC instead of stopping at each vendor: grouped by currency, bought to TARGET inventory totals (a repeat dispatch asks for the same target at most, so nothing is bought twice). " +
@@ -147,7 +147,7 @@ public sealed class SettingsTab
             "Off: the run behaves exactly like every version before 0.1.7.7 - every vendor item is flagged and named, nothing is bought automatically.");
 
         var pm = cfg.PriceMatchAfterCraft;
-        if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
+        if (Widgets.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). Prints what was crafted and the /pricematch instructions to chat when a cart finishes; the sell list itself is not automated (Lazy Market Companion has no IPC for it). /pricematch still works - Lazy Market Companion answers it as a legacy alias.");
         // The "walk to vendors with vnavmesh" checkbox lived here until 0.1.6.2 (card t_731ea0e7). Nothing ever
@@ -157,7 +157,7 @@ public sealed class SettingsTab
         // back WITH the code that reads it. The config property is kept (obsolete) so existing configs still load.
         ImGui.Spacing();
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Retainers");
+        Widgets.Title("Retainers");
         if (_plugin.Player.RetainerHint is { } hint) ImGui.TextWrapped(hint);
         else ImGui.TextUnformatted($"{_plugin.Player.Retainers.Count} managed retainer(s) from ARControl.json: " + string.Join(", ", _plugin.Player.Retainers.Select(r => $"{r.Name} L{r.Level}")));
 

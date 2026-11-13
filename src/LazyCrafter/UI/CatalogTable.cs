@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using LalaUiKit;
 using LazyCrafter.Catalog;
 using LazyCrafter.Core.Model;
 
@@ -10,6 +10,9 @@ namespace LazyCrafter.UI;
 /// (market) · /day · velocity · saturation · scrip · desynth · tier · missing summary. Sorting is delegated to
 /// the worker (<see cref="ViewRequest.Sort"/>): the header click only changes the request, the rows arrive
 /// pre-sorted. Rows are drawn through a list clipper so a 6,000-row bucket costs one screen of widgets.
+/// Converted to LalaUiKit per the UI Brief (R4/R5/R8): colours come only from the kit — green = ready to
+/// craft, amber = blocked, red = a losing margin only, everything else reads as text on the kit neutrals.
+/// The tier word carries the meaning; tiers are no longer a colour legend.
 /// </summary>
 public sealed class CatalogTable
 {
@@ -103,7 +106,7 @@ public sealed class CatalogTable
         var isSel = selected == row.RecipeId;
 
         ImGui.TableNextColumn();
-        if (row.AboveLevel) ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+        if (row.AboveLevel) ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
         if (ImGui.Selectable(row.Name + "##sel", isSel, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap))
             selected = row.RecipeId;
         if (row.AboveLevel) ImGui.PopStyleColor();
@@ -127,23 +130,23 @@ public sealed class CatalogTable
         ImGui.TableNextColumn(); ImGui.TextUnformatted(row.Job);
         ImGui.TableNextColumn(); RightText(row.Level.ToString());
         ImGui.TableNextColumn();
-        if (row.HowMany > 0) RightText(row.HowMany.ToString(), ImGuiColors.HealerGreen); else RightText("-", ImGuiColors.DalamudGrey3);
+        if (row.HowMany > 0) RightText(row.HowMany.ToString(), Copy.MarkColor(UiState.Ready)); else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn(); Gil(est?.MarginCash, est);
         ImGui.TableNextColumn(); Gil(est?.MarginMarket, est);
         ImGui.TableNextColumn();
-        if (est is { RevenueKnown: true }) RightText(Fmt.Gil((long)Math.Round(est.PerDay)), est.PerDay > 0 ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey);
-        else RightText("-", ImGuiColors.DalamudGrey3);
+        if (est is { RevenueKnown: true }) RightText(Fmt.Gil((long)Math.Round(est.PerDay)), est.PerDay > 0 ? Theme.TextPrimary : Theme.TextSecondary);
+        else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn();
         var vel = tab == CatalogTab.Undersupplied && view.Undersupplied is { } u && u.TryGetValue(row.ResultItemId, out var ui) ? ui.Velocity : est?.Velocity;
-        if (vel is { } v && est is not null) RightText(v.ToString("0.#")); else RightText("-", ImGuiColors.DalamudGrey3);
+        if (vel is { } v && est is not null) RightText(v.ToString("0.#")); else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn();
-        if (est is { Velocity: > 0 }) RightText(double.IsInfinity(est.SaturationDays) ? "inf" : est.SaturationDays.ToString("0.#"), est.SaturationDays > 7 ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudWhite);
-        else RightText("-", ImGuiColors.DalamudGrey3);
+        if (est is { Velocity: > 0 }) RightText(double.IsInfinity(est.SaturationDays) ? "inf" : est.SaturationDays.ToString("0.#"), est.SaturationDays > 7 ? Theme.StateAmber : Theme.TextPrimary);
+        else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn();
-        if (row.Scrip > 0) RightText(row.Scrip.ToString(), ImGuiColors.ParsedPurple); else RightText("-", ImGuiColors.DalamudGrey3);
+        if (row.Scrip > 0) RightText(row.Scrip.ToString(), Theme.TextSecondary); else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn();
         if (row.Desynth is { } d && d > 0) { RightText("~" + Fmt.Gil((long)d)); if (ImGui.IsItemHovered()) ImGui.SetTooltip("Estimated desynth value (sum of drop chance x market price). Estimate."); }
-        else RightText("-", ImGuiColors.DalamudGrey3);
+        else RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn(); ImGui.TextColored(Fmt.TierColor(row.Tier), Fmt.TierName(row.Tier));
         ImGui.TableNextColumn(); ImGui.TextUnformatted(row.MissingSummary);
 
@@ -156,25 +159,26 @@ public sealed class CatalogTable
             case CatalogTab.LogCompletion:
                 ImGui.TableNextColumn();
                 if (est is { CostComplete: true }) RightText(Fmt.Gil(est.CashCost));
-                else if (est is not null) { RightText(">" + Fmt.Gil(est.CashCost), ImGuiColors.DalamudGrey); if (ImGui.IsItemHovered()) ImGui.SetTooltip("Some materials are unpriced; lower bound."); }
-                else RightText("-", ImGuiColors.DalamudGrey3);
+                else if (est is not null) { RightText(">" + Fmt.Gil(est.CashCost), Theme.TextSecondary); if (ImGui.IsItemHovered()) ImGui.SetTooltip("Some materials are unpriced; lower bound."); }
+                else RightText("-", Theme.TextSecondary);
                 break;
             case CatalogTab.Undersupplied:
                 ImGui.TableNextColumn();
-                if (view.Undersupplied is { } uu && uu.TryGetValue(row.ResultItemId, out var item)) RightText(item.Listings.ToString(), ImGuiColors.DalamudOrange);
-                else RightText("-", ImGuiColors.DalamudGrey3);
+                if (view.Undersupplied is { } uu && uu.TryGetValue(row.ResultItemId, out var item)) RightText(item.Listings.ToString(), Theme.StateAmber);
+                else RightText("-", Theme.TextSecondary);
                 break;
         }
     }
 
     private static void Gil(long? value, ProfitEstimate? est)
     {
-        if (value is null) { RightText("-", ImGuiColors.DalamudGrey3); return; }
-        var color = value < 0 ? ImGuiColors.DalamudRed : ImGuiColors.DalamudWhite;
+        if (value is null) { RightText("-", Theme.TextSecondary); return; }
+        // R4: red is reserved for a losing margin (do not craft this); profit reads as plain text.
+        var color = value < 0 ? Theme.StateRed : Theme.TextPrimary;
         RightText((est is { CostComplete: false } ? "<" : "") + Fmt.Gil(value.Value), color);
     }
 
-    private static void RightText(string text) => RightText(text, ImGuiColors.DalamudWhite);
+    private static void RightText(string text) => RightText(text, Theme.TextPrimary);
 
     private static void RightText(string text, Vector4 color)
     {
@@ -199,13 +203,13 @@ public static class Fmt
         _ => "Blocked",
     };
 
+    // R4/R5: tiers are effort words, not a colour legend. "Now" is ready to craft (green), Blocked
+    // waits on the player (amber); the middle tiers read as plain text. Red is never a tier colour.
     public static Vector4 TierColor(EffortTier t) => t switch
     {
-        EffortTier.Now => ImGuiColors.HealerGreen,
-        EffortTier.Easy => ImGuiColors.ParsedGreen,
-        EffortTier.SomeEffort => ImGuiColors.DalamudYellow,
-        EffortTier.RealEffort => ImGuiColors.DalamudOrange,
-        _ => ImGuiColors.DalamudRed,
+        EffortTier.Now => Theme.StateGreen,
+        EffortTier.Blocked => Theme.StateAmber,
+        _ => Theme.TextPrimary,
     };
 
     public static string SourceName(SourceKind k) => k switch
