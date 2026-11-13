@@ -13,14 +13,14 @@ internal class ConfigTab
         }
         ImGui.Separator();
         ImGui.TextWrapped("Shows you if you can buy ventures with it.");
-        ImGui.Checkbox("Show ventures", ref C.ShowVentures);
+        LalaUiKit.Widgets.Checkbox("Show ventures", ref C.ShowVentures);
         ImGui.Separator();
         ImGui.TextWrapped("Shows you if you can buy collectables with it.");
-        ImGui.Checkbox("Show collectables", ref C.ShowCollectables);
+        LalaUiKit.Widgets.Checkbox("Show collectables", ref C.ShowCollectables);
         if(C.ShowCollectables)
         {
             ImGui.TextWrapped("You can have a little info in the main window when you are still missing collectables from that currency.");
-            ImGui.Checkbox("Show missing collectables in the main window", ref C.ShowMissingCollectables);
+            LalaUiKit.Widgets.Checkbox("Show missing collectables in the main window", ref C.ShowMissingCollectables);
             ImGui.TextWrapped("If you don't want to see specific item you can deselect them here and they won't show up.");
             ImGui.TextWrapped("Select which items you see as collectables:");
             foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
@@ -28,7 +28,7 @@ internal class ConfigTab
                 if (type == CollectableType.None || type == CollectableType.Container) continue; // Skip 'None'
                 string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
                 bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                if (ImGui.Checkbox($"##{type}", ref isSelected))
+                if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
                 {
                     if (isSelected)
                     {
@@ -46,7 +46,7 @@ internal class ConfigTab
             }
         }
         ImGui.Separator();
-        ImGui.Checkbox("Show items eligible for sale", ref C.ShowSellables);
+        LalaUiKit.Widgets.Checkbox("Show items eligible for sale", ref C.ShowSellables);
         ImGui.TextWrapped("Minimum sales for the sellable table (0 = disable)");
         ImGui.InputInt("Minimum sales", ref C.MinSales);
         ImGui.TextWrapped("Select the thousand seperator");
@@ -68,11 +68,9 @@ internal class ConfigTab
             ImGui.EndCombo();
         }
         ImGui.Separator();
-        ImGui.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
+        LalaUiKit.Widgets.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
         ImGui.Separator();
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.25f, 0.25f, 1.0f)); // RGBA for red
-        ImGui.TextWrapped("Dont turn it on, unless you know what you are doing...");
-        ImGui.Checkbox("Debug Mode", ref C.Debug);
-        ImGui.PopStyleColor();
+        LalaUiKit.Widgets.InfoBox("Dont turn it on, unless you know what you are doing...", LalaUiKit.UiState.Blocked);
+        LalaUiKit.Widgets.Checkbox("Debug Mode", ref C.Debug);
     }
 }

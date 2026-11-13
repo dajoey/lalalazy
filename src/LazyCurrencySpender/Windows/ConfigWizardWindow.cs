@@ -1,5 +1,6 @@
 using CurrencySpender.Classes;
 using Dalamud.Interface;
+using LalaUiKit;
 
 namespace CurrencySpender.Windows;
 
@@ -37,6 +38,10 @@ internal class ConfigWizardWindow : Window
 
     public override void Draw()
     {
+        LalaUiKit.Theme.PushFrame();
+        try
+        {
+        DrawTopBar();
         Vector2 contentRegion = ImGui.GetContentRegionAvail();
         float footerHeight = ImGui.GetTextLineHeight() + 20.0f; // Reserve space for footer
         ImGui.BeginChild("StepContent", new Vector2(contentRegion.X, contentRegion.Y - footerHeight), false);
@@ -45,6 +50,31 @@ internal class ConfigWizardWindow : Window
 
         ImGui.EndChild();
         DrawFooter();
+        }
+        finally
+        {
+            LalaUiKit.Theme.PopFrame();
+        }
+    }
+
+    private void DrawTopBar()
+    {
+        // Top bar: title left, live-state pill right (R3 place 1) - the same primitives
+        // Layout.Shell draws for self-beginning windows.
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted($"{P.Name} - Configuration Wizard");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        LalaUiKit.Widgets.StatusPill(LalaUiKit.UiState.NeedsSetup, "Setup", Version, alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
     }
 
     private void DrawStep()
@@ -64,7 +94,7 @@ internal class ConfigWizardWindow : Window
                     int versionStepCount = GetVersionStepCount(version);
                     if (Step > cumulativeSteps && Step <= cumulativeSteps + versionStepCount)
                     {
-                        ImGui.Text($"Changed in Version {version}:");
+                        LalaUiKit.Widgets.Title($"Changed in Version {version}:");
                         drawSteps(Step - cumulativeSteps);
                         break;
                     }
@@ -139,11 +169,11 @@ internal class ConfigWizardWindow : Window
                 break;
             case 2:
                 ImGui.TextWrapped("Shows you if you can buy collectables with it.");
-                ImGui.Checkbox("Show collectables", ref C.ShowCollectables);
+                LalaUiKit.Widgets.Checkbox("Show collectables", ref C.ShowCollectables);
                 if (C.ShowCollectables)
                 {
                     ImGui.TextWrapped("You can have a little info in the main window when you are still missing collectables from that currency.");
-                    ImGui.Checkbox("Show missing collectables in the main window", ref C.ShowMissingCollectables);
+                    LalaUiKit.Widgets.Checkbox("Show missing collectables in the main window", ref C.ShowMissingCollectables);
                     ImGui.TextWrapped("If you don't want to see specific item you can deselect them here and they won't show up.");
                     ImGui.TextWrapped("Select which items you see as collectables:");
                     foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
@@ -151,7 +181,7 @@ internal class ConfigWizardWindow : Window
                         if (type == CollectableType.None) continue; // Skip 'None'
                         string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
                         bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                        if (ImGui.Checkbox($"##{type}", ref isSelected))
+                        if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
                         {
                             if (isSelected)
                             {
@@ -178,7 +208,7 @@ internal class ConfigWizardWindow : Window
         {
             case 1:
                 ImGui.TextWrapped("Select if you want to see sellable items:");
-                ImGui.Checkbox("Show items eligible for sale", ref C.ShowSellables);
+                LalaUiKit.Widgets.Checkbox("Show items eligible for sale", ref C.ShowSellables);
                 ImGui.Separator();
                 ImGui.TextWrapped("Select if you consider the following as collectable:");
                 foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
@@ -186,7 +216,7 @@ internal class ConfigWizardWindow : Window
                     if (type != CollectableType.Mahjong) continue;
                     string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
                     bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                    if (ImGui.Checkbox($"##{type}", ref isSelected))
+                    if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
                     {
                         if (isSelected)
                         {
@@ -208,7 +238,7 @@ internal class ConfigWizardWindow : Window
                 {
                     if (cur.ItemId != 37549 && cur.ItemId != 37550) continue;
                     bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (ImGui.Checkbox($"##{cur.ItemId}", ref isSelected))
+                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
                     {
                         if (isSelected)
                         {
@@ -237,7 +267,7 @@ internal class ConfigWizardWindow : Window
                 {
                     if (cur.ItemId != 45690) continue;
                     bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (ImGui.Checkbox($"##{cur.ItemId}", ref isSelected))
+                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
                     {
                         if (isSelected)
                         {
@@ -263,7 +293,7 @@ internal class ConfigWizardWindow : Window
         {
             case 1:
                 ImGui.TextWrapped("Open Currency Spender automatically when you open the ingame Currency window:");
-                ImGui.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
+                LalaUiKit.Widgets.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
                 break;
 
         }
@@ -281,7 +311,7 @@ internal class ConfigWizardWindow : Window
                 {
                     if (cur.ItemId != 45691 && cur.ItemId != 48146) continue;
                     bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (ImGui.Checkbox($"##{cur.ItemId}", ref isSelected))
+                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
                     {
                         if (isSelected)
                         {
@@ -305,7 +335,7 @@ internal class ConfigWizardWindow : Window
                     if (type != CollectableType.MasterRecipes) continue;
                     string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
                     bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                    if (ImGui.Checkbox($"##{type}", ref isSelected))
+                    if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
                     {
                         if (isSelected)
                         {

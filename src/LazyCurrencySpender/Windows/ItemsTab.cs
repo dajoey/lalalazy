@@ -11,7 +11,7 @@ internal class ItemsTab
     internal static void Draw()
     {   
         ImGui.TextWrapped("Displays table if you can buy items of interest with current currency:");
-        ImGui.Checkbox($"Show items of interest", ref C.ShowItemsOfInterest);
+        LalaUiKit.Widgets.Checkbox($"Show items of interest", ref C.ShowItemsOfInterest);
         ImGui.Separator();
         ImGui.TextWrapped("Items to add to the list:");
         if (ImGui.InputText("##Search", ref SearchQuery, 100))

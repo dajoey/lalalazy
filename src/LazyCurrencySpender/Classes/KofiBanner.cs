@@ -10,27 +10,18 @@ public static class KofiBanner
         DrawButton();
     }
 
-    private static uint ColorNormal
-    {
-        get
-        {
-            var vector1 = ImGuiEx.Vector4FromRGB(0x232526);
-            var vector2 = ImGuiEx.Vector4FromRGB(0x414345);
-
-            var gen = GradientColor.Get(vector1, vector2).ToUint();
-            return gen;
-        }
-    }
+    // Kit colours (R4): suite surfaces only - no ad-hoc hex or gradient colours.
+    private static uint ColorNormal => LalaUiKit.Theme.Pack(LalaUiKit.Theme.Surface);
 
     private static uint ColorHovered => ColorNormal;
 
     private static uint ColorActive => ColorNormal;
 
-    private static readonly uint ColorText = 0xFFFFFFFF;
+    private static readonly uint ColorText = LalaUiKit.Theme.Pack(LalaUiKit.Theme.TextPrimary);
 
     public static void DrawButton()
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, ImGuiEx.Vector4FromRGB(0x232526));
+        ImGui.PushStyleColor(ImGuiCol.Button, ColorNormal);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColorHovered);
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorActive);
         ImGui.PushStyleColor(ImGuiCol.Text, ColorText);

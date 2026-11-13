@@ -21,7 +21,7 @@ internal class AboutTab
         ImGuiEx.LineCentered("About1-2", delegate
         {
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGuiEx.TextWrapped(ImGuiColors.DalamudRed, FontAwesomeIcon.Heart.ToIconString());
+            ImGuiEx.TextWrapped(LalaUiKit.Theme.Accent, FontAwesomeIcon.Heart.ToIconString());
             ImGui.PopFont();
         });
         ImGuiEx.LineCentered("About1-3", delegate
