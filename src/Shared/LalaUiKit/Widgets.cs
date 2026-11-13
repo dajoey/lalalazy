@@ -1,7 +1,11 @@
-// LalaUiKit/Widgets.cs — pills, status circles, cards, info boxes, progress bars,
+﻿// LalaUiKit/Widgets.cs — pills, status circles, cards, info boxes, progress bars,
 // banners and icon tiles (Brief "Kit shape", R4, R5, R6, R8).
 
 namespace LalaUiKit;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
