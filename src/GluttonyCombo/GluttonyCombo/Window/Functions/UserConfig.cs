@@ -1,11 +1,11 @@
-﻿using Dalamud.Interface;
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.ImGuiMethods;
+using LalaUiKit;
 using System;
 using System.Linq;
 using System.Numerics;
@@ -60,7 +60,7 @@ public static class UserConfig
                 Vector2 currentPos = ImGui.GetCursorPos();
                 ImGui.SetCursorPosX(currentPos.X + itemWidth);
                 ImGui.PushTextWrapPos(wrapPos);
-                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudWhite);
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
                 ImGui.Text($"{sliderDescription}");
                 Vector2 height = ImGui.GetItemRectSize();
                 float lines = height.Y / ImGui.GetFontSize();
@@ -82,7 +82,7 @@ public static class UserConfig
                 if (hasAdditionalChoice)
                 {
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+                    ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGuiEx.Spacing(new Vector2(5, 0));
                     ImGui.TextWrapped($"{FontAwesomeIcon.Search.ToIconString()}");
@@ -180,7 +180,7 @@ public static class UserConfig
                 Vector2 currentPos = ImGui.GetCursorPos();
                 ImGui.SetCursorPosX(currentPos.X + itemWidth);
                 ImGui.PushTextWrapPos(wrapPos);
-                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudWhite);
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
                 ImGui.Text($"{sliderDescription}");
                 Vector2 height = ImGui.GetItemRectSize();
                 float lines = height.Y / ImGui.GetFontSize();
@@ -201,7 +201,7 @@ public static class UserConfig
                 if (hasAdditionalChoice)
                 {
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+                    ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGuiEx.Spacing(new Vector2(5, 0));
                     ImGui.TextWrapped($"{FontAwesomeIcon.Search.ToIconString()}");
@@ -267,7 +267,7 @@ public static class UserConfig
                 Vector2 currentPos = ImGui.GetCursorPos();
                 ImGui.SetCursorPosX(currentPos.X + itemWidth);
                 ImGui.PushTextWrapPos(wrapPos);
-                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudWhite);
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
                 ImGui.Text($"{sliderDescription}");
                 Vector2 height = ImGui.GetItemRectSize();
                 float lines = height.Y / ImGui.GetFontSize();
@@ -289,7 +289,7 @@ public static class UserConfig
                 if (hasAdditionalChoice)
                 {
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+                    ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGuiEx.Spacing(new Vector2(5, 0));
                     ImGui.TextWrapped($"{FontAwesomeIcon.Search.ToIconString()}");
@@ -332,7 +332,7 @@ public static class UserConfig
     public static void DrawRadioButton(string config, string checkBoxName, string checkboxDescription, int outputValue, float itemWidth = 150, Vector4 descriptionColor = new Vector4(), bool descriptionAsTooltip = false)
     {
         ImGui.Indent();
-        if (descriptionColor == new Vector4()) descriptionColor = ImGuiColors.DalamudYellow;
+        if (descriptionColor == new Vector4()) descriptionColor = Theme.TextSecondary;
         int output = Configuration.GetCustomIntValue(config, outputValue);
         ImGui.PushItemWidth(itemWidth);
         ImGui.SameLine();
@@ -374,7 +374,7 @@ public static class UserConfig
     /// <param name="descriptionColor"></param>
     public static bool DrawHorizontalRadioButton(string config, string checkBoxName, string checkboxDescription, int outputValue, float itemWidth = 150, Vector4 descriptionColor = new Vector4())
     {
-        if (descriptionColor == new Vector4()) descriptionColor = ImGuiColors.DalamudYellow;
+        if (descriptionColor == new Vector4()) descriptionColor = Theme.TextSecondary;
         int output = Configuration.GetCustomIntValue(config);
         ImGui.SameLine();
         ImGui.PushItemWidth(itemWidth);
@@ -421,7 +421,7 @@ public static class UserConfig
     public static void DrawHorizontalBoolRadioButton(string config, string
         checkBoxName, string checkboxDescription, int choice, float itemWidth = 150, Vector4 descriptionColor = new Vector4())
     {
-        if (descriptionColor == new Vector4()) descriptionColor = ImGuiColors.DalamudYellow;
+        if (descriptionColor == new Vector4()) descriptionColor = Theme.TextSecondary;
         bool[]? values = Configuration.GetCustomBoolArrayValue(config);
         ImGui.PushItemWidth(itemWidth);
 
@@ -464,7 +464,7 @@ public static class UserConfig
             ImGui.Indent();
         else
         {
-            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen))
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.StateAmber))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.AlignTextToFramePadding();
@@ -489,7 +489,7 @@ public static class UserConfig
             if (indentDescription)
                 ImGui.Indent();
 
-            ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey, checkboxDescription);
+            Widgets.SecondaryWrapped(checkboxDescription);
 
             if (indentDescription)
                 ImGui.Unindent();
@@ -512,7 +512,7 @@ public static class UserConfig
     public static void DrawHorizontalMultiChoice(string config, string checkBoxName, string checkboxDescription, int totalChoices, int choice, Vector4 descriptionColor = new Vector4())
     {
         ImGui.Indent();
-        if (descriptionColor == new Vector4()) descriptionColor = ImGuiColors.DalamudWhite;
+        if (descriptionColor == new Vector4()) descriptionColor = Theme.TextSecondary;
         bool[]? values = Configuration.GetCustomBoolArrayValue(config);
 
         //If new saved options or amount of choices changed, resize and save
@@ -561,7 +561,7 @@ public static class UserConfig
         bool[]? values = Configuration.GetCustomBoolArrayValue(config);
         Array.Resize(ref values, PvPCommon.QuickPurify.Statuses.Length);
 
-        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.ParsedPink);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.Accent);
         ImGui.Columns(4, $"{config}", false);
 
         for (var i = 0; i < PvPCommon.QuickPurify.Statuses.Length; i++)
@@ -636,7 +636,7 @@ public static class UserConfig
     private static void DrawHalvedDifficultyMultiChoice
         (string config, string overrideText = "")
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
         ImGui.Indent();
         ImGui.TextUnformatted(overrideText.IsNullOrEmpty()
             ? "Select what difficulty the above should apply to:"
@@ -648,13 +648,13 @@ public static class UserConfig
             config, "Easiest Content",
             ContentCheck.BottomHalfContentList,
             totalChoices: 2, choice: 0,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
         DrawHorizontalMultiChoice(
             config, "Hardest Content",
             ContentCheck.TopHalfContentList,
             totalChoices: 2, choice: 1,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
     }
 
@@ -680,7 +680,7 @@ public static class UserConfig
     private static void DrawCasualVSHardDifficultyMultiChoice
         (string config, string overrideText = "")
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
         ImGui.Indent();
         ImGui.TextUnformatted(overrideText.IsNullOrEmpty()
             ? "Select what difficulty the above should apply to:"
@@ -692,13 +692,13 @@ public static class UserConfig
             config, "Casual Content",
             ContentCheck.CasualContentList,
             totalChoices: 2, choice: 0,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
         DrawHorizontalMultiChoice(
             config, "'Hard' Content",
             ContentCheck.HardContentList,
             totalChoices: 2, choice: 1,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
     }
 
@@ -727,7 +727,7 @@ public static class UserConfig
     private static void DrawCoredDifficultyMultiChoice
         (string config, string overrideText = "")
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
         ImGui.Indent();
         ImGui.TextUnformatted(overrideText.IsNullOrEmpty()
             ? "Select what difficulty the above should apply to:"
@@ -739,19 +739,19 @@ public static class UserConfig
             config, "SoftCore Content",
             ContentCheck.SoftCoreContentList,
             totalChoices: 3, choice: 0,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
         DrawHorizontalMultiChoice(
             config, "MidCore Content",
             ContentCheck.MidCoreContentList,
             totalChoices: 3, choice: 1,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
         DrawHorizontalMultiChoice(
             config, "HardCore Content",
             ContentCheck.HardCoreContentList,
             totalChoices: 3, choice: 2,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
     }
 
@@ -776,7 +776,7 @@ public static class UserConfig
     /// <seealso cref="ContentCheck.IsInBossOnlyContent"/>
     internal static void DrawBossOnlyChoice(UserBoolArray config, string overrideText = "")
     {
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.TextSecondary))
         {
             ImGui.Text(overrideText.IsNullOrEmpty()
                 ? "Select what kind of content this option applies to:"
@@ -787,14 +787,14 @@ public static class UserConfig
             config, Generics.AllContent,
             "Applies to all content in the game.",
             choice: 0,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
 
         DrawHorizontalBoolRadioButton(
             config, "Boss Only Content",
             "Only applies in instances where you directly fight a boss. Excludes many A Realm Reborn & Heavensward raids that include trash.",
             choice: 1,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
 
         ImGui.NewLine();
@@ -821,7 +821,7 @@ public static class UserConfig
     /// <seealso cref="ContentCheck.IsInBossOnlyContent"/>
     internal static void DrawBossOnlyChoice(UserInt config, string overrideText = "")
     {
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.TextSecondary))
         {
 
             ImGui.TextUnformatted(overrideText.IsNullOrEmpty()
@@ -833,13 +833,13 @@ public static class UserConfig
             config, Generics.AllContent,
             Generics.AllContentDescription,
             outputValue: 0,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
         DrawHorizontalRadioButton(
             config, Generics.BossOnlyContent,
             Generics.BossOnlyDescription,
             outputValue: 1,
-            descriptionColor: ImGuiColors.DalamudYellow
+            descriptionColor: Theme.TextSecondary
         );
 
     }
@@ -855,7 +855,7 @@ public static class UserConfig
 
     internal static void DrawOpenerPotionChoice(UserBool config)
     {
-        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen))
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.StateAmber))
         {
             DrawAdditionalBoolChoice(config, "Include Potion?", "Adds the strongest potion appropriate for your job to the opener.");
         }

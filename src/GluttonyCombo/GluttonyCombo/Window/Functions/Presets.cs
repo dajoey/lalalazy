@@ -1,6 +1,5 @@
 using Dalamud.Game.Config;
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
@@ -142,7 +141,7 @@ internal class Presets : ConfigWindow
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 8f.Scale());
 
         Vector2 length = new();
-        using (var styleCol = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
+        using (var styleCol = ImRaii.PushColor(ImGuiCol.Text, Theme.TextSecondary))
         {
             if (FeaturesWindow.CurrentPreset != -1)
             {
@@ -180,14 +179,15 @@ internal class Presets : ConfigWindow
 
         if (conflicts.Length > 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudRed, FeaturesUI.Label_ConflictsWith);
+            ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
+            ImGui.Text(FeaturesUI.Label_ConflictsWith);
+            ImGui.PopStyleColor();
             ImGui.Indent();
             foreach (var conflict in conflicts)
-                ImGuiEx.Text(GradientColor.Get(
-                        ImGuiColors.DalamudRed,
+                ImGuiEx.Text(Copy.MarkColor(
                         CustomComboFunctions.IsEnabled(conflict)
-                            ? ImGuiColors.HealerGreen
-                            : ImGuiColors.DalamudRed, 1500),
+                            ? UiState.Failed
+                            : UiState.Blocked),
                     $"- {conflict.NameWithFullLineage(presetData.JobInfo.Job)}");
             ImGui.Unindent();
             ImGui.Spacing();
@@ -198,7 +198,7 @@ internal class Presets : ConfigWindow
             blueAttr.GetActions();
             if (blueAttr.Actions.Count > 0)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, blueAttr.NoneSet ? ImGuiColors.DPSRed : ImGuiColors.DalamudOrange);
+                ImGui.PushStyleColor(ImGuiCol.Text, blueAttr.NoneSet ? Theme.StateRed : Theme.StateAmber);
                 ImGui.Text($"{(blueAttr.NoneSet ? FeaturesUI.Warning_BLUNoSpells : FeaturesUI.Warning_BLUMissingSpells)}");
                 ImGui.PopStyleColor();
                 foreach (var act in blueAttr.Actions)
@@ -206,7 +206,7 @@ internal class Presets : ConfigWindow
                     var name = act.ActionName();
                     var idx = BlueMageService.GetBLUIndex(act);
                     string text = $"#{idx} {name}";
-                    using (ImRaii.PushColor(ImGuiCol.Text, !BlueMageService.SpellUnlocked(act) ? ImGuiColors.DPSRed : ImGuiColors.DalamudYellow))
+                    using (ImRaii.PushColor(ImGuiCol.Text, !BlueMageService.SpellUnlocked(act) ? Theme.StateRed : Theme.StateAmber))
                     {
                         ImGui.Text($"- {text}");
                     }
@@ -232,7 +232,7 @@ internal class Presets : ConfigWindow
 
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateGreen);
                 ImGui.Text(FeaturesUI.Info_BLUAllGoodSpells);
                 ImGui.PopStyleColor();
             }
@@ -447,7 +447,7 @@ internal class Presets : ConfigWindow
 
         bool val = Service.Configuration.BurstPresets[presetData.Preset];
 
-        var colour = val ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed;
+        var colour = val ? Theme.StateGreen : Theme.StateNeutral;
 
         ImGui.PushStyleColor(ImGuiCol.Button, colour);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, colour);
@@ -582,8 +582,8 @@ internal class Presets : ConfigWindow
 
         // Color the icon for whether it is possibly or certainly retargeted
         var color = retargeted
-            ? ImGuiColors.ParsedGreen
-            : ImGuiColors.DalamudYellow;
+            ? Theme.StateGreen
+            : Theme.StateAmber;
 
         using var col = new ImRaii.ColorDisposable();
         col.Push(ImGuiCol.TextDisabled, color);
