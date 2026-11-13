@@ -1,6 +1,6 @@
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using LalaUiKit;
 
 namespace GluttonyCombo.Window;
 
@@ -10,8 +10,8 @@ public static class WarningMarkerComponent
         ImGuiComponents.HelpMarker(
             warningText,
             FontAwesomeIcon.ExclamationTriangle,
-            ImGuiColors.DalamudYellow with
+            Theme.StateAmber with
             {
-                W = ImGuiColors.DalamudYellow.W * 0.85f,
+                W = Theme.StateAmber.W * 0.85f,
             });
 }

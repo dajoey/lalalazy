@@ -48,7 +48,6 @@ public static class UserConfig
 
         InfoBox box = new()
         {
-            Color = Colors.White,
             BorderThickness = 1f,
             CurveRadius = 3f,
             AutoResize = true,
@@ -169,7 +168,6 @@ public static class UserConfig
 
         InfoBox box = new()
         {
-            Color = Colors.White,
             BorderThickness = 1f,
             CurveRadius = 3f,
             AutoResize = true,
@@ -255,7 +253,6 @@ public static class UserConfig
 
         InfoBox box = new()
         {
-            Color = Colors.White,
             BorderThickness = 1f,
             CurveRadius = 3f,
             AutoResize = true,
@@ -877,7 +874,7 @@ public static class UserConfig
 
         InfoBox box = new()
         {
-            Color = Colors.Blue,
+            Color = Theme.Accent,
             BorderThickness = 1f,
             CurveRadius = 3f,
             AutoResize = true,
