@@ -1,5 +1,4 @@
 using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
@@ -14,6 +13,8 @@ using GluttonyCombo.Core;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.UI.Features;
 using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using LalaUiKit;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window.Functions;
 
@@ -32,58 +33,27 @@ internal class PvPFeatures : FeaturesWindow
             {
                 var userwarned = false;
 
-                //Auto-Rotation warning
+                //Auto-Rotation warning (kit banner, amber/Blocked per R4 - red is reserved)
                 if (GluttonyCombo.P.IPC.GetAutoRotationState())
                 {
-                    ImGuiEx.LineCentered($"pvpWarning", () =>
-                    {
-                        ImGui.PushFont(UiBuilder.IconFont);
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow, $"{FontAwesomeIcon.ExclamationTriangle.ToIconString()}");
-                        ImGui.PopFont();
-                        ImGui.SameLine();
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow, FeaturesUI.Info_pvpAutoRotationWarning);
-                        ImGui.SameLine();
-                        ImGui.PushFont(UiBuilder.IconFont);
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow, $"{FontAwesomeIcon.ExclamationTriangle.ToIconString()}");
-                        ImGui.PopFont();
-                    });
+                    Widgets.Banner(UiState.Blocked, FeaturesUI.Info_pvpAutoRotationWarning);
                     userwarned = true;
                 }
 
                 // Action Changing disabled warning
                 if (!Service.Configuration.ActionChanging)
                 {
-                    ImGuiEx.LineCentered($"pvpWarning2", () =>
-                    {
-                        ImGui.PushFont(UiBuilder.IconFont);
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudRed, $"{FontAwesomeIcon.ExclamationTriangle.ToIconString()}");
-                        ImGui.PopFont();
-                        ImGui.SameLine();
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudRed, FeaturesUI.Info_pvpActionReplacingWarning);
-                        ImGui.SameLine();
-                        ImGui.PushFont(UiBuilder.IconFont);
-                        ImGuiEx.TextWrapped(ImGuiColors.DalamudRed, $"{FontAwesomeIcon.ExclamationTriangle.ToIconString()}");
-                        ImGui.PopFont();
-                    });
+                    Widgets.Banner(UiState.Blocked, FeaturesUI.Info_pvpActionReplacingWarning);
                     userwarned = true;
                 }
 
                 // Add spacing if any warning was shown
                 if (userwarned) ImGuiEx.Spacing(new Vector2(0, 15));
 
-                ImGuiEx.LineCentered("pvpDesc", () =>
-                {
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextWrapped($"{FontAwesomeIcon.SkullCrossbones.ToIconString()}");
-                    ImGui.PopFont();
-                    ImGui.SameLine();
-                    ImGui.TextWrapped(FeaturesUI.Info_pvpDesc);
-                    ImGui.SameLine();
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextWrapped($"{FontAwesomeIcon.SkullCrossbones.ToIconString()}");
-                    ImGui.PopFont();
-                });
-                ImGuiEx.LineCentered($"pvpDesc2", () =>
+                var pvpJobCount = groupedPresets.Count(x => x.Value.Any(y => y.IsPvP && !y.ShouldBeHidden));
+                Layout.PageHeader(null, FontAwesomeIcon.SkullCrossbones.ToIconString(),
+                    MainWindowUI.Button_PvPFeatures, FeaturesUI.Info_pvpDesc, $"{pvpJobCount} jobs");
+                ImGuiEx.LineCentered("pvpDesc2", () =>
                 {
                     ImGuiEx.TextUnderlined(FeaturesUI.Info_SelectAJob);
                 });
@@ -115,21 +85,7 @@ internal class PvPFeatures : FeaturesWindow
                                 OpenPvPJob = job;
                             }
                             ImGui.SameLine(IndentWidth);
-                            if (icon != null)
-                            {
-                                var scale = Math.Min(IconMaxSize / icon.Size.X, IconMaxSize / icon.Size.Y);
-                                var imgSize = new Vector2(icon.Size.X * scale, icon.Size.Y * scale);
-                                var padSize = (IconMaxSize - imgSize.X) / 2f;
-                                if (padSize > 0)
-                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + padSize);
-                                ImGui.Image(icon.Handle, imgSize);
-                            }
-                            else
-                            {
-                                ImGui.Dummy(new Vector2(IconMaxSize, IconMaxSize));
-                            }
-                            ImGui.SameLine(LargerIndentWidth);
-                            ImGuiEx.Spacing(new Vector2(0, VerticalCenteringPadding));
+                            Widgets.IconTile(icon?.Handle, null, new Vector2(IconMaxSize, IconMaxSize), OpenPvPJob == job);
                             ImGui.TextWrapped($"{header} {(disabled.Count > 0 ? FeaturesUI.Warning_DisabledDueToUpdate : "")}");
                         }
 
