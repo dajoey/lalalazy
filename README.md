@@ -9,7 +9,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | Plugin | Description | Status |
 |--------|-------------|--------|
 | **Gluttony Combo** | XIVCombo for very lazy players. Condenses combos and mutually exclusive abilities onto a single button — and then some. Fork of Wrath Combo. | Production 1.0.4.324 · Testing 1.0.4.339 |
-| **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. Designed to run alongside Gluttony Combo. | Production 0.1.1.2 · Testing 0.1.2.14 |
+| **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. Designed to run alongside Gluttony Combo. | Production 0.1.1.2 · Testing 0.1.2.15 |
 | **Lazy Market Companion** | Auto-lists your always-sell items through your retainers (bags + retainer inventory, configurable stack size / reserve), matches board prices, optional AutoRetainer hook. Successor to Dagobert Price Matcher. | Production 0.2.8.17 · Testing 0.2.8.21 |
 | **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Production 0.2.5.2 · Testing 0.2.5.4 |
 | **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Production 0.5.7.0 · Testing 0.5.7.2 |
