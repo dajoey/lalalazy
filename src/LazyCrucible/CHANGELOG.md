@@ -1,7 +1,10 @@
+﻿## v0.1.9.18 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.1.9.17 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
-# LazyCrucible — Changelog
+# LazyCrucible â€” Changelog
 
 
 ## v0.1.9.16 (2026-10-13) [testing]
@@ -38,19 +41,19 @@
 
 ## v0.1.9.12 (2026-10-05) [testing]
 ### Changed
-- **The run-roster need-coverage correction no longer fires while AutoDuty drives the screen.** AutoDuty re-asserts its own roster through a confirm sequence that removes unfamiliar rows one per pass and holds its acceptance until they are gone; every correction written on that surface was removed before entry, and the acceptance follows the build's last pick by about half a second with nothing the plugin can observe in between — a guess there only spent the correction budget on rows that were going to be removed anyway. The surface is now left to AutoDuty entirely. The battlehorn surface is unchanged.
+- **The run-roster need-coverage correction no longer fires while AutoDuty drives the screen.** AutoDuty re-asserts its own roster through a confirm sequence that removes unfamiliar rows one per pass and holds its acceptance until they are gone; every correction written on that surface was removed before entry, and the acceptance follows the build's last pick by about half a second with nothing the plugin can observe in between â€” a guess there only spent the correction budget on rows that were going to be removed anyway. The surface is now left to AutoDuty entirely. The battlehorn surface is unchanged.
 ### Notes
 - Testing channel only; the production channel is unchanged.
 
 ## v0.1.9.11 (2026-10-05) [testing]
 ### Fixed
-- **The run-roster need-coverage correction now waits for the roster itself to stop changing.** The previous fix judged a settled roster by edit timestamps, but the roster AutoDuty builds is driven through the monster notebook, whose selection writes never register as edits — so the timestamp stayed at screen-open while the build was still adding picks, and the correction still fired mid-build, where AutoDuty's continuing build and its confirm passes removed the added rows. The correction is now due only once the selected roster has been unchanged for 1.5 seconds — what the plugin sees every frame — never on an empty roster, and it still re-arms after any later AutoDuty write. The screen log's roster needfix line now also carries the age of the last edit (`adedit=`), the roster's quiet time (`adstb=`) and the selected count (`flutes=`).
+- **The run-roster need-coverage correction now waits for the roster itself to stop changing.** The previous fix judged a settled roster by edit timestamps, but the roster AutoDuty builds is driven through the monster notebook, whose selection writes never register as edits â€” so the timestamp stayed at screen-open while the build was still adding picks, and the correction still fired mid-build, where AutoDuty's continuing build and its confirm passes removed the added rows. The correction is now due only once the selected roster has been unchanged for 1.5 seconds â€” what the plugin sees every frame â€” never on an empty roster, and it still re-arms after any later AutoDuty write. The screen log's roster needfix line now also carries the age of the last edit (`adedit=`), the roster's quiet time (`adstb=`) and the selected count (`flutes=`).
 ### Notes
 - Testing channel only; the production channel is unchanged.
 
 ## v0.1.9.10 (2026-10-05) [testing]
 ### Fixed
-- **Run-roster need coverage no longer fires while AutoDuty is still building its team.** The roster correction used the battlehorn's three-pick threshold, so any selection of four or more familiars counted as a finished team and the correction could fire in a quarter-second pause mid-rebuild — AutoDuty's continuing build then removed the added rows (five runs on 2026-10-05: every roster correction was torn down and no answerer reached the run). The roster now waits for its own capacity (10/12/14/12/15 per board) to be selected, or for the long quiet, before it corrects. A roster AutoDuty has wiped empty is also left alone: an empty selection is the start of its build, not the end of one.
+- **Run-roster need coverage no longer fires while AutoDuty is still building its team.** The roster correction used the battlehorn's three-pick threshold, so any selection of four or more familiars counted as a finished team and the correction could fire in a quarter-second pause mid-rebuild â€” AutoDuty's continuing build then removed the added rows (five runs on 2026-10-05: every roster correction was torn down and no answerer reached the run). The roster now waits for its own capacity (10/12/14/12/15 per board) to be selected, or for the long quiet, before it corrects. A roster AutoDuty has wiped empty is also left alone: an empty selection is the start of its build, not the end of one.
 ### Notes
 - Testing channel only; the production channel is unchanged.
 
@@ -88,7 +91,7 @@
 
 ## v0.1.9.4 (2026-10-03)
 
-- **Need coverage is corrected on top of AutoDuty's picks.** AutoDuty runs whole boards with its own leveling familiars, and its battlehorn picks and roster rebuilds are blind to what the fights call for: in a full automated evening, every enemy buff that ran its whole duration was a fight where no dispeller was on the horns even though one sat in the roster, and the healer fight often had no interrupter in the roster at all. The plugin no longer stands down entirely while AutoDuty drives: once its selection on a screen has settled (its writes come one toggle at a time), a minimal correction swaps an answerer in for one pick that answers nothing — its leveling picks are otherwise kept, and a fight whose needs are already covered is never touched. The roster gets the same treatment at the board entry: when none of the board's fights' needs has a healthy answerer in the built roster, one is appended (room permitting) or swapped in. The log names every correction (`autoduty-needfix`, with the exact swap) and every need that could not be covered and why (`miss=`). One correction per screen; a later AutoDuty write still wins. Screens played by hand are unchanged.
+- **Need coverage is corrected on top of AutoDuty's picks.** AutoDuty runs whole boards with its own leveling familiars, and its battlehorn picks and roster rebuilds are blind to what the fights call for: in a full automated evening, every enemy buff that ran its whole duration was a fight where no dispeller was on the horns even though one sat in the roster, and the healer fight often had no interrupter in the roster at all. The plugin no longer stands down entirely while AutoDuty drives: once its selection on a screen has settled (its writes come one toggle at a time), a minimal correction swaps an answerer in for one pick that answers nothing â€” its leveling picks are otherwise kept, and a fight whose needs are already covered is never touched. The roster gets the same treatment at the board entry: when none of the board's fights' needs has a healthy answerer in the built roster, one is appended (room permitting) or swapped in. The log names every correction (`autoduty-needfix`, with the exact swap) and every need that could not be covered and why (`miss=`). One correction per screen; a later AutoDuty write still wins. Screens played by hand are unchanged.
 
 ## v0.1.9.3 (2026-10-02)
 
