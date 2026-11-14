@@ -1,3 +1,6 @@
+﻿## v0.1.2.15 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.1.2.14 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
@@ -198,7 +201,7 @@
 - Synced upstream RotationSolverReborn commit `2ac940563`: the `EmergencyGCD` hook now takes the queued next GCD as a parameter, bringing it in line with `EmergencyAbility`, interrupts, dispels and the heal hooks, which have all taken it for some time. Applied to the base engine and to the two rotations that override it.
 
 ### Notes
-- **No gameplay change.** The new `nextGCD` parameter is not read by any implementation of the hook — not in this fork, and not anywhere in upstream `641bd792e`. It is plumbing for future upstream use. Purify (stun / heavy / bind / silence / deep freeze / Miracle of Nature), Guard, Recuperate and Standard-issue Elixir priority are unchanged, as are the WHM Aquaveil and BRD The Warden's Paean cleanse paths.
+- **No gameplay change.** The new `nextGCD` parameter is not read by any implementation of the hook â€” not in this fork, and not anywhere in upstream `641bd792e`. It is plumbing for future upstream use. Purify (stun / heavy / bind / silence / deep freeze / Miracle of Nature), Guard, Recuperate and Standard-issue Elixir priority are unchanged, as are the WHM Aquaveil and BRD The Warden's Paean cleanse paths.
 - The WHM and BRD PvP rotations are now byte-identical to upstream (verified by diff, CR-normalised).
 - First release on the **reinstated testing channel**. The channel was removed; its previous entry never worked because `TestingDalamudApiLevel` was unset, so Dalamud hid the build. Now set to 15 alongside `TestingAssemblyVersion`. Production remains 0.1.0.9 until this build is verified in-game.
 - Escalated by the nightly upstream-merge on under RUNBOOK 3.2 ("never pull base classes"). RUNBOOK amended the same day with a signature-only carve-out so equivalent changes sync unattended.
