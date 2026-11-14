@@ -1,14 +1,22 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
+using LalaUiKit;
 using Lumina.Excel.Sheets;
 
 namespace LazyFoodBuff;
 
+// Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13).
+// The Dalamud Window base auto-begins/ends this window (Draw() draws content only),
+// so the top bar is drawn with the same kit primitives Layout.Shell uses, and the
+// suite frame comes from Theme.PushFrame/PopFrame. FoodService ticks in the
+// background, so the footer carries the live state and a guarded Stop (Brief R3):
+// Stop only turns the automation off, exactly like unchecking Enabled.
+
 internal class ConfigWindow : Window
 {
-    private const float IconSize = 20f;
-
     private readonly Plugin _plugin;
 
     // UI state for food search filter.
@@ -21,23 +29,206 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("LazyFoodBuff##cfg")
     {
         _plugin = plugin;
-        Size = new Vector2(520, 560);
+        Size = new Vector2(640, 640);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
+
+    // Everything the pill, cards and footer need, derived once per frame from the
+    // config plus the same player-state guards FoodService.Tick applies — read-only.
+    private sealed record Live(
+        UiState State,
+        string Action,
+        string? Reason,
+        string? PillDetail,
+        bool Fed,
+        TimeSpan Remaining,
+        uint ActiveFoodRowId);
 
     public override void Draw()
     {
         var c = _plugin.Config;
         var changed = false;
 
-        // === Master Settings ===
-        var master = c.MasterEnable;
-        if (ImGui.Checkbox("Enabled", ref master)) { c.MasterEnable = master; changed = true; }
+        Theme.PushFrame();
+        try
+        {
+            var live = DeriveLive(c);
 
-        ImGui.Separator();
+            DrawTopBar(live);
+            Layout.NavSection("lfb_cfg_nav_settings", "Settings", null,
+                FontAwesomeIcon.Utensils.ToIconString(), live.State, true);
+            ImGui.Dummy(new Vector2(0, Theme.Unit));
 
-        // === Duty Settings ===
-        ImGui.TextUnformatted("Automation");
+            Layout.PageHeader(null, FontAwesomeIcon.Utensils.ToIconString(), "Food Automation",
+                "Keeps the Well Fed buff up for you while you fight.",
+                $"{c.Jobs.Count} jobs customized");
+
+            DrawStatCards(c, live);
+
+            var job = _selectedJobId == 0
+                ? c.DefaultJob
+                : c.GetOrCreateJobSettings(_selectedJobId);
+            var jobName = ResolveJobName(_selectedJobId);
+            var jobIcon = ResolveJobIcon(_selectedJobId);
+
+            using var columns = Layout.TwoColumns.Begin(0.58f);
+
+            // Work column: master enable, then per-job selection and mode.
+            var master = c.MasterEnable;
+            if (Widgets.Checkbox("Enabled", ref master))
+            { c.MasterEnable = master; changed = true; }
+            Widgets.Secondary("Master switch for the food automation.");
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            Widgets.Title("Per-Job Food Selection");
+
+            // Job selector — lets the user browse and configure any job.
+            DrawJobSelector();
+
+            DrawJobHeader(jobName, jobIcon);
+
+            // Mode selector.
+            var mode = (int)job.Mode;
+            if (ImGui.Combo("##mode", ref mode, new[] { "Auto-Select (best stats)", "Manual (pick food)" }, 2))
+            { job.Mode = (FoodSelectionMode)mode; changed = true; }
+
+            if (job.Mode == FoodSelectionMode.Manual)
+            {
+                DrawManualFoodPicker(job, ref changed);
+
+                var fallback = job.FallbackToAutoSelect;
+                if (ImGui.Checkbox("Fall back to auto-select if unavailable", ref fallback))
+                { job.FallbackToAutoSelect = fallback; changed = true; }
+            }
+            else
+            {
+                ImGui.TextDisabled("Food is automatically selected based on your job's optimal stats.");
+                ImGui.TextDisabled("The best food you have in inventory will be chosen.");
+
+                // Show current recommendation for this job (state colour via the kit, R4).
+                var recommended = FoodRecommender.RecommendBest(_plugin._service.AllFoods, _selectedJobId);
+                if (recommended != null)
+                {
+                    ImGui.Spacing();
+                    Widgets.StatusDot(UiState.Ready);
+                    ImGui.SameLine();
+                    ImGui.TextUnformatted($"Recommended: {recommended.Name}");
+                    var hq = recommended.InventoryCount(true);
+                    var nq = recommended.InventoryCount(false);
+                    ImGui.TextDisabled($"In inventory: {(hq > 0 ? $"{hq} HQ" : "")}{(hq > 0 && nq > 0 ? ", " : "")}{(nq > 0 ? $"{nq} NQ" : "")}");
+                }
+                else if (_selectedJobId != 0)
+                {
+                    ImGui.TextDisabled("No suitable food found in inventory.");
+                }
+            }
+
+            columns.Split();
+
+            // Rail: grouped settings.
+            DrawRail(c, ref changed);
+
+            if (changed) _plugin.SaveConfig();
+
+            Layout.Footer(live.State, live.Action, live.Reason, "Stop", out var stop);
+            if (stop && c.MasterEnable)
+            {
+                // Guarded Stop (R3): the only action is turning the automation off,
+                // identical to unchecking Enabled. No-op when it is already off.
+                c.MasterEnable = false;
+                _plugin.SaveConfig();
+            }
+        }
+        finally
+        {
+            Theme.PopFrame();
+        }
+    }
+
+    private Live DeriveLive(Configuration c)
+    {
+        var fed = FoodService.TryGetWellFedStatus(out var rowId, out var left);
+        var pillDetail = fed ? $"{Math.Max(1, (int)Math.Ceiling(left.TotalMinutes))}m" : null;
+
+        if (!c.MasterEnable)
+            return new Live(UiState.Idle, "automation off", null, pillDetail, fed, left, rowId);
+
+        // The same player-state guards FoodService.Tick applies, read-only.
+        var local = Plugin.Objects.LocalPlayer;
+        if (local == null)
+            return new Live(UiState.Blocked, "waiting for you to log in", "no character", pillDetail, fed, left, rowId);
+        if (local.IsDead)
+            return new Live(UiState.Blocked, "waiting", "you are dead", pillDetail, fed, left, rowId);
+        if (Plugin.Condition[ConditionFlag.BetweenAreas])
+            return new Live(UiState.Blocked, "waiting", "between areas", pillDetail, fed, left, rowId);
+        if (Plugin.Condition[ConditionFlag.OccupiedInEvent] || Plugin.Condition[ConditionFlag.OccupiedInQuestEvent])
+            return new Live(UiState.Blocked, "waiting", "event or cutscene", pillDetail, fed, left, rowId);
+
+        var gated = c.OnlyInCombatDuty && !FoodService.IsInCombatDuty();
+        if (fed)
+        {
+            if (left <= TimeSpan.FromMinutes(c.RefreshThresholdMinutes))
+                return new Live(UiState.Running, "refresh due", gated ? "duty gate holds the refresh" : null, pillDetail, fed, left, rowId);
+            return new Live(UiState.Ready, "food active", gated ? "refresh waits for a combat duty" : null, pillDetail, fed, left, rowId);
+        }
+
+        if (gated)
+            return new Live(UiState.Blocked, "waiting for a combat duty", "only eat in combat duties", pillDetail, fed, left, rowId);
+        return new Live(UiState.Running, "choosing food", null, pillDetail, fed, left, rowId);
+    }
+
+    private void DrawTopBar(Live live)
+    {
+        // Top bar: title left, live-state pill right (R3 place 1) — the same primitives
+        // Layout.Shell draws for self-beginning windows.
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted("LazyFoodBuff");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        Widgets.StatusPill(live.State, "Food", live.PillDetail, alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
+    }
+
+    private void DrawStatCards(Configuration c, Live live)
+    {
+        var width = (ImGui.GetContentRegionAvail().X - (2 * Theme.ItemSpacing.X)) / 3f;
+
+        string? foodName = null;
+        if (live.Fed)
+            foodName = _plugin._service.AllFoods.FirstOrDefault(f => f.ItemFoodRowId == live.ActiveFoodRowId)?.Name;
+        var mins = Math.Max(0, (int)Math.Round(live.Remaining.TotalMinutes));
+        Widgets.StatCard("Well Fed", live.Fed ? $"{mins}m" : "None", live.Fed ? "30m" : null,
+            live.Fed ? (float?)Math.Clamp((float)(live.Remaining.TotalMinutes / 30.0), 0f, 1f) : null,
+            live.Fed ? foodName ?? "food active" : "no food active", width);
+
+        var gate = c.OnlyInCombatDuty && !FoodService.IsInCombatDuty();
+        Widgets.StatCard("Automation", c.MasterEnable ? "On" : "Off", null, null,
+            !c.MasterEnable ? "automation off"
+            : gate ? "gated to combat duties"
+            : c.OnlyInCombatDuty ? "in combat duty"
+            : "no duty gate", width);
+
+        Widgets.StatCard("Low-food alert", c.WarningEnabled ? $"{c.WarningThresholdCount} left" : "Off", null, null,
+            !c.WarningEnabled ? "alerts off"
+            : c.WarningSoundEnabled ? $"chat + sound #{c.WarningSoundId}"
+            : "chat only", width);
+    }
+
+    private void DrawRail(Configuration c, ref bool changed)
+    {
+        // Duty automation.
+        Widgets.Title("Automation");
         var onlyDuty = c.OnlyInCombatDuty;
         if (ImGui.Checkbox("Only eat in combat duties", ref onlyDuty))
         { c.OnlyInCombatDuty = onlyDuty; changed = true; }
@@ -52,10 +243,12 @@ internal class ConfigWindow : Window
         { c.RefreshThresholdMinutes = refreshThr; changed = true; }
         ImGui.TextDisabled("Re-eats food when remaining time drops below this. Food caps at 30 min.");
 
+        ImGui.Spacing();
         ImGui.Separator();
+        ImGui.Spacing();
 
-        // === Warning Settings ===
-        ImGui.TextUnformatted("Low-Food Warning");
+        // Low-food warning.
+        Widgets.Title("Low-Food Warning");
         var warnEnable = c.WarningEnabled;
         if (ImGui.Checkbox("Enable warning", ref warnEnable))
         { c.WarningEnabled = warnEnable; changed = true; }
@@ -86,10 +279,12 @@ internal class ConfigWindow : Window
             }
         }
 
-        // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the
-        // plugin does, and the one control writes to the log, which deserves a plain warning.
         ImGui.Spacing();
         ImGui.Separator();
+        ImGui.Spacing();
+
+        // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the
+        // plugin does, and the one control writes to the log, which deserves a plain warning.
         if (ImGui.CollapsingHeader("Advanced / Diagnostics"))
         {
             var telemetry = c.DecisionTelemetry;
@@ -114,58 +309,6 @@ internal class ConfigWindow : Window
             }
             ImGui.TextDisabled($"Writes \"{FoodTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
         }
-
-        ImGui.Separator();
-
-        // === Per-Job Settings ===
-        ImGui.TextUnformatted("Per-Job Food Selection");
-
-        // Job selector — lets the user browse and configure any job.
-        DrawJobSelector();
-
-        var job = _selectedJobId == 0
-            ? c.DefaultJob
-            : c.GetOrCreateJobSettings(_selectedJobId);
-
-        var jobName = ResolveJobName(_selectedJobId);
-        var jobIcon = ResolveJobIcon(_selectedJobId);
-        DrawJobHeader(jobName, jobIcon);
-
-        // Mode selector.
-        var mode = (int)job.Mode;
-        if (ImGui.Combo("##mode", ref mode, new[] { "Auto-Select (best stats)", "Manual (pick food)" }, 2))
-        { job.Mode = (FoodSelectionMode)mode; changed = true; }
-
-        if (job.Mode == FoodSelectionMode.Manual)
-        {
-            DrawManualFoodPicker(job, ref changed);
-
-            var fallback = job.FallbackToAutoSelect;
-            if (ImGui.Checkbox("Fall back to auto-select if unavailable", ref fallback))
-            { job.FallbackToAutoSelect = fallback; changed = true; }
-        }
-        else
-        {
-            ImGui.TextDisabled("Food is automatically selected based on your job's optimal stats.");
-            ImGui.TextDisabled("The best food you have in inventory will be chosen.");
-
-            // Show current recommendation for this job.
-            var recommended = FoodRecommender.RecommendBest(_plugin._service.AllFoods, _selectedJobId);
-            if (recommended != null)
-            {
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), $"Recommended: {recommended.Name}");
-                var hq = recommended.InventoryCount(true);
-                var nq = recommended.InventoryCount(false);
-                ImGui.TextDisabled($"In inventory: {(hq > 0 ? $"{hq} HQ" : "")}{(hq > 0 && nq > 0 ? ", " : "")}{(nq > 0 ? $"{nq} NQ" : "")}");
-            }
-            else if (_selectedJobId != 0)
-            {
-                ImGui.TextDisabled("No suitable food found in inventory.");
-            }
-        }
-
-        if (changed) _plugin.SaveConfig();
     }
 
     private void DrawJobSelector()
@@ -271,12 +414,8 @@ internal class ConfigWindow : Window
 
     private static void DrawJobHeader(string jobName, ImTextureID? icon)
     {
-        if (icon.HasValue)
-        {
-            ImGui.Image(icon.Value, new Vector2(IconSize, IconSize));
-            ImGui.SameLine();
-        }
-        ImGui.TextUnformatted($"Settings - {jobName}");
+        Widgets.IconTile(icon, null, new Vector2(Theme.NavTileSize, Theme.NavTileSize), true);
+        Widgets.Title($"Settings — {jobName}");
     }
 
     private static string ResolveJobName(uint jobId)
