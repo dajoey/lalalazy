@@ -1,7 +1,10 @@
+﻿## v0.0.3.3 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.0.3.2 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
-# Changelog — Lazy Skyward Tracker
+# Changelog â€” Lazy Skyward Tracker
 
 ## v0.0.3.1 (2026-10-04) [testing]
 
@@ -19,10 +22,10 @@
 - **Gathered Diadem items are now credited to the correct gathering class.** Miner
   vs. Botanist was decided by a fragile item-name keyword heuristic
   (`LooksLikeMinerItem` in `InventoryScanner.cs`, matching "ore/stone/sand" etc.),
-  which misfiled every quarried Miner material that lacks such a keyword —
+  which misfiled every quarried Miner material that lacks such a keyword â€”
   Spring Water, Truespring Water, Cloud Drop Water, Basalt, Jade, Lutinite, Alumen,
   Clay, Granite, Silex, Ice Stalagmite, Fossil Dust, Basilisk Egg, and the Umbral
-  Levinshard / Levinite / Magma Shard line — into the **Botanist** projection.
+  Levinshard / Levinite / Magma Shard line â€” into the **Botanist** projection.
   18 point-bearing Miner items (Grades 2-4, including their Artisanal forms) were
   affected, so mining those collectables moved the Botanist bar instead of Miner.
 
@@ -35,5 +38,5 @@
 ### Notes
 - No change to which items count or their point values. Raw, non-collectable node
   materials (e.g. Grade 4 Skybuilders' Iron Ore) still award 0 Skyward achievement
-  points per the game's `HWDGathererInspection` data — they yield Skybuilders'
+  points per the game's `HWDGathererInspection` data â€” they yield Skybuilders'
   Scrips, not Pteranodon progress, so they correctly do not move any bar.
