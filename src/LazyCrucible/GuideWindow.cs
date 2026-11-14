@@ -1,10 +1,21 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Lalalazy.Crucible;
+using LalaUiKit;
 
 namespace LazyCrucible;
 
+// Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13).
+// The Dalamud Window base auto-begins/ends this window (Draw() draws content only),
+// so the top bar is drawn with the same kit primitives Layout.Shell uses, and the
+// suite frame comes from Theme.PushFrame/PopFrame. Colours come only from the kit:
+// danger and attention read as the amber state colour (red stays reserved for
+// Stop/Failed, R4), covered reads green, muted text is the kit's secondary colour,
+// and section headings are the kit's title size (R7). The guide has no background
+// activity of its own, so the live state ships in the pill and the footer is
+// omitted (Brief R3).
 /// <summary>
 ///     /lazycrucible guide — the fight repository. Follows the upcoming fight (the one the board layout or the
 ///     Battlehorn screen is focused on, the same identification the horn picks use) or browses any board. For each
@@ -15,10 +26,12 @@ namespace LazyCrucible;
 /// </summary>
 internal sealed class GuideWindow : Window
 {
-    private static readonly Vector4 Danger = new(1f, 0.45f, 0.35f, 1f);
-    private static readonly Vector4 Good = new(0.55f, 0.9f, 0.55f, 1f);
-    private static readonly Vector4 Warn = new(1f, 0.8f, 0.35f, 1f);
-    private static readonly Vector4 Muted = new(0.6f, 0.6f, 0.6f, 1f);
+    // Kit colours only (Brief R4): amber for danger/attention, green for covered, the
+    // kit's secondary text colour for muted. Red stays reserved for Stop/Failed.
+    private static readonly Vector4 Danger = Theme.StateAmber;
+    private static readonly Vector4 Good = Theme.StateGreen;
+    private static readonly Vector4 Warn = Theme.StateAmber;
+    private static readonly Vector4 Muted = Theme.TextSecondary;
 
     private int _board = 1;
     private int _battle = 1;
@@ -32,6 +45,18 @@ internal sealed class GuideWindow : Window
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(380, 260), MaximumSize = new Vector2(1400, 1600) };
         Size = new Vector2(520, 640);
         SizeCondition = ImGuiCond.FirstUseEver;
+    }
+
+    /// <summary> Live state for the pill (R3 place 1): what the guide is pointed at. </summary>
+    private (UiState State, string Detail) OverallState()
+    {
+        if (RunTracker.Focus.Battle >= 0)
+        {
+            var label = BST_CrucibleData.BattleLabel(RunTracker.Focus.Board, RunTracker.Focus.Battle);
+            return _follow ? (UiState.Ready, $"following {label}") : (UiState.Idle, $"next: {label}");
+        }
+
+        return (UiState.Empty, "no fight in focus");
     }
 
     /// <summary>
@@ -70,9 +95,7 @@ internal sealed class GuideWindow : Window
     {
         if (_incoming is not { } warn)
             return;
-        ImGui.TextColored(Danger, "INCOMING");
-        ImGui.SameLine();
-        ImGui.TextWrapped(warn.Text);
+        Widgets.Banner(UiState.Blocked, "Incoming", warn.Text);
         var guideDo = Plugin.Guide.File.Fights.SelectMany(f => f.Hits.Concat(f.Mechanics))
             .Where(m => m.Ids.Contains(warn.CastId) && m.Do.Length > 0).Select(m => m.Do).FirstOrDefault();
         if (guideDo is not null)
@@ -82,49 +105,75 @@ internal sealed class GuideWindow : Window
 
     public override void Draw()
     {
-        DrawIncoming();
-        ImGui.Checkbox("Follow the next fight", ref _follow);
-        ImGui.SameLine();
-        ImGui.TextDisabled(RunTracker.Focus.Battle >= 0
-            ? $"(next: {BST_CrucibleData.BattleLabel(RunTracker.Focus.Board, RunTracker.Focus.Battle)})"
-            : "(no fight in focus)");
+        Theme.PushFrame();
+        try
+        {
+            DrawTopBar();
+            DrawIncoming();
+            Widgets.Checkbox("Follow the next fight", ref _follow);
 
-        ImGui.TextUnformatted("Board");
-        for (var b = 1; b <= 5; b++)
-        {
-            ImGui.SameLine();
-            if (ImGui.RadioButton($"{b}##gb", _board == b))
+            ImGui.TextUnformatted("Board");
+            for (var b = 1; b <= 5; b++)
             {
-                _board = b;
-                _battle = 1;
-                _follow = false;
-            }
-        }
-        ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("##gbattle", Label(_board, _battle)))
-        {
-            foreach (var bt in BST_CrucibleData.Battles.Where(x => x.Board == _board).OrderBy(x => x.Battle == 0).ThenBy(x => x.Battle))
-                if (ImGui.Selectable(Label(_board, bt.Battle), bt.Battle == _battle))
+                ImGui.SameLine();
+                if (ImGui.RadioButton($"{b}##gb", _board == b))
                 {
-                    _battle = bt.Battle;
+                    _board = b;
+                    _battle = 1;
                     _follow = false;
                 }
-            ImGui.EndCombo();
-        }
-        ImGui.Separator();
+            }
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.BeginCombo("##gbattle", Label(_board, _battle)))
+            {
+                foreach (var bt in BST_CrucibleData.Battles.Where(x => x.Board == _board).OrderBy(x => x.Battle == 0).ThenBy(x => x.Battle))
+                    if (ImGui.Selectable(Label(_board, bt.Battle), bt.Battle == _battle))
+                    {
+                        _battle = bt.Battle;
+                        _follow = false;
+                    }
+                ImGui.EndCombo();
+            }
+            ImGui.Separator();
 
-        var guide = Plugin.Guide;
-        var fight = guide.Fight(_board, _battle);
-        if (fight is null)
+            var guide = Plugin.Guide;
+            var fight = guide.Fight(_board, _battle);
+            if (fight is null)
+            {
+                ImGui.TextWrapped("No guide entry for this fight.");
+                return;
+            }
+
+            ImGui.BeginChild("##guidebody", new Vector2(0, 0), false);
+            DrawFight(fight);
+            DrawRecent();
+            ImGui.EndChild();
+        }
+        finally
         {
-            ImGui.TextWrapped("No guide entry for this fight.");
-            return;
+            Theme.PopFrame();
         }
+    }
 
-        ImGui.BeginChild("##guidebody", new Vector2(0, 0), false);
-        DrawFight(fight);
-        DrawRecent();
-        ImGui.EndChild();
+    private void DrawTopBar()
+    {
+        // Top bar: title left, live-state pill right (R3 place 1) — the same primitives
+        // Layout.Shell draws for self-beginning windows.
+        var (state, detail) = OverallState();
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted("Crucible fight guide");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        Widgets.StatusPill(state, "Crucible guide", detail, alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
     }
 
     private static string Label(int board, int battle)
@@ -146,12 +195,12 @@ internal sealed class GuideWindow : Window
     private static void Heading(string text)
     {
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(0.7f, 0.8f, 1f, 1f), text);
+        Widgets.Title(text);
     }
 
     private void DrawFight(GuideFight f)
     {
-        ImGui.TextUnformatted(f.Title);
+        Widgets.Title(f.Title);
         ImGui.SameLine();
         ImGui.TextDisabled(CrucibleBoards.Where(f.Board, f.Battle));
         if (f.Summary.Length > 0)
