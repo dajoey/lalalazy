@@ -6,6 +6,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using ECommons.ImGuiMethods;
+using LalaUiKit;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -39,14 +40,22 @@ public class FateToolKitWindow : MinimisableWindow {
 
     protected override void DrawContent(bool minimised) {
         _tweak.SyncRunningState();
+        // Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13): the suite
+        // frame comes from Theme.PushFrame/PopFrame, every colour from the kit (one accent,
+        // reserved state colours) and spacing from the kit's 4 px grid. Live state (R3) is
+        // derived from the tweak's own facts in OverallState().
+        Theme.PushFrame();
+        try {
+            var (state, action) = OverallState();
 
-        using (var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 6f))
-        using (var runButtonColor = ImRaii.PushColor(ImGuiCol.Button, _tweak.Running ? (uint)Colors.Negative : (uint)Colors.Positive)
-            .Push(ImGuiCol.ButtonHovered, _tweak.Running ? (uint)Colors.NegativeHover : (uint)Colors.PositiveHover)
-            .Push(ImGuiCol.ButtonActive, _tweak.Running ? (uint)Colors.NegativeActive : (uint)Colors.PositiveActive)) {
-
-            if (ImGui.Button(_tweak.Running ? (_tweak.PendingStopWhenSafe ? "Stopping" : "Stop") : "Start")) {
-                if (_tweak.Running) {
+            // Top bar (R3 place 1): title left, live-state pill right -- the same primitives
+            // Layout.Shell draws for self-beginning windows. Skipped when minimised: the
+            // Dalamud title bar already names the window and MinimisedSize(700, 90) has no
+            // room for a second bar.
+            if (!minimised)
+                DrawTopBar(state);
+            if (_tweak.Running) {
+                if (Widgets.StopButton(_tweak.PendingStopWhenSafe ? "Stopping" : "Stop")) {
                     if (ImGui.GetIO().KeyCtrl) {
                         _tweak.PendingStopWhenSafe = true;
                     }
@@ -55,39 +64,41 @@ public class FateToolKitWindow : MinimisableWindow {
                         Service.Navmesh.Stop();
                     }
                 }
-                else {
-                    _tweak.ToggleRunning();
+            }
+            else {
+                // Start: green = Ready to run (R4). The kit's StopButton covers the red side.
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.Pack(Theme.StateGreen))
+                    .Push(ImGuiCol.ButtonHovered, Theme.Pack(Theme.StateGreen with { W = 0.85f }))
+                    .Push(ImGuiCol.ButtonActive, Theme.Pack(Theme.StateGreen with { W = 0.70f }))) {
+                    if (ImGui.Button("Start")) {
+                        _tweak.ToggleRunning();
+                    }
                 }
             }
-            ImGui.TooltipOnHover(_tweak.Running, $"Stop. Ctrl+{SeIconChar.MouseLeftClick.ToIconString()} soft stop");
-
             ImGui.SameLine();
             DrawHeaderChip(
                 $"Automation: {(_tweak.Running ? Service.Automation.Status : "Stopped")}",
-                _tweak.Running ? Colors.ChipGold : Colors.ChipMuted,
-                Colors.Grey2
+                state
             );
 
             ImGui.SameLine();
             DrawHeaderChip(
                 $"State: {_tweak.CurrentState}",
-                _tweak.Running && !_tweak.CurrentState.Equals("Idle", StringComparison.OrdinalIgnoreCase) ? Colors.ChipGold : Colors.ChipMuted,
-                Colors.Grey2
+                _tweak.Running && !_tweak.CurrentState.Equals("Idle", StringComparison.OrdinalIgnoreCase) ? UiState.Running : UiState.Idle
             );
 
             ImGui.SameLine();
-            DrawHeaderChip($"Completed: {_tweak.CompletedCount}", Colors.ChipInfo, Colors.Grey2);
+            DrawHeaderChip($"Completed: {_tweak.CompletedCount}");
 
             if (_tweak.RemainingUntilCompleted is { } remaining && remaining > 0) {
                 ImGui.SameLine();
-                DrawHeaderChip($"Remaining: {remaining}", Colors.ChipInfo, Colors.Grey2);
+                DrawHeaderChip($"Remaining: {remaining}");
             }
 
             var modeRemaining = _tweak.GetCurrentMode().GetRemainingDisplay(_tweak);
             if (!string.IsNullOrEmpty(modeRemaining)) {
                 ImGui.SameLine();
-                var (bg, fg) = modeRemaining.Equals("Done", StringComparison.OrdinalIgnoreCase) ? (Colors.ChipMuted, Colors.Grey2) : (Colors.ChipInfo, Colors.Grey2);
-                DrawHeaderChip(modeRemaining, bg, fg);
+                DrawHeaderChip(modeRemaining, modeRemaining.Equals("Done", StringComparison.OrdinalIgnoreCase) ? UiState.Ready : UiState.Running);
             }
 
             ImGui.SameLine();
@@ -102,7 +113,7 @@ public class FateToolKitWindow : MinimisableWindow {
             DrawModeButton();
             ImGui.SameLine();
             using (var _ = ImRaii.Disabled(_tweak.ModeSuppliesSwapZones))
-            using (var zoneButtonColor = ImRaii.PushColor(ImGuiCol.Text, _tweak.HasSelectedSwapZones ? (uint)Colors.Gold : ImGui.GetColorU32(ImGuiCol.Text))) {
+            using (var zoneButtonColor = ImRaii.PushColor(ImGuiCol.Text, _tweak.HasSelectedSwapZones ? Theme.Pack(Theme.Accent) : ImGui.GetColorU32(ImGuiCol.Text))) {
                 if (ImGuiComponents.IconButton("###ZoneSelector", FontAwesomeIcon.Globe))
                     _tweak.OpenZoneSelector();
             }
@@ -116,78 +127,138 @@ public class FateToolKitWindow : MinimisableWindow {
             if (minimised) {
                 MinimisedContentWidth = Math.Max(400, leftContentRight - ImGui.GetWindowPos().X + leftRightGap + rightButtonWidth + style.WindowPadding.X * 2);
             }
-        }
 
-        if (_showSettings)
-            DrawSettings();
+            if (_showSettings)
+                DrawSettings();
 
-        if (minimised)
-            return;
-
-        ImGui.SpacedSeparator();
-
-        if (_tweak.GetOrderedFates().ToList() is not { Count: > 0 } fates) {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "No fates match the current filters.");
-            return;
-        }
-
-        foreach (var (fate, isAvailable) in fates) {
-            using var id = ImRaii.PushId($"fate_{fate.Id}");
-
-            var availableWidth = ImGui.GetContentRegionAvail().X;
-            var displayName = FormatDisplayName(fate);
-            var nameWidth = Math.Min(200f.Scale(), availableWidth * 0.4f);
-            var progressWidth = Math.Max(1f, availableWidth - nameWidth - ImGui.GetStyle().ItemSpacing.X);
-
-            using (var buttonStyle = ImRaii.PushStyle(ImGuiStyleVar.ButtonTextAlign, new Vector2(0, 0.5f)))
-            using (var color = ImRaii.PushColor(ImGuiCol.Button, 0).Push(ImGuiCol.ButtonHovered, ImGui.GetColorU32(ImGuiCol.ButtonHovered)).Push(ImGuiCol.ButtonActive, ImGui.GetColorU32(ImGuiCol.ButtonActive))) {
-                var isBlacklisted = _tweak.IsBlacklisted(fate);
-
-                if (fate.HasBonus) {
-                    ImGui.Image(Svc.Texture.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(65001)).GetWrapOrEmpty().Handle, new Vector2(ImGui.IconUnitHeight()));
-                    ImGui.SameLine(0f, 0f);
-                }
-
-                using (var nameCol = ImRaii.PushColor(ImGuiCol.Text, isAvailable && !isBlacklisted ? (uint)EzColor.White : Colors.Grey3)) {
-                    if (ImGui.Button(displayName, new Vector2(
-                        fate.HasBonus
-                            ? Math.Max(1f, nameWidth - ImGui.IconUnitWidth())
-                            : nameWidth,
-                        0
-                    ))) {
-                        if (Svc.Navmesh.IsRunning())
-                            Svc.Navmesh.Stop();
-                        else
-                            Svc.Navmesh.PathfindAndMoveTo(fate.Position.RandomPoint(fate.Radius * 0.5f).OnMesh(), Svc.Condition[ConditionFlag.InFlight]);
-                    }
-                }
-
-                if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-                    _tweak.ToggleBlacklist(fate);
-
-                ImGui.TooltipOnHover(BuildFateTooltip(fate, displayName, isBlacklisted));
-            }
-
-            ImGui.SameLine();
-
-            var percentage = fate.Progress / 100f;
-            var progressLabel = $"{fate.Progress}%";
-
-            var cursorPos = ImGui.GetCursorPos();
-            var labelSize = ImGui.CalcTextSize(progressLabel);
-            var textX = Math.Max(0f, progressWidth - labelSize.X - 4f);
-
-            using (var color = ImRaii.PushColor(ImGuiCol.PlotHistogram, _tweak.Config.BarColour))
-                ImGui.ProgressBar(percentage, new Vector2(progressWidth, ImGui.GetFrameHeight()), "");
-
-            ImGui.SetCursorPos(new Vector2(cursorPos.X + textX, cursorPos.Y + (ImGui.GetFrameHeight() - labelSize.Y) * 0.5f));
-            ImGui.TextColored(
-                ImGui.GetProgressBarTextColor(_tweak.Config.BarColour, ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg], percentage, textX, labelSize.X, progressWidth),
-                progressLabel
-            );
+            if (minimised)
+                return;
 
             ImGui.SpacedSeparator();
+
+            if (_tweak.GetOrderedFates().ToList() is not { Count: > 0 } fates) {
+                Widgets.Secondary("No fates match the current filters.");
+                return;
+            }
+
+            foreach (var (fate, isAvailable) in fates) {
+                using var id = ImRaii.PushId($"fate_{fate.Id}");
+
+                var availableWidth = ImGui.GetContentRegionAvail().X;
+                var displayName = FormatDisplayName(fate);
+                var nameWidth = Math.Min(200f.Scale(), availableWidth * 0.4f);
+                var progressWidth = Math.Max(1f, availableWidth - nameWidth - ImGui.GetStyle().ItemSpacing.X);
+
+                using (var buttonStyle = ImRaii.PushStyle(ImGuiStyleVar.ButtonTextAlign, new Vector2(0, 0.5f)))
+                using (var color = ImRaii.PushColor(ImGuiCol.Button, 0).Push(ImGuiCol.ButtonHovered, ImGui.GetColorU32(ImGuiCol.ButtonHovered)).Push(ImGuiCol.ButtonActive, ImGui.GetColorU32(ImGuiCol.ButtonActive))) {
+                    var isBlacklisted = _tweak.IsBlacklisted(fate);
+
+                    if (fate.HasBonus) {
+                        ImGui.Image(Svc.Texture.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(65001)).GetWrapOrEmpty().Handle, new Vector2(ImGui.IconUnitHeight()));
+                        ImGui.SameLine(0f, 0f);
+                    }
+
+                    using (var nameCol = ImRaii.PushColor(ImGuiCol.Text, isAvailable && !isBlacklisted ? Theme.Pack(Theme.TextPrimary) : Theme.Pack(Theme.TextSecondary))) {
+                        if (ImGui.Button(displayName, new Vector2(
+                            fate.HasBonus
+                                ? Math.Max(1f, nameWidth - ImGui.IconUnitWidth())
+                                : nameWidth,
+                            0
+                        ))) {
+                            if (Svc.Navmesh.IsRunning())
+                                Svc.Navmesh.Stop();
+                            else
+                                Svc.Navmesh.PathfindAndMoveTo(fate.Position.RandomPoint(fate.Radius * 0.5f).OnMesh(), Svc.Condition[ConditionFlag.InFlight]);
+                        }
+                    }
+
+                    if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                        _tweak.ToggleBlacklist(fate);
+
+                    ImGui.TooltipOnHover(BuildFateTooltip(fate, displayName, isBlacklisted));
+                }
+
+                ImGui.SameLine();
+
+                var percentage = fate.Progress / 100f;
+                var progressLabel = $"{fate.Progress}%";
+
+                var cursorPos = ImGui.GetCursorPos();
+                var labelSize = ImGui.CalcTextSize(progressLabel);
+                var textX = Math.Max(0f, progressWidth - labelSize.X - 4f);
+
+                using (var color = ImRaii.PushColor(ImGuiCol.PlotHistogram, _tweak.Config.BarColour))
+                    ImGui.ProgressBar(percentage, new Vector2(progressWidth, ImGui.GetFrameHeight()), "");
+
+                ImGui.SetCursorPos(new Vector2(cursorPos.X + textX, cursorPos.Y + (ImGui.GetFrameHeight() - labelSize.Y) * 0.5f));
+                ImGui.TextColored(
+                    ImGui.GetProgressBarTextColor(_tweak.Config.BarColour, ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg], percentage, textX, labelSize.X, progressWidth),
+                    progressLabel
+                );
+
+                ImGui.SpacedSeparator();
+            }
+
+            // Footer (R3 place 3): the automation runs in the background, so the footer carries
+            // the live state, the current action and the Stop control pinned right. Hard stop:
+            // the same path the header button takes without Ctrl.
+            Layout.Footer(state, action, null, _tweak.PendingStopWhenSafe ? "Stopping" : "Stop", out var stop);
+            if (stop && _tweak.Running) {
+                _tweak.ToggleRunning();
+                Service.Navmesh.Stop();
+            }
         }
+        finally {
+            Theme.PopFrame();
+        }
+    }
+
+    private (UiState State, string Action) OverallState() {
+        if (!_tweak.Running)
+            return (UiState.Idle, "press Start to grind fates");
+        if (_tweak.PendingStopWhenSafe)
+            return (UiState.Running, "stopping when the current fate ends safely");
+        return (UiState.Running, "grinding fates");
+    }
+
+    private void DrawTopBar(UiState state) {
+        // Top bar (R3 place 1): title left, live-state pill right -- the same primitives
+        // Layout.Shell draws for self-beginning windows.
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted("Fate Tracker");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        Widgets.StatusPill(state, "Fate Tracker", alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
+    }
+
+    private static void DrawHeaderChip(string text, UiState? mark = null) {
+        // Header chip in the kit's pill shape: Surface fill, border, kit text; the optional
+        // dot carries the live state (R3 place 2) in the kit's mark colour.
+        var p = ImGui.GetCursorScreenPos();
+        var pad = 2 * Theme.Unit;
+        var textW = ImGui.CalcTextSize(text).X;
+        var dotW = mark is null ? 0f : (Theme.DotRadius * 2) + Theme.Unit;
+        var w = pad + dotW + textW + pad;
+        var h = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Pack(Theme.Surface), h / 2f);
+        dl.AddRect(p, p + new Vector2(w, h), Theme.Pack(Theme.SurfaceBorder), h / 2f);
+        var textX = p.X + pad + dotW;
+        if (mark is { } m) {
+            var dotC = new Vector2(p.X + pad + Theme.DotRadius, p.Y + (h / 2f));
+            dl.AddCircleFilled(dotC, Theme.DotRadius, Theme.Pack(Copy.MarkColor(m)));
+        }
+        dl.AddText(new Vector2(textX, p.Y + ((h - ImGui.GetTextLineHeight()) / 2f)), Theme.Pack(Theme.TextPrimary), text);
+        ImGui.Dummy(new Vector2(w, h));
     }
 
     private void DrawModeButton() {
@@ -206,13 +277,6 @@ public class FateToolKitWindow : MinimisableWindow {
         }
     }
 
-    private static void DrawHeaderChip(string text, EzColor background, EzColor textColor) {
-        using var chipColor = ImRaii.PushColor(ImGuiCol.Button, (uint)background)
-            .Push(ImGuiCol.ButtonHovered, (uint)background)
-            .Push(ImGuiCol.ButtonActive, (uint)background)
-            .Push(ImGuiCol.Text, (uint)textColor);
-        ImGui.Button(text);
-    }
 
     private static readonly (FateRule Rule, string Label)[] FateRuleLabels = [
         (FateRule.Normal, "Kill & boss FATEs"),
@@ -238,14 +302,14 @@ public class FateToolKitWindow : MinimisableWindow {
         if (!ImGui.CollapsingHeader("FATE Selection", ImGuiTreeNodeFlags.DefaultOpen)) return;
 
         var prioritizeForlorn = _tweak.Config.PrioritizeForlornMaidens;
-        if (ImGui.Checkbox("Prioritize Forlorn Maidens", ref prioritizeForlorn)) {
+        if (Widgets.Checkbox("Prioritize Forlorn Maidens", ref prioritizeForlorn)) {
             _tweak.Config.PrioritizeForlornMaidens = prioritizeForlorn;
             _tweak.Config.Save();
         }
         ImGuiComponents.HelpMarker("When a Forlorn Maiden or the Forlorn appears mid-FATE, combat targets it instead of the FATE's normal enemies until it's defeated or disappears.");
 
         ImGui.Spacing();
-        ImGui.TextWrapped("Unchecked FATE types are never started. Boss FATEs and trash-kill FATEs cannot be separated (both are 'kill & boss' in the game data). Bozja / Occult Crescent skirmishes and cosmic exploration events count as kill & boss.");
+        Widgets.SecondaryWrapped("Unchecked FATE types are never started. Boss FATEs and trash-kill FATEs cannot be separated (both are 'kill & boss' in the game data). Bozja / Occult Crescent skirmishes and cosmic exploration events count as kill & boss.");
         ImGui.Spacing();
 
         var excluded = _tweak.Config.ExcludedFateRules;
@@ -253,7 +317,7 @@ public class FateToolKitWindow : MinimisableWindow {
             var (rule, label) = FateRuleLabels[i];
             using var id = ImRaii.PushId($"rule_{rule}");
             var allowed = !excluded.Contains(rule);
-            if (ImGui.Checkbox(label, ref allowed)) {
+            if (Widgets.Checkbox(label, ref allowed)) {
                 if (allowed)
                     excluded.Remove(rule);
                 else
@@ -269,7 +333,7 @@ public class FateToolKitWindow : MinimisableWindow {
     private void DrawCurrencyFocusSection() {
         if (!ImGui.CollapsingHeader("Currency Focus", ImGuiTreeNodeFlags.DefaultOpen)) return;
 
-        ImGui.TextWrapped("Focus the automation on a FATE reward currency: zone swaps prefer zones whose FATEs reward it.");
+        Widgets.SecondaryWrapped("Focus the automation on a FATE reward currency: zone swaps prefer zones whose FATEs reward it.");
         ImGui.Spacing();
 
         var focus = _tweak.Config.CurrencyFocus;
@@ -317,13 +381,13 @@ public class FateToolKitWindow : MinimisableWindow {
         if (!ImGui.CollapsingHeader("Swap Zones", ImGuiTreeNodeFlags.DefaultOpen)) return;
 
         if (_tweak.ModeSuppliesSwapZones)
-            ImGui.TextWrapped($"Grind mode '{_tweak.GetCurrentMode().DisplayName}' defines the zone list. Uncheck zones to exclude them from rotation.");
+            Widgets.SecondaryWrapped($"Grind mode '{_tweak.GetCurrentMode().DisplayName}' defines the zone list. Uncheck zones to exclude them from rotation.");
         else if (_tweak.Config.CurrencyFocus != FateCurrency.None)
-            ImGui.TextWrapped($"Currency focus '{FateToolKit.CurrencyName(_tweak.Config.CurrencyFocus)}' defines the zone list. Uncheck zones to exclude them from rotation.");
+            Widgets.SecondaryWrapped($"Currency focus '{FateToolKit.CurrencyName(_tweak.Config.CurrencyFocus)}' defines the zone list. Uncheck zones to exclude them from rotation.");
         else if (_tweak.HasSelectedSwapZones)
-            ImGui.TextWrapped($"Manual selection: {_tweak.SelectedSwapZones.Count} zones. Uncheck a zone to remove it from rotation.");
+            Widgets.SecondaryWrapped($"Manual selection: {_tweak.SelectedSwapZones.Count} zones. Uncheck a zone to remove it from rotation.");
         else
-            ImGui.TextWrapped("Default rotation (achievement-guided). Check zones to build a manual list, or leave everything unchecked to keep the default.");
+            Widgets.SecondaryWrapped("Default rotation (achievement-guided). Check zones to build a manual list, or leave everything unchecked to keep the default.");
 
         ImGui.Spacing();
         ImGui.SetNextItemWidth(260f);
@@ -388,7 +452,7 @@ public class FateToolKitWindow : MinimisableWindow {
                 var zone = zones[i];
                 using var id = ImRaii.PushId($"zone_{group.Key.Id}_{zone.TerritoryId}");
                 var isChecked = IsZoneChecked(zone.TerritoryId);
-                if (ImGui.Checkbox(zone.Name, ref isChecked))
+                if (Widgets.Checkbox(zone.Name, ref isChecked))
                     SetZonesChecked([zone], isChecked);
                 if (zone.ZoneClass == FateZoneLogic.ZoneClass.NoTeleportFateZone && ImGui.IsItemHovered())
                     ImGui.SetTooltip("No aetheryte to teleport into this zone; it is never picked by automatic zone swaps.");
@@ -460,19 +524,19 @@ public class FateToolKitWindow : MinimisableWindow {
         if (!ImGui.CollapsingHeader("Sorting & Display")) return;
 
         var showDtr = _tweak.Config.ShowServerBarEntry;
-        if (ImGui.Checkbox("Show server info bar entry", ref showDtr)) {
+        if (Widgets.Checkbox("Show server info bar entry", ref showDtr)) {
             _tweak.Config.ShowServerBarEntry = showDtr;
             _tweak.Config.Save();
         }
         ImGuiComponents.HelpMarker("The FATE bot's On/Off switch in the game's server info bar; Umbra renders it as a button (\"Lazy Fate Automation\"). Starting from it needs a confirming second click. It can also be hidden per-plugin in Umbra or under /xlsettings -> Server Info Bar.");
         ImGui.Spacing();
 
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Priority Order Configuration");
+        Widgets.Title("Priority Order Configuration");
         ImGui.Spacing();
-        ImGui.TextWrapped("Configure the order in which fates are prioritized. The order shown here is the order used by AvailableFates when selecting which fate to complete next.");
+        Widgets.SecondaryWrapped("Configure the order in which fates are prioritized. The order shown here is the order used by AvailableFates when selecting which fate to complete next.");
         ImGui.Spacing();
 
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Display Name");
+        Widgets.Caption("Display Name");
         ImGui.Spacing();
         ImGuiEx.TextV("Format:");
         ImGui.SameLine();
