@@ -27,12 +27,14 @@
   </PropertyGroup>
   <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
        plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
-       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       its own AssemblyLoadContext and PruneOutputDlls would strip it).
        Do not remove this block in an upstream merge. -->
   <ItemGroup>
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
     <Compile Include="..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL. -->
+    <Compile Include="..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
   <ItemGroup>
@@ -43,7 +45,9 @@
   </ItemGroup>
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="           '%(Filename)' == 'LazySkywardTracker' or           '%(Filename)' == 'ECommons'         " />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="
+           '%(Filename)' == 'LazySkywardTracker' or
+           '%(Filename)' == 'ECommons'       " />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>
