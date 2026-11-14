@@ -80,11 +80,8 @@ internal static unsafe class UiHelper
 
     public static void WarningText(string str)
     {
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGuiEx.Text(EColor.YellowBright, FontAwesomeIcon.ExclamationTriangle.ToIconString());
-        ImGui.PopFont();
-        ImGui.SameLine();
-        ImGuiEx.TextWrapped(EColor.YellowBright, str);
+        // Kit rendering (R4/R5): amber caution box, no colours outside LalaUiKit.
+        LalaUiKit.Widgets.InfoBox(str, LalaUiKit.UiState.Blocked);
     }
 
     private static readonly MissingLocationLog missingLocationLog = new();

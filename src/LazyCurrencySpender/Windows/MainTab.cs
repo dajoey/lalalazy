@@ -138,9 +138,10 @@ internal class MainTab
                     }
                     ImGui.TableNextColumn();
                     var text = $"{StringHelper.FormatString(currency.CurrentCount.ToString())}/{StringHelper.FormatString(currency.MaxCount.ToString())}\n~{currency.Percentage}% full";
-                    if (currency.Percentage > 70) ImGuiEx.Text(EColor.RedBright, text);
-                    else if (currency.Percentage > 50) ImGuiEx.Text(EColor.YellowBright, text);
-                    else ImGuiEx.Text(text);
+                    // Kit colours (R4): red is never progress; a currency filling toward its
+                    // cap is in-progress (amber). Below half-full no state mark is drawn.
+                    if (currency.Percentage > 50) LalaUiKit.Widgets.StatusDot(LalaUiKit.UiState.Running);
+                    ImGuiEx.Text(text);
                     if (C.ShowMissingCollectables)
                     {
                         ImGui.TableNextColumn();

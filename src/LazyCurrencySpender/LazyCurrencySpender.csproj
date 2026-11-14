@@ -3,7 +3,7 @@
     <PackageId>LazyCurrencySpender</PackageId>
     <Authors>Blackcatz1911, dajoey</Authors>
     <Version>1.3.1.4</Version>
-    <Description>Lazy Currency Spender — FFXIV Plugin to find the best options to spend your ingame currency. Fork of CurrencySpender by Blackcatz1911.</Description>
+    <Description>Lazy Currency Spender - FFXIV Plugin to find the best options to spend your ingame currency. Fork of CurrencySpender by Blackcatz1911.</Description>
     <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
     <RepoUrl>https://github.com/dajoey/lalalazy</RepoUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -34,6 +34,9 @@
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
     <Compile Include="..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Shared UI kit (Projects/UI Refresh 2026-11/UI Brief): shared SOURCE (src/Shared/LalaUiKit),
+         never a shared DLL - each plugin lives in its own AssemblyLoadContext. -->
+    <Compile Include="..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
