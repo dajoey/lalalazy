@@ -14,10 +14,17 @@ internal class ChangelogTab
                 string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if (line.Contains("### ") || line.Contains("## ") || line.Contains("# "))
+                    if (line.Contains("### "))
                     {
-                        // Kit type scale (R7): one title size for all markdown headings.
-                        LalaUiKit.Widgets.Title(line.Replace("#", "").Trim());
+                        FontHelper.LargeText(line.Replace("#", "").Trim());
+                    }
+                    else if (line.Contains("## "))
+                    {
+                        FontHelper.LargerText(line.Replace("#", "").Trim());
+                    }
+                    else if (line.Contains("# "))
+                    {
+                        FontHelper.LargestText(line.Replace("#", "").Trim());
                     }
                     else
                     {
