@@ -1,6 +1,6 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.5.7.2</Version>
+    <Version>0.5.7.1</Version>
     <AssemblyName>ArmoireAutoFill</AssemblyName>
     <Description>Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.</Description>
     <IsPackable>false</IsPackable>
@@ -34,8 +34,6 @@
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
     <Compile Include="..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL -->
-    <Compile Include="..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
