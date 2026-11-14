@@ -4,18 +4,12 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using LalaUiKit;
 
 namespace LazyGearCollector;
 
 public sealed class CollectorWindow : Window
 {
-    private static readonly Vector4 Gold = new(0.95f, 0.80f, 0.30f, 1f);
-    private static readonly Vector4 Green = new(0.35f, 0.80f, 0.40f, 1f);
-    private static readonly Vector4 Dim = new(0.60f, 0.60f, 0.60f, 1f);
-    private static readonly Vector4 Cyan = new(0.30f, 0.80f, 0.95f, 1f);
-    private static readonly Vector4 BarDone = new(0.20f, 0.60f, 0.30f, 1f);
-    private static readonly Vector4 BarPart = new(0.85f, 0.60f, 0.10f, 1f);
-
     private static readonly Dictionary<string, string> RoleJobs = new()
     {
         ["Fending"] = "PLD  WAR  DRK  GNB",
@@ -44,21 +38,56 @@ public sealed class CollectorWindow : Window
 
     public override void Draw()
     {
+        Theme.PushFrame();
+        try
+        {
+            DrawFrame();
+        }
+        finally
+        {
+            Theme.PopFrame();
+        }
+    }
+
+    private void DrawFrame()
+    {
         var collection = Current;
+        var state = collection == null ? UiState.Empty : UiState.Ready;
+
+        // Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13): the suite
+        // frame comes from Theme.PushFrame/PopFrame, every colour from the kit (one accent,
+        // reserved state colours) and spacing from the kit 4 px grid. The top bar is the
+        // same primitives Layout.Shell draws for self-beginning windows.
+        var p = ImGui.GetCursorScreenPos();
+        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
+        var barH = Theme.PillHeight;
+        var dl = ImGui.GetWindowDrawList();
+        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+        ImGui.TextUnformatted("Lazy Gear Collector");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+        Widgets.StatusPill(state, "Gear Collector", alignRight: true);
+        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
+
         if (collection == null)
         {
-            ImGui.TextColored(Dim, "No collections could be built from the game data.");
-            ImGui.TextWrapped("This usually means the game is on a patch that does not contain the tracked sets yet.");
+            Widgets.Secondary("No collections could be built from the game data.");
+            Widgets.SecondaryWrapped("This usually means the game is on a patch that does not contain the tracked sets yet.");
             return;
         }
 
-        DrawCollectionPicker(collection);
-        ImGui.Separator();
-        DrawWallet(collection);
-        ImGui.Separator();
-
         var target = _plugin.Config.TargetTier;
         var (allPlans, grandTotal, donePieces) = _plugin.Planner.PlanMany(collection.Pieces, target);
+
+        DrawCollectionHeader(collection, donePieces, allPlans.Count);
+        ImGui.Separator();
+        DrawSettingsRow();
+        DrawWallet(collection);
+        ImGui.Separator();
 
         DrawOverall(collection, donePieces, allPlans.Count, grandTotal);
         ImGui.Separator();
@@ -70,15 +99,21 @@ public sealed class CollectorWindow : Window
             ImGui.Separator();
             DrawRoleDetail(collection, _selectedRole, target);
         }
+
+        DrawActivityFooter();
     }
 
-    private void DrawCollectionPicker(GearCollection collection)
+    // R2: page header with icon, title, one-line description and a live count that
+    // answers a question ("X / Y pieces at goal").
+    private void DrawCollectionHeader(GearCollection collection, int done, int total)
     {
-        ImGui.TextColored(Gold, collection.DisplayName);
-        ImGui.SameLine();
+        Layout.PageHeader(null, "G", collection.DisplayName, collection.SourceNote,
+            $"{done} / {total} pieces at goal");
+    }
 
+    private void DrawSettingsRow()
+    {
         var target = _plugin.Config.TargetTier;
-        ImGui.SetCursorPosX(ImGui.GetWindowWidth() - 240f);
         ImGui.TextUnformatted("Goal:");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(90f);
@@ -97,7 +132,7 @@ public sealed class CollectorWindow : Window
         }
         ImGui.SameLine();
         var cached = _plugin.Config.IncludeCachedContainers;
-        if (ImGui.Checkbox("Cached##inc", ref cached))
+        if (Widgets.Checkbox("Cached##inc", ref cached))
         {
             _plugin.Config.IncludeCachedContainers = cached;
             _plugin.Config.Save();
@@ -105,10 +140,10 @@ public sealed class CollectorWindow : Window
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Count pieces remembered from your saddlebag and retainers,\n" +
                              "in addition to what is live in your bags, armoury and equipped.");
-
-        ImGui.TextColored(Dim, collection.SourceNote);
     }
 
+    // R4/R8: wallet numbers are data, not state — emphasis by contrast (primary vs
+    // secondary), never a decorative hue.
     private void DrawWallet(GearCollection collection)
     {
         ImGui.TextUnformatted("Wallet:");
@@ -116,34 +151,36 @@ public sealed class CollectorWindow : Window
         {
             ImGui.SameLine();
             var have = _plugin.Ownership.TotalCount(currencyId);
-            ImGui.TextColored(have > 0 ? Cyan : Dim,
-                $"{_plugin.Shops.ItemName(currencyId)} {have:N0}");
+            var label = $"{_plugin.Shops.ItemName(currencyId)} {have:N0}";
+            if (have > 0)
+                Widgets.Body(label);
+            else
+                Widgets.Secondary(label);
         }
         if (collection.Currencies.Count == 0)
-            ImGui.TextColored(Dim, " (no currency costs found)");
+            Widgets.Secondary(" (no currency costs found)");
     }
 
     private void DrawOverall(GearCollection collection, int done, int total, Dictionary<uint, long> remaining)
     {
         var frac = total == 0 ? 0f : (float)done / total;
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, done == total ? BarDone : BarPart);
-        ImGui.ProgressBar(frac, new Vector2(-1f, 22f), $"{done} / {total} pieces at goal");
-        ImGui.PopStyleColor();
+        Widgets.ProgressBar(frac, done == total ? Theme.StateGreen : Theme.StateAmber);
 
         if (remaining.Count == 0)
         {
-            ImGui.TextColored(Green, "Collection complete. Nothing left to buy.");
+            Widgets.Banner(UiState.Ready, "Collection complete. Nothing left to buy.");
             return;
         }
 
-        ImGui.TextUnformatted("Still needed overall:");
+        Widgets.Body("Still needed overall:");
         foreach (var kv in remaining.OrderByDescending(k => k.Value))
         {
             var have = _plugin.Ownership.TotalCount(kv.Key);
             var short_ = Math.Max(0, kv.Value - have);
             ImGui.SameLine();
-            ImGui.TextColored(short_ == 0 ? Green : Gold,
-                $"{kv.Value:N0} {_plugin.Shops.ItemName(kv.Key)}");
+            Widgets.StatusDot(short_ == 0 ? UiState.Ready : UiState.Running);
+            ImGui.SameLine();
+            Widgets.Body($"{kv.Value:N0} {_plugin.Shops.ItemName(kv.Key)}");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(short_ == 0
                     ? "You already have enough of this."
@@ -176,18 +213,18 @@ public sealed class CollectorWindow : Window
                 _selectedRole = isSelected ? null : role;
 
             ImGui.TableNextColumn();
-            ImGui.TextColored(Dim, RoleJobs.TryGetValue(role, out var jobs) ? jobs : "");
+            Widgets.Secondary(RoleJobs.TryGetValue(role, out var jobs) ? jobs : "");
 
             ImGui.TableNextColumn();
             var frac = chains.Count == 0 ? 0f : (float)done / chains.Count;
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, done == chains.Count ? BarDone : BarPart);
-            ImGui.ProgressBar(frac, new Vector2(-1f, 18f), $"{done}/{chains.Count}");
-            ImGui.PopStyleColor();
+            Widgets.ProgressBar(frac, done == chains.Count ? Theme.StateGreen : Theme.StateAmber);
 
             ImGui.TableNextColumn();
             if (total.Count == 0)
             {
-                ImGui.TextColored(Green, "done");
+                Widgets.StatusDot(UiState.Ready);
+                ImGui.SameLine();
+                Widgets.Body("done");
             }
             else
             {
@@ -196,10 +233,13 @@ public sealed class CollectorWindow : Window
                 ImGui.TextUnformatted(string.Join(", ", parts));
             }
 
+            // Accent (R4): marks exactly this actionable hint — the row's trade-up shortcut.
             if (plans.Any(p => p.HasShortcut))
             {
                 ImGui.SameLine();
-                ImGui.TextColored(Cyan, "*");
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.Accent);
+                ImGui.TextUnformatted("*");
+                ImGui.PopStyleColor();
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("A free or cheaper trade-up is available for this role. Open it for detail.");
             }
@@ -210,7 +250,7 @@ public sealed class CollectorWindow : Window
 
     private void DrawRoleDetail(GearCollection collection, string role, int target)
     {
-        ImGui.TextColored(Gold, $"{role} - piece by piece");
+        Widgets.Title($"{role} - piece by piece");
 
         if (!ImGui.BeginTable("detail", 4,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
@@ -235,10 +275,15 @@ public sealed class CollectorWindow : Window
 
             ImGui.TableNextColumn();
             if (plan.OwnedTier < 0)
-                ImGui.TextColored(Dim, "none");
+            {
+                Widgets.Secondary("none");
+            }
             else
-                ImGui.TextColored(plan.Complete ? Green : Gold,
-                    plan.OwnedTier == 0 ? "base" : $"+{plan.OwnedTier}");
+            {
+                Widgets.StatusDot(plan.Complete ? UiState.Ready : UiState.Running);
+                ImGui.SameLine();
+                Widgets.Body(plan.OwnedTier == 0 ? "base" : $"+{plan.OwnedTier}");
+            }
 
             if (plan.OwnedTier >= 0 && ImGui.IsItemHovered())
             {
@@ -257,7 +302,9 @@ public sealed class CollectorWindow : Window
             ImGui.TableNextColumn();
             if (plan.Complete)
             {
-                ImGui.TextColored(Green, "complete");
+                Widgets.StatusDot(UiState.Ready);
+                ImGui.SameLine();
+                Widgets.Body("complete");
             }
             else
             {
@@ -273,18 +320,34 @@ public sealed class CollectorWindow : Window
                 ImGui.TextUnformatted(string.Join(", ", parts));
             }
 
+            // Accent (R4): marks exactly this actionable hint — the trade-up note.
             foreach (var note in plan.Notes)
             {
-                ImGui.TextColored(Cyan, "  -> " + note);
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.Accent);
+                ImGui.TextUnformatted("  -> " + note);
+                ImGui.PopStyleColor();
             }
         }
 
         ImGui.EndTable();
 
-        ImGui.TextColored(Dim,
+        Widgets.Secondary(
             "Live: bags, armoury chest and equipped gear. Saddlebag and retainers are remembered from the last time\n" +
             "the game had them open. The glamour dresser cannot be read by plugins on this API, so pieces stored\n" +
             "there will show as missing.");
+    }
+
+    // R3 place 3: this plugin refreshes ownership snapshots every 5 s while logged in
+    // (Plugin.OnFrameworkUpdate). The sweep has no stop control — adding one would change
+    // plugin behaviour, which this refresh must not — so the footer carries the live
+    // action without a Stop button.
+    private void DrawActivityFooter()
+    {
+        ImGui.Dummy(new Vector2(0, Theme.Unit));
+        ImGui.Separator();
+        Widgets.StatusDot(UiState.Ready);
+        ImGui.SameLine();
+        Widgets.Secondary("Ownership snapshots refresh every 5 seconds while you are logged in.");
     }
 
     /// <summary>Shorten long currency names so the summary columns stay readable.</summary>
