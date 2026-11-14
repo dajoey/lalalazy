@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using LalaUiKit;
+using Dalamud.Interface.Colors;
 using LazyCrafter.Adapters;
 using LazyCrafter.Core;
 
@@ -72,14 +72,14 @@ public sealed class RunTab
         }
         var what = s.CartNames.Count > 0 ? string.Join(", ", s.CartNames) : s.What;
         if (!string.IsNullOrEmpty(what)) ImGui.TextUnformatted(what);
-        if (!string.IsNullOrEmpty(s.Status)) ImGui.TextColored(s.State == RunState.Failed ? Copy.MarkColor(UiState.Failed) : Copy.MarkColor(UiState.Running), s.Status);
+        if (!string.IsNullOrEmpty(s.Status)) ImGui.TextColored(s.State == RunState.Failed ? ImGuiColors.DalamudRed : ImGuiColors.DalamudOrange, s.Status);
         if (!string.IsNullOrEmpty(s.StoppedReason) && !string.Equals(s.StoppedReason, s.Status, StringComparison.Ordinal))
-            ImGui.TextColored(s.State == RunState.Blocked ? Copy.MarkColor(UiState.Blocked) : Copy.MarkColor(UiState.Failed), s.StoppedReason);
+            ImGui.TextColored(s.State == RunState.Blocked ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudRed, s.StoppedReason);
 
         // ---- buttons: Stop / Resume / Copy report
         if (s.State == RunState.Running)
         {
-            if (Widgets.StopButton("Stop")) dispatch.Stop();
+            if (ImGui.Button("Stop")) dispatch.Stop();
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Abort the run: retainer queue aborted, GBR off, Artisan stop request. The plan is kept so Resume can pick it up.");
         }
         else
@@ -109,7 +109,7 @@ public sealed class RunTab
             _copiedAt = DateTime.UtcNow;
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Copy this whole run - every step, reason and blocker - as plain text (paste it into a Helm note).");
-        if ((DateTime.UtcNow - _copiedAt).TotalSeconds < 3) { ImGui.SameLine(); ImGui.TextColored(Copy.MarkColor(UiState.Ready), "copied"); }
+        if ((DateTime.UtcNow - _copiedAt).TotalSeconds < 3) { ImGui.SameLine(); ImGui.TextColored(ImGuiColors.HealerGreen, "copied"); }
 
         // ---- blocked section: only when Blocked; the same lists the chat block prints, with the two actions.
         if (s.State == RunState.Blocked && s.Blocked.Count > 0) DrawBlocked(s);
@@ -132,7 +132,7 @@ public sealed class RunTab
         }
 
         ImGui.Separator();
-        Widgets.Banner(UiState.Blocked, "Stopped — the run needs you before it can continue");
+        ImGui.TextColored(ImGuiColors.DalamudOrange, "Stopped - the run needs you before it can continue:");
 
         if (_marketItems.Count > 0)
         {
@@ -266,7 +266,7 @@ public sealed class RunTab
         {
             ImGui.TableNextRow();
             if (st.State == StepState.Running)
-                ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.ColorConvertFloat4ToU32(Theme.StateAmber with { W = 0.25f }));
+                ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.ColorConvertFloat4ToU32(new Vector4(0.95f, 0.65f, 0.15f, 0.25f)));
             ImGui.PushID(i++);
             ImGui.TableNextColumn(); ImGui.TextUnformatted(RunReport.KindName(st.Kind));
             ImGui.TableNextColumn(); ImGui.TextUnformatted(st.Name);
@@ -277,13 +277,13 @@ public sealed class RunTab
             var ext = st.ExternalStatus ?? "";
             if (reason.Length > 0)
             {
-                ImGui.TextColored(st.State == StepState.Failed ? Copy.MarkColor(UiState.Failed) : st.State == StepState.Blocked ? Copy.MarkColor(UiState.Blocked) : Theme.TextSecondary, reason);
+                ImGui.TextColored(st.State is StepState.Blocked or StepState.Failed ? ImGuiColors.DalamudRed : ImGuiColors.DalamudGrey, reason);
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip(reason);
             }
             if (ext.Length > 0)
             {
                 if (reason.Length > 0) ImGui.SameLine();
-                ImGui.TextColored(Copy.MarkColor(UiState.Blocked), ext);
+                ImGui.TextColored(ImGuiColors.DalamudOrange, ext);
             }
             if (reason.Length == 0 && ext.Length == 0) ImGui.TextDisabled("-");
             ImGui.PopID();
@@ -293,19 +293,19 @@ public sealed class RunTab
 
     private static Vector4 PhaseColor(RunState s) => s switch
     {
-        RunState.Running => Copy.MarkColor(UiState.Running),
-        RunState.Blocked => Copy.MarkColor(UiState.Blocked),
-        RunState.Done => Copy.MarkColor(UiState.Ready),
-        RunState.Failed => Copy.MarkColor(UiState.Failed),
-        _ => Theme.StateNeutral,
+        RunState.Running => ImGuiColors.DalamudOrange,
+        RunState.Blocked => ImGuiColors.DalamudYellow,
+        RunState.Done => ImGuiColors.HealerGreen,
+        RunState.Failed => ImGuiColors.DalamudRed,
+        _ => ImGuiColors.DalamudGrey,
     };
 
     private static Vector4 StateColor(StepState s) => s switch
     {
-        StepState.Running => Copy.MarkColor(UiState.Running),
-        StepState.Done => Copy.MarkColor(UiState.Ready),
-        StepState.Failed => Copy.MarkColor(UiState.Failed),
-        StepState.Blocked => Copy.MarkColor(UiState.Blocked),
-        _ => Theme.StateNeutral,
+        StepState.Running => ImGuiColors.DalamudOrange,
+        StepState.Done => ImGuiColors.HealerGreen,
+        StepState.Failed => ImGuiColors.DalamudRed,
+        StepState.Blocked => ImGuiColors.DalamudYellow,
+        _ => ImGuiColors.DalamudGrey,
     };
 }
