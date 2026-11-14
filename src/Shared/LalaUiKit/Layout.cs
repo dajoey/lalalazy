@@ -1,4 +1,4 @@
-﻿// LalaUiKit/Layout.cs â€” Shell top bar, page header, two-column grid and footer
+// LalaUiKit/Layout.cs ??? Shell top bar, page header, two-column grid and footer
 // (Brief "Kit shape", R1, R2, R3, R9, R10).
 
 namespace LalaUiKit;
@@ -17,7 +17,7 @@ public static class Layout
     /// <summary>
     ///     A Shell window: applies the suite frame (R9), draws the top bar with the plugin
     ///     title on the left and the live-state pill (R3 place 1) on the right. Dispose to
-    ///     end it. Group tabs live between Shell and NavSection (R1) â€” AutoPotion has none
+    ///     end it. Group tabs live between Shell and NavSection (R1) ??? AutoPotion has none
     ///     (one functional area).
     /// </summary>
     public sealed class Shell : IDisposable
@@ -124,7 +124,7 @@ public static class Layout
 
     /// <summary>
     ///     Work on the left; rail with Requirements and grouped Settings on the right.
-    ///     Usage: Begin() â†’ left content â†’ Split() â†’ rail content â†’ Dispose(). Pages
+    ///     Usage: Begin() ??? left content ??? Split() ??? rail content ??? Dispose(). Pages
     ///     without settings or requirements use a single column (don't call this).
     /// </summary>
     public sealed class TwoColumns : IDisposable
@@ -179,8 +179,8 @@ public static class Layout
         Widgets.StatusDot(state);
         ImGui.SameLine();
         var line = string.IsNullOrEmpty(reason)
-            ? $"{Copy.Word(state)} â€” {action}"
-            : $"{Copy.Word(state)} â€” {action} â€” {reason}";
+            ? $"{Copy.Word(state)} ??? {action}"
+            : $"{Copy.Word(state)} ??? {action} ??? {reason}";
         Widgets.Secondary(line);
         ImGui.SameLine();
 
@@ -222,6 +222,40 @@ public static class Layout
             ImGui.End();
             if (_transparent)
                 ImGui.PopStyleColor();
+        }
+    }
+
+
+    /// <summary>
+    ///     The suite's tooltip window: the Begin/End pair for hover tooltips, themed by the
+    ///     kit (solid background, SurfaceBorder border shadow). Sizes and position arrive
+    ///     pre-scaled from the caller so the kit keeps its ImGui-and-Numerics-only deps.
+    ///     Raw-tooltip conversion tasks route their tooltip windows through here so plugin
+    ///     code carries no raw ImGui.Begin.
+    /// </summary>
+    public sealed class TooltipScope : IDisposable
+    {
+        private readonly bool _opened;
+
+        private TooltipScope(bool opened) => _opened = opened;
+
+        public static TooltipScope Begin(string name, ImGuiWindowFlags flags, Vector2 minSize, Vector2 maxSize, Vector2 position)
+        {
+            ImGui.SetNextWindowBgAlpha(1f);
+            ImGui.PushStyleColor(ImGuiCol.BorderShadow, Theme.SurfaceBorder);
+            ImGui.SetNextWindowSizeConstraints(minSize, maxSize);
+            ImGui.SetWindowPos(name, position);
+            var opened = ImGui.Begin(name, flags);
+            return new TooltipScope(opened);
+        }
+
+        public bool Opened => _opened;
+
+        public void Dispose()
+        {
+            if (_opened)
+                ImGui.End();
+            ImGui.PopStyleColor();
         }
     }
 }

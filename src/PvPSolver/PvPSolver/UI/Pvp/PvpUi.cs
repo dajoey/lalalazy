@@ -2,6 +2,7 @@ using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using ECommons.Logging;
+using LalaUiKit;
 using RotationSolver.Decisions;
 
 namespace RotationSolver.UI.Pvp;
@@ -20,11 +21,13 @@ internal static class PvpUi
 
     internal static float Scale => ImGuiHelpers.GlobalScale;
 
-    internal static Vector4 Muted => ImGuiColors.DalamudGrey;
+    internal static Vector4 Muted => Theme.TextSecondary;
 
-    internal static Vector4 Warning => ImGuiColors.DalamudOrange;
+    internal static Vector4 Warning => Theme.StateAmber;
 
-    internal static Vector4 Accent => ImGuiColors.DalamudYellow;
+    internal static Vector4 Accent => Theme.Accent;
+
+    internal static Vector4 On => Theme.StateGreen;
 
     // ---- saving --------------------------------------------------------------------------------------------------
 
@@ -81,7 +84,7 @@ internal static class PvpUi
     internal static void Heading(string text)
     {
         ImGui.Spacing();
-        ImGui.TextColored(Accent, text);
+        Widgets.Title(text);
         ImGui.Separator();
     }
 
@@ -119,9 +122,11 @@ internal static class PvpUi
             return;
         }
 
-        using var tooltip = ImRaii.Tooltip();
-        using var wrap = ImRaii.TextWrapPos(ImGui.GetFontSize() * 28f);
-        ImGui.TextUnformatted(text);
+        ImguiTooltips.ShowTooltip(() =>
+        {
+            using var wrap = ImRaii.TextWrapPos(ImGui.GetFontSize() * 28f);
+            ImGui.TextUnformatted(text);
+        });
     }
 
     // ---- controls ------------------------------------------------------------------------------------------------

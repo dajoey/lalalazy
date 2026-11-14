@@ -7,6 +7,7 @@ using RotationSolver.Commands;
 using RotationSolver.Data;
 
 using RotationSolver.Updaters;
+using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -40,12 +41,9 @@ internal class ControlWindow : CtrlWindow
 	public override unsafe void Draw()
 	{
 		using var selectableAlign = ImRaii.PushStyle(ImGuiStyleVar.SelectableTextAlign, new Vector2(0.5f, 0.5f));
-		using var framePad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(4, 3));
-		using var childWinPad = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12, 12));
-		using var frameCellPadding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(4, 2));
-		using var frameItemSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4));
-		using var frameItemInnerSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemInnerSpacing, new Vector2(4, 4));
-		using var frameIndentSpacing = ImRaii.PushStyle(ImGuiStyleVar.IndentSpacing, 21f);
+		Theme.PushFrame();
+		try
+		{
 		using var frameScrollbarSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 16f);
 		using var frameGrabMinSize = ImRaii.PushStyle(ImGuiStyleVar.GrabMinSize, 13f);
 		using var frameWindowRounding = ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, 11f);
@@ -72,12 +70,12 @@ internal class ControlWindow : CtrlWindow
 		ImGui.NewLine();
 
 		ImGui.Spacing();
-		DrawCommandAction(61822, StateCommandType.Auto, ImGuiColors.DPSRed);
+		DrawCommandAction(61822, StateCommandType.Auto, Theme.TextSecondary);
 		ImGui.SameLine();
-		DrawCommandAction(61751, StateCommandType.Manual, ImGuiColors.DPSRed);
+		DrawCommandAction(61751, StateCommandType.Manual, Theme.TextSecondary);
 		columnWidth = Math.Max(columnWidth, ImGui.GetCursorPosX());
 		ImGui.SameLine();
-		DrawCommandAction(61764, StateCommandType.Off, ImGuiColors.DalamudWhite2);
+		DrawCommandAction(61764, StateCommandType.Off, Theme.TextSecondary);
 		ImGui.Spacing();
 		columnWidth = Math.Max(columnWidth, ImGui.GetCursorPosX());
 
@@ -134,6 +132,11 @@ internal class ControlWindow : CtrlWindow
 		DrawSpecials();
 
 		ImGui.Columns(1);
+		}
+		finally
+		{
+			Theme.PopFrame();
+		}
 	}
 
 	private static void DrawSpecials()
@@ -141,65 +144,65 @@ internal class ControlWindow : CtrlWindow
 		ICustomRotation? rotation = DataCenter.CurrentRotation;
 
 		DrawCommandAction(rotation?.ActionHealAreaGCD, rotation?.ActionHealAreaAbility,
-			SpecialCommandType.HealArea, ImGuiColors.HealerGreen);
+			SpecialCommandType.HealArea, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionHealSingleGCD, rotation?.ActionHealSingleAbility,
-			SpecialCommandType.HealSingle, ImGuiColors.HealerGreen);
+			SpecialCommandType.HealSingle, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionDefenseAreaGCD, rotation?.ActionDefenseAreaAbility,
-			SpecialCommandType.DefenseArea, ImGuiColors.TankBlue);
+			SpecialCommandType.DefenseArea, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionDefenseSingleGCD, rotation?.ActionDefenseSingleAbility,
-			SpecialCommandType.DefenseSingle, ImGuiColors.TankBlue);
+			SpecialCommandType.DefenseSingle, Theme.TextSecondary);
 
 		ImGui.Spacing();
 
 		DrawCommandAction(rotation?.ActionMoveForwardGCD, rotation?.ActionMoveForwardAbility,
-			SpecialCommandType.MoveForward, ImGuiColors.DalamudOrange);
+			SpecialCommandType.MoveForward, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionMoveBackAbility,
-			SpecialCommandType.MoveBack, ImGuiColors.DalamudOrange);
+			SpecialCommandType.MoveBack, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
-		DrawCommandAction(61397, SpecialCommandType.NoCasting, ImGuiColors.DalamudWhite2);
+		DrawCommandAction(61397, SpecialCommandType.NoCasting, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
-		DrawCommandAction(61804, SpecialCommandType.Burst, ImGuiColors.DalamudWhite2);
+		DrawCommandAction(61804, SpecialCommandType.Burst, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
-		DrawCommandAction(61753, SpecialCommandType.EndSpecial, ImGuiColors.DalamudWhite2);
+		DrawCommandAction(61753, SpecialCommandType.EndSpecial, Theme.TextSecondary);
 
 		ImGui.Spacing();
 
 		DrawCommandAction(rotation?.ActionDispelStancePositionalGCD, rotation?.ActionDispelStancePositionalAbility,
-			SpecialCommandType.DispelStancePositional, ImGuiColors.ParsedGold);
+			SpecialCommandType.DispelStancePositional, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionRaiseShirkGCD, rotation?.ActionRaiseShirkAbility,
-			SpecialCommandType.RaiseShirk, ImGuiColors.ParsedBlue);
+			SpecialCommandType.RaiseShirk, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 
 		DrawCommandAction(rotation?.ActionAntiKnockbackAbility,
-			SpecialCommandType.AntiKnockback, ImGuiColors.DalamudWhite2);
+			SpecialCommandType.AntiKnockback, Theme.TextSecondary);
 
 		ImGui.SameLine();
 
 		DrawCommandAction(rotation?.ActionSpeedAbility,
-			SpecialCommandType.Speed, ImGuiColors.DalamudWhite2);
+			SpecialCommandType.Speed, Theme.TextSecondary);
 
 		ImGui.Spacing();
 
@@ -239,7 +242,7 @@ internal class ControlWindow : CtrlWindow
 			//if (subGroup != null) - GroupDisposable is a struct
 			{
 				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(2, (width / 2) - (strWidth / 2)));
-				ImGui.TextColored(color, str);
+				ImGui.Text(str);
 
 				string help = command.GetDescription();
 				if (ability != null)
@@ -303,7 +306,7 @@ internal class ControlWindow : CtrlWindow
 	{
 		Vector2 offset = ImGui.GetStyle().ItemSpacing / 2;
 		ImGui.GetWindowDrawList().AddRect(pt - offset, pt + size + offset,
-			ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudGrey), 5, ImDrawFlags.RoundCornersAll, thickness);
+			Theme.Pack(Theme.Accent), 5, ImDrawFlags.RoundCornersAll, thickness);
 	}
 
 	private static void DrawCommandAction(IAction? ability, SpecialCommandType command, Vector4 color)
@@ -342,7 +345,7 @@ internal class ControlWindow : CtrlWindow
 			//if (subGroup != null) - GroupDisposable is a struct
 			{
 				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(0, (width / 2) - (strWidth / 2)));
-				ImGui.TextColored(color, str);
+				ImGui.Text(str);
 
 				string help = command.GetDescription();
 				if (!string.IsNullOrEmpty(helpAddition))
@@ -389,7 +392,7 @@ internal class ControlWindow : CtrlWindow
 			//if (group != null) - GroupDisposable is a struct
 			{
 				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(0, (width / 2) - (strWidth / 2)) - 3.5f);
-				ImGui.TextColored(color, str);
+				ImGui.Text(str);
 
 				string help = command.GetDescription();
 				string baseId = "ImgButton" + command.ToString();
@@ -552,7 +555,7 @@ internal class ControlWindow : CtrlWindow
 
 		string str = "Next Action";
 		ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (width / 2) - (ImGui.CalcTextSize(str).X / 2));
-		ImGui.TextColored(ImGuiColors.DalamudYellow, str);
+		Widgets.Title(str);
 
 		NextActionWindow.DrawGcdCooldown(width, true);
 
