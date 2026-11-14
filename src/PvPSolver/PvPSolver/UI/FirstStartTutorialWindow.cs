@@ -1,7 +1,6 @@
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
-using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -146,10 +145,9 @@ internal sealed class FirstStartTutorialWindow : Window
 	{
 		TutorialStep step = Steps[_stepIndex];
 
-		Theme.PushFrame();
-		try
-		{
-		Widgets.Title(step.Title);
+		ImGui.PushFont(FontManager.GetFont(ImGui.GetFontSize() + 6));
+		ImGui.TextColored(ImGuiColors.ParsedGold, step.Title);
+		ImGui.PopFont();
 
 		DrawWrappedText(step.Description);
 		ImGui.Spacing();
@@ -165,7 +163,7 @@ internal sealed class FirstStartTutorialWindow : Window
 
 		if (step.RecommendedMacros is { Length: > 0 })
 		{
-			Widgets.Secondary("Recommended macros:");
+			ImGui.TextColored(ImGuiColors.HealerGreen, "Recommended macros:");
 			for (int i = 0; i < step.RecommendedMacros.Length; i++)
 			{
 				string macro = step.RecommendedMacros[i];
@@ -194,11 +192,6 @@ internal sealed class FirstStartTutorialWindow : Window
 
 		ImGui.Separator();
 		DrawNavigation();
-		}
-		finally
-		{
-			Theme.PopFrame();
-		}
 	}
 
 	public override void OnClose()

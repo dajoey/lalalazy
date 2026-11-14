@@ -150,7 +150,7 @@ public partial class GunbreakerRotation : CustomRotation
 		ImGui.Spacing();
 		ImGui.Spacing();
 		ImGui.Spacing();
-		LalaUiKit.Widgets.Secondary("PvP Actions");
+		ImGui.TextColored(ImGuiColors.DalamudYellow, "PvP Actions");
 		ImGui.Text("SavageClawPvPReady: " + SavageClawPvPReady.ToString());
 		ImGui.Text("WickedTalonPvPReady: " + WickedTalonPvPReady.ToString());
 		ImGui.Spacing();

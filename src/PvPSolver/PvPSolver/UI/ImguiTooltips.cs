@@ -1,7 +1,6 @@
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -53,13 +52,18 @@ internal static class ImguiTooltips
 			return;
 		}
 
-		using var tooltip = Layout.TooltipScope.Begin(TooltipId, TooltipFlag,
-			new Vector2(150, 0) * ImGuiHelpers.GlobalScale, new Vector2(1200, 1500) * ImGuiHelpers.GlobalScale,
-			ImGui.GetIO().MousePos);
+		ImGui.SetNextWindowBgAlpha(1);
 
-		if (tooltip.Opened)
+		using var color = ImRaii.PushColor(ImGuiCol.BorderShadow, ImGuiColors.DalamudWhite);
+
+		float globalScale = ImGuiHelpers.GlobalScale;
+		ImGui.SetNextWindowSizeConstraints(new Vector2(150, 0) * globalScale, new Vector2(1200, 1500) * globalScale);
+		ImGui.SetWindowPos(TooltipId, ImGui.GetIO().MousePos);
+
+		if (ImGui.Begin(TooltipId, TooltipFlag))
 		{
 			act();
+			ImGui.End();
 		}
 	}
 }

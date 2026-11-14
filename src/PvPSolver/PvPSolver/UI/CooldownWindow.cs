@@ -1,5 +1,4 @@
 ﻿using RotationSolver.Updaters;
-using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -72,7 +71,7 @@ internal class CooldownWindow() : CtrlWindow(nameof(CooldownWindow))
 				continue;
 			}
 
-			Widgets.Secondary(pair.Key);
+			ImGui.Text(pair.Key);
 
 			ImGui.Columns(count, string.Empty, false);
 			uint itemIndex = 0;

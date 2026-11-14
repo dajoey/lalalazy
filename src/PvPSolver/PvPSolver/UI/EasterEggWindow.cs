@@ -4,7 +4,6 @@ using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
 using ECommons.Logging;
 using RotationSolver.Basic.Configuration;
-using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -44,10 +43,6 @@ internal class EasterEggWindow : Window
 	public override void Draw()
 	{
 		float scale = ImGui.GetIO().FontGlobalScale;
-
-		Theme.PushFrame();
-		try
-		{
 		float size = _cellSize * scale;
 
 		using var _ = ImRaii.Group();
@@ -102,7 +97,10 @@ internal class EasterEggWindow : Window
 		ImGui.Text("I made this because i was bored");
 		ImGui.Spacing();
 
-		Widgets.SecondaryWrapped(_status);
+		using (var __ = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow))
+		{
+			ImGui.TextWrapped(_status);
+		}
 		ImGui.Spacing();
 
 		if (ImGui.Button("Reset"))
@@ -113,11 +111,6 @@ internal class EasterEggWindow : Window
 		if (ImGui.Button("Close"))
 		{
 			IsOpen = false;
-		}
-		}
-		finally
-		{
-			Theme.PopFrame();
 		}
 	}
 
