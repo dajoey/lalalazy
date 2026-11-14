@@ -1,4 +1,4 @@
-// LalaUiKit/Widgets.cs — pills, status circles, cards, info boxes, progress bars,
+// LalaUiKit/Widgets.cs ??? pills, status circles, cards, info boxes, progress bars,
 // banners and icon tiles (Brief "Kit shape", R4, R5, R6, R8).
 
 namespace LalaUiKit;
@@ -14,7 +14,7 @@ public static class Widgets
 {
     // ---- text helpers (R7: the only way converted windows set a size) ----
 
-    /// <summary>Title text: 1.15× base font. Nothing else may draw a bigger line.</summary>
+    /// <summary>Title text: 1.15?? base font. Nothing else may draw a bigger line.</summary>
     public static void Title(string text)
     {
         ImGui.SetWindowFontScale(Theme.TitleScale);
@@ -67,7 +67,7 @@ public static class Widgets
     public static void StatusPill(UiState state, string feature, string? detail = null, bool alignRight = false)
     {
         var word = Copy.Word(state);
-        var text = string.IsNullOrEmpty(detail) ? $"{feature} · {word}" : $"{feature} · {word} · {detail}";
+        var text = string.IsNullOrEmpty(detail) ? $"{feature} ?? {word}" : $"{feature} ?? {word} ?? {detail}";
         var fs = ImGui.GetFontSize();
         var textW = ImGui.CalcTextSize(text).X;
         var padX = 2 * Theme.Unit;
@@ -91,7 +91,7 @@ public static class Widgets
     /// <summary>
     ///     Stat card (R6): label, current value, cap if one exists, thin progress bar, one
     ///     delta line that answers "what changed and why". Fixed width + shared minimum
-    ///     height so card grids never show dead space under a short card (flaw → R6+R9).
+    ///     height so card grids never show dead space under a short card (flaw ??? R6+R9).
     /// </summary>
     public static void StatCard(string label, string value, string? cap, float? frac, string? delta, float width)
     {
@@ -139,7 +139,7 @@ public static class Widgets
 
     /// <summary>
     ///     One-line announcement (R3): finished, failed and stopped are announced once,
-    ///     here, with a one-line reason — never silently.
+    ///     here, with a one-line reason ??? never silently.
     /// </summary>
     public static void Banner(UiState state, string headline, string? detail = null)
     {
@@ -150,7 +150,7 @@ public static class Widgets
         ImGui.GetWindowDrawList().AddRect(p, p + new Vector2(w, h), Theme.Pack(Theme.SurfaceBorder), 4f);
         ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (h - ImGui.GetTextLineHeight()) / 2f));
         ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-        ImGui.TextUnformatted(string.IsNullOrEmpty(detail) ? headline : $"{headline} — {detail}");
+        ImGui.TextUnformatted(string.IsNullOrEmpty(detail) ? headline : $"{headline} ??? {detail}");
         ImGui.PopStyleColor();
         ImGui.Dummy(new Vector2(w, h));
     }
@@ -176,7 +176,7 @@ public static class Widgets
 
     /// <summary>
     ///     Square tile holding an icon (or a glyph fallback). The accent outline is drawn
-    ///     only when selected — one outline, one meaning: this item is the selected one.
+    ///     only when selected ??? one outline, one meaning: this item is the selected one.
     /// </summary>
     public static void IconTile(ImTextureID? icon, string? glyph, Vector2 size, bool selected)
     {
@@ -202,7 +202,7 @@ public static class Widgets
 
     // ---- interactive controls (R4: accent marks the "on" state) ----
 
-    /// <summary>Checkbox whose check mark is the accent — the "on" colour (R4).</summary>
+    /// <summary>Checkbox whose check mark is the accent ??? the "on" colour (R4).</summary>
     public static bool Checkbox(string label, ref bool value)
     {
         ImGui.PushStyleColor(ImGuiCol.CheckMark, Theme.Accent);
@@ -245,5 +245,14 @@ public static class Widgets
         if (icon is { } tex)
             ImGui.Image(tex, new Vector2(size));
         ImGui.End();
+    }
+
+
+    /// <summary>A line of text painted in a state's mark colour (R4: state colours carry state meaning only).</summary>
+    public static void StateText(string text, UiState state)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, Copy.MarkColor(state));
+        ImGui.TextUnformatted(text);
+        ImGui.PopStyleColor();
     }
 }

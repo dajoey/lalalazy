@@ -148,10 +148,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private const string InventoryExpansionAddon = "InventoryExpansion";
 
   /// <summary>Green dot: this stack is on the Auto-Market list (ImGui ABGR-packed; a readable green).</summary>
-  private const uint OnListColorPacked = 0xFF3CE63C; // R=0x3C G=0xE6 B=0x3C A=0xFF
+  // UI Refresh 2026-11: dot colours come from the suite kit (R4 state colours, same meanings).
+  private static readonly uint OnListColorPacked = LalaUiKit.Theme.Pack(LalaUiKit.Theme.StateGreen);
 
   /// <summary>Grey dot: marketable but not on the Auto-Market list (ImGui ABGR-packed; a muted grey).</summary>
-  private const uint MarketableNotListedColorPacked = 0xFF84888C; // R=0x8C G=0x88 B=0x84 A=0xFF
+  private static readonly uint MarketableNotListedColorPacked = LalaUiKit.Theme.Pack(LalaUiKit.Theme.StateNeutral);
 
   /// <summary>Dot radius and corner inset, in game-scaled pixels - the anchor arithmetic lives in MarkerAnchor (0.1.31.0).</summary>
   private const float DotRadius = MarkerAnchor.Radius;
@@ -373,10 +374,9 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     ImGuiHelpers.ForceNextWindowMainViewport();
     ImGui.SetNextWindowPos(refDotPos - new Vector2(radius + 1f));
     ImGui.SetNextWindowSize(new Vector2(radius * 2f + 2f));
-    ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
-    ImGui.Begin("###LMCMarkerTestDot", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
+    using var testDot = LalaUiKit.Layout.Overlay.Begin("###LMCMarkerTestDot", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
       | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus
       | ImGuiWindowFlags.AlwaysUseWindowPadding);
     var legacyList = ImGui.GetWindowDrawList();
@@ -388,9 +388,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var clipMin = legacyList.GetClipRectMin();
     var clipMax = legacyList.GetClipRectMax();
     var winVtx = legacyList.VtxBuffer.Size;
-    ImGui.End();
     ImGui.PopStyleVar(2);
-    ImGui.PopStyleColor();
     // The labels go on the foreground list: neither dot's container is big enough to hold text.
     var foreground = ImGui.GetForegroundDrawList();
     foreground.AddText(_testDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC test dot");

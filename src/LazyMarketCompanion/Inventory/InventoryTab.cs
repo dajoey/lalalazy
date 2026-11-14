@@ -5,6 +5,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lalalazy.Telemetry;
+using LalaUiKit;
 using LazyMarketCompanion.AutoMarket;
 
 namespace LazyMarketCompanion.Inventory;
@@ -18,10 +19,6 @@ namespace LazyMarketCompanion.Inventory;
 /// </summary>
 internal sealed class InventoryTab
 {
-  private static readonly Vector4 Muted = new(0.7f, 0.7f, 0.7f, 1);
-  private static readonly Vector4 Warn = new(1, 0.75f, 0.3f, 1);
-  private static readonly Vector4 Bad = new(1, 0.45f, 0.4f, 1);
-  private static readonly Vector4 Good = new(0.45f, 0.9f, 0.45f, 1);
 
   private readonly InventoryService _s;
   private readonly TelemetryGuard _guard = LalaTelemetry.CreateGuard("inventory.tab", "Inventory tab");
@@ -33,7 +30,7 @@ internal sealed class InventoryTab
   {
     if (!_guard.TryEnter())
     {
-      ImGui.TextColored(Bad, "The Inventory tab stopped after repeated errors and will retry on its own (details in the plugin log).");
+      Widgets.StateText("The Inventory tab stopped after repeated errors and will retry on its own (details in the plugin log).", UiState.Failed);
       return;
     }
     try
@@ -48,11 +45,12 @@ internal sealed class InventoryTab
 
   private void DrawInner()
   {
+    Layout.PageHeader(null, "\u25a4", "Inventory", "Space at a glance, venture loot and the gear mover", $"{_s.RetainerNames().Count()} retainers seen");
     if (_s.BatchRunning)
     {
-      ImGui.TextColored(Warn, "Running: " + _s.BatchStatus);
+      Widgets.StateText("Running: " + _s.BatchStatus, UiState.Running);
       ImGui.SameLine();
-      if (ImGui.Button("Stop##invstop"))
+      if (Widgets.StopButton("Stop##invstop"))
         _s.Cancel();
       ImGui.Separator();
     }
@@ -75,7 +73,7 @@ internal sealed class InventoryTab
   {
     var c = Plugin.Configuration;
     var tip = c.InventoryOwnerTooltip;
-    if (ImGui.Checkbox("Show who handles a stack under the game's item tooltip", ref tip)) { c.InventoryOwnerTooltip = tip; c.Save(); }
+    if (Widgets.Checkbox("Show who handles a stack under the game's item tooltip", ref tip)) { c.InventoryOwnerTooltip = tip; c.Save(); }
     Tip("Hovering a stack in the bags, a retainer's inventory or the Armoury Chest adds a box listing every plugin that\r\n" +
         "moves, sells, discards or protects that item: LMC Auto-Market and category routing, AutoRetainer entrust plans,\r\n" +
         "vendor / discard / desynth / protect lists, and gearsets. \"Nothing handles this stack\" when none acts on it.");
@@ -84,13 +82,13 @@ internal sealed class InventoryTab
     if (ar.Available)
     {
       var im = ar.Im;
-      ImGui.TextColored(Muted, $"AutoRetainer (read from its config file): {ar.Plans.Count} entrust plan(s), {ar.PlanByRetainer.Count} assigned; " +
+      Widgets.Secondary($"AutoRetainer (read from its config file): {ar.Plans.Count} entrust plan(s), {ar.PlanByRetainer.Count} assigned; " +
         $"vendor list {im.VendorHard.Count} (+{im.VendorSoft.Count} soft, auto-vendor {(im.AutoVendorEnabled ? "on" : "off")}), " +
         $"discard {im.Discard.Count}, desynth {im.Desynth.Count}, protect {im.Protect.Count}; venture log {(ar.RecordStats ? "on" : "OFF")}.");
     }
     else
     {
-      ImGui.TextColored(Warn, $"AutoRetainer: {ar.Status}. Its lists are not shown, and venture loot is not sorted while this lasts.");
+      Widgets.StateText($"AutoRetainer: {ar.Status}. Its lists are not shown, and venture loot is not sorted while this lasts.", UiState.Blocked);
     }
     ImGui.SameLine();
     if (ImGui.SmallButton("Re-read##arreread"))
@@ -159,9 +157,9 @@ internal sealed class InventoryTab
       {
         ImGui.TableNextRow();
         ImGui.TableNextColumn(); ImGui.TextUnformatted("Retainer " + name);
-        ImGui.TableNextColumn(); ImGui.TextColored(Muted, "?");
-        ImGui.TableNextColumn(); ImGui.TextColored(Muted, "-");
-        ImGui.TableNextColumn(); ImGui.TextColored(Muted, "never (visit the bell)");
+        ImGui.TableNextColumn(); Widgets.Secondary("?");
+        ImGui.TableNextColumn(); Widgets.Secondary("-");
+        ImGui.TableNextColumn(); Widgets.Secondary("never (visit the bell)");
         ImGui.TableNextColumn(); ImGui.TextUnformatted(intakeText);
       }
     }
@@ -176,17 +174,17 @@ internal sealed class InventoryTab
     ImGui.TableNextColumn();
     if (size <= 0)
     {
-      ImGui.TextColored(Muted, "?");
-      ImGui.TableNextColumn(); ImGui.TextColored(Muted, "not loaded");
-      ImGui.TableNextColumn(); ImGui.TextColored(Muted, seen);
+      Widgets.Secondary("?");
+      ImGui.TableNextColumn(); Widgets.Secondary("not loaded");
+      ImGui.TableNextColumn(); Widgets.Secondary(seen);
       ImGui.TableNextColumn(); ImGui.TextUnformatted(intake ?? string.Empty);
       return;
     }
     var free = SpaceMath.Free(size, used);
-    if (SpaceMath.Low(free, threshold)) ImGui.TextColored(free == 0 ? Bad : Warn, free.ToString());
+    if (SpaceMath.Low(free, threshold)) Widgets.StateText(free.ToString(), free == 0 ? UiState.Failed : UiState.Blocked);
     else ImGui.TextUnformatted(free.ToString());
     ImGui.TableNextColumn(); ImGui.TextUnformatted($"{used} / {size}");
-    ImGui.TableNextColumn(); ImGui.TextColored(Muted, seen);
+    ImGui.TableNextColumn(); Widgets.Secondary(seen);
     ImGui.TableNextColumn(); ImGui.TextUnformatted(intake ?? string.Empty);
   }
 
@@ -196,9 +194,9 @@ internal sealed class InventoryTab
     {
       ImGui.TableNextRow();
       ImGui.TableNextColumn(); ImGui.TextUnformatted(label);
-      ImGui.TableNextColumn(); ImGui.TextColored(Muted, "?");
-      ImGui.TableNextColumn(); ImGui.TextColored(Muted, "-");
-      ImGui.TableNextColumn(); ImGui.TextColored(Muted, "open it once");
+      ImGui.TableNextColumn(); Widgets.Secondary("?");
+      ImGui.TableNextColumn(); Widgets.Secondary("-");
+      ImGui.TableNextColumn(); Widgets.Secondary("open it once");
       ImGui.TableNextColumn();
       return;
     }
@@ -220,13 +218,13 @@ internal sealed class InventoryTab
     if (ImGui.InputInt("Look-back (days)##vllook", ref days)) { c.VentureLootLookbackDays = Math.Clamp(days, 1, 365); c.Save(); }
     ImGui.SameLine(0, 24);
     var hq = c.VentureLootAllowHq;
-    if (ImGui.Checkbox("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
+    if (Widgets.Checkbox("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
     Tip("Off (default): HQ venture loot is always kept.");
 
     var names = _s.RetainerNames();
     if (names.Count == 0)
     {
-      ImGui.TextColored(Muted, "No retainers seen yet - visit a summoning bell.");
+      Widgets.Secondary("No retainers seen yet - visit a summoning bell.");
       return;
     }
     if (!names.Contains(_retainer))
@@ -254,7 +252,7 @@ internal sealed class InventoryTab
         ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.GcDelivery).ToString());
         ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.Desynth).ToString());
         ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.Keep).ToString());
-        ImGui.TableNextColumn(); ImGui.TextColored(Muted, n == _s.SettledRetainer() ? "open" : string.Empty);
+        ImGui.TableNextColumn(); Widgets.Secondary(n == _s.SettledRetainer() ? "open" : string.Empty);
       }
       ImGui.EndTable();
     }
@@ -269,9 +267,9 @@ internal sealed class InventoryTab
     ImGui.Spacing();
     ImGui.TextUnformatted($"Retainer {retainer}: ");
     ImGui.SameLine(0, 0);
-    ImGui.TextColored(live ? Good : Muted, live ? "live (its inventory is open)" : $"last seen {SpaceMath.Age(seen, InventoryService.NowMs)} - open its inventory to act");
+    Widgets.StateText(live ? "live (its inventory is open)" : $"last seen {SpaceMath.Age(seen, InventoryService.NowMs)} - open its inventory to act", live ? UiState.Ready : UiState.Idle);
     foreach (var note in plan.Notes)
-      ImGui.TextColored(Warn, note);
+      Widgets.StateText(note, UiState.Blocked);
 
     // ONE button per bucket. VENDOR is the only live one; GC delivery and desynth hand off to the plugins
     // that already do them from the bags; KEEP is the absence of an action.
@@ -301,11 +299,11 @@ internal sealed class InventoryTab
     TipAlways("Preview only. PandorasBox (Desynth All) or AutoRetainer desynthesis handle these from the bags.\r\n" +
               "LMC does not desynthesize (that would need new, untested machinery).");
     ImGui.SameLine();
-    ImGui.TextColored(Muted, $"Keep: {plan.Count(LootBucket.Keep)}");
+    Widgets.Secondary($"Keep: {plan.Count(LootBucket.Keep)}");
 
     if (plan.Rows.Count == 0)
     {
-      ImGui.TextColored(Muted, "No venture loot in this retainer.");
+      Widgets.Secondary("No venture loot in this retainer.");
       return;
     }
 
@@ -328,14 +326,14 @@ internal sealed class InventoryTab
       Tip($"Item {row.Stack.ItemId}, {InventoryActionLine.Slot(row.Stack.Container, row.Stack.Slot)}, Quick Exploration delivered {row.Delivered} in the window");
       ImGui.TableNextColumn(); ImGui.TextUnformatted(row.Stack.Quantity.ToString());
       ImGui.TableNextColumn();
-      var (label, color) = row.Bucket switch
+      var (label, state) = row.Bucket switch
       {
-        LootBucket.Vendor => ("VENDOR", Good),
-        LootBucket.GcDelivery => ("GC", Warn),
-        LootBucket.Desynth => ("DESYNTH", Warn),
-        _ => (row.IsLoot ? "KEEP" : "not loot", Muted),
+        LootBucket.Vendor => ("VENDOR", UiState.Ready),
+        LootBucket.GcDelivery => ("GC", UiState.Blocked),
+        LootBucket.Desynth => ("DESYNTH", UiState.Blocked),
+        _ => (row.IsLoot ? "KEEP" : "not loot", UiState.Idle),
       };
-      ImGui.TextColored(color, label);
+      Widgets.StateText(label, state);
       ImGui.TableNextColumn();
       ImGui.TextWrapped(row.Reason + (row.Bucket == LootBucket.Vendor ? $" (~{row.EstGil:N0} gil)" : string.Empty));
       ImGui.TableNextColumn();
@@ -343,7 +341,7 @@ internal sealed class InventoryTab
       if (row.OptInRail != null || opted)
       {
         var v = opted;
-        if (ImGui.Checkbox("##optin", ref v))
+        if (Widgets.Checkbox("##optin", ref v))
           _s.SetOptIn(row.Stack.ItemId, v, row.OptInRail ?? "opted");
         Tip("Allow this item past the unique / untradable / rare rail. Every other rail still applies.");
       }
@@ -362,15 +360,15 @@ internal sealed class InventoryTab
       "Every move is logged and the last batch can be undone.");
 
     var idle = c.GearMoverWhenIdle;
-    if (ImGui.Checkbox("Move gear on its own when everything is idle##gmidle", ref idle)) { c.GearMoverWhenIdle = idle; c.Save(); }
+    if (Widgets.Checkbox("Move gear on its own when everything is idle##gmidle", ref idle)) { c.GearMoverWhenIdle = idle; c.Save(); }
     Tip("Off by default. Idle = not in combat, a duty, crafting, gathering, a cutscene or an in-game window/event, and\r\n" +
         "AutoRetainer, AutoDuty, Artisan, GatherBuddy Reborn and LMC's own automation all idle, continuously for 20 s.\r\n" +
         $"At most {InventoryService.IdleMoveCap} pieces per pass, one pass a minute.");
     var verdict = _s.LastIdle;
     ImGui.SameLine();
-    ImGui.TextColored(verdict.Idle ? Good : Muted, verdict.Idle ? "idle now" : "not idle: " + string.Join("; ", verdict.Why));
+    Widgets.StateText(verdict.Idle ? "idle now" : "not idle: " + string.Join("; ", verdict.Why), verdict.Idle ? UiState.Ready : UiState.Idle);
     if (_s.IdleBackoffMinutesLeft > 0)
-      ImGui.TextColored(Warn, $"The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).");
+      Widgets.StateText($"The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).", UiState.Blocked);
 
     var preview = _s.GearPreview(0);
     var blocker = preview.Ops.Count == 0 ? "no gear to move" : _s.MoveBlocker();
@@ -399,7 +397,7 @@ internal sealed class InventoryTab
     if (preview.Skipped.Count > 0 && ImGui.TreeNode($"Left in the bags ({preview.Skipped.Count})##gmskip"))
     {
       foreach (var sk in preview.Skipped)
-        ImGui.TextColored(Muted, $"{ItemNameResolver.GetItemName(sk.Stack.ItemId)}{(sk.Stack.Hq ? " (HQ)" : string.Empty)}: {sk.Reason}");
+        Widgets.Secondary($"{ItemNameResolver.GetItemName(sk.Stack.ItemId)}{(sk.Stack.Hq ? " (HQ)" : string.Empty)}: {sk.Reason}");
       ImGui.TreePop();
     }
   }
@@ -408,12 +406,12 @@ internal sealed class InventoryTab
 
   private void DrawLog()
   {
-    ImGui.TextColored(Muted, "Append-only audit file: " + _s.ActionsPath);
-    ImGui.TextColored(Muted, "Every Inventory action is one IV| line there and in the plugin log.");
+    Widgets.Secondary("Append-only audit file: " + _s.ActionsPath);
+    Widgets.Secondary("Every Inventory action is one IV| line there and in the plugin log.");
     var lines = _s.RecentLines;
     if (lines.Count == 0)
     {
-      ImGui.TextColored(Muted, "Nothing this session.");
+      Widgets.Secondary("Nothing this session.");
       return;
     }
     if (ImGui.BeginChild("##invlog", new Vector2(-1, 160), true))

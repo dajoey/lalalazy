@@ -197,6 +197,9 @@ public sealed class Plugin : IDalamudPlugin
     // not have to sit out its whole 24-hour retry window before it is planned again.
     ConfigWindow.ReconcileLedgerRelease = _automation.ReleaseReconcileEntry;
     ConfigWindow.ReconcileLedgerReleaseAll = _automation.ReleaseAllReconcileEntries;
+    // The shell's live-state pill and footer Stop read the automation's real state.
+    ConfigWindow.AutomationBusy = () => _automation.IsBusy;
+    ConfigWindow.CancelAutomation = reason => _automation.CancelEverything(reason);
     WindowSystem.AddWindow(_automation);
     _markers = new AutoMarketMarkers();
     WindowSystem.AddWindow(_markers);
