@@ -6,7 +6,6 @@ using ECommons.UIHelpers.AddonMasterImplementations;
 using static ECommons.GenericHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using LalaUiKit;
 using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
 using System;
@@ -19,6 +18,9 @@ namespace LazyMarketCompanion.Windows;
 public sealed class ConfigWindow : Window
 {
   private static readonly string[] _virtualKeyStrings = Enum.GetNames<VirtualKey>();
+  private static readonly Vector4 Muted = new(0.7f, 0.7f, 0.7f, 1);
+  private static readonly Vector4 Warn = new(1, 0.85f, 0.3f, 1);
+
   private enum Tab { None, AutoMarket, PriceLimits }
   private Tab _forceTab = Tab.None;
 
@@ -50,12 +52,6 @@ public sealed class ConfigWindow : Window
   /// <summary>The Inventory tab's draw (Inventory/InventoryTab.cs), wired in Plugin.cs. Null = no tab.</summary>
   internal System.Action? DrawInventoryTab { get; set; }
 
-  /// <summary>Live automation state for the shell pill and footer (wired in Plugin.cs). Null reads idle.</summary>
-  internal Func<bool>? AutomationBusy { get; set; }
-
-  /// <summary>The footer Stop's cancel - the same cancel the retainer overlay's Cancel button uses (wired in Plugin.cs).</summary>
-  internal Action<string>? CancelAutomation { get; set; }
-
   public ConfigWindow()
     : base("Lazy Market Companion")
   {
@@ -67,21 +63,6 @@ public sealed class ConfigWindow : Window
 
   public override void Draw()
   {
-    Theme.PushFrame();
-    try
-    {
-      DrawFrame();
-    }
-    finally
-    {
-      Theme.PopFrame();
-    }
-  }
-
-  private void DrawFrame()
-  {
-    DrawShellBar();
-
     if (!ImGui.BeginTabBar("##lmcTabs"))
       return;
 
@@ -120,40 +101,7 @@ public sealed class ConfigWindow : Window
     Plugin.Telemetry?.DrawReportTabButton();
 
     ImGui.EndTabBar();
-    DrawFooter();
     _forceTab = Tab.None;
-  }
-
-  // R1/R3: shell top bar - plugin title left, live Auto-Market pill right.
-  private void DrawShellBar()
-  {
-    var p = ImGui.GetCursorScreenPos();
-    var w = ImGui.GetContentRegionAvail().X;
-    var barH = Theme.PillHeight;
-    var dl = ImGui.GetWindowDrawList();
-    dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
-    dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
-    ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
-    ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-    ImGui.TextUnformatted("Lazy Market Companion");
-    ImGui.PopStyleColor();
-    ImGui.SameLine();
-    ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
-    var busy = AutomationBusy?.Invoke() ?? false;
-    var state = busy ? UiState.Running : Plugin.Configuration.AutoMarketEnabled ? UiState.Ready : UiState.Idle;
-    Widgets.StatusPill(state, "Auto-Market", busy ? null : $"{Plugin.Configuration.AutoMarketItems.Count} items on list", alignRight: true);
-    ImGui.Dummy(new Vector2(0, Theme.Unit));
-  }
-
-  // R3 place 3: footer - state word, current action, Stop on the running automation.
-  private void DrawFooter()
-  {
-    var busy = AutomationBusy?.Invoke() ?? false;
-    var state = busy ? UiState.Running : Plugin.Configuration.AutoMarketEnabled ? UiState.Ready : UiState.Idle;
-    var action = busy ? "a sweep, pinch or vendor leg is running" : Plugin.Configuration.AutoMarketEnabled ? "watching the Auto-Market list" : "Auto-Market is off";
-    Layout.Footer(state, action, null, "Stop", out var stop);
-    if (stop)
-      CancelAutomation?.Invoke("cancelled from the config window");
   }
 
   // =====================================================================================
@@ -164,20 +112,18 @@ public sealed class ConfigWindow : Window
   {
     var c = Plugin.Configuration;
 
-    Layout.PageHeader(null, "\u25c6", "Auto-Market", "Always-sell items listed and priced on every enabled retainer", $"{c.AutoMarketItems.Count} items on list");
-
     var enabled = c.AutoMarketEnabled;
-    if (Widgets.Checkbox("Enable Auto-Market", ref enabled)) { c.AutoMarketEnabled = enabled; c.Save(); }
+    if (ImGui.Checkbox("Enable Auto-Market", ref enabled)) { c.AutoMarketEnabled = enabled; c.Save(); }
     Tip("Master switch. When off, the Auto Market buttons and the AutoRetainer hook do nothing.");
 
     var markers = c.AutoMarketMarkersEnabled;
-    if (Widgets.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
+    if (ImGui.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
     Tip("Draws a small green dot on every bag stack that is on the Auto-Market list and enabled.\r\nAn item on the list with its tick unticked gets no dot - it would not be listed.");
 
     ImGui.SameLine(0, 30);
     var duringAr = c.AutoMarketDuringAutoRetainer;
     if (!AutoRetainerIPC.Installed) ImGui.BeginDisabled();
-    if (Widgets.Checkbox("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
+    if (ImGui.Checkbox("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
     if (!AutoRetainerIPC.Installed) ImGui.EndDisabled();
     Tip(AutoRetainerIPC.Installed
       ? "When AutoRetainer cycles a retainer (multi-mode / ventures), claim it after AR's own work, list your items, match prices, hand it back.\r\nOnly enabled retainers (Retainers tab) are claimed."
@@ -185,7 +131,7 @@ public sealed class ConfigWindow : Window
 
     ImGui.SameLine(0, 30);
     var inSweep = c.AutoMarketInPinchAllSweep;
-    if (Widgets.Checkbox("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
+    if (ImGui.Checkbox("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
     Tip("The 'Auto Market' button on the retainer list lists items on every enabled retainer before pinching. Off = that button only pinches.");
 
     ImGui.Separator();
@@ -198,12 +144,12 @@ public sealed class ConfigWindow : Window
 
     ImGui.SameLine(0, 20);
     var retFirst = c.AutoMarketPreferRetainerStockFirst;
-    if (Widgets.Checkbox("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
+    if (ImGui.Checkbox("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
     Tip("Sell the retainer's own inventory (venture loot) before touching your bags.");
 
     ImGui.SameLine(0, 20);
     var partial = c.AutoMarketListPartialStacks;
-    if (Widgets.Checkbox("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
+    if (ImGui.Checkbox("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
     Tip("If there isn't a full listing's worth left, list what's there anyway. Off = only full-size listings.");
 
     ImGui.TextUnformatted("New listing price:"); ImGui.SameLine();
@@ -221,12 +167,12 @@ public sealed class ConfigWindow : Window
     Tip("Leave this many of the retainer's 20 market slots empty for manual listings.");
 
     var pinchAll = c.AutoMarketPinchAllAfter;
-    if (Widgets.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
+    if (ImGui.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
     Tip("Off (the default): after listing, only the new listings are priced - much faster.\nOn: re-price ALL of this retainer's listings as well (same as Auto Pinch), which costs a few seconds per existing listing.");
 
     ImGui.SameLine(0, 20);
     var msgs = c.ShowAutoMarketMessages;
-    if (Widgets.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
+    if (ImGui.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
 
     if (!c.AutoMarketPinchAllAfter)
     {
@@ -258,7 +204,7 @@ public sealed class ConfigWindow : Window
         + "Items Universalis has no fresh data for keep their list position and sort last, and a failed lookup changes nothing.");
 
     var gate = c.AutoMarketValueGateEnabled;
-    if (Widgets.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
+    if (ImGui.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
     ImGui.SameLine();
     ImGui.SetNextItemWidth(140);
     var threshold = (int)Math.Min(c.AutoMarketValueGateThresholdGil, int.MaxValue);
@@ -302,7 +248,7 @@ public sealed class ConfigWindow : Window
     ImGui.SetNextItemWidth(260);
     ImGui.InputTextWithHint("##search", "type an item name (or right-click an item in your bags)", ref _search, 64);
     ImGui.SameLine();
-    Widgets.Checkbox("HQ##addhq", ref _searchHq);
+    ImGui.Checkbox("HQ##addhq", ref _searchHq);
     Tip("Add the HQ variant. HQ and NQ are separate entries.");
 
     if (_search != _lastSearch)
@@ -336,7 +282,7 @@ public sealed class ConfigWindow : Window
     // ---- table ----
     if (c.AutoMarketItems.Count == 0)
     {
-      Widgets.Secondary("No items yet. Search above, or right-click an item in your inventory and choose 'Add to Auto-Market'.");
+      ImGui.TextColored(Muted, "No items yet. Search above, or right-click an item in your inventory and choose 'Add to Auto-Market'.");
       return;
     }
 
@@ -364,7 +310,7 @@ public sealed class ConfigWindow : Window
 
         ImGui.TableNextColumn();
         var on = entry.Enabled;
-        if (Widgets.Checkbox("##on", ref on)) { entry.Enabled = on; c.Save(); }
+        if (ImGui.Checkbox("##on", ref on)) { entry.Enabled = on; c.Save(); }
 
         ImGui.TableNextColumn();
         ImGui.TextUnformatted($"{ItemNameResolver.GetItemName(entry.ItemId)}{(entry.HQ ? " (HQ)" : "")}");
@@ -372,7 +318,7 @@ public sealed class ConfigWindow : Window
 
         ImGui.TableNextColumn();
         var skipRouting = entry.ExcludeFromCategoryRouting;
-        if (Widgets.Checkbox("##skiprouting", ref skipRouting)) { entry.ExcludeFromCategoryRouting = skipRouting; c.Save(); }
+        if (ImGui.Checkbox("##skiprouting", ref skipRouting)) { entry.ExcludeFromCategoryRouting = skipRouting; c.Save(); }
         Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer - unaffected by any category-routing rule above.");
 
         ImGui.TableNextColumn();
@@ -443,7 +389,7 @@ public sealed class ConfigWindow : Window
     Tip("Assign a whole market-board category to one retainer. Auto-Market only lists an item of a routed category on the retainer it is assigned to - on every other retainer it is left exactly where it is, never vendored, never touched. Each sweep pulls misplaced routed stock out of the open retainer into the bags and deposits assigned bags stock into it, running the final deposit lap so pulled stock reaches its home retainer in the same sweep, boards full or not. The 'Skip routing' checkbox in the table below opts one item out entirely - it keeps selling normally, from wherever it sits, on every retainer.");
 
     var autoAssign = c.AutoAssignUnroutedCategories;
-    if (Widgets.Checkbox("Auto-assign uncovered categories", ref autoAssign))
+    if (ImGui.Checkbox("Auto-assign uncovered categories", ref autoAssign))
     {
       c.AutoAssignUnroutedCategories = autoAssign;
       c.Save();
@@ -459,7 +405,7 @@ public sealed class ConfigWindow : Window
 
     if (categoryIds.Count == 0)
     {
-      Widgets.Secondary("No marketable categories on your Auto-Market list yet.");
+      ImGui.TextColored(Muted, "No marketable categories on your Auto-Market list yet.");
       return;
     }
 
@@ -525,7 +471,7 @@ public sealed class ConfigWindow : Window
     var snapshot = ReconcileLedgerSource?.Invoke() ?? [];
     if (snapshot.Count == 0)
     {
-      Widgets.Secondary("Nothing quarantined. A move the server silently refuses appears here instead of re-firing every sweep.");
+      ImGui.TextColored(Muted, "Nothing quarantined. A move the server silently refuses appears here instead of re-firing every sweep.");
       return;
     }
 
@@ -593,10 +539,8 @@ public sealed class ConfigWindow : Window
   {
     var c = Plugin.Configuration;
 
-    Layout.PageHeader(null, "\u25c6", "Price Matching", "How prices are matched and posted", $"price mode {c.UndercutMode}");
-
     var hq = c.HQ;
-    if (Widgets.Checkbox("Use HQ price", ref hq)) { c.HQ = hq; c.Save(); }
+    if (ImGui.Checkbox("Use HQ price", ref hq)) { c.HQ = hq; c.Save(); }
     Tip("If checked, will use the hq price (if item is hq; will fail if there is no HQ price on the MB)");
 
     ImGui.Separator();
@@ -648,15 +592,15 @@ public sealed class ConfigWindow : Window
     Tip("Existing listings are never cut by more than this. Fresh Auto-Market listings (placeholder price) are exempt.");
 
     var undercutSelf = c.UndercutSelf;
-    if (Widgets.Checkbox("Match Self", ref undercutSelf)) { c.UndercutSelf = undercutSelf; c.Save(); }
+    if (ImGui.Checkbox("Match Self", ref undercutSelf)) { c.UndercutSelf = undercutSelf; c.Save(); }
     Tip("If checked, your own retainer listings will be matched (instead of skipped)");
 
     var useUniversalis = c.UseUniversalisDataCenterPrices;
-    if (Widgets.Checkbox("Use Universalis data center prices", ref useUniversalis)) { c.UseUniversalisDataCenterPrices = useUniversalis; c.Save(); }
+    if (ImGui.Checkbox("Use Universalis data center prices", ref useUniversalis)) { c.UseUniversalisDataCenterPrices = useUniversalis; c.Save(); }
     Tip("If checked, price checks use the cheapest listing on your current data center from Universalis instead of the in-game Compare Prices window.");
 
     var saleHistory = c.UseUniversalisSaleHistoryFallback;
-    if (Widgets.Checkbox("Price from recent sales when nothing is on the board", ref saleHistory)) { c.UseUniversalisSaleHistoryFallback = saleHistory; c.Save(); }
+    if (ImGui.Checkbox("Price from recent sales when nothing is on the board", ref saleHistory)) { c.UseUniversalisSaleHistoryFallback = saleHistory; c.Save(); }
     Tip("When a price check finds NOTHING listed on your data center, list at the median of the recent sales from Universalis instead of leaving the listing at the placeholder price.\nThe median, not the average: Universalis' own average is skewed by outliers (one item measured 1,824,207 average against a 53,550 median).");
 
     if (c.UseUniversalisSaleHistoryFallback)
@@ -703,22 +647,22 @@ public sealed class ConfigWindow : Window
 
     var preflight = c.AutoPinchPreflightEnabled;
 
-    if (Widgets.Checkbox("Only re-price listings AllaganMarket has flagged", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
+    if (ImGui.Checkbox("Only re-price listings AllaganMarket has flagged", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
 
     Tip("Auto Pinch opens only the listings AllaganMarket marks undercut (red) or stale (yellow) on the retainer sell list, plus any still at the 999,999,999 placeholder price. Everything AllaganMarket does not flag is never touched - including items it has never checked, even once.\n\nThis needs AllaganMarket installed and its own prices working: the plugin reads AllaganMarket's saved price data (no IPC exists), so if AllaganMarket is missing or has nothing cached, nothing but placeholder-priced listings gets re-priced. Untick for the old walk-everything behaviour.");
 
     ImGui.Separator();
 
     bool chatErrors = c.ShowErrorsInChat;
-    if (Widgets.Checkbox("Show errors in chat", ref chatErrors)) { c.ShowErrorsInChat = chatErrors; c.Save(); }
+    if (ImGui.Checkbox("Show errors in chat", ref chatErrors)) { c.ShowErrorsInChat = chatErrors; c.Save(); }
 
     ImGui.SameLine(0, 30);
     bool adjustments = c.ShowPriceAdjustmentsMessages;
-    if (Widgets.Checkbox("Show price adjustments", ref adjustments)) { c.ShowPriceAdjustmentsMessages = adjustments; c.Save(); }
+    if (ImGui.Checkbox("Show price adjustments", ref adjustments)) { c.ShowPriceAdjustmentsMessages = adjustments; c.Save(); }
 
     ImGui.SameLine(0, 30);
     bool retainerNames = c.ShowRetainerNames;
-    if (Widgets.Checkbox("Show retainer names", ref retainerNames)) { c.ShowRetainerNames = retainerNames; c.Save(); }
+    if (ImGui.Checkbox("Show retainer names", ref retainerNames)) { c.ShowRetainerNames = retainerNames; c.Save(); }
 
     int defaultAmount = c.DefaultAmount;
     ImGui.BeginGroup();
@@ -732,7 +676,7 @@ public sealed class ConfigWindow : Window
     Tip("Price to use when no board price can be found (0 = leave the listing alone)");
 
     var showCtx = c.ShowInventoryContextMenuEntry;
-    if (Widgets.Checkbox("Show inventory context menu entries", ref showCtx)) { c.ShowInventoryContextMenuEntry = showCtx; c.Save(); }
+    if (ImGui.Checkbox("Show inventory context menu entries", ref showCtx)) { c.ShowInventoryContextMenuEntry = showCtx; c.Save(); }
     Tip("Adds 'Add to Auto-Market' and 'Add price limits' to inventory item right-click menus.");
 
     ImGui.BeginGroup();
@@ -743,7 +687,7 @@ public sealed class ConfigWindow : Window
     if (c.ImportedFromDagobert)
     {
       ImGui.Separator();
-      Widgets.Secondary("Settings were imported from Dagobert Price Matcher. You can uninstall that plugin.");
+      ImGui.TextColored(Muted, "Settings were imported from Dagobert Price Matcher. You can uninstall that plugin.");
     }
 
     // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the plugin
@@ -753,7 +697,7 @@ public sealed class ConfigWindow : Window
     if (ImGui.CollapsingHeader("Advanced / Diagnostics"))
     {
       var telemetry = c.DecisionTelemetry;
-      if (Widgets.Checkbox("Log price decisions", ref telemetry)) { c.DecisionTelemetry = telemetry; c.Save(); }
+      if (ImGui.Checkbox("Log price decisions", ref telemetry)) { c.DecisionTelemetry = telemetry; c.Save(); }
       Tip("Off by default. When on, Lazy Market Companion writes a diagnostic line to the Dalamud\n" +
           "plugin log for every price decision it makes - both the prices it sets and the ones it\n" +
           "refuses to set because they would undercut by more than your maximum. Each line carries\n" +
@@ -763,7 +707,7 @@ public sealed class ConfigWindow : Window
           "own local plugin log, so you can check afterwards whether matching the board actually\n" +
           "earned more than the fallback price did.\n\n" +
           "Same as /lmc telemetry on|off.");
-      Widgets.Secondary($"Writes \"{MarketTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
+      ImGui.TextColored(Muted, $"Writes \"{MarketTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
     }
   }
 
@@ -773,12 +717,12 @@ public sealed class ConfigWindow : Window
 
   private static void DrawItemPriceLimits()
   {
-    Layout.PageHeader(null, "\u25c6", "Min/Max Prices", "Per-item minimum and maximum unit prices", $"{Plugin.Configuration.ItemPriceLimits.Count} limits");
+    ImGui.Text("Per-Item Price Limits");
     Tip("Minimum and maximum unit prices per item, applied to matched prices. 0 = no limit.");
 
     if (Plugin.Configuration.ItemPriceLimits.Count == 0)
     {
-      Widgets.Secondary("Right-click an inventory item and choose 'Add price limits'.");
+      ImGui.TextColored(Muted, "Right-click an inventory item and choose 'Add price limits'.");
       return;
     }
 
@@ -848,9 +792,6 @@ public sealed class ConfigWindow : Window
   {
     var c = Plugin.Configuration;
 
-    var enabledCount = c.EnabledRetainerNames.Contains(Configuration.ALL_DISABLED_SENTINEL) ? -1 : c.EnabledRetainerNames.Count;
-    Layout.PageHeader(null, "\u25c6", "Retainers & Hotkeys", "Which retainers the sweep touches, and the hotkeys", enabledCount < 0 ? "all skipped" : enabledCount == 0 ? "all enabled" : $"{enabledCount} enabled");
-
     ImGui.Text("Retainer selection");
     Tip("Unchecked retainers are skipped by the sweep buttons and never claimed from AutoRetainer.\r\nOpen the retainer list in-game to refresh names.");
 
@@ -887,7 +828,7 @@ public sealed class ConfigWindow : Window
           bool allDisabled = c.EnabledRetainerNames.Contains(Configuration.ALL_DISABLED_SENTINEL);
           bool enabled = !allDisabled && (c.EnabledRetainerNames.Count == 0 || c.EnabledRetainerNames.Contains(retainerName));
 
-          if (Widgets.Checkbox($"{retainerName}##retainer{i}", ref enabled))
+          if (ImGui.Checkbox($"{retainerName}##retainer{i}", ref enabled))
           {
             c.EnabledRetainerNames.Remove(Configuration.ALL_DISABLED_SENTINEL);
             if (enabled)
@@ -919,18 +860,18 @@ public sealed class ConfigWindow : Window
         }
 
         if (retainerNameArray == null && !namesUpdated)
-          Widgets.Secondary("(cached list - open the retainer list to refresh)");
+          ImGui.TextColored(Muted, "(cached list - open the retainer list to refresh)");
       }
       else
       {
-        Widgets.StateText("Open the retainer list in-game to configure retainer selection", UiState.Blocked);
+        ImGui.TextColored(Warn, "Open the retainer list in-game to configure retainer selection");
       }
     }
 
     ImGui.Separator();
 
     bool enablePostPinchKey = c.EnablePostPinchkey;
-    if (Widgets.Checkbox("Enable Post Pinch Hotkey", ref enablePostPinchKey)) { c.EnablePostPinchkey = enablePostPinchKey; c.Save(); }
+    if (ImGui.Checkbox("Enable Post Pinch Hotkey", ref enablePostPinchKey)) { c.EnablePostPinchkey = enablePostPinchKey; c.Save(); }
     Tip("Hold this key while posting an item manually to auto-fill the matched price.");
 
     if (enablePostPinchKey)
@@ -942,7 +883,7 @@ public sealed class ConfigWindow : Window
     }
 
     bool enablePinchKey = c.EnablePinchKey;
-    if (Widgets.Checkbox("Enable Pinch Hotkey", ref enablePinchKey)) { c.EnablePinchKey = enablePinchKey; c.Save(); }
+    if (ImGui.Checkbox("Enable Pinch Hotkey", ref enablePinchKey)) { c.EnablePinchKey = enablePinchKey; c.Save(); }
     Tip("Press this key while the retainer list / sell list is open to start the sweep.");
 
     if (enablePinchKey)
@@ -961,15 +902,15 @@ public sealed class ConfigWindow : Window
     Tip("Which overlay buttons are drawn on the game's retainer list and retainer sell list.\r\nThey sit top-right on those windows; hide any that cover something you need.\r\nHidden actions stay available through the /lmc subcommands.");
 
     var showPinch = c.ShowAutoPinchOverlayButton;
-    if (Widgets.Checkbox("Show 'Auto Pinch'", ref showPinch)) { c.ShowAutoPinchOverlayButton = showPinch; c.Save(); }
+    if (ImGui.Checkbox("Show 'Auto Pinch'", ref showPinch)) { c.ShowAutoPinchOverlayButton = showPinch; c.Save(); }
 
     ImGui.SameLine(0, 20);
     var showAutoMarket = c.ShowAutoMarketOverlayButton;
-    if (Widgets.Checkbox("Show 'Auto Market'", ref showAutoMarket)) { c.ShowAutoMarketOverlayButton = showAutoMarket; c.Save(); }
+    if (ImGui.Checkbox("Show 'Auto Market'", ref showAutoMarket)) { c.ShowAutoMarketOverlayButton = showAutoMarket; c.Save(); }
 
     ImGui.SameLine(0, 20);
     var showSweep = c.ShowSweepToBagsOverlayButton;
-    if (Widgets.Checkbox("Show 'Sweep to Bags'", ref showSweep)) { c.ShowSweepToBagsOverlayButton = showSweep; c.Save(); }
+    if (ImGui.Checkbox("Show 'Sweep to Bags'", ref showSweep)) { c.ShowSweepToBagsOverlayButton = showSweep; c.Save(); }
   }
 
   private static void Tip(string text)
