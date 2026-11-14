@@ -33,6 +33,8 @@
        LazyHub only reads descriptors, so it compiles Core and not the provider. -->
   <ItemGroup>
     <Compile Include="..\..\Shared\LalaHub\Core\**\*.cs" Link="LalaHubCore\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL -->
+    <Compile Include="..\..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- The native game-style window is built with the KamiToolKit copy that LazyWTMath already carries

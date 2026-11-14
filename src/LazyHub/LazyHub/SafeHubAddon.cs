@@ -32,12 +32,7 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
     private const float IconSize = 44f;
     private const float OpenWidth = 64f;
 
-    private static readonly Vector4 White = new(0.95f, 0.97f, 0.95f, 1f);
-    private static readonly Vector4 Green = new(0.435f, 0.851f, 0.498f, 1f);   // #6fd97f
-    private static readonly Vector4 Amber = new(0.910f, 0.647f, 0.282f, 1f);   // #e8a548
-    private static readonly Vector4 Grey = new(0.62f, 0.70f, 0.66f, 1f);
-    private static readonly Vector4 Dim = new(0.42f, 0.48f, 0.45f, 1f);
-    private static readonly Vector4 Red = new(0.91f, 0.54f, 0.54f, 1f);
+    // Palette removed: every colour resolves through HubTheme, the LalaUiKit bridge (UI Refresh 2026-11).
 
     private sealed class Row
     {
@@ -145,9 +140,9 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
             {
                 Position = cell + new Vector2(IconSize + 8f, 6f),
                 Size = new Vector2(textWidth, 22f),
-                FontSize = 14,
+                FontSize = HubTheme.FontBody,
                 FontType = FontType.Axis,
-                TextColor = White,
+                TextColor = HubTheme.White,
                 String = entry.DisplayName,
             };
             name.AttachNode(body);
@@ -156,9 +151,9 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
             {
                 Position = cell + new Vector2(IconSize + 8f, 30f),
                 Size = new Vector2(textWidth, 20f),
-                FontSize = 12,
+                FontSize = HubTheme.FontCaption,
                 FontType = FontType.Axis,
-                TextColor = Grey,
+                TextColor = HubTheme.Grey,
                 String = "",
             };
             status.AttachNode(body);
@@ -183,9 +178,9 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
         {
             Position = new Vector2(0f, 0f),
             Size = new Vector2(width, 24f),
-            FontSize = 16,
+            FontSize = HubTheme.FontTitle,
             FontType = FontType.Axis,
-            TextColor = White,
+            TextColor = HubTheme.White,
             String = "Auto-Rotation (Gluttony Combo)",
         }.AttachNode(body);
 
@@ -193,9 +188,9 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
         {
             Position = new Vector2(0f, 30f),
             Size = new Vector2(width, 22f),
-            FontSize = 14,
+            FontSize = HubTheme.FontBody,
             FontType = FontType.Axis,
-            TextColor = Grey,
+            TextColor = HubTheme.Grey,
             String = "",
         };
         _quickState.AttachNode(body);
@@ -204,10 +199,10 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
         {
             Position = new Vector2(0f, 72f),
             Size = new Vector2(width, 60f),
-            FontSize = 12,
+            FontSize = HubTheme.FontCaption,
             FontType = FontType.Axis,
             TextFlags = TextFlags.WordWrap | TextFlags.MultiLine,
-            TextColor = Dim,
+            TextColor = HubTheme.Dim,
             String = "This card only shows Gluttony Combo's current state. It does not change anything yet.",
         }.AttachNode(body);
     }
@@ -221,29 +216,17 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
         foreach (var row in _rows)
         {
             var state = byName.GetValueOrDefault(row.Entry.InternalName, PluginState.NotInstalled);
-            row.Status.String = PluginStatus.Label(state);
-            row.Status.TextColor = ColorFor(state);
+            row.Status.String = HubTheme.StatusText(state);
+            row.Status.TextColor = HubTheme.StateColor(state);
             row.Open.IsEnabled = PluginStatus.CanOpen(state);
         }
 
         if (_quickState != null)
         {
             var reading = gluttony.Read(monitor.IsLoaded("GluttonyCombo"));
-            (_quickState.String, _quickState.TextColor) = reading switch
-            {
-                GluttonyProbe.Reading.On => ("On", Green),
-                GluttonyProbe.Reading.Off => ("Off", Amber),
-                GluttonyProbe.Reading.Unavailable => ("Running, state not readable yet", Red),
-                _ => ("Gluttony Combo is not running", Dim),
-            };
+            (_quickState.String, _quickState.TextColor) = HubTheme.GluttonyStatus(reading);
         }
     }
 
-    private static Vector4 ColorFor(PluginState state) => state switch
-    {
-        PluginState.Loaded => Green,
-        PluginState.LoadedTesting => Amber,
-        PluginState.InstalledNotLoaded => Grey,
-        _ => Dim,
-    };
+    // Per-state colour mapping removed: HubTheme.StateColor carries the kit mapping (R4/R5).
 }

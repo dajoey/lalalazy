@@ -167,14 +167,14 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         _tabQuick = MakeButton(o, new Vector2(TabW, TabH), "Quick", () => _nextPage = Page.Quick);
         _tabPlugins = MakeButton(o + new Vector2(TabW + 8f, 0f), new Vector2(TabW, TabH), "Plugins", () => _nextPage = Page.Plugins);
         _back = MakeButton(o + new Vector2((TabW + 8f) * 2f, 0f), new Vector2(90f, TabH), "< Back", () => _nextPage = Page.Plugins);
-        _underline = MakePanel(o + new Vector2(0f, TabH + 3f), new Vector2(TabW, 3f), HubTheme.GoldLine);
+        _underline = MakePanel(o + new Vector2(0f, TabH + 3f), new Vector2(TabW, 3f), HubTheme.Accent);
 
         _tray = BuildTray();
         for (var i = 0; i < PoolSize; i++) _rows.Add(MakeRow());
-        _empty = MakeText(Vector2.Zero, new Vector2(_width - 16f, 20f), 13, HubTheme.Dim, "");
+        _empty = MakeText(Vector2.Zero, new Vector2(_width - 16f, 20f), HubTheme.FontSecondary, HubTheme.Dim, "");
 
         // Two wrapped lines: a confirm text can be 200 characters, which must not run past the window.
-        _flash = MakeText(_origin + new Vector2(8f, _height - FlashH), new Vector2(_width - 16f, FlashH - 2f), 12, HubTheme.Amber, "");
+        _flash = MakeText(_origin + new Vector2(8f, _height - FlashH), new Vector2(_width - 16f, FlashH - 2f), HubTheme.FontCaption, HubTheme.Amber, "");
         _flash.TextFlags = TextFlags.WordWrap | TextFlags.MultiLine;
 
         // Nothing is polled while the window is closed, so a plugin may have been updated or reloaded since: describe afresh.
@@ -341,10 +341,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         };
         icon.AttachNode(this);
 
-        var label = MakeText(Vector2.Zero, new Vector2(240f, 20f), 14, HubTheme.White, "");
-        var info = MakeText(Vector2.Zero, new Vector2(200f, 18f), 12, HubTheme.Dim, "");
+        var label = MakeText(Vector2.Zero, new Vector2(240f, 20f), HubTheme.FontBody, HubTheme.White, "");
+        var info = MakeText(Vector2.Zero, new Vector2(200f, 18f), HubTheme.FontCaption, HubTheme.Dim, "");
         var b1 = MakeButton(Vector2.Zero, new Vector2(100f, 24f), "", () => row?.On1?.Invoke());
-        var val = MakeText(Vector2.Zero, new Vector2(120f, 18f), 14, HubTheme.White, "");
+        var val = MakeText(Vector2.Zero, new Vector2(120f, 18f), HubTheme.FontBody, HubTheme.White, "");
         val.AlignmentType = AlignmentType.Center;
 
         // A single line that is too long ends in "..." instead of running past its node (and the window).
@@ -362,13 +362,13 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     {
         var tray = new Tray();
         tray.Bg = MakePanel(_origin, new Vector2(_width, TrayH), HubTheme.Tray);
-        tray.Title = MakeText(_origin + new Vector2(10f, 8f), new Vector2(300f, 22f), 16, HubTheme.Gold, "Gluttony Combo");
-        tray.AutoLabel = MakeText(_origin + new Vector2(10f, 42f), new Vector2(160f, 22f), 14, HubTheme.White, "Auto-Rotation");
+        tray.Title = MakeText(_origin + new Vector2(10f, 8f), new Vector2(300f, 22f), HubTheme.FontTitle, HubTheme.White, "Gluttony Combo");
+        tray.AutoLabel = MakeText(_origin + new Vector2(10f, 42f), new Vector2(160f, 22f), HubTheme.FontBody, HubTheme.White, "Auto-Rotation");
         tray.AutoToggle = MakeButton(_origin + new Vector2(176f, 38f), new Vector2(100f, 26f), "", () => tray.OnToggle?.Invoke());
-        tray.AutoWhy = MakeText(_origin + new Vector2(286f, 44f), new Vector2(_width - 296f, 18f), 12, HubTheme.Dim, "");
-        tray.Hint = MakeText(_origin + new Vector2(10f, 76f), new Vector2(_width - 20f, 18f), 12, HubTheme.Dim,
+        tray.AutoWhy = MakeText(_origin + new Vector2(286f, 44f), new Vector2(_width - 296f, 18f), HubTheme.FontCaption, HubTheme.Dim, "");
+        tray.Hint = MakeText(_origin + new Vector2(10f, 76f), new Vector2(_width - 20f, 18f), HubTheme.FontCaption, HubTheme.Dim,
             "Hotbar buttons: click one, then click a hotbar slot to place it. Escape cancels.");
-        tray.Missing = MakeText(_origin + new Vector2(10f, 42f), new Vector2(_width - 20f, 40f), 13, HubTheme.Dim,
+        tray.Missing = MakeText(_origin + new Vector2(10f, 42f), new Vector2(_width - 20f, 40f), HubTheme.FontSecondary, HubTheme.Dim,
             "Gluttony Combo is not running, or does not offer controls yet.");
 
         var bw = (_width - 20f - 3f * 8f) / 4f;
@@ -469,7 +469,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         foreach (var r in _rows) r.Reset();
         _empty.IsVisible = false;
 
-        // Tabs: the gold bar and the brighter label say which page is open.
+        // Tabs: the accent bar and the brighter label say which page is open.
         var onQuick = _page == Page.Quick;
         _underline.Position = ContentStartPosition + new Vector2(onQuick ? 0f : TabW + 8f, TabH + 3f);
         _tabQuick.LabelNode.TextColor = onQuick ? HubTheme.White : HubTheme.Grey;
@@ -605,7 +605,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             SetIcon(r, link.Entry.IconFile);
             r.Label.String = link.Entry.DisplayName;
             r.Label.TextColor = HubTheme.White;
-            r.Info.String = PluginStatus.Label(link.State);
+            r.Info.String = HubTheme.StatusText(link.State);
             r.Info.TextColor = link.State switch
             {
                 PluginState.Loaded => HubTheme.Green,
@@ -641,8 +641,8 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         y += RowH;
         SetIcon(head, link.Entry.IconFile);
         head.Label.String = link.Entry.DisplayName + "   v" + link.Descriptor.Version;
-        head.Label.TextColor = HubTheme.Gold;
-        head.Info.String = PluginStatus.Label(link.State);
+        head.Label.TextColor = HubTheme.White;
+        head.Info.String = HubTheme.StatusText(link.State);
         head.Info.TextColor = link.State == PluginState.LoadedTesting ? HubTheme.Amber : HubTheme.Green;
 
         // Keep the rows (and the "and N more" line) clear of the message line at the bottom.
@@ -658,7 +658,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             {
                 Layout(r, RowKind.Group, y);
                 r.Label.String = dr.Header.ToUpperInvariant();
-                r.Label.TextColor = HubTheme.Gold;
+                r.Label.TextColor = HubTheme.White;
                 y += RowH;
                 continue;
             }
