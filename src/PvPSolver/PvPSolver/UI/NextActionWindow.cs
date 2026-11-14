@@ -4,6 +4,7 @@ using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using RotationSolver.Updaters;
+using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -112,10 +113,10 @@ internal class NextActionWindow : Window
 
 		string label = $"Target: {name}";
 		Vector4 color = isSelf
-			? ImGuiColors.DalamudWhite
+			? Theme.TextPrimary
 			: isCurrentTarget
-				? ImGuiColors.HealerGreen
-				: ImGuiColors.DalamudOrange;
+				? Theme.StateGreen
+				: Theme.StateAmber;
 
 		float textWidth = ImGui.CalcTextSize(label).X;
 		float offsetX = (width - textWidth) / 2f;
@@ -132,7 +133,7 @@ internal class NextActionWindow : Window
 
 		if (ImGui.IsItemHovered() && !isSelf)
 		{
-			ImGui.SetTooltip("Click to target");
+			ImguiTooltips.HoveredTooltip("Click to target");
 		}
 	}
 
@@ -165,7 +166,7 @@ internal class NextActionWindow : Window
 				Vector2 pt = cursor + (new Vector2(width, 0) * value / total);
 
 				ImGui.GetWindowDrawList().AddLine(pt, pt + new Vector2(0, height),
-					ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudRed), 2);
+					Theme.Pack(Theme.StateAmber), 2);
 			}
 		}
 	}

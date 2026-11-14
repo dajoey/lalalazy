@@ -89,10 +89,9 @@ internal class CollapsingHeaderGroup(Dictionary<Func<string>, Action> headers)
 				ImGui.Separator();
 				bool selected = index == _openedIndex;
 				bool changed = false;
-				using (var font = ImRaii.PushFont(FontManager.GetFont(18)))
-				{
-					changed = ImGui.Selectable(name, selected, ImGuiSelectableFlags.DontClosePopups);
-				}
+				ImGui.SetWindowFontScale(LalaUiKit.Theme.TitleScale);
+				changed = ImGui.Selectable(name, selected, ImGuiSelectableFlags.DontClosePopups);
+				ImGui.SetWindowFontScale(1f);
 
 				if (ImGui.IsItemHovered())
 				{

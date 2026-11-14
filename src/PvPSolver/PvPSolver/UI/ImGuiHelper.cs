@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using ECommons.DalamudServices;
 using ECommons.ImGuiMethods;
 using ECommons.LanguageHelpers;
+using LalaUiKit;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Commands;
 using RotationSolver.Data;
@@ -117,7 +118,7 @@ internal static class ImGuiHelper
 
 		if (items == null || items.Length == 0)
 		{
-			ImGui.TextColored(ImGuiColors.DalamudRed, "ConfigWindow_Condition_NoItemsWarning".Loc("There are no items!"));
+			Widgets.StateText("ConfigWindow_Condition_NoItemsWarning".Loc("There are no items!"), UiState.Empty);
 			return;
 		}
 
@@ -393,9 +394,9 @@ internal static class ImGuiHelper
 		return buttonClicked;
 	}
 
-	internal static readonly uint ProgressCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.6f, 0.6f, 0.6f, 0.7f));
-	internal static readonly uint Black = ImGui.ColorConvertFloat4ToU32(new Vector4(0, 0, 0, 1));
-	internal static readonly uint White = ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, 1));
+	internal static readonly uint ProgressCol = ImGui.ColorConvertFloat4ToU32(Theme.StateNeutral with { W = 0.7f });
+	internal static readonly uint Black = Theme.Pack(Theme.Ink);
+	internal static readonly uint White = Theme.Pack(Theme.TextPrimary);
 
 	internal static void TextShade(Vector2 pos, string text, float width = 1.5f)
 	{
@@ -671,7 +672,7 @@ internal static class ImGuiHelper
 				ImGui.SameLine();
 			}
 
-			ImGui.TextColored(ImGuiColors.DalamudYellow, " PvE");
+			Widgets.StateText(" PvE", UiState.Blocked);
 			first = false;
 		}
 		if (type.HasFlag(CombatType.PvP))
@@ -681,7 +682,7 @@ internal static class ImGuiHelper
 				ImGui.SameLine();
 			}
 
-			ImGui.TextColored(ImGuiColors.TankBlue, " PvP");
+			Widgets.StateText(" PvP", UiState.Blocked);
 			first = false;
 		}
 		if (type == CombatType.None)
@@ -691,7 +692,7 @@ internal static class ImGuiHelper
 				ImGui.SameLine();
 			}
 
-			ImGui.TextColored(ImGuiColors.DalamudRed, " None of PvE or PvP!");
+			Widgets.StateText(" None of PvE or PvP!", UiState.Failed);
 		}
 	}
 }

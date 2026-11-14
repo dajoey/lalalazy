@@ -1,5 +1,6 @@
 ﻿using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
+using LalaUiKit;
 
 namespace RotationSolver.UI;
 
@@ -51,7 +52,7 @@ internal class InterceptedActionWindow : Window
 		// Title
 		string title = "Intercept System";
 		ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (totalWidth / 2) - (ImGui.CalcTextSize(title).X / 2));
-		ImGui.TextColored(ImGuiColors.DalamudYellow, title);
+		Widgets.Title(title);
 
 		ImGui.Spacing();
 
@@ -61,12 +62,12 @@ internal class InterceptedActionWindow : Window
 		// If there's no current intercepted action, show placeholder text
 		if (cur == null)
 		{
-			ImGui.TextColored(ImGuiColors.DalamudGrey, "No intercepted actions queued.");
+			Widgets.StateText("No intercepted actions queued.", UiState.Empty);
 			return;
 		}
 
 		// Draw current intercepted action (large / left)
-		ImGui.TextColored(ImGuiColors.DalamudWhite, "Current Intercepted Action");
+		Widgets.Secondary("Current Intercepted Action");
 		ControlWindow.DrawIAction(cur, gcdWidth, 1);
 	}
 }

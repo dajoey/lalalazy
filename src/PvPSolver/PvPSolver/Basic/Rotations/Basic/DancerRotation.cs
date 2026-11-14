@@ -60,7 +60,7 @@ public partial class DancerRotation : CustomRotation
 		ImGui.Text("Esprit: " + Esprit.ToString());
 		ImGui.Text("Feathers: " + Feathers.ToString());
 		ImGui.Text("CompletedSteps: " + CompletedSteps.ToString());
-		ImGui.TextColored(ImGuiColors.DalamudOrange, "Status Tracking");
+		LalaUiKit.Widgets.Secondary("Status Tracking");
 	}
 	#endregion
 

@@ -201,7 +201,7 @@ public partial class BlackMageRotation : CustomRotation
 		ImGui.Text("IsEnochianActive: " + IsEnochianActive.ToString());
 		ImGui.Text("EnochianTimeRaw: " + EnochianTimeRaw.ToString());
 		ImGui.Text("EnochianTime: " + EnochianTime.ToString());
-		ImGui.TextColored(ImGuiColors.DalamudOrange, "PvP Actions");
+		LalaUiKit.Widgets.Secondary("PvP Actions");
 		ImGui.Text("HasPvPAstralFire: " + HasPvPAstralFire.ToString());
 		ImGui.Text("HasPvPUmbralIce: " + HasPvPUmbralIce.ToString());
 	}

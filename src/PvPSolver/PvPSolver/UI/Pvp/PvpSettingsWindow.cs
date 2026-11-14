@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using ECommons.GameHelpers;
 using RotationSolver.Decisions;
 using RotationSolver.Helpers;
+using LalaUiKit;
 
 namespace RotationSolver.UI.Pvp;
 
@@ -100,7 +101,7 @@ internal sealed class PvpSettingsWindow : Window
     private void DrawStrip(SwitchView view)
     {
         bool on = view.IsOn;
-        using (var color = ImRaii.PushColor(ImGuiCol.Text, on ? ImGuiColors.HealerGreen : PvpUi.Muted))
+        using (var color = ImRaii.PushColor(ImGuiCol.Text, on ? PvpUi.On : PvpUi.Muted))
         {
             ImGui.TextUnformatted(view.StatusText);
         }

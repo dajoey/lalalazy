@@ -25,6 +25,7 @@ using RotationSolver.Helpers;
 using RotationSolver.IPC;
 using RotationSolver.UI.SearchableConfigs;
 using RotationSolver.Updaters;
+using LalaUiKit;
 using System.Diagnostics;
 using System.Text;
 using GAction = Lumina.Excel.Sheets.Action;
@@ -261,13 +262,10 @@ public partial class RotationConfigWindow : Window
 			_showResetPopup = false;
 		}
 
-		// Custom padding for this popup only (affects this modal window)
-		using var popupWinPad = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12, 12) * Scale);
-		using var popupFramePad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(4, 3) * Scale);
-		using var popupCellPadding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(4, 2) * Scale);
-		using var popupItemSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4) * Scale);
-		using var popupItemInnerSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemInnerSpacing, new Vector2(4, 4) * Scale);
-		using var popupIndentSpacing = ImRaii.PushStyle(ImGuiStyleVar.IndentSpacing, 21f * Scale);
+		// Suite frame (R9): the kit owns padding and spacing; window-local cosmetic pushes stay.
+		Theme.PushFrame();
+		try
+		{
 		using var popupScrollbarSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 16f * Scale);
 		using var popupGrabMinSize = ImRaii.PushStyle(ImGuiStyleVar.GrabMinSize, 13f * Scale);
 		using var popupWindowBorderSize = ImRaii.PushStyle(ImGuiStyleVar.WindowBorderSize, 0f * Scale);
@@ -334,14 +332,7 @@ public partial class RotationConfigWindow : Window
 			ImGui.EndPopup();
 		}
 
-		// This affects framed widgets and child windows you create below
 		using var selectableAlign = ImRaii.PushStyle(ImGuiStyleVar.SelectableTextAlign, new Vector2(0.5f, 0.5f));
-		using var framePad = ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(4, 3) * Scale);
-		using var childWinPad = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12, 12) * Scale);
-		using var frameCellPadding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(4, 2) * Scale);
-		using var frameItemSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4) * Scale);
-		using var frameItemInnerSpacing = ImRaii.PushStyle(ImGuiStyleVar.ItemInnerSpacing, new Vector2(4, 4) * Scale);
-		using var frameIndentSpacing = ImRaii.PushStyle(ImGuiStyleVar.IndentSpacing, 21f * Scale);
 		using var frameScrollbarSize = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarSize, 16f * Scale);
 		using var frameGrabMinSize = ImRaii.PushStyle(ImGuiStyleVar.GrabMinSize, 13f * Scale);
 		using var frameWindowRounding = ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, 11f * Scale);
@@ -380,6 +371,11 @@ public partial class RotationConfigWindow : Window
 		catch (Exception ex)
 		{
 			PluginLog.Warning($"Something wrong with config window: {ex.Message}");
+		}
+		}
+		finally
+		{
+			Theme.PopFrame();
 		}
 	}
 
@@ -486,11 +482,11 @@ public partial class RotationConfigWindow : Window
 			float t = (float)ImGui.GetTime();
 			float pulse = (MathF.Sin(t * 4f) + 1f) * 0.5f; // 0..1
 			float alpha = 0.25f + (0.45f * pulse);
-			diagColor = new Vector4(1f, 0f, 0f, alpha);
+			diagColor = Theme.StateRed with { W = alpha };
 		}
 		else
 		{
-			diagColor = new Vector4(1f, 1f, .4f, .3f);
+			diagColor = Theme.StateAmber with { W = 0.3f };
 		}
 
 		ImGui.SetCursorPosY(ImGui.GetWindowSize().Y - 20);
@@ -511,7 +507,7 @@ public partial class RotationConfigWindow : Window
 		if (OtherConfiguration.RotationSolverRecord.TicTacToeWinStar == true)
 		{
 			ImGui.SameLine();
-			using (var starCol = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedGold))
+			using (var starCol = ImRaii.PushColor(ImGuiCol.Text, Theme.Accent))
 			{
 				ImGuiEx.Icon(FontAwesomeIcon.Star);
 			}
@@ -629,19 +625,12 @@ public partial class RotationConfigWindow : Window
 				}
 				else
 				{
-					if (ImGui.Selectable(displayName, _activeTab == item, ImGuiSelectableFlags.None, new Vector2(0, 20)))
+					ImTextureID? navIcon = IconSet.GetTexture(_configWindowTabProperties[item].Item2, out IDalamudTextureWrap? navTex) && navTex?.Handle != null ? navTex.Handle : null;
+					UiState navDot = item == RotationConfigWindowTab.Job && DataCenter.State ? UiState.Running : UiState.Idle;
+					if (Layout.NavSection("pvp_nav_" + item, displayName, navIcon, null, navDot, _activeTab == item))
 					{
 						_activeTab = item;
 						_searchResults = [];
-					}
-					if (ImGui.IsItemHovered())
-					{
-						ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-						string desc = item.GetDescription();
-						if (!string.IsNullOrEmpty(desc))
-						{
-							ImguiTooltips.ShowTooltip(desc);
-						}
 					}
 				}
 
@@ -744,7 +733,7 @@ public partial class RotationConfigWindow : Window
 				Player.Job == Job.LTW || Player.Job == Job.WVR || Player.Job == Job.ALC || Player.Job == Job.CUL ||
 				Player.Job == Job.MIN || Player.Job == Job.FSH || Player.Job == Job.BTN))
 			{
-				ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
+				ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
 
 				string? text = UiString.ConfigWindow_NoRotation.GetDescription();
 				if (string.IsNullOrEmpty(text))
@@ -765,7 +754,7 @@ public partial class RotationConfigWindow : Window
 			}
 			float availableWidth = ImGui.GetContentRegionAvail().X;
 			ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + availableWidth);
-			ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
+			ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
 			ImGui.Text(":(");
 			ImGui.PopStyleColor();
 			ImGui.PopTextWrapPos();
@@ -806,7 +795,7 @@ public partial class RotationConfigWindow : Window
 		if (BMRTimeline_IPCSubscriber.IsEnabled)
 		{
 			ImGui.Separator();
-			ImGui.TextColored(ImGuiColors.ParsedGreen, "BMR Integration Enabled");
+			Widgets.StateText("BMR Integration Enabled", UiState.Ready);
 		}
 	}
 	private static readonly string[] pairsArray = ["Delete"];
@@ -865,7 +854,7 @@ public partial class RotationConfigWindow : Window
 		ImGui.SetNextItemWidth(comboSize);
 		const string popUp = "Rotation Solver Select Rotation";
 		var rotationColor = rotation.GetColor();
-		using (var color = ImRaii.PushColor(ImGuiCol.Text, rotation.IsExtra() ? ImGuiColors.DalamudViolet : ImGuiColors.DalamudWhite))
+		using (var color = ImRaii.PushColor(ImGuiCol.Text, rotation.IsExtra() ? Theme.TextSecondary : Theme.TextPrimary))
 		{
 			if (ImGui.Selectable(_curRotationAttribute.Name + "##RotationName:" + rotation.Name))
 			{
@@ -902,7 +891,7 @@ public partial class RotationConfigWindow : Window
 						}
 					}
 					ImGui.SameLine();
-					ImGui.PushStyleColor(ImGuiCol.Text, r.IsExtra() ? ImGuiColors.DalamudViolet : ImGuiColors.DalamudWhite);
+					ImGui.PushStyleColor(ImGuiCol.Text, r.IsExtra() ? Theme.TextSecondary : Theme.TextPrimary);
 
 					if (ImGui.Selectable(rAttr.Name))
 					{
@@ -953,7 +942,7 @@ public partial class RotationConfigWindow : Window
 			if (DataCenter.DalamudStagingEnabled)
 			{
 				ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + availableWidth);
-				ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
+				ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
 				ImGui.TextWrapped($"Notice: You are running the staging branch of Dalamud. For best compatibility, use the XIVLauncher and switch back to 'release' branch if available for your current version of FFXIV.");
 				ImGui.PopStyleColor();
 				ImGui.PopTextWrapPos();
@@ -977,7 +966,7 @@ public partial class RotationConfigWindow : Window
 
 				foreach (string warning in DataCenter.SystemWarnings.Keys)
 				{
-					using var color = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudOrange));
+					using var color = ImRaii.PushColor(ImGuiCol.Text, Theme.StateAmber);
 					ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + availableWidth); // Set text wrapping position dynamically
 
 					// Calculate the required height for the button
@@ -1004,7 +993,7 @@ public partial class RotationConfigWindow : Window
 			if (errorText != string.Empty)
 			{
 				ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + availableWidth); // Set text wrapping position dynamically
-				ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudRed); // Set text color to DalamudOrange
+				ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateRed);
 				ImGui.Text(errorText);
 				ImGui.PopStyleColor(); // Reset text color
 				ImGui.PopTextWrapPos(); // Reset text wrapping position
@@ -1055,8 +1044,7 @@ public partial class RotationConfigWindow : Window
 			_cachedTipIndex = _hintIndex;
 		}
 
-		using (var _ = ImRaii.PushFont(FontManager.GetFont(12)))
-		using (var __ = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudYellow)))
+		using (var __ = ImRaii.PushColor(ImGuiCol.Text, Theme.TextSecondary))
 		{
 			float avail = ImGui.GetContentRegionAvail().X;
 			ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + avail);
@@ -1104,11 +1092,7 @@ public partial class RotationConfigWindow : Window
 			if (_searchResults != null && _searchResults.Length != 0)
 			{
 				// Display search results header
-				using (var font = ImRaii.PushFont(FontManager.GetFont(18)))
-				{
-					using var color = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudYellow));
-					ImGui.TextWrapped(UiString.ConfigWindow_Search_Result.GetDescription());
-				}
+				Widgets.Title(UiString.ConfigWindow_Search_Result.GetDescription());
 
 				ImGui.Spacing();
 
@@ -1582,11 +1566,7 @@ public partial class RotationConfigWindow : Window
 	private static void DrawAbout()
 	{
 		// Draw the punchline with a specific font and color
-		using (var font = ImRaii.PushFont(FontManager.GetFont(18)))
-		{
-			using var color = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudYellow));
-			ImGui.TextWrapped(UiString.ConfigWindow_About_Punchline.GetDescription());
-		}
+		ImGui.TextWrapped(UiString.ConfigWindow_About_Punchline.GetDescription());
 
 		ImGui.Spacing();
 
@@ -1596,7 +1576,7 @@ public partial class RotationConfigWindow : Window
 		ImGui.Spacing();
 
 		// Draw the warning with a specific color
-		using (var color = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudOrange)))
+		using (var color = ImRaii.PushColor(ImGuiCol.Text, Theme.StateAmber))
 		{
 			ImGui.TextWrapped(UiString.ConfigWindow_About_Warning.GetDescription());
 		}
@@ -1613,7 +1593,7 @@ public partial class RotationConfigWindow : Window
 		if (clickingCount > 0)
 		{
 			// Draw the clicking count with a specific color
-			using var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(0.2f, 0.6f, 0.95f, 1));
+			using var color = ImRaii.PushColor(ImGuiCol.Text, Theme.Accent);
 			string countStr = UiString.ConfigWindow_About_ClickingCount.GetDescription();
 			if (countStr != null)
 			{
@@ -1657,11 +1637,7 @@ public partial class RotationConfigWindow : Window
 		}
 
 		// Header text
-		using (var _ = ImRaii.PushFont(FontManager.GetFont(16)))
-		using (var __ = ImRaii.PushColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGreen)))
-		{
-			ImGui.TextWrapped($"Special thanks to the {_supporters.Length} supporters (including those not listed here):");
-		}
+		ImGui.TextWrapped($"Special thanks to the {_supporters.Length} supporters (including those not listed here):");
 
 		ImGui.Spacing();
 
@@ -1828,22 +1804,22 @@ public partial class RotationConfigWindow : Window
 	{
 		if (type.HasFlag(CompatibleType.Skill_Usage))
 		{
-			ImGui.TextColored(ImGuiColors.DalamudYellow, CompatibleType.Skill_Usage.GetDescription().Replace('_', ' '));
+			Widgets.StateText(CompatibleType.Skill_Usage.GetDescription().Replace('_', ' '), UiState.Blocked);
 			ImguiTooltips.HoveredTooltip(UiString.ConfigWindow_About_Compatibility_Mistake.GetDescription());
 		}
 		if (type.HasFlag(CompatibleType.Skill_Selection))
 		{
-			ImGui.TextColored(ImGuiColors.DalamudOrange, CompatibleType.Skill_Selection.GetDescription().Replace('_', ' '));
+			Widgets.StateText(CompatibleType.Skill_Selection.GetDescription().Replace('_', ' '), UiState.Blocked);
 			ImguiTooltips.HoveredTooltip(UiString.ConfigWindow_About_Compatibility_Mislead.GetDescription());
 		}
 		if (type.HasFlag(CompatibleType.Crash))
 		{
-			ImGui.TextColored(ImGuiColors.DalamudRed, CompatibleType.Crash.GetDescription().Replace('_', ' '));
+			Widgets.StateText(CompatibleType.Crash.GetDescription().Replace('_', ' '), UiState.Failed);
 			ImguiTooltips.HoveredTooltip(UiString.ConfigWindow_About_Compatibility_Crash.GetDescription());
 		}
 		if (type.HasFlag(CompatibleType.Broken))
 		{
-			ImGui.TextColored(ImGuiColors.DalamudViolet, CompatibleType.Broken.GetDescription().Replace('_', ' '));
+			Widgets.StateText(CompatibleType.Broken.GetDescription().Replace('_', ' '), UiState.Failed);
 			ImguiTooltips.HoveredTooltip(UiString.ConfigWindow_About_Compatibility_Crash.GetDescription());
 		}
 	}
@@ -1868,7 +1844,7 @@ public partial class RotationConfigWindow : Window
 				catch (Exception ex)
 				{
 					// Handle the exception (e.g., log it or display an error message)
-					ImGui.TextColored(ImGuiColors.DalamudRed, $"Failed to open config folder: {ex.Message}");
+					Widgets.StateText($"Failed to open config folder: {ex.Message}", UiState.Failed);
 				}
 			}
 		}, width, textWidth);
@@ -1977,22 +1953,22 @@ public partial class RotationConfigWindow : Window
 			string text;
 			if (plugin.Name == "Boss Mod" && isBossModEnabled && isBossModRebornEnabled)
 			{
-				color = ImGuiColors.DalamudYellow;
+				color = Theme.StateAmber;
 				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Both Boss Mods cannot be installed and enabled at the same time. Please disable Boss Mod.";
 			}
 			else if (plugin.Name == "Boss Mod" && isBossModEnabled && !isBossModRebornEnabled)
 			{
-				color = isEnabled ? ImGuiColors.DalamudYellow : ImGuiColors.DalamudRed;
+				color = isEnabled ? Theme.StateAmber : Theme.StateRed;
 				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Please use BossModReborn instead, BMR has specific integration with PvP Solver that improves PvP Solver's ability to react to combat i.e. Gaze effects.";
 			}
 			else if (plugin.Name == "BossModReborn" && isBossModRebornEnabled && !isBossModEnabled)
 			{
-				color = isEnabled ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+				color = isEnabled ? Theme.StateGreen : Theme.StateRed;
 				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}.";
 			}
 			else
 			{
-				color = isEnabled ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+				color = isEnabled ? Theme.StateGreen : Theme.StateRed;
 				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}";
 			}
 
@@ -2038,7 +2014,6 @@ public partial class RotationConfigWindow : Window
 		string desc = rotation.Description;
 		if (!string.IsNullOrEmpty(desc))
 		{
-			using var font = ImRaii.PushFont(FontManager.GetFont(15));
 			ImGuiEx.TextWrappedCopy(desc);
 		}
 
@@ -2133,7 +2108,7 @@ public partial class RotationConfigWindow : Window
 				bool isOnCommand = attr.IsOnCommand;
 				if (isOnCommand)
 				{
-					ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+					ImGui.PushStyleColor(ImGuiCol.Text, Theme.Accent);
 				}
 
 				ImGui.Text(" " + attr.Type.GetDescription());
@@ -2909,7 +2884,7 @@ public partial class RotationConfigWindow : Window
 					IBattleChara target = action.Target.Target;
 					if (target is not IBattleChara battleChara)
 					{
-						ImGui.TextColored(ImGuiColors.DalamudRed, "Target is not a valid BattleChara.");
+						Widgets.StateText("Target is not a valid BattleChara.", UiState.Failed);
 						return;
 					}
 					ImGui.Text("Can Use: " + action.CanUse(out _));
@@ -2959,7 +2934,7 @@ public partial class RotationConfigWindow : Window
 				}
 				catch (Exception ex)
 				{
-					ImGui.TextColored(ImGuiColors.DalamudRed, "Error: " + ex.Message);
+					Widgets.StateText("Error: " + ex.Message, UiState.Failed);
 				}
 			}
 			else if (_activeAction is IBaseItem item)
@@ -2987,7 +2962,7 @@ public partial class RotationConfigWindow : Window
 				}
 				catch (Exception ex)
 				{
-					ImGui.TextColored(ImGuiColors.DalamudRed, "Error: " + ex.Message);
+					Widgets.StateText("Error: " + ex.Message, UiState.Failed);
 				}
 			}
 		}
@@ -3319,7 +3294,7 @@ public partial class RotationConfigWindow : Window
 
 				if (filtered.Count == 0)
 				{
-					ImGui.TextColored(ImGuiColors.DalamudRed, "No matching statuses found.");
+					Widgets.StateText("No matching statuses found.", UiState.Empty);
 					return;
 				}
 
@@ -3510,7 +3485,7 @@ public partial class RotationConfigWindow : Window
 			{
 				if (string.IsNullOrWhiteSpace(_actionPopupSearching))
 				{
-					ImGui.TextColored(ImGuiColors.DalamudYellow, "Enter a search term to filter actions.");
+					Widgets.Secondary("Enter a search term to filter actions.");
 					// Clear cached results when no query
 					if (!string.IsNullOrEmpty(_lastActionPopupSearching))
 					{
@@ -3589,7 +3564,7 @@ public partial class RotationConfigWindow : Window
 
 					if (shown == 0)
 					{
-						ImGui.TextColored(ImGuiColors.DalamudRed, "No matching actions found.");
+						Widgets.StateText("No matching actions found.", UiState.Empty);
 					}
 				}
 			}

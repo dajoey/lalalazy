@@ -16,15 +16,15 @@ internal static class RotationHelper
 
 		if (!rotation.IsValid)
 		{
-			return ImGuiColors.DPSRed;
+			return LalaUiKit.Theme.StateRed;
 		}
 
 		if (rotation.IsExtra())
 		{
-			return ImGuiColors.DalamudViolet;
+			return LalaUiKit.Theme.TextSecondary;
 		}
 
-		return ImGuiColors.DalamudWhite;
+		return LalaUiKit.Theme.TextPrimary;
 	}
 
 	public static bool IsExtra(this ICustomRotation rotation)
