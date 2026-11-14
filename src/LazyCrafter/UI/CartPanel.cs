@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using LalaUiKit;
 using LazyCrafter.Catalog;
 using LazyCrafter.Core;
 
@@ -10,6 +10,8 @@ namespace LazyCrafter.UI;
 /// list across the whole cart (one shared inventory ledger, see <see cref="Tiering.AssessCart"/>), <b>Dispatch</b>
 /// (Phase 5: ARC → GBR → Artisan through <see cref="Adapters.DispatchService"/>, with a Stop while it runs and a
 /// preview tooltip from <see cref="DispatchPlan"/>), and <b>Export to TeamCraft</b>.
+/// Converted to LalaUiKit per the UI Brief (R3/R4): the run Stop is the kit's red stop button, run status reads
+/// in state colours (amber running, red only failed); every handler is unchanged.
 /// </summary>
 public sealed class CartPanel
 {
@@ -62,7 +64,7 @@ public sealed class CartPanel
         var header = cart.Count == 0 ? "Cart (empty)" : $"Cart - {cart.Count} recipe{(cart.Count == 1 ? "" : "s")}, {totals.Missing.Count()} materials missing, worst tier {Fmt.TierName(totals.Tier)}";
         if (ImGui.SmallButton(_collapsed ? ">" : "v")) _collapsed = !_collapsed;
         ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.ParsedGold, header);
+        Widgets.Title(header);
         if (cart.Count > 0)
         {
             var cost = cart.Sum(l => l.Estimate?.CashCost ?? 0);
@@ -73,13 +75,13 @@ public sealed class CartPanel
             var dispatch = _plugin.Dispatch;
             if (dispatch.Running)
             {
-                if (ImGui.Button("Stop")) dispatch.Stop();
+                if (Widgets.StopButton("Stop")) dispatch.Stop();
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Abort the run - retainer queue aborted, GBR off, Artisan stop request.");
                 ImGui.SameLine();
                 if (ImGui.SmallButton("Run tab")) _main.OpenRunTab();
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open the Run tab: every step, its reason, and the Resume / Copy report buttons.");
                 ImGui.SameLine();
-                ImGui.TextColored(ImGuiColors.DalamudOrange, dispatch.Status);
+                ImGui.TextColored(Copy.MarkColor(UiState.Running), dispatch.Status);
             }
             else
             {
@@ -89,7 +91,7 @@ public sealed class CartPanel
                     if (_previewFor != snap.Generation) { _preview = dispatch.PlanFor(); _previewFor = snap.Generation; }
                     ImGui.SetTooltip(_preview is null ? "Sends ventures to ARC, gathering to GBR, then crafts with Artisan (in that order)." : PreviewText(_preview));
                 }
-                if (dispatch.Current is Adapters.DispatchService.Phase.Failed) { ImGui.SameLine(); ImGui.TextColored(ImGuiColors.DalamudRed, dispatch.Status); }
+                if (dispatch.Current is Adapters.DispatchService.Phase.Failed) { ImGui.SameLine(); ImGui.TextColored(Copy.MarkColor(UiState.Failed), dispatch.Status); }
             }
             ImGui.SameLine();
             if (ImGui.Button("Export to TeamCraft"))

@@ -1,5 +1,5 @@
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Colors;
+using LalaUiKit;
 using LazyCrafter.Catalog;
 using LazyCrafter.Core;
 using LazyCrafter.Core.Model;
@@ -10,6 +10,8 @@ namespace LazyCrafter.UI;
 /// Right-hand panel (Plan §Phase 4 task 3): the selected recipe's ingredient tree - per leaf have/need, source
 /// kinds, tier, unit price - plus a fulfil button per available channel (Phase 5): Craft → Artisan, Gather → GBR,
 /// Venture → ARC, Vendor → Lifestream teleport + map flag, Buy → Lifestream /li mb + shopping list.
+/// Converted to LalaUiKit per the UI Brief (R4/R8): kit text styles and state colours only; the fulfil
+/// buttons keep their exact handlers and disabled logic.
 /// </summary>
 public sealed class IngredientTree
 {
@@ -24,7 +26,7 @@ public sealed class IngredientTree
         if (_qtyFor != row.RecipeId) { _qtyFor = row.RecipeId; _qty = 1; }
         var est = row.Est(hq);
 
-        ImGui.TextColored(ImGuiColors.ParsedGold, row.Name);
+        Widgets.Title(row.Name);
         ImGui.SameLine();
         ImGui.TextDisabled($"{row.Job} {row.Level}  x{row.ResultAmount}/craft");
         ImGui.TextColored(Fmt.TierColor(row.Tier), Fmt.TierName(row.Tier));
@@ -36,10 +38,10 @@ public sealed class IngredientTree
             ImGui.TextUnformatted($"Revenue {(est.RevenueKnown ? Fmt.Gil((hq ? est.RevenueHq : est.RevenueNq)!.Value) : "?")}  tax {Fmt.Gil(est.Tax)}  cash cost {(est.CostComplete ? "" : ">")}{Fmt.Gil(est.CashCost)}  at market {Fmt.Gil(est.MarketCost)}");
             ImGui.TextUnformatted($"Margin cash {(est.MarginCash is { } mc ? Fmt.Gil(mc) : "?")}  market {(est.MarginMarket is { } mm ? Fmt.Gil(mm) : "?")}  /day {Fmt.Gil((long)Math.Round(est.PerDay))}  vel {est.Velocity:0.#}  listings {est.Listings}");
             if (!est.CostComplete)
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "unpriced: " + string.Join(", ", est.UnpricedItems.Take(4).Select(Name)) + (est.UnpricedItems.Count > 4 ? $" +{est.UnpricedItems.Count - 4}" : ""));
+                Widgets.Secondary("unpriced: " + string.Join(", ", est.UnpricedItems.Take(4).Select(Name)) + (est.UnpricedItems.Count > 4 ? $" +{est.UnpricedItems.Count - 4}" : ""));
         }
         else if (!row.Marketable) ImGui.TextDisabled("Untradeable - no market value.");
-        if (row.Scrip > 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"{row.Scrip} scrip per turn-in at max collectability");
+        if (row.Scrip > 0) Widgets.Secondary($"{row.Scrip} scrip per turn-in at max collectability");
 
         ImGui.SetNextItemWidth(70f);
         ImGui.InputInt("##qty", ref _qty);
@@ -77,14 +79,15 @@ public sealed class IngredientTree
         ImGui.PushID((int)leaf.ItemId + depth * 1_000_000);
         var flags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.DefaultOpen;
         if (node.Children.Count == 0) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.Bullet;
-        var color = leaf.Missing == 0 ? ImGuiColors.HealerGreen : Fmt.TierColor(leaf.Tier);
+        // R4: green only for the ready state (everything on hand); effort tiers stay word-coloured by Fmt.
+        var color = leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Fmt.TierColor(leaf.Tier);
         ImGui.PushStyleColor(ImGuiCol.Text, color);
         var open = ImGui.TreeNodeEx(Name(leaf.ItemId), flags);
         ImGui.PopStyleColor();
         if (ImGui.IsItemHovered()) ImGui.SetTooltip($"item {leaf.ItemId}\n{string.Join(", ", leaf.Sources.Select(Fmt.SourceName))}");
 
         ImGui.TableNextColumn();
-        ImGui.TextColored(leaf.Missing == 0 ? ImGuiColors.HealerGreen : ImGuiColors.DalamudWhite, $"{leaf.Have}/{leaf.Need}");
+        ImGui.TextColored(leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Theme.TextPrimary, $"{leaf.Have}/{leaf.Need}");
         ImGui.TableNextColumn();
         ImGui.TextUnformatted(leaf.Missing == 0 ? "on hand" : string.Join(", ", leaf.Sources.Where(s => s != SourceKind.OnHand).Select(Fmt.SourceName)));
         ImGui.TableNextColumn();
