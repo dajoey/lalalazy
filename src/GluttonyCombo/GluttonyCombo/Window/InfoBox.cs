@@ -3,7 +3,6 @@ using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Style;
-using LalaUiKit;
 
 namespace GluttonyCombo.Window;
 
@@ -11,7 +10,7 @@ internal class InfoBox
 {
     private static StyleModelV1 DalamudStyle => StyleModelV1.Get();
     
-    public Vector4 Color { get; set; } = Theme.SurfaceBorder;
+    public Vector4 Color { get; set; } = DalamudStyle.Colors[nameof(ImGuiCol.Border)];
     
     public Action ContentsAction { get; set; } = null!;
     public Func<bool> ContentsFunc { get; set; } = null!;
@@ -39,7 +38,7 @@ internal class InfoBox
 
         if (Debug)
         {
-            DrawList.AddCircleFilled(StartPosition, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
+            DrawList.AddCircleFilled(StartPosition, 2.0f, ImGui.GetColorU32(Colors.Purple));
         }
 
         DrawContents();
@@ -119,16 +118,16 @@ internal class InfoBox
 
         if (Debug)
         {
-            DrawList.AddCircleFilled(topLeftCurveCenter, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
-            DrawList.AddCircleFilled(topRightCurveCenter, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
-            DrawList.AddCircleFilled(bottomLeftCurveCenter, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
-            DrawList.AddCircleFilled(bottomRightCurveCenter, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
+            DrawList.AddCircleFilled(topLeftCurveCenter, 2.0f, ImGui.GetColorU32(Colors.Red));
+            DrawList.AddCircleFilled(topRightCurveCenter, 2.0f, ImGui.GetColorU32(Colors.Green));
+            DrawList.AddCircleFilled(bottomLeftCurveCenter, 2.0f, ImGui.GetColorU32(Colors.Blue));
+            DrawList.AddCircleFilled(bottomRightCurveCenter, 2.0f, ImGui.GetColorU32(Colors.Orange));
         }
     }
 
     private void DrawBorders()
     {
-        uint color = Debug ? ImGui.GetColorU32(Theme.StateNeutral) : ColorU32;
+        uint color = Debug ? ImGui.GetColorU32(Colors.Red) : ColorU32;
 
         DrawList.AddLine(new Vector2(StartPosition.X - 0.5f, StartPosition.Y + CurveRadius - 0.5f), new Vector2(StartPosition.X - 0.5f, StartPosition.Y + Size.Y - CurveRadius + 0.5f), color, BorderThickness);
         DrawList.AddLine(new Vector2(StartPosition.X + Size.X - 0.5f, StartPosition.Y + CurveRadius - 0.5f), new Vector2(StartPosition.X + Size.X - 0.5f, StartPosition.Y + Size.Y - CurveRadius + 0.5f), color, BorderThickness);

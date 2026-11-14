@@ -2,6 +2,7 @@
 
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Utility;
@@ -17,7 +18,6 @@ using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
-using LalaUiKit;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -74,7 +74,8 @@ internal class Debug : ConfigWindow, IDisposable
     // Constants
     private const int WidthStatusId = 8;
     private const int WidthStatusDuration = 11;
-
+    private const float SpacingSmall = 10f;
+    private const float SpacingMedium = 20f;
     private const string UnknownName = "???";
     private const string SymbolDuration = "";
     private const string SymbolParameter = "";
@@ -104,21 +105,22 @@ internal class Debug : ConfigWindow, IDisposable
 
     internal new static unsafe void Draw()
     {
-        Layout.PageHeader(null, FontAwesomeIcon.Bug.ToIconString(), "DEBUG",
-            "This is where you can figure out where it all went wrong.",
-            PingPluginIPC.CanGetPing ? $"{PingPluginIPC.LastPing}ms ping" : "ping unavailable");
-        ImGui.Dummy(new Vector2(0, Theme.Unit));
+        ImGui.Text("This is where you can figure out where it all went wrong.");
+        if (PingPluginIPC.CanGetPing)
+            ImGui.Text($"Current Ping: {PingPluginIPC.LastPing}ms");
+
+        ImGuiEx.Spacing(new Vector2(0f, SpacingMedium));
 
         #region Debug Walking
 
         if (DebugConfig)
         {
-            Widgets.Banner(UiState.Running, "You are now in config debug mode.");
+            ImGuiEx.Text(ImGuiColors.HealerGreen, "You are now in config debug mode.");
             _debugError = "";
         }
 
         if (_debugError != "")
-            Widgets.Banner(UiState.Failed, _debugError);
+            ImGuiEx.Text(ImGuiColors.DalamudRed, _debugError);
 
         ImGui.Text("Debug Config: ");
         ImGui.SameLine();
@@ -225,7 +227,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingMedium));
 
         var target = CurrentTarget;
         var player = Player.Object;
@@ -244,18 +246,18 @@ internal class Debug : ConfigWindow, IDisposable
         if (ImGui.CollapsingHeader("Player Statuses"))
         {
             DrawStatuses(player);
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("Target Statuses"))
         {
             DrawStatuses(target);
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
         #region Character
 
@@ -280,7 +282,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText("Shield Percentage:", player.ShieldPercentage);
             CustomStyleText("Shield Actual Value:", player.RawShieldValue());
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             CustomStyleText("Job Specific Data", string.Empty);
             ImGui.Separator();
@@ -367,7 +369,7 @@ internal class Debug : ConfigWindow, IDisposable
                     break;
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             if (ImGui.TreeNode("Content Data"))
             {
@@ -387,15 +389,15 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("CDF Cored:",
                     $"soft:{ContentCheck.IsInSoftCoreContent()}, mid:{ContentCheck.IsInMidCoreContent()}, hard:{ContentCheck.IsInHardCoreContent()}");
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
 
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("Target Data"))
@@ -418,7 +420,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
         #region Party
 
@@ -433,7 +435,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText("Party Combat Time:", PartyEngageDuration().ToString("mm\\:ss\\:ff"));
             CustomStyleText("Alliance Group:", GetAllianceGroup());
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             // Dumps the data of everyone in the current group manager (reacts dynamically to replays).
             foreach (var p in GroupManager.Instance()->GetGroupWithCheck(true)->PartyMembers)
@@ -473,7 +475,7 @@ internal class Debug : ConfigWindow, IDisposable
                     }
 
 
-                    ImGui.Spacing();
+                    ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
                     DrawVFXTree(member.GameObject);
 
@@ -484,7 +486,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
         #region Actions
 
@@ -566,7 +568,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText($"Duty Action 5:", $"{Action5.ActionName()}");
             CustomStyleText($"In Mudra:", NIN.InMudra);
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             if (ImGui.TreeNode("Opener Data"))
             {
@@ -595,7 +597,7 @@ internal class Debug : ConfigWindow, IDisposable
                     int stepIndex = 0;
                     if (ImGui.CollapsingHeader("Opener Actions"))
                     {
-                        ImGui.Spacing();
+                        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                         foreach (var action in WrathOpener.CurrentOpener.OpenerActions)
                         {
                             stepIndex++;
@@ -605,7 +607,7 @@ internal class Debug : ConfigWindow, IDisposable
                     }
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -619,7 +621,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.TreePop();
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("ActionReady"))
@@ -632,7 +634,7 @@ internal class Debug : ConfigWindow, IDisposable
                     CustomStyleText(act.Name.ExtractText(), $"{ActionReady(act.RowId)}, {status} ({Svc.Data.GetExcelSheet<LogMessage>().GetRow(status).Text})");
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -644,7 +646,7 @@ internal class Debug : ConfigWindow, IDisposable
                     CustomStyleText(act.Name.ExtractText(), $"{ActionReady(act.RowId)}, {status} ({Svc.Data.GetExcelSheet<LogMessage>().GetRow(status).Text})");
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -656,7 +658,7 @@ internal class Debug : ConfigWindow, IDisposable
                     CustomStyleText(act.Name.ExtractText(), $"{ActionReady(act.RowId)}, {status} ({Svc.Data.GetExcelSheet<LogMessage>().GetRow(status).Text})");
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -671,7 +673,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.TreePop();
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("ActionSheet"))
@@ -850,7 +852,7 @@ internal class Debug : ConfigWindow, IDisposable
                 }
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("Action Retargeting"))
@@ -865,10 +867,10 @@ internal class Debug : ConfigWindow, IDisposable
 
             if (retargets.Count > 0)
             {
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
                 ImGui.Indent();
-                Widgets.Title("Retargets:");
+                ImGuiEx.TextUnderlined("Retargets:");
                 var first = true;
                 var distinctRetargets = retargets
                     .OrderBy(x => x.Key);
@@ -876,7 +878,7 @@ internal class Debug : ConfigWindow, IDisposable
                 foreach (var retarget in distinctRetargets)
                 {
                     var val = retarget.Value;
-                    if (!first) ImGui.Spacing();
+                    if (!first) ImGuiEx.Spacing(new Vector2(0f, SpacingSmall / 2));
 
                     CustomStyleText($"Action: {val.Action.ActionName()} (Key: {retarget.Key.ActionName()})",
                         $"ID: {val.ID,20}");
@@ -895,7 +897,7 @@ internal class Debug : ConfigWindow, IDisposable
                         val.ReplacedActions.Select(x => x.ActionName()));
                     ImGuiEx.Text("Replaced Actions:");
                     ImGui.SameLine();
-                    Widgets.SecondaryWrapped(replacedActionsString);
+                    ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey, replacedActionsString);
                     ImGui.Unindent(10f.Scale());
 
                     CustomStyleText($"Resolver: {val.ResolverName}",
@@ -1009,7 +1011,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1114,7 +1116,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1190,7 +1192,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1232,7 +1234,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1310,14 +1312,14 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
         }
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
         #region Misc
 
@@ -1332,7 +1334,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.TreePop();
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("Miscellaneous Data"))
@@ -1495,7 +1497,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
         #region IPC
 
@@ -1530,7 +1532,7 @@ internal class Debug : ConfigWindow, IDisposable
                     $"Combos: {CountLeaseJobCombos(wrathRegistration),-3}; " +
                     $"Variants: {FormatLeaseVariantStatus(wrathRegistration)}");
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(20, 20));
 
                 if (ImGui.Button("Release"))
                 {
@@ -1549,7 +1551,7 @@ internal class Debug : ConfigWindow, IDisposable
                     P.IPC.Leasing.AddRegistrationForCurrentJob(_wrathLease!.Value, jobOverride: Job.WHM);
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(10, 10));
 
                 if (ImGui.Button("Set Variant (current job)"))
                 {
@@ -1566,7 +1568,7 @@ internal class Debug : ConfigWindow, IDisposable
                     Svc.Chat.Print($"SetVariantReadyForJob: {result}");
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(20, 20));
 
                 if (ImGui.Button("Mimic AutoDuty"))
                 {
@@ -1591,7 +1593,7 @@ internal class Debug : ConfigWindow, IDisposable
                 }
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             CustomStyleText("All Leases:", "");
 
@@ -1621,7 +1623,7 @@ internal class Debug : ConfigWindow, IDisposable
                         $"Auto-Rotation: {registration.Value.AutoRotationControlled.Count > 0}");
 
                     ImGui.NewLine();
-                    ImGui.Spacing();
+                    ImGuiEx.Spacing(new Vector2(10, 0));
                     ImGui.SameLine();
                     if (ImGui.Button("Release##releaseFromList" + registration.Key))
                     {
@@ -1658,7 +1660,7 @@ internal class Debug : ConfigWindow, IDisposable
                 }
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
         if (ImGui.CollapsingHeader("Orbwalker IPC"))
@@ -1698,7 +1700,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         #endregion
 
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0, SpacingMedium));
 
         #region Hidden Features
 
@@ -1709,11 +1711,11 @@ internal class Debug : ConfigWindow, IDisposable
         ImGuiComponents.HelpMarker("Some features can be marked as hidden, and will only be shown if this setting is enabled.\nThis is here instead of on the Settings tab while this behavior is still early in its life, and to keep such features more secretive.");
 
         ImGui.SameLine();
-        Widgets.Secondary("(Do NOT publicly direct users to this setting!)");
+        ImGui.TextColored(ImGuiColors.DalamudGrey, "(Do NOT publicly direct users to this setting!)");
         if (Service.Configuration.ShowHiddenFeatures)
         {
             ImGui.Indent();
-            Widgets.SecondaryWrapped(
+            ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
                 "Hidden Features are minor one-offs that are not priorities for dev time.\n" +
                 "Do not request new ones or maintenance for existing ones publicly.\n" +
                 "Do not expect Hidden Features to be maintained or even stick around after they cease to be applicable.");
@@ -1757,7 +1759,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText("Is Boss:", (target as IBattleChara)?.IsBoss());
             CustomStyleText("In Boss Encounter:", InBossEncounter());
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
             if (ImGui.TreeNode("Cast Data"))
             {
@@ -1786,7 +1788,7 @@ internal class Debug : ConfigWindow, IDisposable
                 }
                 else CustomStyleText("No valid target.", "");
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1807,7 +1809,7 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("ObjectSubKind:", target?.SubKind);
                 CustomStyleText("ObjectType:", target?.GetType()?.Name);
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1825,7 +1827,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.TreePop();
                 }
 
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
@@ -1855,13 +1857,13 @@ internal class Debug : ConfigWindow, IDisposable
             if (ImGui.TreeNode("Statuses"))
             {
                 DrawStatuses(target);
-                ImGui.Spacing();
+                ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
                 ImGui.TreePop();
             }
 
             DrawVFXTree(target);
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
     }
 
@@ -1888,7 +1890,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.TextUnformatted("No VFX data tracked for target.");
             }
 
-            ImGui.Spacing();
+            ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
             ImGui.TreePop();
         }
     }
@@ -1905,7 +1907,7 @@ internal class Debug : ConfigWindow, IDisposable
         ImGui.NextColumn();
 
         // Optional Color
-        Vector4 textColor = optionalColor ?? Theme.TextSecondary;
+        Vector4 textColor = optionalColor ?? ImGuiColors.DalamudGrey;
         ImGui.PushStyleColor(ImGuiCol.Text, textColor);
 
         // Optional Monofont
@@ -1968,7 +1970,7 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText(firstColumn, secondColumn, useMonofont: true);
             }
         }
-        ImGui.Spacing();
+        ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
     }
 
     private static void DisableDebugConfig()

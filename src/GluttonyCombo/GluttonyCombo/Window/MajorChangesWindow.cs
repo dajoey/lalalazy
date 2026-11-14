@@ -1,8 +1,8 @@
 #region
 
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
-using LalaUiKit;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using ECommons.DalamudServices;
@@ -55,11 +55,11 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         #region Tanks
 
-        Widgets.Title("Tank In-Combo Mitigation Has Been Overhauled and " +
+        ImGuiEx.TextUnderlined("Tank In-Combo Mitigation Has Been Overhauled and " +
             "Moved");
         if (WasUsingOldDRKConfigs || WasUsingOldGNBConfigs ||
             WasUsingOldPLDConfigs || WasUsingOldWARConfigs)
-            ImGuiEx.Text(Theme.StateAmber,
+            ImGuiEx.Text(ImGuiColors.DalamudYellow,
                 "You had one of these tanks configured! Please Read!");
         ImGuiEx.Text(
             "Tanks have had their In-Combo Mitigation completely overhauled.\n" +
@@ -96,7 +96,7 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         #region Raidwides/Tankbusters
         
-        Widgets.Title("Raidwide-Detection Improved, Tankbuster Detection Added");
+        ImGuiEx.TextUnderlined("Raidwide-Detection Improved, Tankbuster Detection Added");
         ImGuiEx.Text(
             "Raidwide detection has been improved to now also check for nearby\n" +
             "stack marker visual effects, in addition to the existing raidwide " +

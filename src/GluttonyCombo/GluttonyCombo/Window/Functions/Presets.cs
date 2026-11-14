@@ -1,5 +1,6 @@
 using Dalamud.Game.Config;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
@@ -28,7 +29,6 @@ using GluttonyCombo.Resources.Localization.UI.Features;
 using GluttonyCombo.Resources.Localization.UI.Misc;
 using GluttonyCombo.Resources.Localization.UI.Settings;
 using GluttonyCombo.Services;
-using LalaUiKit;
 using static GluttonyCombo.Attributes.PossiblyRetargetedAttribute;
 using static GluttonyCombo.Core.PresetStorage;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
@@ -141,7 +141,7 @@ internal class Presets : ConfigWindow
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 8f.Scale());
 
         Vector2 length = new();
-        using (var styleCol = ImRaii.PushColor(ImGuiCol.Text, Theme.TextSecondary))
+        using (var styleCol = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey))
         {
             if (FeaturesWindow.CurrentPreset != -1)
             {
@@ -179,15 +179,14 @@ internal class Presets : ConfigWindow
 
         if (conflicts.Length > 0)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
-            ImGui.Text(FeaturesUI.Label_ConflictsWith);
-            ImGui.PopStyleColor();
+            ImGui.TextColored(ImGuiColors.DalamudRed, FeaturesUI.Label_ConflictsWith);
             ImGui.Indent();
             foreach (var conflict in conflicts)
-                ImGuiEx.Text(Copy.MarkColor(
+                ImGuiEx.Text(GradientColor.Get(
+                        ImGuiColors.DalamudRed,
                         CustomComboFunctions.IsEnabled(conflict)
-                            ? UiState.Failed
-                            : UiState.Blocked),
+                            ? ImGuiColors.HealerGreen
+                            : ImGuiColors.DalamudRed, 1500),
                     $"- {conflict.NameWithFullLineage(presetData.JobInfo.Job)}");
             ImGui.Unindent();
             ImGui.Spacing();
@@ -198,7 +197,7 @@ internal class Presets : ConfigWindow
             blueAttr.GetActions();
             if (blueAttr.Actions.Count > 0)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, blueAttr.NoneSet ? Theme.StateRed : Theme.StateAmber);
+                ImGui.PushStyleColor(ImGuiCol.Text, blueAttr.NoneSet ? ImGuiColors.DPSRed : ImGuiColors.DalamudOrange);
                 ImGui.Text($"{(blueAttr.NoneSet ? FeaturesUI.Warning_BLUNoSpells : FeaturesUI.Warning_BLUMissingSpells)}");
                 ImGui.PopStyleColor();
                 foreach (var act in blueAttr.Actions)
@@ -206,7 +205,7 @@ internal class Presets : ConfigWindow
                     var name = act.ActionName();
                     var idx = BlueMageService.GetBLUIndex(act);
                     string text = $"#{idx} {name}";
-                    using (ImRaii.PushColor(ImGuiCol.Text, !BlueMageService.SpellUnlocked(act) ? Theme.StateRed : Theme.StateAmber))
+                    using (ImRaii.PushColor(ImGuiCol.Text, !BlueMageService.SpellUnlocked(act) ? ImGuiColors.DPSRed : ImGuiColors.DalamudYellow))
                     {
                         ImGui.Text($"- {text}");
                     }
@@ -232,7 +231,7 @@ internal class Presets : ConfigWindow
 
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateGreen);
+                ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
                 ImGui.Text(FeaturesUI.Info_BLUAllGoodSpells);
                 ImGui.PopStyleColor();
             }
@@ -399,6 +398,14 @@ internal class Presets : ConfigWindow
                 mousePos.X -= 5;
                 mousePos.Y -= 5;
 
+                ImGui.SetNextWindowPos(mousePos);
+                ImGui.SetNextWindowBgAlpha(0.5f);
+
+                ImGui.Begin(
+                    $"{act}DragDrops",
+                    ImGuiWindowFlags.NoDecoration |
+                    ImGuiWindowFlags.AlwaysAutoResize);
+
                 ushort icon = (ushort)(act >= All.SingleTargetDPS ? 1 : Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Action>().GetRow(act).Icon);
                 IDalamudTextureWrap? texture;
                 if (act >= All.SingleTargetDPS)
@@ -410,7 +417,10 @@ internal class Presets : ConfigWindow
                     texture = Svc.Texture.GetFromGameIcon(new(icon)).GetWrapOrEmpty();
                 }
 
-                Widgets.DragGhost(texture?.Handle, mousePos, 50f.Scale());
+                if (texture is not null)
+                    ImGui.Image(texture.Handle, new(50f.Scale()));
+
+                ImGui.End();
 
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) || (ImGui.IsMouseReleased(ImGuiMouseButton.Left) && DragDropMode))
                 {
@@ -447,7 +457,7 @@ internal class Presets : ConfigWindow
 
         bool val = Service.Configuration.BurstPresets[presetData.Preset];
 
-        var colour = val ? Theme.StateGreen : Theme.StateNeutral;
+        var colour = val ? ImGuiColors.HealerGreen : ImGuiColors.DalamudRed;
 
         ImGui.PushStyleColor(ImGuiCol.Button, colour);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, colour);
@@ -582,8 +592,8 @@ internal class Presets : ConfigWindow
 
         // Color the icon for whether it is possibly or certainly retargeted
         var color = retargeted
-            ? Theme.StateGreen
-            : Theme.StateAmber;
+            ? ImGuiColors.ParsedGreen
+            : ImGuiColors.DalamudYellow;
 
         using var col = new ImRaii.ColorDisposable();
         col.Push(ImGuiCol.TextDisabled, color);
