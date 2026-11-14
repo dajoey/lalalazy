@@ -30,6 +30,8 @@
     <Compile Include="..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
     <Compile Include="..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL -->
+    <Compile Include="..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 

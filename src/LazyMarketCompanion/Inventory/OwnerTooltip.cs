@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
+using LalaUiKit;
 using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.DalamudServices;
@@ -89,18 +90,18 @@ internal sealed class OwnerTooltip : Window
 
     ImGuiHelpers.ForceNextWindowMainViewport();
     ImGuiHelpers.SetNextWindowPosRelativeMainViewport(pos);
-    ImGui.Begin("###LMCOwnerTip", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar
-      | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing);
-    ImGui.TextColored(new Vector4(0.55f, 0.85f, 1f, 1f), "Who handles this stack");
+    using var tip = LalaUiKit.Layout.Overlay.Begin("###LMCOwnerTip", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar
+      | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing,
+      transparentBackground: false);
+    Widgets.Title("Who handles this stack");
     foreach (var line in _lines)
     {
       var warn = line.Contains("DISCARDS", StringComparison.Ordinal);
-      if (warn) ImGui.TextColored(new Vector4(1f, 0.5f, 0.4f, 1f), line);
-      else ImGui.TextUnformatted(line);
+      if (warn) Widgets.StateText(line, UiState.Failed);
+      else Widgets.Body(line);
     }
     if (!_service.Ar.Available)
-      ImGui.TextDisabled($"AutoRetainer: {_service.Ar.Status}");
-    ImGui.End();
+      Widgets.Secondary($"AutoRetainer: {_service.Ar.Status}");
   }
 
   private static unsafe bool MouseOverInventory(Vector2 mouse)

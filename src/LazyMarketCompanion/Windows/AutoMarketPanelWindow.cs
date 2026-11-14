@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LalaUiKit;
 using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
 using System;
@@ -176,7 +177,26 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
     try
     {
-      // inside Begin: the window's real position and size this frame
+      Theme.PushFrame();
+      try
+      {
+        DrawFrame();
+      }
+      finally
+      {
+        Theme.PopFrame();
+      }
+    }
+    catch (Exception ex)
+    {
+      // The panel is pure display over config writes; it must never take the plugin down.
+      _drawGuard.Failed(ex);
+    }
+  }
+
+  private void DrawFrame()
+  {
+    // inside Begin: the window's real position and size this frame
       var windowPos = ImGui.GetWindowPos();
       var windowSize = ImGui.GetWindowSize();
       _lastSize = windowSize;
@@ -218,6 +238,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
           $" rows: on-list={counts.OnList} not-listed={counts.NotListed} excluded={counts.Excluded} unmarketable={counts.NotMarketable} showing={visible.Count}");
       }
 
+      DrawPanelBar(c, counts);
       DrawHeader(c, counts);
       ImGui.Separator();
       DrawFilters(all, counts);
@@ -226,12 +247,27 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       DrawBulkModals(c, bulk);
       ImGui.Separator();
       DrawKnobs(c);
-    }
-    catch (Exception ex)
-    {
-      // The panel is pure display over config writes; it must never take the plugin down.
-      _drawGuard.Failed(ex);
-    }
+  }
+
+  // R1/R3: shell top bar - panel title left, live Auto-Market pill right.
+  private void DrawPanelBar(Configuration c, AutoMarketPanelModel.Counts counts)
+  {
+    var p = ImGui.GetCursorScreenPos();
+    var w = ImGui.GetContentRegionAvail().X;
+    var barH = Theme.PillHeight;
+    var dl = ImGui.GetWindowDrawList();
+    dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
+    dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
+    ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
+    ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
+    ImGui.TextUnformatted("Auto-Market");
+    ImGui.PopStyleColor();
+    ImGui.SameLine();
+    ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+    var busy = _runInProgress();
+    var state = busy ? UiState.Running : c.AutoMarketEnabled ? UiState.Ready : UiState.Idle;
+    Widgets.StatusPill(state, "Auto-Market", busy ? null : $"{counts.OnList} on list", alignRight: true);
+    ImGui.Dummy(new Vector2(0, Theme.Unit));
   }
 
   // =====================================================================================
@@ -241,14 +277,14 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private void DrawHeader(Configuration c, AutoMarketPanelModel.Counts counts)
   {
     var dock = c.AutoMarketPanelDock;
-    if (ImGui.Checkbox("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
+    if (Widgets.Checkbox("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
     Tip("Place the panel beside the inventory window (right when there is room, else left). Off = the panel floats wherever you dragged it, and opening your bags does not open or close it.");
 
     if (dock)
     {
       ImGui.SameLine(0, 20);
       var pinned = c.AutoMarketPanelPinned;
-      if (ImGui.Checkbox("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
+      if (Widgets.Checkbox("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
       Tip("Off (the default): the panel opens and closes with your inventory.\r\nOn: the panel stays up after the inventory closes - close it by hand or with /lmc panel.");
     }
 
@@ -306,7 +342,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
     ImGui.SameLine(0, 12);
     var show = _showUnmarketable;
-    if (ImGui.Checkbox($"Show unmarketable ({counts.NotMarketable})", ref show))
+    if (Widgets.Checkbox($"Show unmarketable ({counts.NotMarketable})", ref show))
       _showUnmarketable = show;
     Tip("Quest items, gear the sheet calls untradable, anything with no market category: they get no dot and no Auto-Market listing, so they are hidden. This shows and counts them.");
 
@@ -383,7 +419,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   {
     if (visible.Count == 0)
     {
-      ImGui.TextColored(Muted, _search.Length > 0 || _categoryFilter != 0 || _status != AutoMarketPanelModel.StatusFilter.All
+      Widgets.Secondary(_search.Length > 0 || _categoryFilter != 0 || _status != AutoMarketPanelModel.StatusFilter.All
         ? "Nothing matches the filters above."
         : "Nothing marketable in your bags right now.");
       return;
@@ -418,7 +454,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         if (entry != null)
         {
           var on = entry.Enabled;
-          if (ImGui.Checkbox("##on", ref on)) { entry.Enabled = on; c.Save(); }
+          if (Widgets.Checkbox("##on", ref on)) { entry.Enabled = on; c.Save(); }
           Tip("Ticks and unticks this item on the Auto-Market list - the same switch the main window's table has. Unticked = on the list but not listed.");
         }
       }
@@ -435,13 +471,13 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       switch (row.Kind)
       {
         case AutoMarketPanelModel.RowKind.OnList when row.EntryEnabled:
-          ImGui.TextColored(Green, row.Excluded ? "on list" : "on list");
+          Widgets.StateText(row.Excluded ? "on list" : "on list", UiState.Ready);
           break;
         case AutoMarketPanelModel.RowKind.OnList:
-          ImGui.TextColored(Orange, "on list (off)");
+          Widgets.StateText("on list (off)", UiState.Blocked);
           break;
         case AutoMarketPanelModel.RowKind.NotListed:
-          ImGui.TextColored(Muted, "not listed");
+          Widgets.Secondary("not listed");
           break;
         default:
           ImGui.TextDisabled("unmarketable");
@@ -475,7 +511,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       if (row.Kind == AutoMarketPanelModel.RowKind.OnList && c.GetAutoMarketItem(row.ItemId, row.Hq) is { } routeEntry)
       {
         var skip = routeEntry.ExcludeFromCategoryRouting;
-        if (ImGui.Checkbox("##skiprouting", ref skip)) { routeEntry.ExcludeFromCategoryRouting = skip; c.Save(); }
+        if (Widgets.Checkbox("##skiprouting", ref skip)) { routeEntry.ExcludeFromCategoryRouting = skip; c.Save(); }
         Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer.");
       }
 
@@ -519,7 +555,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var enabled = c.AutoMarketEnabled;
     var busy = _runInProgress();
     if (busy) ImGui.BeginDisabled();
-    if (ImGui.Checkbox("Enable Auto-Market", ref enabled))
+    if (Widgets.Checkbox("Enable Auto-Market", ref enabled))
     {
       if (enabled)
         ImGui.OpenPopup("Turn Auto-Market on?"); // the modal's exact id string: ImGui matches the two by hash
@@ -546,13 +582,13 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     }
 
     var markers = c.AutoMarketMarkersEnabled;
-    if (ImGui.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
+    if (Widgets.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
     Tip("Draws a small green dot on every bag stack that is on the Auto-Market list and enabled.\r\nAn item on the list with its tick unticked gets no dot - it would not be listed.\r\nThis panel lists the same state as a table, even when the dots do not draw.");
 
     ImGui.SameLine(0, 30);
     var duringAr = c.AutoMarketDuringAutoRetainer;
     if (!AutoRetainerIPC.Installed) ImGui.BeginDisabled();
-    if (ImGui.Checkbox("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
+    if (Widgets.Checkbox("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
     if (!AutoRetainerIPC.Installed) ImGui.EndDisabled();
     Tip(AutoRetainerIPC.Installed
       ? "When AutoRetainer cycles a retainer (multi-mode / ventures), claim it after AR's own work, list your items, match prices, hand it back.\r\nOnly enabled retainers (Retainers tab) are claimed."
@@ -560,7 +596,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
     ImGui.SameLine(0, 30);
     var inSweep = c.AutoMarketInPinchAllSweep;
-    if (ImGui.Checkbox("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
+    if (Widgets.Checkbox("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
     Tip("The 'Auto Market' button on the retainer list lists items on every enabled retainer before pinching. Off = that button only pinches.");
 
     ImGui.TextUnformatted("Stock source:"); ImGui.SameLine();
@@ -571,12 +607,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
     ImGui.SameLine(0, 20);
     var retFirst = c.AutoMarketPreferRetainerStockFirst;
-    if (ImGui.Checkbox("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
+    if (Widgets.Checkbox("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
     Tip("Sell the retainer's own inventory (venture loot) before touching your bags.");
 
     ImGui.SameLine(0, 20);
     var partial = c.AutoMarketListPartialStacks;
-    if (ImGui.Checkbox("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
+    if (Widgets.Checkbox("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
     Tip("If there isn't a full listing's worth left, list what's there anyway. Off = only full-size listings.");
 
     ImGui.TextUnformatted("New listing price:"); ImGui.SameLine();
@@ -594,12 +630,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     Tip("Leave this many of the retainer's 20 market slots empty for manual listings.");
 
     var pinchAll = c.AutoMarketPinchAllAfter;
-    if (ImGui.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
+    if (Widgets.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
     Tip("Off (the default): after listing, only the new listings are priced - much faster.\nOn: re-price ALL of this retainer's listings as well (same as Auto Pinch), which costs a few seconds per existing listing.");
 
     ImGui.SameLine(0, 20);
     var msgs = c.ShowAutoMarketMessages;
-    if (ImGui.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
+    if (Widgets.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
 
     if (!c.AutoMarketPinchAllAfter)
     {
@@ -628,7 +664,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         + "Items Universalis has no fresh data for keep their list position and sort last, and a failed lookup changes nothing.");
 
     var gate = c.AutoMarketValueGateEnabled;
-    if (ImGui.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
+    if (Widgets.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
     ImGui.SameLine();
     ImGui.SetNextItemWidth(140);
     var threshold = (int)Math.Min(c.AutoMarketValueGateThresholdGil, int.MaxValue);
@@ -654,7 +690,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     }
 
     var autoAssign = c.AutoAssignUnroutedCategories;
-    if (ImGui.Checkbox("Auto-assign uncovered categories", ref autoAssign))
+    if (Widgets.Checkbox("Auto-assign uncovered categories", ref autoAssign))
     {
       c.AutoAssignUnroutedCategories = autoAssign;
       c.Save();
@@ -708,9 +744,6 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     return false;
   }
 
-  private static readonly Vector4 Green = new(0.40f, 0.80f, 0.40f, 1f);
-  private static readonly Vector4 Orange = new(0.95f, 0.65f, 0.20f, 1f);
-  private static readonly Vector4 Muted = new(0.65f, 0.65f, 0.65f, 1f);
 
   private static void Tip(string text)
   {

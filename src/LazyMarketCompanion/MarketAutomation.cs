@@ -31,6 +31,8 @@ namespace LazyMarketCompanion;
 /// </summary>
 internal sealed class MarketAutomation : Window, IDisposable
 {
+  // The retainer overlay's kit window scope (opened in ImGuiSetup, closed in ImGuiPostSetup).
+  private LalaUiKit.Layout.Overlay? _overlay;
   private readonly MarketBoardHandler _mbHandler;
   private readonly UniversalisPriceProvider _universalisPriceProvider;
   private int? _oldPrice;
@@ -465,7 +467,6 @@ internal sealed class MarketAutomation : Window, IDisposable
     ImGuiHelpers.ForceNextWindowMainViewport();
     ImGuiHelpers.SetNextWindowPosRelativeMainViewport(position);
 
-    ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
     var oldSize = ImGui.GetFont().Scale;
     ImGui.GetFont().Scale *= scale.X;
     ImGui.PushFont(ImGui.GetFont());
@@ -474,19 +475,19 @@ internal sealed class MarketAutomation : Window, IDisposable
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0f.Scale(), 0f.Scale()));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f.Scale());
     ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, size);
-    ImGui.Begin($"###LMCOverlay{node->NodeId}", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoNavFocus
+    _overlay = LalaUiKit.Layout.Overlay.Begin($"###LMCOverlay{node->NodeId}", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoNavFocus
         | ImGuiWindowFlags.AlwaysUseWindowPadding | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings);
 
     return oldSize;
   }
 
-  private static void ImGuiPostSetup(float oldSize)
+  private void ImGuiPostSetup(float oldSize)
   {
-    ImGui.End();
+    _overlay?.Dispose();
+    _overlay = null;
     ImGui.PopStyleVar(5);
     ImGui.GetFont().Scale = oldSize;
     ImGui.PopFont();
-    ImGui.PopStyleColor();
   }
 
   private void DrawButtons(params (string Label, string Tooltip, Action Run)[] buttons)
