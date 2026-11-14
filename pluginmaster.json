@@ -148,7 +148,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.3/LazyWTMath.zip",
         "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.3/LazyWTMath.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/testing/testing.zip",
+        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.6/LazyWTMath-testing.zip",
         "Tags":  [
                      "wondrous tails",
                      "math",
@@ -575,7 +575,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
         "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyHub/testing/testing.zip",
+        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.5/LazyHub-testing.zip",
         "Tags":  [
                      "hub",
                      "ui",
