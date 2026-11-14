@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <Authors>dajoey</Authors>
-    <Version>0.1.1.4</Version>
-    <AssemblyVersion>0.1.1.4</AssemblyVersion>
-    <FileVersion>0.1.1.4</FileVersion>
+    <Version>0.1.1.5</Version>
+    <AssemblyVersion>0.1.1.5</AssemblyVersion>
+    <FileVersion>0.1.1.5</FileVersion>
     <Description>One in-game window for the whole lalalazy suite: every plugin with its live status and an Open button, from a native game-style window.</Description>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>x64</Platforms>
@@ -48,11 +48,11 @@
     <EmbeddedResource Include="Resources\*.png" LogicalName="Resources.%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Keep the zip lean: ship our DLL, the toolkit and its one dependency. Drop
+  <!-- Keep the zip lean: ship our DLL and the toolkit. Drop
        Microsoft.Windows.SDK.NET.dll (~26 MB) and WinRT.Runtime.dll (provided by the game host). -->
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyHub' Or '%(Filename)' == 'KamiToolKit' Or '%(Filename)' == 'SixLabors.ImageSharp'" />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyHub' Or '%(Filename)' == 'KamiToolKit'" />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>

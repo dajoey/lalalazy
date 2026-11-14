@@ -1,4 +1,7 @@
-﻿## v0.1.1.4 (2026-11-14) [testing]
+﻿## v0.1.1.5 (2026-11-14) [testing]
+- The bundled interface toolkit no longer carries an unused image-processing library, so the plugin installs fewer files and no longer ships a package with known security advisories. No behavior changes.
+
+## v0.1.1.4 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.1.3 (2026-11-10) [testing]
