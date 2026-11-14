@@ -227,4 +227,12 @@ public static class Widgets
         ImGui.PopStyleColor(3);
         return hit;
     }
+
+    /// <summary>A line of text painted in a state's mark colour (R4: state colours carry state meaning only).</summary>
+    public static void StateText(string text, UiState state)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, Copy.MarkColor(state));
+        ImGui.TextUnformatted(text);
+        ImGui.PopStyleColor();
+    }
 }
