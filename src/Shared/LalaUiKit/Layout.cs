@@ -188,4 +188,36 @@ public static class Layout
     /// <summary>Announce an outcome once (R3): the banner the footer's state points at.</summary>
     public static void Announce(UiState state, string headline, string? detail = null) =>
         Widgets.Banner(state, headline, detail);
+
+    // ---- overlay (raw-window replacement) ----
+
+    /// <summary>
+    ///     A frameless overlay window for game-anchored content (retainer buttons, tooltips,
+    ///     diagnostic dots): the Begin/End pair those draws need, with the caller keeping full
+    ///     control of position, size and content. Transparent background by default; pass
+    ///     transparentBackground: false to keep the window's own surface (boxed tooltips).
+    ///     Raw-window conversion tasks route every ImGui.Begin through here so plugin code
+    ///     carries none.
+    /// </summary>
+    public sealed class Overlay : IDisposable
+    {
+        private readonly bool _transparent;
+
+        private Overlay(bool transparent) => _transparent = transparent;
+
+        public static Overlay Begin(string name, ImGuiWindowFlags flags, bool transparentBackground = true)
+        {
+            if (transparentBackground)
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, 0u);
+            ImGui.Begin(name, flags);
+            return new Overlay(transparentBackground);
+        }
+
+        public void Dispose()
+        {
+            ImGui.End();
+            if (_transparent)
+                ImGui.PopStyleColor();
+        }
+    }
 }
