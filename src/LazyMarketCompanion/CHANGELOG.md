@@ -1,3 +1,6 @@
+﻿## v0.2.8.21 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.2.8.20 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
@@ -275,7 +278,7 @@
 
 - Offline suite: new case 127 pins the prompt match (including multiline text), refuses unrelated yes/no and bare "Buy Back" labels, and keeps empty prompts as a no-click.
 
-﻿## v0.1.63.0 (2026-09-19)
+ï»¿## v0.1.63.0 (2026-09-19)
 
 ### Fixed
 
