@@ -308,7 +308,7 @@ internal class FoodService
         catch { /* ignore */ }
     }
 
-    private static bool TryGetWellFedStatus(out uint itemFoodRowId, out TimeSpan remainingTime)
+    internal static bool TryGetWellFedStatus(out uint itemFoodRowId, out TimeSpan remainingTime)
     {
         itemFoodRowId = 0;
         remainingTime = TimeSpan.Zero;
@@ -330,7 +330,7 @@ internal class FoodService
         return false;
     }
 
-    private static bool IsInCombatDuty()
+    internal static bool IsInCombatDuty()
     {
         var territoryId = Plugin.ClientState.TerritoryType;
         if (territoryId == 0) return false;
