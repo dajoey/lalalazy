@@ -1,3 +1,6 @@
+﻿## v0.5.7.2 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.5.7.1 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
@@ -36,7 +39,7 @@
 ### Fixed
 - **The shopping list now builds.** On the previous testing build the Knightshopper shopping list always showed "Shop catalog unavailable": one shop entry with an unusual data shape aborted the whole catalog. That entry is now skipped instead, the rest of the list still builds, and a failure is no longer retried every frame.
 ### Changed
-- The section now says what actually happened: game data not ready yet, a build failure (with a Refresh button — nothing retries automatically), or a normal empty result ("nothing to shop for").
+- The section now says what actually happened: game data not ready yet, a build failure (with a Refresh button â€” nothing retries automatically), or a normal empty result ("nothing to shop for").
 - One line per build in the plugin log reports how many shops were scanned, skipped and failed, and how many entries each currency produced.
 
 ## v0.5.1.0 (2026-10-08) [testing]
@@ -48,7 +51,7 @@
 
 ## v0.5.0.0 (2026-10-07) [testing]
 ### Added
-- **Knightshopper shopping list.** New collapsible section in the main window: every armoire-eligible item that is missing, that is sold by a vendor Knightshopper can reach, and that is not already in the inventory, grouped by currency (gil, hunt seals, PvP wolf marks). One click per currency copies a Knightshopper import code to the clipboard; pasting it into Knightshopper's matching currency tab (paste button) creates a new shopping list and leaves existing lists untouched. No purchase is ever started by this feature — the clipboard is the only thing it touches.
+- **Knightshopper shopping list.** New collapsible section in the main window: every armoire-eligible item that is missing, that is sold by a vendor Knightshopper can reach, and that is not already in the inventory, grouped by currency (gil, hunt seals, PvP wolf marks). One click per currency copies a Knightshopper import code to the clipboard; pasting it into Knightshopper's matching currency tab (paste button) creates a new shopping list and leaves existing lists untouched. No purchase is ever started by this feature â€” the clipboard is the only thing it touches.
 - Missing pieces that are already in the inventory or armoury chest are reported instead of listed for purchase (auto-store handles those), and pieces no reachable vendor sells are counted so the total adds up.
 ### Notes
 - Testing channel only; the production channel is unchanged.
