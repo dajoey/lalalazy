@@ -1,4 +1,5 @@
-﻿using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
 using ECommons.ExcelServices;
@@ -14,6 +15,8 @@ using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.UI.Features;
 using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using LalaUiKit;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.MessagesNS;
@@ -27,7 +30,7 @@ internal class PvEFeatures : FeaturesWindow
         //#if !DEBUG
         if (ActionReplacer.ClassLocked())
         {
-            ImGui.TextWrapped(FeaturesUI.Warning_EquipJobStone);
+            Widgets.Banner(UiState.NeedsSetup, FeaturesUI.Warning_EquipJobStone);
             return;
         }
         //#endif
@@ -38,11 +41,8 @@ internal class PvEFeatures : FeaturesWindow
             if (openJob is null)
             {
                 // The "Main Menu" of PvE features, showing each job to click on
-                ImGui.SameLine(IndentWidth);
-                ImGuiEx.LineCentered(() =>
-                {
-                    ImGuiEx.TextUnderlined(FeaturesUI.Info_SelectAJob);
-                });
+                Layout.PageHeader(null, FontAwesomeIcon.ShieldAlt.ToIconString(),
+                    MainWindowUI.Button_PvEFeatures, FeaturesUI.Info_SelectAJob, $"{groupedPresets.Count} jobs");
 
                 ColCount = Math.Max(1, (int)(AvailableWidth / 200f.Scale()));
 
@@ -58,7 +58,7 @@ internal class PvEFeatures : FeaturesWindow
                     kvp.Value[0].JobInfo.Role == Jobs.JobRole.DoL ||
                     kvp.Value[0].JobInfo.Role == Jobs.JobRole.DoH).ToList();
 
-                ImGuiExtensions.TextUnderlinedAndCentered("Regular Jobs");
+                Widgets.Title("Regular Jobs");
                 DrawJobsTable("PvETableRegular", regularJobs);
 
                 if (regularJobs.Count > 0 && specialJobs.Count > 0)
@@ -67,7 +67,7 @@ internal class PvEFeatures : FeaturesWindow
                     ImGui.Spacing();
                 }
 
-                ImGuiExtensions.TextUnderlinedAndCentered("Limited Jobs and Misc");
+                Widgets.Title("Limited Jobs and Misc");
                 DrawJobsTable("PvETableSpecial", specialJobs);
             }
             else
@@ -86,7 +86,7 @@ internal class PvEFeatures : FeaturesWindow
                         }
                     });
                 }
-                ImGuiEx.Spacing(new Vector2(0, 10));
+                ImGui.Spacing();
 
                 using var content = ImRaii.Child(MiscUI.Content, Vector2.Zero);
                 if (!content)
@@ -236,7 +236,7 @@ internal class PvEFeatures : FeaturesWindow
                 var id = info.Job;
 
                 IDalamudTextureWrap? icon = Icons.GetJobIcon(id);
-                ImGuiEx.Spacing(new Vector2(0, 2f.Scale()));
+                ImGui.Spacing();
                 using (var disabled = ImRaii.Disabled(DisabledJobsPVE.Any(x => x == id)))
                 {
                     if (ImGui.Selectable($"###{header}{info.Job}", OpenJob == job, ImGuiSelectableFlags.None, new Vector2(0, IconMaxSize)))
@@ -244,21 +244,7 @@ internal class PvEFeatures : FeaturesWindow
                         OpenJob = job;
                     }
                     ImGui.SameLine(IndentWidth);
-                    if (icon != null)
-                    {
-                        var scale = Math.Min(IconMaxSize / icon.Size.X, IconMaxSize / icon.Size.Y);
-                        var imgSize = new Vector2(icon.Size.X * scale, icon.Size.Y * scale);
-                        var padSize = (IconMaxSize - imgSize.X) / 2f;
-                        if (padSize > 0)
-                            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + padSize);
-                        ImGui.Image(icon.Handle, imgSize);
-                    }
-                    else
-                    {
-                        ImGui.Dummy(new Vector2(IconMaxSize, IconMaxSize));
-                    }
-                    ImGui.SameLine(LargerIndentWidth);
-                    ImGuiEx.Spacing(new Vector2(0, VerticalCenteringPadding));
+                    Widgets.IconTile(icon?.Handle, null, new Vector2(IconMaxSize, IconMaxSize), OpenJob == job);
                     ImGui.TextWrapped($"{header} {(disabled.Count > 0 ? FeaturesUI.Warning_DisabledDueToUpdate : "")}");
 
                     if (!string.IsNullOrEmpty(abbreviation) &&
@@ -288,7 +274,7 @@ internal class PvEFeatures : FeaturesWindow
 
             InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
             presetBox.Draw();
-            ImGuiEx.Spacing(new Vector2(0, 12));
+            ImGui.Spacing();
         }
 
         // Search for children if nothing was found at the root
@@ -316,7 +302,7 @@ internal class PvEFeatures : FeaturesWindow
 
             InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
             presetBox.Draw();
-            ImGuiEx.Spacing(new Vector2(0, 12));
+            ImGui.Spacing();
         }
 
         // Search for children if nothing was found at the root
@@ -344,7 +330,7 @@ internal class PvEFeatures : FeaturesWindow
 
             InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
             presetBox.Draw();
-            ImGuiEx.Spacing(new Vector2(0, 12));
+            ImGui.Spacing();
         }
 
         // Search for children if nothing was found at the root
@@ -374,7 +360,7 @@ internal class PvEFeatures : FeaturesWindow
 
             InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
             presetBox.Draw();
-            ImGuiEx.Spacing(new Vector2(0, 12));
+            ImGui.Spacing();
         }
 
         if (IsSearching)
@@ -401,7 +387,7 @@ internal class PvEFeatures : FeaturesWindow
 
             InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
             presetBox.Draw();
-            ImGuiEx.Spacing(new Vector2(0, 12));
+            ImGui.Spacing();
         }
 
         // Search for children if nothing was found at the root
@@ -455,7 +441,7 @@ internal class PvEFeatures : FeaturesWindow
                 if (PresetStorage.ConflictingCombos.All(x => x != presetData.Preset) || conflictOriginals.Length == 0)
                 {
                     presetBox.Draw();
-                    ImGuiEx.Spacing(new Vector2(0, 12));
+                    ImGui.Spacing();
                     continue;
                 }
 
@@ -472,7 +458,7 @@ internal class PvEFeatures : FeaturesWindow
             else
             {
                 presetBox.Draw();
-                ImGuiEx.Spacing(new Vector2(0, 12));
+                ImGui.Spacing();
             }
         }
 

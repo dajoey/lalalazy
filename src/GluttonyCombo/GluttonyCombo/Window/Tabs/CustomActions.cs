@@ -1,4 +1,5 @@
 using Dalamud.Game.Config;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using ECommons.DalamudServices;
@@ -10,6 +11,8 @@ using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Native;
 using GluttonyCombo.Services;
+using LalaUiKit;
+using System.Linq;
 
 namespace GluttonyCombo.Window.Tabs
 {
@@ -21,16 +24,15 @@ namespace GluttonyCombo.Window.Tabs
         private const UiControlOption HotbarSetting = UiControlOption.HotbarEmptyVisible;
         internal unsafe static new void Draw()
         {
-            Vector2 gap = new Vector2(16f.Scale());
-            ImGuiEx.TextWrapped($@"This section contains a range of bespoke ""Custom Actions"" which can be used as replacements for either base action replacements or specific macros.");
-
-            ImGui.Separator();
-
-            ImGuiEx.TextUnderlined($"Rotation Buttons");
-            ImGuiEx.TextWrapped($"These buttons replace the need to replace actions for all features marked as either Simple or Advanced. Enable the type of combo you're wanting to use custom actions for, and drag the icon to your hotbar.\n\n" +
+            var rotationCount = P.CustomActions.Manager.Actions.Count(act => act.Id <= All.AoeHeals);
+            Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), "Custom Actions",
+                "This section contains a range of bespoke \"Custom Actions\" which can be used as replacements for either base action replacements or specific macros.",
+                $"{rotationCount} rotation buttons");
+            Widgets.Title("Rotation Buttons");
+            Widgets.SecondaryWrapped($"These buttons replace the need to replace actions for all features marked as either Simple or Advanced. Enable the type of combo you're wanting to use custom actions for, and drag the icon to your hotbar.\n\n" +
                 $"This frees up the actions for manual use, for example, for downtime where you only want to use 1-2-3 combos, or for healers to always have access to basic healing actions.");
 
-            ImGui.Dummy(gap);
+            ImGui.Spacing();
 
             using (var table = ImRaii.Table($"CustomActionsTable", 3))
             {
@@ -51,17 +53,17 @@ namespace GluttonyCombo.Window.Tabs
             }
 
 
-            if (ImGuiEx.CheckboxWrapped($"Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))
+            if (Widgets.Checkbox("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))
                 Service.Configuration.Save();
 
             ImGuiComponents.HelpMarker("This will hide all combo outputs on custom actions, leaving only these icons showing. This is not advised if you wish to see the real actions being output by the combos on your hotbar, and should only be used if you feel it's something you want.");
 
-            ImGui.Dummy(gap);
+            ImGui.Spacing();
 
-            ImGuiEx.TextUnderlined("Utility Buttons");
-            ImGuiEx.TextWrapped($"These are buttons which serve to control the plugin in some way. Just drag the icon to your hotbar to use them.");
+            Widgets.Title("Utility Buttons");
+            Widgets.SecondaryWrapped("These are buttons which serve to control the plugin in some way. Just drag the icon to your hotbar to use them.");
 
-            ImGui.Dummy(gap);
+            ImGui.Spacing();
 
             ImGui.Columns(3, border: false);
             foreach (var act in P.CustomActions.Manager.Actions)
@@ -86,16 +88,7 @@ namespace GluttonyCombo.Window.Tabs
                 mousePos.X -= 5;
                 mousePos.Y -= 5;
 
-                ImGui.SetNextWindowPos(mousePos);
-                ImGui.SetNextWindowBgAlpha(0.5f);
-
-                ImGui.Begin(
-                    $"{SelectedAction.Name}DragDrops",
-                    ImGuiWindowFlags.NoDecoration |
-                    ImGuiWindowFlags.AlwaysAutoResize);
-
-                ImGui.Image(texture.Handle, new(50f.Scale()));
-                ImGui.End();
+                Widgets.DragGhost(texture.Handle, mousePos, 50f.Scale());
 
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) || (ImGui.IsMouseReleased(ImGuiMouseButton.Left) && DragDropMode))
                 {
@@ -127,16 +120,16 @@ namespace GluttonyCombo.Window.Tabs
                     switch (type)
                     {
                         case CustomActionType.SingleTargetDPS:
-                            changed |= ImGui.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);
+                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);
                             break;
                         case CustomActionType.AoEDPS:
-                            changed |= ImGui.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);
+                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);
                             break;
                         case CustomActionType.SingleTargetHeals:
-                            changed |= ImGui.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);
+                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);
                             break;
                         case CustomActionType.AoEHeals:
-                            changed |= ImGui.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);
+                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);
                             break;
 
                     }

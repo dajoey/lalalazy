@@ -1,6 +1,6 @@
-﻿#region
+#region
 
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
@@ -15,6 +15,8 @@ using GluttonyCombo.API.Enum;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.UI.AutoRotation;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using LalaUiKit;
 using GluttonyCombo.Services;
 using GluttonyCombo.Services.IPC_Subscriber;
 using static GluttonyCombo.Window.Text.Misc.Strings;
@@ -28,19 +30,19 @@ internal class AutoRotationTab : ConfigWindow
     private static uint _selectedNpc = 0;
     internal new static void Draw()
     {
-        ImGui.TextWrapped(AutoRotationUI.Info_Header);
-        ImGui.Separator();
-
         var cfg = Service.Configuration.RotationConfig;
         bool changed = false;
+
+        Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), MainWindowUI.Button_AutoRotation,
+            AutoRotationUI.Info_Header, $"{(cfg.Enabled ? "Enabled" : "Off")}");
 
         if (P.UIHelper.ShowIPCControlledIndicatorIfNeeded())
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
         else
-            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
+            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
 
-        ImGuiEx.TextUnderlined(AutoRotationUI.CombatSettingHeader);
+        Widgets.Title(AutoRotationUI.CombatSettingHeader);
 
         var inCombatOnly = (bool)P.IPC.GetAutoRotationConfigState(
             Enum.Parse<AutoRotationConfigOption>("InCombatOnly"))!;
@@ -51,7 +53,7 @@ internal class AutoRotationTab : ConfigWindow
         // OutOfCombatGate.ExternalControl* / OutOfCombatAttacksAllowed. A fresh lease
         // lifts the restriction for hostile-only presses and the DPS hard-target write
         // while it lasts; the saved options are read, never written.
-        changed |= ImGui.Checkbox(
+        changed |= Widgets.Checkbox(
             "Attack out of combat while another plugin controls Gluttony",
             ref cfg.AttackOutOfCombatWhileControlled);
         ImGuiComponents.HelpMarker(
@@ -68,7 +70,7 @@ internal class AutoRotationTab : ConfigWindow
         if (inCombatOnly)
         {
             ImGuiExtensions.Prefix(false);
-            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);
+            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);
             ImGuiComponents.HelpMarker(
                 Text.FormatAndCache(
                     AutoRotationUI.HelpText_BypassSelfUse,
@@ -106,14 +108,14 @@ internal class AutoRotationTab : ConfigWindow
 
         ImGuiComponents.HelpMarker(AutoRotationUI.PauseNoTargetHelp);
 
-        ImGuiEx.TextUnderlined(AutoRotationUI.AutomaticActivationHeader);
+        Widgets.Title(AutoRotationUI.AutomaticActivationHeader);
 
-        changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
-        changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);
+        changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
+        changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);
 
         if (ImGui.CollapsingHeader(AutoRotationUI.Label_DamageSettings))
         {
-            ImGuiEx.TextUnderlined(AutoRotationUI.Label_DPSTargetingMode);
+            Widgets.Title(AutoRotationUI.Label_DPSTargetingMode);
 
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("DPSRotationMode");
             changed |= P.UIHelper.ShowIPCControlledComboIfNeeded(
@@ -127,23 +129,23 @@ internal class AutoRotationTab : ConfigWindow
             if (ImGui.CollapsingHeader("Fight Brain (log-only)"))
             {
                 var fb = cfg.FightBrain;
-                changed |= ImGui.Checkbox("Enable the Fight Brain (forecast reads and FB| log lines)", ref fb.Enabled);
-                changed |= ImGui.Checkbox("Show the countdown strip", ref fb.ShowStrip);
+                changed |= Widgets.Checkbox("Enable the Fight Brain (forecast reads and FB| log lines)", ref fb.Enabled);
+                changed |= Widgets.Checkbox("Show the countdown strip", ref fb.ShowStrip);
                 ImGuiComponents.HelpMarker(
                     "The strip lists what the code forecast says is coming (BossMod Reborn's " +
                     "timeline and hints plus enemy casts), code forecasts only.");
-                changed |= ImGui.Checkbox("Party Shadow", ref fb.PartyShadow);
+                changed |= Widgets.Checkbox("Party Shadow", ref fb.PartyShadow);
                 ImGuiComponents.HelpMarker(
                     "Party Shadow: the FB|party-mit mitigation tally and the FB|pos-zone " +
                     "position lines. Log only, pure code.");
-                ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                Widgets.SecondaryWrapped(
                     "Log-only: the Fight Brain never presses an action. The forecast, the " +
                     "cast-gate shadow and the party shadow rules only write FB| lines and " +
                     "draw the countdown strip.");
             }
 
             // Fork (1.0.4.258): out-of-range fallback - decision core AutoRotation/RangeFallbackGate.cs.
-            changed |= ImGui.Checkbox(
+            changed |= Widgets.Checkbox(
                 "Attack an in-range enemy when the chosen target is out of range",
                 ref cfg.DPSSettings.FallbackToInRangeEnemy);
             ImGuiComponents.HelpMarker(
@@ -158,14 +160,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSRotationMode is DPSRotationMode.Manual)
             {
                 ImGuiExtensions.Prefix(!cfg.DPSSettings.AoEIgnoreManual);
-                changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);
+                changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);
 
                 ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_EnforceBestAoETarget);
 
                 if (cfg.DPSSettings.AoEIgnoreManual)
                 {
                     ImGuiExtensions.Prefix(true);
-                    changed |= ImGui.Checkbox(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);
+                    changed |= Widgets.Checkbox(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);
 
                     ImGuiComponents.HelpMarker(AutoRotationUI.OnlyAoEManualTargetSetHelp);
                 }
@@ -202,9 +204,9 @@ internal class AutoRotationTab : ConfigWindow
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_QuestPriority, ref cfg.DPSSettings.QuestPriority, "QuestPriority");
-            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
+            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_TreasureHuntPriority);
-            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
+            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
 
             if (cfg.DPSSettings.PreferNonCombat && changed)
                 cfg.DPSSettings.OnlyAttackInCombat = false;
@@ -216,7 +218,7 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSSettings.OnlyAttackInCombat && changed)
                 cfg.DPSSettings.PreferNonCombat = false;
 
-            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);
+            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
@@ -227,7 +229,7 @@ internal class AutoRotationTab : ConfigWindow
             var npcs = Service.Configuration.IgnoredNPCs.ToList();
             var selected = npcs.FirstOrNull(x => x.Key == _selectedNpc);
             var prev = selected is null ? "" : $"{Svc.Data.Excel.GetSheet<BNpcName>().GetRow(selected.Value.Value).Singular} (ID: {selected.Value.Key})";
-            ImGuiEx.TextUnderlined(AutoRotationUI.Label_IgnoredNPCs);
+            Widgets.Title(AutoRotationUI.Label_IgnoredNPCs);
             using (var combo = ImRaii.Combo("###Ignore", prev))
             {
                 if (combo)
@@ -265,7 +267,7 @@ internal class AutoRotationTab : ConfigWindow
         ImGui.Spacing();
         if (ImGui.CollapsingHeader(AutoRotationUI.Header_HealingSettings))
         {
-            ImGuiEx.TextUnderlined(AutoRotationUI.Label_HealingTargetingMode);
+            Widgets.Title(AutoRotationUI.Label_HealingTargetingMode);
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("HealerRotationMode");
             changed |= P.UIHelper.ShowIPCControlledComboIfNeeded(
                 "###HealerTargetingMode", false, ref cfg.DPSRotationMode,
@@ -356,29 +358,29 @@ internal class AutoRotationTab : ConfigWindow
                 );
 
                 ImGui.Indent();
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Text.FormatAndCache(AutoRotationUI.Checkbox_AutoRezRequireSwiftJob,
                         Job.WHM.Shorthand(), Job.CNJ.Shorthand()) + "##AutoRezRequireSwiftWHM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftWHM);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.SCH.Shorthand() + "##AutoRezRequireSwiftSCH",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSCH);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.AST.Shorthand() + "##AutoRezRequireSwiftAST",
                     ref cfg.HealerSettings.AutoRezRequireSwiftAST);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.SGE.Shorthand() + "##AutoRezRequireSwiftSGE",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSGE);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.SMN.Shorthand() + "##AutoRezRequireSwiftSMN",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSMN);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.BLU.Shorthand() + "##AutoRezRequireSwiftBLU",
                     ref cfg.HealerSettings.AutoRezRequireSwiftBLU);
 
                 // RDM is the one row whose OFF state does something new, so it is the one
                 // row that explains itself.
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Job.RDM.Shorthand() + "##AutoRezRequireSwiftRDM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftRDM);
                 ImGuiComponents.HelpMarker(
@@ -454,14 +456,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.HealerSettings.ManageKardia)
             {
                 ImGuiExtensions.Prefix(cfg.HealerSettings.ManageKardia);
-                changed |= ImGui.Checkbox(
+                changed |= Widgets.Checkbox(
                     Text.FormatAndCache(
                         AutoRotationUI.Checkbox_KardiaTanksOnly,
                         SGE.Kardia.ActionName()),
                     ref cfg.HealerSettings.KardiaTanksOnly);
             }
 
-            changed |= ImGui.Checkbox(
+            changed |= Widgets.Checkbox(
                 Text.FormatAndCache(
                     AutoRotationUI.Checkbox_PreEmptiveHoT,
                     Job.WHM.Shorthand(),
@@ -510,7 +512,7 @@ internal class AutoRotationTab : ConfigWindow
 
         }
 
-        ImGuiEx.TextUnderlined(AutoRotationUI.Label_Advanced);
+        Widgets.Title(AutoRotationUI.Label_Advanced);
         changed |= ImGui.InputInt(AutoRotationUI.Input_ThrottleDelay, ref cfg.Throttler);
         ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_ThrottleDelay);
 

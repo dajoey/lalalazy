@@ -1,9 +1,13 @@
-// LalaUiKit — frozen file set per Projects/UI Refresh 2026-11/UI Brief ("Kit shape").
+﻿// LalaUiKit — frozen file set per Projects/UI Refresh 2026-11/UI Brief ("Kit shape").
 // Shared SOURCE compiled into each plugin via a csproj Compile link — never a shared DLL
 // (each plugin runs in its own AssemblyLoadContext). Deps: the ImGui bindings and
 // System.Numerics only, so the kit compiles into any lalalazy plugin unchanged.
 
 namespace LalaUiKit;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using System.Numerics;
 using Dalamud.Bindings.ImGui;

@@ -1,8 +1,12 @@
-// LalaUiKit/Copy.cs — live-state vocabulary and copy helpers (Brief R5, R11).
+﻿// LalaUiKit/Copy.cs — live-state vocabulary and copy helpers (Brief R5, R11).
 // Exactly these words, no synonyms: Ready, Running, Idle, Blocked, Failed, Empty,
 // Needs setup, Missing <thing>. "In progress", "working", "busy" are banned.
 
 namespace LalaUiKit;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using System.Numerics;
 

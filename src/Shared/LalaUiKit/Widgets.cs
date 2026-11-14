@@ -3,6 +3,10 @@
 
 namespace LalaUiKit;
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 
@@ -226,5 +230,20 @@ public static class Widgets
         var hit = ImGui.Button(label);
         ImGui.PopStyleColor(3);
         return hit;
+    }
+
+    /// <summary>
+    ///     Drag ghost: the small translucent icon that follows the cursor while an
+    ///     action or preset icon is dragged onto a hotbar. Begin/End stay inside the
+    ///     kit; when icon is null it draws the frame only (caller resolved no texture).
+    /// </summary>
+    public static void DragGhost(ImTextureID? icon, Vector2 screenPos, float size)
+    {
+        ImGui.SetNextWindowPos(screenPos);
+        ImGui.SetNextWindowBgAlpha(0.5f);
+        ImGui.Begin("###LalaUiKitDragGhost", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize);
+        if (icon is { } tex)
+            ImGui.Image(tex, new Vector2(size));
+        ImGui.End();
     }
 }

@@ -1,6 +1,6 @@
 #region
 
-using Dalamud.Interface.Colors;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
@@ -16,6 +16,8 @@ using GluttonyCombo.Core;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Resources.Localization.UI.Misc;
 using GluttonyCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using LalaUiKit;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window.Functions;
 using Setting = GluttonyCombo.Window.Functions.Setting;
@@ -114,7 +116,8 @@ internal class Settings : ConfigWindow
     {
         using (ImRaii.Child("main", new Vector2(0, 0), true))
         {
-            ImGui.Text(SettingsUI.Header_SettingsAbout);
+            Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), MainWindowUI.Button_Settings,
+                SettingsUI.Header_SettingsAbout, $"{SettingsList.Count} settings");
 
             DrawSearchBar();
 
@@ -228,10 +231,9 @@ internal class Settings : ConfigWindow
 
         if (setting.Category != _currentCategory)
         {
-            ImGuiEx.Spacing(new Vector2(0, 20));
+            ImGui.Spacing();
 
-            ImGuiEx.TextUnderlined(
-                setting.CategoryName);
+            Widgets.Title(setting.CategoryName);
 
             _currentCategory = setting.Category;
         }
@@ -241,7 +243,7 @@ internal class Settings : ConfigWindow
         #region Spacer
 
         if (setting.ShowSpace == true)
-            ImGuiEx.Spacing(new Vector2(0, 10));
+            ImGui.Spacing();
 
         #endregion
 
@@ -249,9 +251,9 @@ internal class Settings : ConfigWindow
 
         if (setting.ShowOr == true)
         {
-            ImGuiEx.Spacing(new Vector2(5, 5));
+            ImGui.Spacing();
             ImGui.TextUnformatted(MiscUI.Or);
-            ImGuiEx.Spacing(new Vector2(0, 5));
+            ImGui.Spacing();
         }
 
         #endregion
@@ -301,7 +303,7 @@ internal class Settings : ConfigWindow
                         _groupValues[setting.GroupNameSpace!][setting.GroupName!] =
                             value;
 
-                    changed = ImGui.Checkbox(label, ref value);
+                    changed = Widgets.Checkbox(label, ref value);
                     if (changed)
                     {
                         setting.Value = value;
@@ -438,8 +440,7 @@ internal class Settings : ConfigWindow
                     if (setting.ExtraText is not null)
                     {
                         ImGui.SameLine();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey,
-                            setting.ExtraText);
+                        Widgets.Secondary(setting.ExtraText);
                     }
                     UserConfig.DrawCustomStackManager(
                         setting.Name,
@@ -515,8 +516,7 @@ internal class Settings : ConfigWindow
             setting.Type != Attributes.Setting.Type.Stack)
         {
             ImGui.SameLine();
-            ImGui.TextColored(ImGuiColors.DalamudGrey,
-                setting.ExtraText);
+            Widgets.Secondary(setting.ExtraText);
         }
 
         #endregion
@@ -540,8 +540,8 @@ internal class Settings : ConfigWindow
         {
             if (groupName.Contains("Heal"))
             {
-                ImGuiEx.Spacing(new Vector2(0, 10));
-                ImGui.TextUnformatted(SettingsUI.Label_HealStack);
+                ImGui.Spacing();
+                Widgets.Title(SettingsUI.Label_HealStack);
 
                 ImGuiComponents.HelpMarker(SettingsUI.HelpText_HealStack);
 
@@ -550,20 +550,20 @@ internal class Settings : ConfigWindow
                     WarningMarkerComponent.WarningMarker(SettingsUI.Warning_HealStack);
                 }
 
-                ImGuiEx.Spacing(new Vector2(10, 0));
-                ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                ImGui.Spacing();
+                Widgets.SecondaryWrapped(
                     Service.Configuration.UseCustomHealStack.DisplayStack());
             }
             if (groupName.Contains("Raise"))
             {
-                ImGuiEx.Spacing(new Vector2(0, 10));
-                ImGui.TextUnformatted(SettingsUI.Label_RaiseStack);
+                ImGui.Spacing();
+                Widgets.Title(SettingsUI.Label_RaiseStack);
 
                 ImGuiComponents.HelpMarker(
                     SettingsUI.HelpText_RaiseStack);
 
-                ImGuiEx.Spacing(new Vector2(10, 0));
-                ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                ImGui.Spacing();
+                Widgets.SecondaryWrapped(
                     Service.Configuration.RaiseStack.StackString(raiseStack: true));
             }
         }
@@ -609,7 +609,7 @@ internal class Settings : ConfigWindow
         ImGui.EndChild();
 
         if (UnCollapsedGroup[groupName])
-            ImGuiEx.Spacing(new Vector2(0, 10));
+            ImGui.Spacing();
 
         _drawnCollapseGroups = _drawnCollapseGroups.Append(groupName).ToArray();
     }
