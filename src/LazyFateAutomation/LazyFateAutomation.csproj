@@ -33,6 +33,8 @@
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
     <Compile Include="..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- UI Refresh 2026-11: LalaUiKit shared SOURCE (src/Shared/LalaUiKit), never a shared DLL -->
+    <Compile Include="..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
   <ItemGroup>
