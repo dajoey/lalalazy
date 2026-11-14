@@ -1,3 +1,6 @@
+﻿## v1.0.4.339 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v1.0.4.338 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
@@ -322,7 +325,7 @@
 
 ## v1.0.4.290 (2026-10-06) [testing]
 ### Fixed
-- **Beastmaster in the Crucible of the Unbroken: no horn is blown for a new familiar while the Curtains for Rank 5 cast is running or its knockout has not landed yet.** The previous release recalls the familiar from the moment the knockout cast starts, which empties the familiar's slot several seconds before the cast resolves; the summon rules then filled that empty slot on the next weave, and the knockout took the newly summoned familiar anyway — a wasted horn and a familiar lost for nothing. The rotation now waits out the cast and the second or so it takes the knockout to land, and brings the new familiar in right after, so the horn is spent on a familiar that stays.
+- **Beastmaster in the Crucible of the Unbroken: no horn is blown for a new familiar while the Curtains for Rank 5 cast is running or its knockout has not landed yet.** The previous release recalls the familiar from the moment the knockout cast starts, which empties the familiar's slot several seconds before the cast resolves; the summon rules then filled that empty slot on the next weave, and the knockout took the newly summoned familiar anyway â€” a wasted horn and a familiar lost for nothing. The rotation now waits out the cast and the second or so it takes the knockout to land, and brings the new familiar in right after, so the horn is spent on a familiar that stays.
 
 ## v1.0.4.289 (2026-10-06) [testing]
 ### Fixed
@@ -636,8 +639,8 @@
 
 ## v1.0.4.257 (2026-10-03) [testing]
 ### Changed
-- **Beastmaster (Crucible): Soul Crush's 30-second window is no longer wasted.** The interrupt comes from a kinship that lasts 30 seconds, and the very borrow that arms it spends the Soulkin's once-per-summon One with Nature — so each summon buys one window. The rotation used to spend that One with Nature on a release or another kinship long before any interruptible cast was up, and on the healer fight most finished heals started with the interrupt not armed. Now, on a fight that calls for an interrupt, the Soulkin's One with Nature is held until an interruptible cast is actually running, and the borrow that arms Soul Crush fires then. A discretionary borrow (Tempered Release on recast, a blocked release) no longer replaces a held Soul Crush mid-window either.
-- **Beastmaster (Crucible): the swap-in answer also works when the out familiar is the answerer but has nothing left.** The familiar that is already out now only counts as the answer to a live dispel/interrupt/cleanse while it can still give it — its One with Nature is up or its Kinship is already held. With it spent, the horn of another familiar that answers (a second Soulkin, the vulture behind an exhausted Wavekin) is blown in instead, like any other answer swap. When nothing can answer — the Soulkin is out, its One with Nature is spent, no other Soulkin horn is ready — the limit is named in the decision log (`answer-interrupt-cannot-rearm`) instead of passing silently.
+- **Beastmaster (Crucible): Soul Crush's 30-second window is no longer wasted.** The interrupt comes from a kinship that lasts 30 seconds, and the very borrow that arms it spends the Soulkin's once-per-summon One with Nature â€” so each summon buys one window. The rotation used to spend that One with Nature on a release or another kinship long before any interruptible cast was up, and on the healer fight most finished heals started with the interrupt not armed. Now, on a fight that calls for an interrupt, the Soulkin's One with Nature is held until an interruptible cast is actually running, and the borrow that arms Soul Crush fires then. A discretionary borrow (Tempered Release on recast, a blocked release) no longer replaces a held Soul Crush mid-window either.
+- **Beastmaster (Crucible): the swap-in answer also works when the out familiar is the answerer but has nothing left.** The familiar that is already out now only counts as the answer to a live dispel/interrupt/cleanse while it can still give it â€” its One with Nature is up or its Kinship is already held. With it spent, the horn of another familiar that answers (a second Soulkin, the vulture behind an exhausted Wavekin) is blown in instead, like any other answer swap. When nothing can answer â€” the Soulkin is out, its One with Nature is spent, no other Soulkin horn is ready â€” the limit is named in the decision log (`answer-interrupt-cannot-rearm`) instead of passing silently.
 
 ## v1.0.4.256 (2026-10-02) [testing]
 ### Added
@@ -746,7 +749,7 @@
 
 ## v1.0.4.241 (2026-09-27) [testing]
 ### Added
-- **New option: "Use boss-mod targeting when active" (Auto-Rotation → Damage settings).** When ticked and a BossMod Reborn fight module is active, auto-targeting follows the boss mod's priority target — the module's forced target when it demands one, otherwise the head of its own priority list — instead of the targeting-mode dropdown. Requires the fleet BossMod Reborn build 7.5.6.24 or newer.
+- **New option: "Use boss-mod targeting when active" (Auto-Rotation â†’ Damage settings).** When ticked and a BossMod Reborn fight module is active, auto-targeting follows the boss mod's priority target â€” the module's forced target when it demands one, otherwise the head of its own priority list â€” instead of the targeting-mode dropdown. Requires the fleet BossMod Reborn build 7.5.6.24 or newer.
 ### Notes
 - With no boss mod active, no target opinion from the module, or the box unticked, the targeting mode above applies exactly as before; the setting defaults to off and changes nothing until ticked.
 - A boss-mod suggestion that points at a dead, untargetable or out-of-range enemy is ignored rather than followed, so the rotation never stalls on an unusable target.
@@ -762,8 +765,8 @@
 
 ## v1.0.4.239 (2026-09-26) [testing]
 ### Fixed
-- **Crucible: a familiar is no longer recalled when no horn is ready to resummon it.** Parting Blow and Final Sting recall exits now require another ready horn whose familiar is above the critical line, so the last familiar stays out covering and fighting instead of leaving the character weaponless through the horn lockout — the horn-exhaustion spiral that lost low-HP Third Board fights with the boss nearly dead. When the round is ending anyway the familiar is still recalled and saved for the next battle.
-- **Crucible: last-resort coverage no longer requires a healthy familiar.** When the character is at 25% or lower and holding the enemy, the familiar is snarled in whatever its HP is — a wounded familiar tanking still beats the character tanking near death.
+- **Crucible: a familiar is no longer recalled when no horn is ready to resummon it.** Parting Blow and Final Sting recall exits now require another ready horn whose familiar is above the critical line, so the last familiar stays out covering and fighting instead of leaving the character weaponless through the horn lockout â€” the horn-exhaustion spiral that lost low-HP Third Board fights with the boss nearly dead. When the round is ending anyway the familiar is still recalled and saved for the next battle.
+- **Crucible: last-resort coverage no longer requires a healthy familiar.** When the character is at 25% or lower and holding the enemy, the familiar is snarled in whatever its HP is â€” a wounded familiar tanking still beats the character tanking near death.
 ### Notes
 - Damage-cycling exits follow the same horn-conservation rule: no exit without a resummon actually available.
 - Production channel unchanged.
@@ -772,7 +775,7 @@
 ### Fixed
 - **Crucible: the drake fight's Spinemoles are now killed on sight.** The Spinemole pieces that burrow up around the Second Master's Board drake were missing from the priority list, so auto-targeting stayed on the drake while the moles fired their near-lethal needle volleys; they are now prioritized until defeated.
 ### Added
-- **Crucible: the remaining add waves join the priority list.** The siren's shambling adds, both Cyclops waves (the medusa and gigantis fights), and all seven Atomos summon-wave adds are now auto-prioritized, so every summon is cleared before returning to the main enemy — the Atomos notably takes damage each time a summon is defeated.
+- **Crucible: the remaining add waves join the priority list.** The siren's shambling adds, both Cyclops waves (the medusa and gigantis fights), and all seven Atomos summon-wave adds are now auto-prioritized, so every summon is cleared before returning to the main enemy â€” the Atomos notably takes damage each time a summon is defeated.
 ### Notes
 - Every priority-add identity is now pinned against the decoded game data, and the test suite asserts the exact 51-entry set, so an add can no longer be covered under the wrong name.
 - Production channel unchanged.
@@ -790,7 +793,7 @@
 ### Added
 - **Crucible: bosses with cleaving auto-attacks no longer grind the familiar down.** Against enemies whose auto-attacks are a frontal cone that also hits the familiar (the Third Board elite and boss among them), the rotation now takes the enemy off the familiar with Challenge whenever the player is healthy, and Snarls the familiar in to cover only the known single-target hard casts, taking the enemy back once the cast resolves.
 - **Crucible: Third Board kill priorities.** The bone bishops a cavalier summons, the golem that appears alongside a lakhamu, the crawling piece (its touch applies Damage Down) and the flowertender (it heals its allies) are now targeted first whenever they are up.
-- **Crucible: a counter-stance hold no longer freezes the rotation with no familiar out.** When the only enemy left is in a counter stance, every familiar is gone and the player is below half health, the rotation fights instead of holding — the counter damage is better than standing weaponless.
+- **Crucible: a counter-stance hold no longer freezes the rotation with no familiar out.** When the only enemy left is in a counter stance, every familiar is gone and the player is below half health, the rotation fights instead of holding â€” the counter damage is better than standing weaponless.
 ### Notes
 - Production channel unchanged.
 
@@ -872,7 +875,7 @@
 - Queueing Cease no longer breaks the disable path.
 - A settings-conflict row was added for the Redirect plugin.
 ### Notes
-- Large upstream catch-up: 118 upstream commits across 155 files. Beastmaster remains fork-owned — upstream's own Beastmaster rotation, its presets and its debug gauge overlay are deliberately not imported, and the fork's Beastmaster and Crucible files are untouched by this merge. One newly added upstream feature claimed an option id this plugin had already used for a different Occult Crescent option; the new one was renumbered before release, so no saved setting changes meaning. Production channel unchanged.
+- Large upstream catch-up: 118 upstream commits across 155 files. Beastmaster remains fork-owned â€” upstream's own Beastmaster rotation, its presets and its debug gauge overlay are deliberately not imported, and the fork's Beastmaster and Crucible files are untouched by this merge. One newly added upstream feature claimed an option id this plugin had already used for a different Occult Crescent option; the new one was renumbered before release, so no saved setting changes meaning. Production channel unchanged.
 
 ## v1.0.4.227 (2026-09-20) [testing]
 ### Fixed
@@ -898,7 +901,7 @@
 ### Fixed
 - **Battlehorn Auto-fill no longer treats a brief three-slot read on the Bentbranch roster menu as a Battlehorn screen.** Opening that menu can briefly show a short list that looks like horn positions; the previous testing build followed that read and tried a horn toggle, which the roster surface ignored and the read-back aborted without changing anything. The pass now recognizes the Bentbranch roster surface first (familiar party open without the three-slot ActivePet UI) and waits for the ten-familiar list to settle instead of writing.
 ### Notes
-- Offline harness reproduces the transient three-value read on the roster surface and requires the roster basis. The ten-familiar roster is still never rewritten — the add click path remains uncaptured. Production channel unchanged.
+- Offline harness reproduces the transient three-value read on the roster surface and requires the roster basis. The ten-familiar roster is still never rewritten â€” the add click path remains uncaptured. Production channel unchanged.
 
 ## v1.0.4.223 (2026-09-20) [testing]
 ### Added
@@ -914,7 +917,7 @@
 - **A failed pass no longer leaves the Battlehorn worse than it found it.** The pass snapshots the horn selection before the first toggle and restores it (or stops arming for the rest of that screen) when read-back aborts.
 - **Battle identity prefers the focused stage entry** when the board graph lists more than one fight, so ranking can name the opponent instead of always falling back to coverage. Coverage picks still label themselves as battle-unidentified when no focus is readable.
 ### Changed
-- Option description names both surfaces (Bentbranch Meadows NPC roster menu and in-run battlehorn) and states that the ten-familiar Bentbranch roster is not rewritten by this pass — only horn-index screens are written.
+- Option description names both surfaces (Bentbranch Meadows NPC roster menu and in-run battlehorn) and states that the ten-familiar Bentbranch roster is not rewritten by this pass â€” only horn-index screens are written.
 ### Notes
 - Auto-fill remains off by default and never starts the fight. Offline harness adds horn-index basis, party-index resolve, and abort-restore equality checks.
 
@@ -939,7 +942,7 @@
 
 ## v1.0.4.219 (2026-09-19) [testing]
 ### Fixed
-- **The read-only `PSP|` pet-party log now records what it was built to record.** It was attached to the wrong function on the familiar party screen's agent — the teardown entry rather than the interface-event entry — so no event from that screen could ever reach it. The entry is now looked up by name from the client structure definitions instead of by a fixed slot number, and both interface-event entries are covered, so a manual Battlehorn assignment is logged again.
+- **The read-only `PSP|` pet-party log now records what it was built to record.** It was attached to the wrong function on the familiar party screen's agent â€” the teardown entry rather than the interface-event entry â€” so no event from that screen could ever reach it. The entry is now looked up by name from the client structure definitions instead of by a fixed slot number, and both interface-event entries are covered, so a manual Battlehorn assignment is logged again.
 ### Changed
 - **Crucible pet-selection telemetry records the familiar party screen's stage value.** One line per change of that value, carrying the run-roster and Battlehorn slot counts read at that moment, so a screen the Auto-fill pass never opened on is visible in the log rather than silent.
 ### Notes
@@ -1445,7 +1448,7 @@
 ## v1.0.4.168 (2026-09-05) [testing]
 
 ### Added
-- Combo Decision Telemetry (debug), OFF by default: Settings → Rotation Behavior → "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`).
+- Combo Decision Telemetry (debug), OFF by default: Settings â†’ Rotation Behavior â†’ "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`).
 - The tap sits at the single settle point in `CustomCombo.TryInvoke` (after the Occult Quick/Dualcast gates and the unchanged-action check), so it records the action that will actually go out, for manual presses and autorotation alike; it only writes when the chosen action for that (combo, button) pair changes, never every frame.
 - `keyBuffs` lists the statuses the combos consulted this frame (`id:remaining`, `t<id>:remaining` for a status on the target, `id:-` when consulted but absent), read from the per-frame status cache.
 - The line format and the "only emit on change" gate live in a Dalamud-free, asserted offline by (exact line shape, invariant decimals under de-DE, the 200-character budget with whole-entry truncation, and the de-duplication gate) so the wire format the database join depends on is proven before shipping.
@@ -1462,7 +1465,7 @@
  enumerated (`s.RemainingTimeOrZero(false)`) instead of doing a second, owner-filtered
  lookup via `Player.Object!.Status(s.StatusId)`. The re-lookup applied a source filter the
  enumeration did not, so a pausing status that isn't player-sourced resolved to `null` and
- `RemainingTimeOrZero` returned `0` — which always satisfies `<= userSetting` and tripped
+ `RemainingTimeOrZero` returned `0` â€” which always satisfies `<= userSetting` and tripped
  the penalty (targets dropped, cast cancelled) the whole time the status was up, not just
  inside the configured window. (upstream WrathCombo 736597dee, file:
 , function: `PlayerHasActionPenalty`)
@@ -1473,20 +1476,20 @@
 - BLU ST tank ranged filler fallback no longer returns short-reach cones when the target is
  beyond their reach. `ResolveFiller(FillerSlot.StTank, rangedOnly: true)` now checks
  `InActionRange(filler.ActionId)` against the current target instead of the flat
- `FillerInfo.IsMelee` melee flag, so a manually pinned 6–8 y cone (the Look, Kaltstrahl,
+ `FillerInfo.IsMelee` melee flag, so a manually pinned 6â€“8 y cone (the Look, Kaltstrahl,
  Northerlies, Flame Thrower) is skipped when the target is too far and only used when the
  target is actually inside its reach.
  `ResolveFiller`)
 
 ### Notes
 - `FillerInfo.Range` in the catalogue still stores reach-to-target (not raw XIVAPI `Range`),
- so cones retain their effect radius (6–8 y). Only the ranged-only resolution decision now
+ so cones retain their effect radius (6â€“8 y). Only the ranged-only resolution decision now
  uses the live range check.
 
 ## v1.0.4.165 (2026-08-31) [testing]
 
 ### Added
-- **The BLU one-button rotations no longer hard-code their filler spell — any filler can now be picked
+- **The BLU one-button rotations no longer hard-code their filler spell â€” any filler can now be picked
  or the plugin detects the one actually carried.** A Blue Mage only gets
  24 active spell slots and there are ~45 viable fillers, so upstream's four fixed choices
  (Sonic Boom for ST DPS, Electrogenesis for AoE DPS, Goblin Punch for ST tank, Right Round
@@ -1541,7 +1544,7 @@
  It prefers the stock filler when carried (so an existing setup never changes
  behaviour), then the highest-potency pure single-target spell for ST slots. It will not
  pick, on its own, anything that knocks back, draws in, applies a status, has conditional
- potency, or splashes an ST slot — those pull extra mobs or step on party mechanics, so they
+ potency, or splashes an ST slot â€” those pull extra mobs or step on party mechanics, so they
  remain one dropdown click away rather than a surprise. The sole exception is a slot's own
  stock filler (Right Round knocks back, but it IS what upstream picks).
 - A manual pick that is no longer slotted degrades to auto-detect rather than jamming the
@@ -1551,7 +1554,7 @@
  them would have reordered `ActionIDs.First` and changed which spell the Auto-Mode gate
  tests. Runtime narrowing is the upstream-sanctioned pattern.
 - Logic verified before shipping with a standalone harness replicating `ResolveFiller` /
- `HookedActions` against synthetic spell loadouts — 27 checks over stock parity, the
+ `HookedActions` against synthetic spell loadouts â€” 27 checks over stock parity, the
  reported bug, override precedence, stale config, melee/ranged split, shape rules and empty
  loadouts. It caught two real bugs pre-flight: auto-detect preferring a splashy AoE over a
  pure ST filler, and an over-eager hook set that would have made Sonic Boom trigger the tank
@@ -1598,14 +1601,14 @@
  bisected in-game during testing: with "Retarget Occult Cure II" on, the cure went out constantly
  while the party was at full HP. Root cause is a v1.0.4.161 upstream-merge landmine
  with three parts: (1) upstream added a second `IfMissingHP(float)` overload on
- `IBattleChara?` that compares ECommons' `Health` — a **0–1
- ratio** — against the caller's **0–100 percent** threshold, so any living target passes at
+ `IBattleChara?` that compares ECommons' `Health` â€” a **0â€“1
+ ratio** â€” against the caller's **0â€“100 percent** threshold, so any living target passes at
  any HP; (2) the same merge retyped `SimpleTarget.LowestHPAlly` / `LowestHPAllyOutOfParty`
  from `IGameObject?` to `IBattleChara?`; (3) that retype silently rebound the Cure II
  retarget call sites in `TryRetargetPhantomCure` from the old, correct percent-based
  `IGameObject?` overload to the new broken one. The ally filter therefore always passed and
  the "lowest HP ally" (usually just the smallest HP pool, at 100%) got cured on cooldown.
-- **The same rebind broke more than the phantom cure** — every `IfMissingHP` call on an
+- **The same rebind broke more than the phantom cure** â€” every `IfMissingHP` call on an
  `IBattleChara`-typed expression: the SoftTarget/FocusTarget heal-stack checks
 , the four `LowestHP*AllyIfMissingHP` convenience targets, and SMN's
  heal targeting. All were treating full-HP targets as "missing
@@ -2614,11 +2617,11 @@ still present byte-for-byte).
 ## v1.0.4.136 (2026-08-08) [testing]
 
 ### Fixed
-- **The whole BattleData encounter system was dead code — `LoadCombatData` was never
+- **The whole BattleData encounter system was dead code â€” `LoadCombatData` was never
  called.** `BattleData._invincibleCheck` never left its field initialiser
  (`(_, _, _) => Invincible.CheckStatuses`), so `IsInvincible` always fell through to the
  master invincibility status list and *every* per-encounter case in all six
- the BattleData encounter files never executed — Two-headed Aevis (1346), Jeuno Ark Angels (1248),
+ the BattleData encounter files never executed â€” Two-headed Aevis (1346), Jeuno Ark Angels (1248),
  Dancing Mad (1363), Cloud of Darkness Chaotic (1241), and the rest. Upstream WrathCombo
  calls `BattleData.LoadCombatData(Content.TerritoryID)` from the `onTerritoryChange ||
  firstRun` block of `UpdateCaches`; the fork's copy of that block is
@@ -2670,7 +2673,7 @@ still present byte-for-byte).
  action-detail tooltip agent (`AgentActionDetail`) is showing one of the fork's custom
  actions (e.g. Cease!), the agent is now hidden and its ActionId / OriginalId /
  AdjustedId are reset to 0. Previously the tooltip could outlive the disposed custom
- action and crash the game. — upstream hunk applied
+ action and crash the game. â€” upstream hunk applied
  verbatim; the touched regions carry no fork divergence and no standing divergence
  (WHM ground-heal, 15s raidwide gate, Pacification/Silence/Amnesia, BLU engine, SMN
  Aegis, case 1346/1248/1363 BattleData) is in this range.
@@ -2678,11 +2681,11 @@ still present byte-for-byte).
 ## v1.0.4.133 (2026-08-06) [testing]
 
 ### Added
-- **Forked Tower: Magic — Two-headed Aevis head-buff handling.** New BattleData case for
+- **Forked Tower: Magic â€” Two-headed Aevis head-buff handling.** New BattleData case for
  territory 1346 (Occult Crescent: North Horn; the Normal run and the Extreme duty both
  use this territory). Heads carrying Epic Villain (5400, or Jeuno-era 4193) or Fated
  Villain (5401 / 4195) are treated as invincible unless the local player has the matching
- Epic Hero (4192) / Fated Hero (4194) status — per the status text, damage from anyone
+ Epic Hero (4192) / Fated Hero (4194) status â€” per the status text, damage from anyone
  not dubbed the matching Hero is nullified. Auto-rotation now skips/retargets off the
  head the player's half of the raid cannot damage. Keyed on the villain status rather than head
  BaseIds (green head 19474/19476, blue head 19475/19477) so later FT:M bosses reusing
@@ -2693,7 +2696,7 @@ still present byte-for-byte).
 ### Notes
 - Hero statuses are duty-applied, so they are checked with `anyOwner: true`. The
  upstream-synced Jeuno Ark Angels case (territory 1248) checks the same statuses
- owner-filtered, which may be a latent upstream bug — deliberately left untouched here.
+ owner-filtered, which may be a latent upstream bug â€” deliberately left untouched here.
 
 ## v1.0.4.132 (2026-08-05)
 
@@ -2902,7 +2905,7 @@ and was reverted in v1.0.4.127.
 
 ### Notes
 - Shipped as a version *bump* rather than a rollback because Dalamud will not downgrade an
- installed plugin — 1.0.4.127 carries 1.0.4.125's code so existing testing users move forward
+ installed plugin â€” 1.0.4.127 carries 1.0.4.125's code so existing testing users move forward
  onto working behaviour instead of having to reinstall by hand.
 - The underlying bug from v1.0.4.126's notes is still real and still unfixed: `RezParty` fires
  Swiftcast and returns `void`, `Run` falls through to `ProcessAutoActions` in the same tick,
@@ -2933,24 +2936,24 @@ Doom while healing, with the healer never reacting.
  bail diagnostics stop reporting "nobody needs healing" while somebody is about to die.
 
 ### Added
-- **`StatusCache.DoomStatuses` + `HasDoom`** — every Doom row in the game, cleansable or not.
+- **`StatusCache.DoomStatuses` + `HasDoom`** â€” every Doom row in the game, cleansable or not.
  All of them share icon `215503`, which is the only stable discriminator: the status name is
  localised and the rows are scattered across a dozen patches (210, 910, 1738, 1769, 1970, 2516,
  2519, 2976, 3364, 3482, 4558, 4594, 4683, 5184, 5185, 5187, 5473). Future patches adding new
  Doom rows are picked up automatically.
-- **`NeedsDoomTopUp(target)`** in `CustomComboFunctions` — one definition, used by all five call
+- **`NeedsDoomTopUp(target)`** in `CustomComboFunctions` â€” one definition, used by all five call
  sites: target carries Doom and is below 100% HP.
 
 ### Notes
 - **Why the existing Doom handling did not cover this.** `StatusCache.CleansableDoomStatuses` is
  built as `Icon == 215503 && CanDispel`, i.e. the *dispellable* subset only, and feeds the
  Esuna/cleanse pass. But the two rows whose tooltip reads *"Effect dissipates once fully
- healed"* — **1769** and **5473** (Phantom Necromancer's self-Doom) — are both
+ healed"* â€” **1769** and **5473** (Phantom Necromancer's self-Doom) â€” are both
  `CanDispel = false`. Esuna can never remove them. Healing to full is the only answer, and
  nothing in the plugin was doing it. Cleanse handling is unchanged; this is the other half.
 - **Bounded deliberately.** `NeedsDoomTopUp` requires the target to be below 100%, so a scripted
  raid Doom that no amount of healing clears cannot pin the healer on a full-HP target for the
- whole duration. Shields are excluded from that HP read — a shield is not restored HP and will
+ whole duration. Shields are excluded from that HP read â€” a shield is not restored HP and will
  not shed the Doom.
 - Pairs with v1.0.4.124: a healer running Phantom Necromancer now tops themselves back to full
  after their own line spell's self-Doom, closing the loop between the two fixes.
@@ -2964,24 +2967,24 @@ Action/Status), not the wiki: Drain Touch `49097` is **ActionCategory 4 (Ability
 cooldown group 83, 40s, instant, 30y; Deep Freeze `49098` / Hell Wind `49099` / Chaos Drive
 `49100` are Spells sharing **cooldown group 84** at 40s with 1.5s casts; Doomsday `49101` is a
 Spell on its own group 87 at 120s. Status `5326` Drain Touch is 6s and reads *"Most attacks
-cannot reduce own HP to less than 1"* — it is the survival window, not merely a damage buff.
+cannot reduce own HP to less than 1"* â€” it is the survival window, not merely a damage buff.
 
 ### Fixed
 - **Drain Touch was fired on cooldown with no payoff spell ready, which desynced the job into
  doing nothing.** The weave branch cast it whenever it was off cooldown and the buff was down.
- Its buff is 6s; its recast is 40s — exactly the shared recast of the Deep Freeze / Hell Wind /
+ Its buff is 6s; its recast is 40s â€” exactly the shared recast of the Deep Freeze / Hell Wind /
  Chaos Drive trio. Any time the two drifted apart (Doom still ticking, HP under the floor, trio
  still on recast) Drain Touch burned its whole 40s on a 150-potency poke, the window expired
  empty, and when a line spell finally came up Drain Touch had ~34s left, so
  `NecromancerCostIsAffordable` was false and nothing cast. Nothing pulled the timers back into
  phase. The weave is now gated on `BestNecromancerLineSpell != 0` plus the same HP/Doom/proc
- gates the line spell will face, so the window is only opened when it can be spent — which also
+ gates the line spell will face, so the window is only opened when it can be spent â€” which also
  makes the pairing self-correcting on the next weave tick.
  `AutoRotation`-adjacent:,
  `TryGetNecromancerAction`.
 - **No remaining-duration check on the Drain Touch buff.** `HasStatusEffect(Buffs755.DrainTouch)`
  is still true at 0.1s remaining, but the line spells are 1.5s casts, so the cast could *start*
- inside the window and *resolve* outside it — paying 10% of maximum HP and a 10s Doom for an
+ inside the window and *resolve* outside it â€” paying 10% of maximum HP and a 10s Doom for an
  unbuffed 300 potency with no rider and no HP protection. With a 6s buff against a 2.5s GCD
  this was a routine window, not an edge case, and it is precisely the "all cost, no payload"
  outcome v1.0.4.102 was written to prevent. `NecromancerCostIsAffordable` now requires
@@ -2993,9 +2996,9 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - **Doomsday was picked ahead of a weakness-matched trio spell.** Under Drain Touch, Doomsday is
  500 potency unaspected while Deep Freeze / Hell Wind / Chaos Drive reach **520** against a
  matching elemental weakness. Because the self-Doom permits only one line spell per window,
- taking Doomsday forfeited the better option outright — and spent the phantom set's only
+ taking Doomsday forfeited the better option outright â€” and spent the phantom set's only
  enemy-buff dispel on whatever happened to be targeted. Spell selection moved into
- `BestNecromancerLineSpell`, which now tiers: weakness-matched trio → Doomsday → unweakened
+ `BestNecromancerLineSpell`, which now tiers: weakness-matched trio â†’ Doomsday â†’ unweakened
  trio. Doomsday keeps its exemption from the "only when weak" toggle, being unaspected.
 
 ### Changed
@@ -3010,7 +3013,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 
 ### Notes
 - No behaviour change to any other phantom job. `IsEnabledAndUsable` is still safe for the
- Necromancer actions specifically — the line spells sit on their own cooldown groups (84/87),
+ Necromancer actions specifically â€” the line spells sit on their own cooldown groups (84/87),
  not the global cooldown, so the `HasActionEquipped`/`HasCharges` blind spot fixed for the
  cures in v1.0.4.123 does not apply to them.
 - Levels are unchanged and worth knowing while levelling: Drain Touch 1, Deep Freeze 2, Hell
@@ -3585,7 +3588,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.100 (2026-08-01) [testing]
 
 ### Added
-- **Phantom Job support for all eight jobs added in patch 7.55** — Ninja, White Mage,
+- **Phantom Job support for all eight jobs added in patch 7.55** â€” Ninja, White Mage,
  Black Mage, Dragoon, Summoner, Blue Mage, Red Mage and Necromancer are now driven by
  autorotation inside Occult Crescent. New files
  (rotations, action IDs, status
@@ -3605,7 +3608,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
  the row id *is* the `SupportJob` index: Ninja 16, White Mage 17, Black Mage 18,
  Dragoon 19, Summoner 20, Blue Mage 21, Red Mage 22, Necromancer 23. Previously the file
  claimed Summoner 17 / Black Mage 18 / Red Mage 19 / Blue Mage 20 / White Mage 21 /
- Dragoon 22. Removed `BeastMaster` and `Mime` entirely — the sheet has exactly 24 rows
+ Dragoon 22. Removed `BeastMaster` and `Mime` entirely â€” the sheet has exactly 24 rows
  (0-23) and neither job exists. This affected `CurrentJobLevel`, which indexes
  `State.SupportJobLevels[State.CurrentSupportJob]` through this enum, and the job icons.
 
@@ -3636,16 +3639,16 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.98 (2026-07-29)
 
 ### Fixed
-- **`/gluttony buff` cast path fully reworked** — v1.0.4.86-96 could cycle all four Phantom Jobs and restore the original without a single buff landing. Root-cause hardening, in order of suspicion:
- - **Casts now bypass GluttonyCombo's own `UseAction` detour.** New `ActionWatching.UseActionRaw` invokes the game's `UseAction` via `UseActionHook.Original`, so the plugin's combat gating (`PlayerHasActionPenalty` hard-block, retargeting, queue handling in `UseActionDetour`) can never silently swallow the out-of-combat crystal casts. `ChangeSupportJob` is a native call that never passed through the hook — which is exactly why jobs kept switching while casts died.
- - **Dual cast path per buff.** Primary: `ActionType.GeneralAction` phantom slot (Knight/Pray 32, Monk/Counterstance 33, Bard/Romeo's Ballad 32, Dancer/Quickstep 32) — verified against BOCCHI's working Buff module and the live 7.5x GeneralAction sheet (rows 31-35 remain "Phantom Action I-V"). Fallback: `ActionType.Action` with the real Action-sheet ids (Pray 41589, Counterstance 41597, Romeo's Ballad 41609, Quickstep 46603), explicit self-target — how RotationSolverReborn and our own AutoRotation cast phantom actions. 3 attempts each, 800ms apart, 10s per-job cap.
+- **`/gluttony buff` cast path fully reworked** â€” v1.0.4.86-96 could cycle all four Phantom Jobs and restore the original without a single buff landing. Root-cause hardening, in order of suspicion:
+ - **Casts now bypass GluttonyCombo's own `UseAction` detour.** New `ActionWatching.UseActionRaw` invokes the game's `UseAction` via `UseActionHook.Original`, so the plugin's combat gating (`PlayerHasActionPenalty` hard-block, retargeting, queue handling in `UseActionDetour`) can never silently swallow the out-of-combat crystal casts. `ChangeSupportJob` is a native call that never passed through the hook â€” which is exactly why jobs kept switching while casts died.
+ - **Dual cast path per buff.** Primary: `ActionType.GeneralAction` phantom slot (Knight/Pray 32, Monk/Counterstance 33, Bard/Romeo's Ballad 32, Dancer/Quickstep 32) â€” verified against BOCCHI's working Buff module and the live 7.5x GeneralAction sheet (rows 31-35 remain "Phantom Action I-V"). Fallback: `ActionType.Action` with the real Action-sheet ids (Pray 41589, Counterstance 41597, Romeo's Ballad 41609, Quickstep 46603), explicit self-target â€” how RotationSolverReborn and our own AutoRotation cast phantom actions. 3 attempts each, 800ms apart, 10s per-job cap.
  - **Success is verified, not assumed.** A cast counts only when the buff status appears/refreshes past the pre-cast snapshot (+60s), replacing the brittle ">=1780s fresh" check. Removed the `GetRecastTime - Elapsed <= 0` gate that could suppress every attempt; the client rejects unusable actions itself and the retry ladder handles it.
  - **Strict job-change confirm.** Phantom-job status first (PhantomKnight 4358 / Monk 4360 / Bard 4363 / Dancer 4805); the `CurrentSupportJob` state byte only counts after holding 1.5s (it can lead the server). 600ms post-confirm settle before casting.
  - **No more force-targeting the crystal** (BOCCHI parity; buffs are self/party casts and an EventObj hard target is at best useless). Jobs whose buff already has >=25min left are skipped without swapping. End-of-cycle summary reports N/M buffs applied.
- - **Full diagnostics.** Every attempt logs `GetActionStatus` + the `UseAction` return to the Dalamud log under `[CrystalBuffs]` — if a cast still fails, `/xllog` now states the client's exact rejection code instead of requiring another blind test cycle.
+ - **Full diagnostics.** Every attempt logs `GetActionStatus` + the `UseAction` return to the Dalamud log under `[CrystalBuffs]` â€” if a cast still fails, `/xllog` now states the client's exact rejection code instead of requiring another blind test cycle.
 
 ### Notes
-- The v1.0.4.96 claim that `ActionType.Action` 41xxx phantom casts are "silently rejected by the client" did not survive source review — RotationSolverReborn and Wrath AutoRotation cast phantom actions that way in-game. Both mechanisms are retained; whichever lands first wins.
+- The v1.0.4.96 claim that `ActionType.Action` 41xxx phantom casts are "silently rejected by the client" did not survive source review â€” RotationSolverReborn and Wrath AutoRotation cast phantom actions that way in-game. Both mechanisms are retained; whichever lands first wins.
 
 ## v1.0.4.97 (2026-07-29)
 
@@ -3665,7 +3668,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.96 (2026-07-28)
 
 ### Fixed
-- **`/gluttony buff` ran its waits but never cast anything** : buff actions were invoked via `ActionManager.UseAction(ActionType.Action, <41xxx Action-sheet ID>)`, which the client silently rejects for phantom job abilities — the state machine waited its delays and moved on with no cast ever firing. Phantom hotbar abilities must be cast via `ActionType.GeneralAction` with per-slot GeneralAction row IDs (31-34), exactly like pressing the phantom hotbar buttons. Slot map: Knight Pray = 32, Monk Counterstance = 33, Bard Romeo's Ballad = 32, Dancer Quickstep = 32. Mechanism verified against BOCCHI's Buff module (github.com/OhKannaDuh/BOCCHI v2.1.2), which performs this same cycle in-game.
+- **`/gluttony buff` ran its waits but never cast anything** : buff actions were invoked via `ActionManager.UseAction(ActionType.Action, <41xxx Action-sheet ID>)`, which the client silently rejects for phantom job abilities â€” the state machine waited its delays and moved on with no cast ever firing. Phantom hotbar abilities must be cast via `ActionType.GeneralAction` with per-slot GeneralAction row IDs (31-34), exactly like pressing the phantom hotbar buttons. Slot map: Knight Pray = 32, Monk Counterstance = 33, Bard Romeo's Ballad = 32, Dancer Quickstep = 32. Mechanism verified against BOCCHI's Buff module (github.com/OhKannaDuh/BOCCHI v2.1.2), which performs this same cycle in-game.
 - **Job-change confirmation** ( `WaitForJobChange`): now waits for the Phantom Job status (PhantomKnight 4358 / PhantomMonk 4360 / PhantomBard 4363 / PhantomDancer 4805) in addition to the `CurrentSupportJob` state byte, matching how the server signals a completed support-job change; 400ms post-change settle retained.
 - **Buff confirmation** ( `CastBuff`): advancing now requires the buff status present AND freshly applied (`RemainingTime >= 1780` of 1800s). Casts retry every 500ms but only when the GeneralAction is off recast (`GetRecastTime - GetRecastTimeElapsed <= 0`), replacing the blind 400ms re-spam. Per-job DuoLog progress lines added so each applied buff is visible in chat.
 
@@ -3814,7 +3817,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - Amnesia / Pacification / Silence handling, Pyretic / Reflect penalties (`EnemyHasReflectPenalty`), 15s raidwide-mitigation gate, `IsRaidwide` / `IgnoreRaidwide`, WHM Divine Caress ground-heal targeting, SMN "Aegis Uptime" preset, BattleData subsystem, BossMod IPC (`SetMaxDistanceToTarget` / `SuspendLeases`), `EnteringInstancedContent` tracking. BLU autorotation engine untouched this merge (upstream has none).
 
 ### Notes
-- Build: 0 errors, 11 pre-existing warnings, 12.6s. LF output per RUNBOOK §9. `"WrathCombo.json"` config literal preserved via token-protected rename.
+- Build: 0 errors, 11 pre-existing warnings, 12.6s. LF output per RUNBOOK Â§9. `"WrathCombo.json"` config literal preserved via token-protected rename.
 
 ## v1.0.4.78 (2026-07-17)
 
@@ -3826,7 +3829,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
  Loaded on territory change.
 
 ### Changed
-- **Synced upstream WrathCombo 1.0.4.13 (`efe5d828b`) to 1.0.4.14 (`93559998d`)** — 68 commits,
+- **Synced upstream WrathCombo 1.0.4.13 (`efe5d828b`) to 1.0.4.14 (`93559998d`)** â€” 68 commits,
  61 files, +2794/-1942. Method: per-file 3-way in WrathCombo namespace + forward Wrath->Gluttony
  rename (RUNBOOK 3.3). git merge-file reported 0 conflicts; the two escalation-flagged files
  converged cleanly (see Notes).
@@ -3849,7 +3852,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ### Notes
 - BLU taken-theirs (unprotected since; BLU autorotation is known-broken).
 - Build: 0 errors, 11 warnings (all pre-existing). Resolves the nightly-upstream-merge
- escalation (upstream BattleData penalty rearchitecture vs. our divergences) — merged cleanly with
+ escalation (upstream BattleData penalty rearchitecture vs. our divergences) â€” merged cleanly with
  every standing divergence intact.
 
 ## v1.0.4.77 (2026-07-11)
@@ -3867,7 +3870,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.76 (2026-07-05)
 
 ### Added
-- **Amnesia handling (statuses 5, 1092, 4210 — "unable to use abilities").** Eureka Orthos /
+- **Amnesia handling (statuses 5, 1092, 4210 â€” "unable to use abilities").** Eureka Orthos /
  deep-dungeon floor enchantments and traps apply Amnesia (1092), disabling all oGCD
  abilities; both rotation modes previously kept trying to use them and stalled.
  - Auto-rotation: `ProcessAutoActions` skips `ActionAttackType.Ability` actions while any
@@ -4061,7 +4064,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - Preserved fork divergences: 15s raidwide-mit gate, Pyretic/`PlayerHasActionPenalty` + enemy-reflect gating, Pacification/Silence handling, WHM Divine Caress ground-heal, BLU autorotation engine, SMN Aegis Uptime.
 - Removed unused `using ECommons.DalamudServices.Legacy;` per upstream.
 
-# Gluttony Combo — Changelog
+# Gluttony Combo â€” Changelog
 
 ## v1.0.4.53 (2026-06-18)
 
@@ -4069,7 +4072,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - **BLU auto-rotation no longer idles when damage spells are available.** The terminal GCD filler
  was a hand-picked list of specific spells; if none matched it returned nothing. It now iterates
  the entire slotted spellbook (`ActiveBLUSpells`) and casts the first off-cooldown, in-range
- damage spell. Only an explicit exclusion set is skipped — buffs, heals, mitigation, hard CC,
+ damage spell. Only an explicit exclusion set is skipped â€” buffs, heals, mitigation, hard CC,
  knockbacks/draws, suicides/self-damage, instant-KO/%HP gimmicks, and the cooldown-managed damage
  + DoTs the cascade already handles. Any slotted damage spammable is picked up automatically with
  no per-spell configuration.
@@ -4139,32 +4142,32 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.48 (2026-06-17)
 
 ### Changed
-- **Upstream sync — WrathCombo `main` 1.0.4.8 → 1.0.4.9 (~44 commits, 30 files).** Merged the upstream range `0e6e5a9e…06877cca6` across job rotations, autorotation, and UI, preserving all Gluttony fork divergences.
+- **Upstream sync â€” WrathCombo `main` 1.0.4.8 â†’ 1.0.4.9 (~44 commits, 30 files).** Merged the upstream range `0e6e5a9eâ€¦06877cca6` across job rotations, autorotation, and UI, preserving all Gluttony fork divergences.
  - **MCH:** fixed AoE tools firing incorrectly; Reassemble/Hypercharge handling; helper refactors.
- - **SAM:** adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards on Mangetsu/Oka/Gekko/Kasha). Our fork carried an earlier, incomplete form of the same logic — converged to upstream to reduce future merge friction.
+ - **SAM:** adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards on Mangetsu/Oka/Gekko/Kasha). Our fork carried an earlier, incomplete form of the same logic â€” converged to upstream to reduce future merge friction.
  - **SGE:** AoE simple-heal oGCD spread rebalance; autorotation shield check now optional.
  - **BLM:** fixed level-90 Ice phase. **VPR:** early-buff opener. **WAR:** Fell Cleave cleanup + helper tidy. **MNK PvP** update.
 
 ### Added
-- **Encounter safety / Action Penalty Gaze & Motion handling.** New plus content-specific action checks — Windurst Motion/Gaze VFX checks, content-specific fallbacks, Clytemnestra motion-scanner range check.
+- **Encounter safety / Action Penalty Gaze & Motion handling.** New plus content-specific action checks â€” Windurst Motion/Gaze VFX checks, content-specific fallbacks, Clytemnestra motion-scanner range check.
 - **p3 invincible status** added to status handling and Pyretic check moved to post-pre-pull.
 - **Healer "Include Shields" autorotation setting** and **DTR bar updates while hidden** (`AutoRotation/*`).
 - **Opener DTR bar is now click-to-toggle** the current opener preset.
 
 ### Notes
-- Upstream WrathCombo `.csproj` advanced 1.0.4.8 → 1.0.4.9; merge base advanced `0e6e5a9e` → `06877cca6`.
+- Upstream WrathCombo `.csproj` advanced 1.0.4.8 â†’ 1.0.4.9; merge base advanced `0e6e5a9e` â†’ `06877cca6`.
 - **Fork divergences preserved:** AutoRotation tab keeps the `UnTargetAndDisableForPenalty` plain-checkbox variant + the Auto Positionals (Melee DPS) feature at their existing location; upstream relocated that checkbox to the top of DPS settings, so the relocated duplicate was dropped to avoid a doubled control. Pacification/Silence handling, WHM Divine Caress ground-heal targeting, 15s raidwide-mit gate, HP-scaled raidwide `numberOfCasts`, SMN "Aegis Uptime", and the manual BLU combos all live in files outside this upstream range and are untouched.
 - Build clean (0 errors, 9 pre-existing warnings).
 
 ## v1.0.4.44 (2026-06-08)
 
 ### Changed
-- **Upstream sync — Auto-Rotation tab UI.** Merged WrathCombo `main` commits `27fcf666` (Update autorot UI) and `0e6e5a9e` (More rewords) into and `Resources/Localization/UI/AutoRotation/AutoRotationUI.{resx,}`.
- - Label rewords: `Checkbox_OnlyInCombat` "Only in Combat" → "Restrict to Combat Only"; `Checkbox_BypassFATETargets`/`Checkbox_BypassQuestTargets` "Bypass Only in Combat for …" → "Bypass for …"; matching `HelpText_PreEmptiveHoT` update.
+- **Upstream sync â€” Auto-Rotation tab UI.** Merged WrathCombo `main` commits `27fcf666` (Update autorot UI) and `0e6e5a9e` (More rewords) into and `Resources/Localization/UI/AutoRotation/AutoRotationUI.{resx,}`.
+ - Label rewords: `Checkbox_OnlyInCombat` "Only in Combat" â†’ "Restrict to Combat Only"; `Checkbox_BypassFATETargets`/`Checkbox_BypassQuestTargets` "Bypass Only in Combat for â€¦" â†’ "Bypass for â€¦"; matching `HelpText_PreEmptiveHoT` update.
  - Tab reorganized: added "Combat Settings" and "Automatic Activation Settings" `ImGuiEx.TextUnderlined` headers; combat settings (InCombatOnly, bypass options, delay) render unconditionally instead of being gated behind `P.IPC.GetAutoRotationState`.
 
 ### Notes
-- Upstream WrathCombo `.csproj` is still 1.0.4.8 — these were UI-only commits with no upstream version bump. Merge base advanced cab2ae9e → 0e6e5a9e.
+- Upstream WrathCombo `.csproj` is still 1.0.4.8 â€” these were UI-only commits with no upstream version bump. Merge base advanced cab2ae9e â†’ 0e6e5a9e.
 - Preserved fork divergences: `UnTargetAndDisableForPenalty` plain-checkbox variant and the `/gluttony ignore` command string. The tab's `GluttonyCombo.P.`-qualified `UIHelper`/`IPC` calls were collapsed to bare `P.` to converge with upstream (functionally identical; `P` resolves to `GluttonyCombo.P`, as already used in /).
 - No autorotation engine, combo, ActionID, or StatusID changes.
 
@@ -4412,8 +4415,8 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ### Fixed
 - **AutoDuty IPC Integration**: Added AutoDuty IPC subscriber to detect when AutoDuty has paused for mechanics (Pyretic, Untarget, etc.). Gluttony now yields autorotation and target acquisition when AutoDuty is in control, preventing the targeting loop where AutoDuty clears the target and Gluttony immediately retargets.
  - New file:
- - Patched: — initializes and disposes AutoDuty IPC
- - Patched: — checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation`
+ - Patched: â€” initializes and disposes AutoDuty IPC
+ - Patched: â€” checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation`
 
 ---
 *Previous versions: see release tags on GitHub.*
