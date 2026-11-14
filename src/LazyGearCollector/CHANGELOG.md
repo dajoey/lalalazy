@@ -1,7 +1,10 @@
+﻿## v0.0.2.3 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.0.2.2 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
-# LazyGearCollector — Changelog
+# LazyGearCollector â€” Changelog
 
 ## v0.0.2.1 (2026-10-03) [testing]
 ### Added
@@ -20,7 +23,7 @@
 ### Added
 - **First release.** Tracks upgradable gear collections: which pieces are owned, what tier each one
   is at, and exactly what it costs to finish.
-- **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection — 7 role sets
+- **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection â€” 7 role sets
   x 5 armour slots x 4 tiers (base / +1 / +2 / +3), 140 item IDs.
 - **Runtime shop-derived pricing.** `ShopGraph.cs` builds a reverse index over the entire
   `SpecialShop` sheet at load ("what trades produce item X, at what price"), and
@@ -28,7 +31,7 @@
   are hardcoded, so the numbers stay correct when Square Enix retunes a patch.
 - **Arcanaut's trade-up detection** (`Planner.DetectShortcut`). Arcanaut's +1 and +2 exchange into
   Phantom Vision +1/+2 for free. Base Arcanaut's has no exchange, so the planner also spots the
-  two-step route — upgrade it in South Horn first, then trade in — which saves 4,000 Silver Obols
+  two-step route â€” upgrade it in South Horn first, then trade in â€” which saves 4,000 Silver Obols
   and 3 Fixative per piece over buying into the set fresh.
 - **Ownership scanning** across bags, armoury chest and equipped gear (live), plus opportunistic
   snapshots of saddlebag and retainer containers, replayed from config with a "last seen"
@@ -37,12 +40,12 @@
   whole-collection shortfalls, and a selectable goal tier. `/lazygear` to open.
 
 ### Notes
-- **The glamour dresser cannot be enumerated** at Dalamud API level 15 — `MirageManager` exposes
+- **The glamour dresser cannot be enumerated** at Dalamud API level 15 â€” `MirageManager` exposes
   only `RestorePrismBoxItem`, with no readable item array. Pieces parked in the dresser will show
   as missing. This is stated in the UI rather than silently undercounted.
 - `ItemCostsStruct.CostType` is honoured when reading shop costs. `CostType == 0` means the cost
   row is a real Item; `CostType == 2` is a special-currency *index*. Treating type 2 as an item is
-  what makes tomestone shops decode as nonsense like "Ice Shard x495" — those rows are skipped.
+  what makes tomestone shops decode as nonsense like "Ice Shard x495" â€” those rows are skipped.
 - Reference data behind this release, including the full item-ID matrix and the shop table, is in
   the Cowork FFXIV Mods workspace as `north-horn-datamine.md`.
 
