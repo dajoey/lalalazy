@@ -28,6 +28,10 @@ public static class Theme
     public static readonly Vector4 StateRed = Srgb(0xEF, 0x53, 0x50);
     public static readonly Vector4 StateNeutral = Srgb(0x9E, 0x9E, 0x9E);
 
+    // ---- functional ink for text shading over icons (TextShade outlines). Not part of
+    // the UI palette: it exists so converted plugins carry no raw colour literals.
+    public static readonly Vector4 Ink = new(0f, 0f, 0f, 1f);
+
     // ---- R8: neutrals. TextSecondary/TextCaption must reach 4.5:1 against the window
     // background AND the card surface — the harness measures the rendered values, so do not
     // dim these to "subtle grey". They are also pushed into ImGuiCol.TextDisabled so every
