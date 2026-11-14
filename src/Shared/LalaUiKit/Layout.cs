@@ -188,4 +188,39 @@ public static class Layout
     /// <summary>Announce an outcome once (R3): the banner the footer's state points at.</summary>
     public static void Announce(UiState state, string headline, string? detail = null) =>
         Widgets.Banner(state, headline, detail);
+
+    // ---- tooltip (raw-tooltip-window replacement) ----
+
+    /// <summary>
+    ///     The suite's tooltip window: the Begin/End pair for hover tooltips, themed by the
+    ///     kit (solid background, SurfaceBorder border shadow). Sizes and position arrive
+    ///     pre-scaled from the caller so the kit keeps its ImGui-and-Numerics-only deps.
+    ///     Raw-tooltip conversion tasks route their tooltip windows through here so plugin
+    ///     code carries no raw ImGui.Begin.
+    /// </summary>
+    public sealed class TooltipScope : IDisposable
+    {
+        private readonly bool _opened;
+
+        private TooltipScope(bool opened) => _opened = opened;
+
+        public static TooltipScope Begin(string name, ImGuiWindowFlags flags, Vector2 minSize, Vector2 maxSize, Vector2 position)
+        {
+            ImGui.SetNextWindowBgAlpha(1f);
+            ImGui.PushStyleColor(ImGuiCol.BorderShadow, Theme.SurfaceBorder);
+            ImGui.SetNextWindowSizeConstraints(minSize, maxSize);
+            ImGui.SetWindowPos(name, position);
+            var opened = ImGui.Begin(name, flags);
+            return new TooltipScope(opened);
+        }
+
+        public bool Opened => _opened;
+
+        public void Dispose()
+        {
+            if (_opened)
+                ImGui.End();
+            ImGui.PopStyleColor();
+        }
+    }
 }
