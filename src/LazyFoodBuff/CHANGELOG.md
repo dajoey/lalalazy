@@ -1,3 +1,6 @@
+﻿## v0.1.5.3 (2026-11-14) [testing]
+- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.1.5.2 (2026-11-10) [testing]
 - Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.
 
@@ -18,10 +21,10 @@
 ## v0.1.4.0 (2026-09-05)
 
 ### Added
-- Optional decision diagnostics, off by default. Turn on "Log food decisions" (settings window, Advanced / Diagnostics) or run `/lazyfoodbuff telemetry on`, and every time the plugin settles on a food for the current job it writes one line to the plugin log: the food it picked, its score, and the runner-ups it beat — plus a second line when that food is actually eaten. The point is the runner-ups: "picked X at 41.20 over Y at 40.80" is the shape of evidence that can eventually say whether the auto-select weights are right. Nothing leaves the machine; the lines only go to the local plugin log.
+- Optional decision diagnostics, off by default. Turn on "Log food decisions" (settings window, Advanced / Diagnostics) or run `/lazyfoodbuff telemetry on`, and every time the plugin settles on a food for the current job it writes one line to the plugin log: the food it picked, its score, and the runner-ups it beat â€” plus a second line when that food is actually eaten. The point is the runner-ups: "picked X at 41.20 over Y at 40.80" is the shape of evidence that can eventually say whether the auto-select weights are right. Nothing leaves the machine; the lines only go to the local plugin log.
 
 ### Notes
-- Honest caveat: this is a data-collection investment, not an answer. The outcome side (what a food actually did to damage) needs weeks of encounter data before it says anything statistically — the plugin log will quietly accumulate the decision half in the meantime.
+- Honest caveat: this is a data-collection investment, not an answer. The outcome side (what a food actually did to damage) needs weeks of encounter data before it says anything statistically â€” the plugin log will quietly accumulate the decision half in the meantime.
 - Nothing about food selection changed. When the toggle is off, the only cost is one boolean read.
 
 ## v0.1.3.1 (2026-09-05)
