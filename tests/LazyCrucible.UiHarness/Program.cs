@@ -121,8 +121,10 @@ internal static class Program
         }
 
         var plugin = new Plugin();
-        var main = new MainWindow(plugin);
-        var guideWindow = new GuideWindow();
+        var mainShell = new CrucibleShell();
+        var guideShell = new CrucibleShell { CurrentPage = CrucibleShell.UpcomingPage };
+        var main = new MainWindow(plugin, mainShell);
+        var guideWindow = new GuideWindow(plugin, guideShell);
         if (scenario.Incoming)
             CrucibleGame.WarnedCastValue = FightWarnings.ForCast(49272, 6.4f)
                 ?? throw new InvalidOperationException("The real Atomic Ray warning data is missing.");
