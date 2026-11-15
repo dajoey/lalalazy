@@ -5,15 +5,7 @@ using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.UI;
 
-/// <summary>
-/// The sortable catalog (Plan §Phase 4 task 2). Columns: item · job · lvl · craftable · margin (cash) · margin
-/// (market) · /day · velocity · saturation · scrip · desynth · tier · missing summary. Sorting is delegated to
-/// the worker (<see cref="ViewRequest.Sort"/>): the header click only changes the request, the rows arrive
-/// pre-sorted. Rows are drawn through a list clipper so a 6,000-row bucket costs one screen of widgets.
-/// Converted to LalaUiKit per the UI Brief (R4/R5/R8): colours come only from the kit — green = ready to
-/// craft, amber = blocked, red = a losing margin only, everything else reads as text on the kit neutrals.
-/// The tier word carries the meaning; tiers are no longer a colour legend.
-/// </summary>
+/// <summary>Virtualized, worker-sorted catalog table with recipe selection and the existing context actions.</summary>
 public sealed class CatalogTable
 {
     private readonly Plugin _plugin;
@@ -37,164 +29,236 @@ public sealed class CatalogTable
 
     public CatalogTable(Plugin plugin) => _plugin = plugin;
 
-    /// <summary>Draws the table; returns the (possibly changed) sort. <paramref name="selected"/> is updated on click.</summary>
+    /// <summary>Draws visible rows and returns any sort change requested through the column headers.</summary>
     public (SortKey Sort, bool Descending) Draw(CatalogView view, CatalogSnapshot snap, CatalogTab tab, bool hq, ref uint selected, SortKey sort, bool descending)
     {
         var rows = view.Rows;
+        var selectedRecipe = selected;
         var extra = tab switch { CatalogTab.Leveling => "EXP", CatalogTab.LogCompletion => "Cost", CatalogTab.Undersupplied => "Listings", _ => null };
-
-        if (view.Generation != snap.Generation && rows.Count == 0)
-            ImGui.TextDisabled(snap.Generation == 0 ? "Computing the catalog..." : "Filtering...");
-        else
-            ImGui.TextDisabled($"{rows.Count} recipes");
-
-        var flags = ImGuiTableFlags.Sortable | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.ScrollY
-                  | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.SizingStretchProp;
-        var colCount = Columns.Length + (extra is null ? 0 : 1);
-        // One table id per tab: the column set differs per tab and each tab keeps its own sort/width state.
-        if (!ImGui.BeginTable($"##catalog-{tab}", colCount, flags)) return (sort, descending);
-
-        ImGui.TableSetupScrollFreeze(0, 1);
-        for (var i = 0; i < Columns.Length; i++)
+        CrafterChrome.Card("catalog_table", () =>
         {
-            var (header, key, cflags, width) = Columns[i];
-            var f = cflags;
-            if (key == sort) f |= descending ? ImGuiTableColumnFlags.PreferSortDescending : ImGuiTableColumnFlags.PreferSortAscending;
-            if (key == sort) f |= ImGuiTableColumnFlags.DefaultSort;
-            ImGui.TableSetupColumn(header, f, width, (uint)key + 1);
-        }
-        if (extra is not null)
-        {
-            var key = tab switch { CatalogTab.Leveling => SortKey.Exp, CatalogTab.LogCompletion => SortKey.CashCost, _ => SortKey.Listings };
-            ImGui.TableSetupColumn(extra, ImGuiTableColumnFlags.WidthFixed | (key == sort ? ImGuiTableColumnFlags.DefaultSort : 0), 64, (uint)key + 1);
-        }
-        ImGui.TableHeadersRow();
-
-        // Sort: ImGui tells us which column the user clicked; we translate to a SortKey and let the worker sort.
-        var specs = ImGui.TableGetSortSpecs();
-        if (!specs.IsNull && specs.SpecsDirty && specs.SpecsCount > 0)
-        {
-            var spec = specs.Specs;
-            var key = (SortKey)(spec.ColumnUserID - 1);
-            sort = key;
-            descending = spec.SortDirection == ImGuiSortDirection.Descending;
-            specs.SpecsDirty = false;
-        }
-
-        var clipper = ImGui.ImGuiListClipper();
-        clipper.Begin(rows.Count, ImGui.GetTextLineHeightWithSpacing());
-        while (clipper.Step())
-        {
-            for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+            if (view.Generation != snap.Generation && rows.Count == 0)
             {
-                var row = rows[i];
-                ImGui.TableNextRow();
-                ImGui.PushID((int)row.RecipeId);
-                DrawRow(row, view, hq, tab, ref selected);
-                ImGui.PopID();
+                Widgets.InfoBox(snap.Generation == 0
+                    ? "Running — the first catalog computation has not published rows yet."
+                    : "Running — applying the new filters to the current catalog.", UiState.Running);
+                return;
             }
-        }
-        clipper.End();
-        clipper.Destroy();
-        ImGui.EndTable();
+            if (rows.Count == 0)
+            {
+                Widgets.InfoBox("Empty — no recipes match this effort bucket and filter set. Clear a filter, choose another bucket, or enable Above level.", UiState.Empty);
+                return;
+            }
+
+            Widgets.Caption(view.Generation != snap.Generation
+                ? $"{Copy.Word(UiState.Running)} — showing {rows.Count:N0} rows while the new view is computed"
+                : $"{rows.Count:N0} recipes · select for ingredients · right-click for cart actions");
+
+            var flags = ImGuiTableFlags.Sortable | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY
+                      | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable | ImGuiTableFlags.SizingStretchProp;
+            var columnCount = Columns.Length + (extra is null ? 0 : 1);
+            var height = MathF.Max(280, ImGui.GetContentRegionAvail().Y);
+            if (!ImGui.BeginTable($"##crafter_catalog_{tab}", columnCount, flags, new System.Numerics.Vector2(0, height)))
+                return;
+
+            ImGui.TableSetupScrollFreeze(1, 1);
+            for (var i = 0; i < Columns.Length; i++)
+            {
+                var (header, key, columnFlags, width) = Columns[i];
+                var effectiveFlags = columnFlags;
+                if (key == sort)
+                    effectiveFlags |= descending ? ImGuiTableColumnFlags.PreferSortDescending : ImGuiTableColumnFlags.PreferSortAscending;
+                if (key == sort)
+                    effectiveFlags |= ImGuiTableColumnFlags.DefaultSort;
+                ImGui.TableSetupColumn(header, effectiveFlags, width, (uint)key + 1);
+            }
+            if (extra is not null)
+            {
+                var key = tab switch { CatalogTab.Leveling => SortKey.Exp, CatalogTab.LogCompletion => SortKey.CashCost, _ => SortKey.Listings };
+                ImGui.TableSetupColumn(extra, ImGuiTableColumnFlags.WidthFixed | (key == sort ? ImGuiTableColumnFlags.DefaultSort : 0), 64, (uint)key + 1);
+            }
+            ImGui.TableHeadersRow();
+
+            var specs = ImGui.TableGetSortSpecs();
+            if (!specs.IsNull && specs.SpecsDirty && specs.SpecsCount > 0)
+            {
+                var spec = specs.Specs;
+                sort = (SortKey)(spec.ColumnUserID - 1);
+                descending = spec.SortDirection == ImGuiSortDirection.Descending;
+                specs.SpecsDirty = false;
+            }
+
+            var clipper = ImGui.ImGuiListClipper();
+            clipper.Begin(rows.Count, ImGui.GetTextLineHeightWithSpacing());
+            while (clipper.Step())
+            {
+                for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                {
+                    var row = rows[i];
+                    ImGui.TableNextRow();
+                    ImGui.PushID((int)row.RecipeId);
+                    DrawRow(row, view, hq, tab, ref selectedRecipe);
+                    ImGui.PopID();
+                }
+            }
+            clipper.End();
+            clipper.Destroy();
+            ImGui.EndTable();
+        });
+        selected = selectedRecipe;
         return (sort, descending);
     }
 
     private void DrawRow(CatalogRow row, CatalogView view, bool hq, CatalogTab tab, ref uint selected)
     {
-        var est = row.Est(hq);
-        var isSel = selected == row.RecipeId;
+        var estimate = row.Est(hq);
+        var isSelected = selected == row.RecipeId;
 
         ImGui.TableNextColumn();
-        if (row.AboveLevel) ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
-        if (ImGui.Selectable(row.Name + "##sel", isSel, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap))
+        if (row.AboveLevel)
+            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
+        if (ImGui.Selectable(row.Name + "##select", isSelected, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap))
             selected = row.RecipeId;
-        if (row.AboveLevel) ImGui.PopStyleColor();
+        if (row.AboveLevel)
+            ImGui.PopStyleColor();
         if (ImGui.IsItemHovered())
         {
-            var tip = $"{row.Name} (item {row.ResultItemId}, recipe {row.RecipeId})";
-            if (!row.Marketable) tip += "\nUntradeable";
-            if (row.AboveLevel) tip += $"\nNeeds {row.Job} {row.Level} (you: {row.JobLevel})";
-            if (est is { CostComplete: false }) tip += "\nSome materials are unpriced - costs are a lower bound";
-            if (row.MissingSummary.Length > 0) tip += "\nMissing: " + row.MissingSummary;
-            ImGui.SetTooltip(tip);
+            var tooltip = $"{row.Name} (item {row.ResultItemId}, recipe {row.RecipeId})";
+            if (!row.Marketable)
+                tooltip += "\nUntradeable";
+            if (row.AboveLevel)
+                tooltip += $"\nNeeds {row.Job} {row.Level} (current: {row.JobLevel})";
+            if (estimate is { CostComplete: false })
+                tooltip += "\nSome materials are unpriced; costs are a lower bound";
+            if (row.MissingSummary.Length > 0)
+                tooltip += "\nMissing: " + row.MissingSummary;
+            ImGui.SetTooltip(tooltip);
         }
-        if (ImGui.BeginPopupContextItem("##ctx"))
+        if (ImGui.BeginPopupContextItem("##recipe_context"))
         {
-            if (ImGui.MenuItem("Add 1 to cart")) _plugin.Catalog.AddToCart(row.RecipeId, 1);
-            if (row.HowMany > 0 && ImGui.MenuItem($"Add all craftable ({row.HowMany}) to cart")) _plugin.Catalog.AddToCart(row.RecipeId, Math.Max(1, row.HowMany / row.ResultAmount));
-            if (ImGui.MenuItem("Copy name")) ImGui.SetClipboardText(row.Name);
+            if (ImGui.MenuItem("Add 1 to cart"))
+                _plugin.Catalog.AddToCart(row.RecipeId, 1);
+            if (row.HowMany > 0 && ImGui.MenuItem($"Add all craftable ({row.HowMany}) to cart"))
+                _plugin.Catalog.AddToCart(row.RecipeId, Math.Max(1, row.HowMany / row.ResultAmount));
+            if (ImGui.MenuItem("Copy name"))
+                ImGui.SetClipboardText(row.Name);
             ImGui.EndPopup();
         }
 
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(row.Job);
-        ImGui.TableNextColumn(); RightText(row.Level.ToString());
         ImGui.TableNextColumn();
-        if (row.HowMany > 0) RightText(row.HowMany.ToString(), Copy.MarkColor(UiState.Ready)); else RightText("-", Theme.TextSecondary);
-        ImGui.TableNextColumn(); Gil(est?.MarginCash, est);
-        ImGui.TableNextColumn(); Gil(est?.MarginMarket, est);
+        ImGui.TextUnformatted(row.Job);
         ImGui.TableNextColumn();
-        if (est is { RevenueKnown: true }) RightText(Fmt.Gil((long)Math.Round(est.PerDay)), est.PerDay > 0 ? Theme.TextPrimary : Theme.TextSecondary);
-        else RightText("-", Theme.TextSecondary);
+        RightText(row.Level.ToString());
         ImGui.TableNextColumn();
-        var vel = tab == CatalogTab.Undersupplied && view.Undersupplied is { } u && u.TryGetValue(row.ResultItemId, out var ui) ? ui.Velocity : est?.Velocity;
-        if (vel is { } v && est is not null) RightText(v.ToString("0.#")); else RightText("-", Theme.TextSecondary);
+        if (row.HowMany > 0)
+            RightText(row.HowMany.ToString(), Copy.MarkColor(UiState.Ready));
+        else
+            RightText("-", Theme.TextSecondary);
         ImGui.TableNextColumn();
-        if (est is { Velocity: > 0 }) RightText(double.IsInfinity(est.SaturationDays) ? "inf" : est.SaturationDays.ToString("0.#"), est.SaturationDays > 7 ? Theme.StateAmber : Theme.TextPrimary);
-        else RightText("-", Theme.TextSecondary);
+        Gil(estimate?.MarginCash, estimate);
         ImGui.TableNextColumn();
-        if (row.Scrip > 0) RightText(row.Scrip.ToString(), Theme.TextSecondary); else RightText("-", Theme.TextSecondary);
+        Gil(estimate?.MarginMarket, estimate);
         ImGui.TableNextColumn();
-        if (row.Desynth is { } d && d > 0) { RightText("~" + Fmt.Gil((long)d)); if (ImGui.IsItemHovered()) ImGui.SetTooltip("Estimated desynth value (sum of drop chance x market price). Estimate."); }
-        else RightText("-", Theme.TextSecondary);
-        ImGui.TableNextColumn(); ImGui.TextColored(Fmt.TierColor(row.Tier), Fmt.TierName(row.Tier));
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(row.MissingSummary);
+        if (estimate is { RevenueKnown: true })
+            RightText(Fmt.Gil((long)Math.Round(estimate.PerDay)), estimate.PerDay > 0 ? Theme.TextPrimary : Theme.TextSecondary);
+        else
+            RightText("-", Theme.TextSecondary);
+        ImGui.TableNextColumn();
+        var velocity = tab == CatalogTab.Undersupplied && view.Undersupplied is { } undersupplied && undersupplied.TryGetValue(row.ResultItemId, out var under)
+            ? under.Velocity
+            : estimate?.Velocity;
+        if (velocity is { } value && estimate is not null)
+            RightText(value.ToString("0.#"));
+        else
+            RightText("-", Theme.TextSecondary);
+        ImGui.TableNextColumn();
+        if (estimate is { Velocity: > 0 })
+            RightText(double.IsInfinity(estimate.SaturationDays) ? "inf" : estimate.SaturationDays.ToString("0.#"), estimate.SaturationDays > 7 ? Theme.StateAmber : Theme.TextPrimary);
+        else
+            RightText("-", Theme.TextSecondary);
+        ImGui.TableNextColumn();
+        if (row.Scrip > 0)
+            RightText(row.Scrip.ToString(), Theme.TextSecondary);
+        else
+            RightText("-", Theme.TextSecondary);
+        ImGui.TableNextColumn();
+        if (row.Desynth is { } desynth && desynth > 0)
+        {
+            RightText("~" + Fmt.Gil((long)desynth));
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Estimated desynth value: sum of drop chance multiplied by market price.");
+        }
+        else
+        {
+            RightText("-", Theme.TextSecondary);
+        }
+        ImGui.TableNextColumn();
+        ImGui.TextColored(Fmt.TierColor(row.Tier), Fmt.TierName(row.Tier));
+        ImGui.TableNextColumn();
+        ImGui.TextUnformatted(row.MissingSummary);
 
         switch (tab)
         {
             case CatalogTab.Leveling:
-                ImGui.TableNextColumn(); RightText(row.ExpPerCraft.ToString("N0"));
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Synthesis EXP per craft at {row.Job} {row.JobLevel} for a level {row.Level} recipe (community formula; first-craft bonus not included).");
+                ImGui.TableNextColumn();
+                RightText(row.ExpPerCraft.ToString("N0"));
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip($"Synthesis EXP per craft at {row.Job} {row.JobLevel} for a level {row.Level} recipe; first-craft bonus not included.");
                 break;
             case CatalogTab.LogCompletion:
                 ImGui.TableNextColumn();
-                if (est is { CostComplete: true }) RightText(Fmt.Gil(est.CashCost));
-                else if (est is not null) { RightText(">" + Fmt.Gil(est.CashCost), Theme.TextSecondary); if (ImGui.IsItemHovered()) ImGui.SetTooltip("Some materials are unpriced; lower bound."); }
-                else RightText("-", Theme.TextSecondary);
+                if (estimate is { CostComplete: true })
+                    RightText(Fmt.Gil(estimate.CashCost));
+                else if (estimate is not null)
+                {
+                    RightText(">" + Fmt.Gil(estimate.CashCost), Theme.TextSecondary);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Some materials are unpriced; lower bound.");
+                }
+                else
+                {
+                    RightText("-", Theme.TextSecondary);
+                }
                 break;
             case CatalogTab.Undersupplied:
                 ImGui.TableNextColumn();
-                if (view.Undersupplied is { } uu && uu.TryGetValue(row.ResultItemId, out var item)) RightText(item.Listings.ToString(), Theme.StateAmber);
-                else RightText("-", Theme.TextSecondary);
+                if (view.Undersupplied is { } items && items.TryGetValue(row.ResultItemId, out var item))
+                    RightText(item.Listings.ToString(), Theme.StateAmber);
+                else
+                    RightText("-", Theme.TextSecondary);
                 break;
         }
     }
 
-    private static void Gil(long? value, ProfitEstimate? est)
+    private static void Gil(long? value, ProfitEstimate? estimate)
     {
-        if (value is null) { RightText("-", Theme.TextSecondary); return; }
-        // R4: red is reserved for a losing margin (do not craft this); profit reads as plain text.
+        if (value is null)
+        {
+            RightText("-", Theme.TextSecondary);
+            return;
+        }
         var color = value < 0 ? Theme.StateRed : Theme.TextPrimary;
-        RightText((est is { CostComplete: false } ? "<" : "") + Fmt.Gil(value.Value), color);
+        RightText((estimate is { CostComplete: false } ? "<" : "") + Fmt.Gil(value.Value), color);
     }
 
     private static void RightText(string text) => RightText(text, Theme.TextPrimary);
 
-    private static void RightText(string text, Vector4 color)
+    private static void RightText(string text, System.Numerics.Vector4 color)
     {
-        var w = ImGui.CalcTextSize(text).X;
-        var avail = ImGui.GetContentRegionAvail().X;
-        if (avail > w) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + avail - w);
+        var width = ImGui.CalcTextSize(text).X;
+        var available = ImGui.GetContentRegionAvail().X;
+        if (available > width)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + available - width);
         ImGui.TextColored(color, text);
     }
 }
 
-/// <summary>Shared formatting for the UI files.</summary>
+/// <summary>Shared formatting for LazyCrafter UI files.</summary>
 public static class Fmt
 {
-    public static string Gil(long v) => v.ToString("N0");
+    public static string Gil(long value) => value.ToString("N0");
 
-    public static string TierName(EffortTier t) => t switch
+    public static string TierName(EffortTier tier) => tier switch
     {
         EffortTier.Now => "Now",
         EffortTier.Easy => "Easy",
@@ -203,16 +267,14 @@ public static class Fmt
         _ => "Blocked",
     };
 
-    // R4/R5: tiers are effort words, not a colour legend. "Now" is ready to craft (green), Blocked
-    // waits on the player (amber); the middle tiers read as plain text. Red is never a tier colour.
-    public static Vector4 TierColor(EffortTier t) => t switch
+    public static System.Numerics.Vector4 TierColor(EffortTier tier) => tier switch
     {
         EffortTier.Now => Theme.StateGreen,
         EffortTier.Blocked => Theme.StateAmber,
         _ => Theme.TextPrimary,
     };
 
-    public static string SourceName(SourceKind k) => k switch
+    public static string SourceName(SourceKind kind) => kind switch
     {
         SourceKind.OnHand => "on hand",
         SourceKind.SubCraft => "craft",

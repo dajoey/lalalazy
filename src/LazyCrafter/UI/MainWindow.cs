@@ -1,6 +1,5 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using LalaUiKit;
 using LazyCrafter.Adapters;
@@ -10,17 +9,7 @@ using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.UI;
 
-/// <summary>
-/// The LazyCrafter window (Plan §Phase 4, Scope §4). Draws only from immutable snapshots the
-/// <see cref="CatalogService"/> publishes; every filter/sort change is a <see cref="ViewRequest"/> poke and the
-/// heavy lifting happens on its worker.
-/// Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13). The Dalamud Window base
-/// auto-begins/ends this window (Draw() draws content only), so the top bar is drawn with the same kit
-/// primitives Layout.Shell uses and the suite frame comes from Theme.PushFrame/PopFrame. Navigation is one
-/// section row (Run, Catalog, Settings — R1 layer 2, no group tabs) plus the catalog's effort buckets as the
-/// one selector row on the Catalog page. Colours come only from the kit (R4); live state uses the R5
-/// vocabulary; the footer is R3 place 3 with Stop gated to a running dispatch.
-/// </summary>
+/// <summary>Integrated LazyCrafter shell. Catalog data and run state remain snapshot-driven.</summary>
 public sealed class MainWindow : Window
 {
     private readonly Plugin _plugin;
@@ -32,30 +21,45 @@ public sealed class MainWindow : Window
     private bool _selectRunNext;
     private bool _wasRunActive;
 
-    // R1 layer 2: three functional areas, one selected at a time (the accent outline marks exactly the
-    // selected section). Three sections, so no group tabs (R1).
     private enum Section
     {
-        Run,
         Catalog,
+        Cart,
+        Run,
         Settings,
     }
 
+    private sealed record Destination(string Id, string Title, string Description, string SearchTerms, Section Section, CatalogTab Tab);
+
+    private static readonly Destination[] Destinations =
+    [
+        new("catalog.now", "Craft now", "Recipes whose materials are already available, ranked with live market data.", "ready available ingredients craft now", Section.Catalog, CatalogTab.Now),
+        new("catalog.easy", "Easy crafts", "Recipes that need a small amount of straightforward material work.", "easy simple materials craft", Section.Catalog, CatalogTab.Easy),
+        new("catalog.some", "Some effort", "Recipes with a moderate material plan across gathering, vendors and sub-crafts.", "some effort medium materials", Section.Catalog, CatalogTab.SomeEffort),
+        new("catalog.real", "Real effort", "Recipes with the largest material plans and the most involved prerequisites.", "real effort hard materials", Section.Catalog, CatalogTab.RealEffort),
+        new("catalog.leveling", "Leveling", "Crafting-log experience for the selected job and its currently practical recipes.", "leveling experience exp job", Section.Catalog, CatalogTab.Leveling),
+        new("catalog.log", "Log completion", "Recipes not yet recorded as crafted, with their current material cost.", "log completion first craft missing", Section.Catalog, CatalogTab.LogCompletion),
+        new("catalog.under", "Undersupplied", "Craftable results that meet the configured sales and listing thresholds.", "undersupplied listings velocity market", Section.Catalog, CatalogTab.Undersupplied),
+        new("cart", "Cart & materials", "Adjust craft counts, inspect the shared missing-material ledger, and dispatch the plan.", "cart materials missing dispatch teamcraft", Section.Cart, CatalogTab.Now),
+        new("run", "Current run", "Watch each dispatch step, resolve blocked shopping, resume, or copy the full report.", "run dispatch steps blocked resume report stop", Section.Run, CatalogTab.Now),
+        new("settings", "Settings", "Inventory sources, prices, catalog thresholds, dispatch behavior and integrations.", "settings inventory prices sources knightshopper artisan lifestream retainers", Section.Settings, CatalogTab.Now),
+    ];
+
     private Section _section = Section.Catalog;
 
-    // View state (UI thread only).
+    // Catalog view state belongs to the UI thread; computation remains on CatalogService's worker.
     private CatalogTab _tab = CatalogTab.Now;
     private uint _jobFilter;
     private bool _hqOnly;
     private float _minVelocity;
     private bool _hideUntradeable;
     private string _search = "";
+    private string _pageSearch = "";
     private SortKey _sort = SortKey.PerDay;
     private bool _descending = true;
     private CatalogTab _sortTab = CatalogTab.Now;
     private uint _levelingJob;
     private uint _selectedRecipe;
-    private float _treeWidth = 340f;
 
     public MainWindow(Plugin plugin) : base("LazyCrafter##lcraft")
     {
@@ -64,68 +68,97 @@ public sealed class MainWindow : Window
         _tree = new IngredientTree(plugin);
         _cart = new CartPanel(plugin, this);
         _settings = new SettingsTab(plugin);
-        _run = new RunTab(plugin);
-        Size = new Vector2(1180, 720);
+        _run = new RunTab(plugin, this);
+        Size = new Vector2(1180, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
-        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(760, 420), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(760, 560),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
+        };
     }
 
     public uint SelectedRecipe => _selectedRecipe;
+
+    private Destination CurrentDestination => Destinations.First(d =>
+        d.Section == _section && (_section != Section.Catalog || d.Tab == _tab));
 
     public override void Draw()
     {
         var svc = _plugin.Catalog;
         var snap = svc.Snapshot;
+        var snapRun = _plugin.Dispatch.Snapshot;
 
-        Theme.PushFrame();
+        // Preserve the existing one-shot transition to Run when a dispatch becomes active.
+        var runActive = snapRun.State is RunState.Running or RunState.Blocked;
+        if (runActive && !_wasRunActive)
+            _selectRunNext = true;
+        _wasRunActive = runActive;
+        if (_selectRunNext)
+        {
+            _section = Section.Run;
+            _selectRunNext = false;
+        }
+
+        CrafterChrome.PushFrame();
         try
         {
             var (state, action, reason) = OverallState(snap);
-            DrawTopBar(state, $"{snap.Cart.Count} in cart");
-            DrawStatusAnnouncements(snap);
-
-            // Run auto-select (old tab behaviour kept): when a dispatch switches on (Idle -> Running/Blocked)
-            // it grabs the Run section ONCE; OpenRunTab() re-arms it from the cart panel.
-            var snapRun = _plugin.Dispatch.Snapshot;
-            var runActive = snapRun.State is RunState.Running or RunState.Blocked;
-            if (runActive && !_wasRunActive) _selectRunNext = true;
-            _wasRunActive = runActive;
-            if (_selectRunNext)
+            DrawTopBar(state);
+            DrawPageSearchResults();
+            if (_section == Section.Catalog)
             {
-                _section = Section.Run;
-                _selectRunNext = false;
+                DrawFeatureRow(snap);
+                PushRequest(svc);
             }
 
-            DrawSectionNav(snap, snapRun);
+            var destination = CurrentDestination;
+            CrafterChrome.PageHeader(destination.Title, destination.Description, LiveCount(snap, snapRun), LiveSubtext(snap, snapRun));
 
+            var footerHeight = ImGui.GetContentRegionAvail().X < 620
+                ? CrafterChrome.NarrowFooterHeight
+                : CrafterChrome.WideFooterHeight;
+            var bodyHeight = MathF.Max(1, ImGui.GetContentRegionAvail().Y - footerHeight);
+            ImGui.BeginChild("##crafter_body", new Vector2(0, bodyHeight), false);
+            DrawStatusAnnouncements(snap);
             switch (_section)
             {
-                case Section.Run:
-                    DrawRunSection(snapRun);
-                    break;
                 case Section.Catalog:
                     DrawCatalogSection(svc, snap);
                     break;
+                case Section.Cart:
+                    _cart.Draw(snap);
+                    break;
+                case Section.Run:
+                    _run.Draw();
+                    break;
                 case Section.Settings:
-                    DrawSettingsSection();
+                    _settings.Draw();
                     break;
             }
-
-            // Footer (R3 place 3): live dot, state word, current action, Stop pinned right. Stop is the
-            // existing dispatch stop; gated to a running dispatch so an idle click stays a no-op
-            // (Dispatch.Stop() prints a chat line when nothing is running).
-            Layout.Footer(state, action, reason, "Stop", out var stop);
-            if (stop && _plugin.Dispatch.Running)
-                _plugin.Dispatch.Stop();
+            ImGui.EndChild();
+            DrawFooter(snap, snapRun, state, action, reason);
         }
         finally
         {
-            Theme.PopFrame();
+            CrafterChrome.PopFrame();
         }
     }
 
-    /// <summary>Cart panel's "Run tab" button: select the Run section on the next draw.</summary>
+    /// <summary>Selects Run on the next draw, preserving the cart panel's existing navigation action.</summary>
     internal void OpenRunTab() => _selectRunNext = true;
+
+    internal void OpenCart() => _section = Section.Cart;
+
+    internal void OpenCatalog() => _section = Section.Catalog;
+
+    private void Navigate(Destination destination)
+    {
+        _section = destination.Section;
+        if (destination.Section == Section.Catalog)
+            OnTabChanged(destination.Tab);
+        _pageSearch = "";
+    }
 
     private void PushRequest(CatalogService svc)
     {
@@ -133,15 +166,14 @@ public sealed class MainWindow : Window
             _levelingJob, _plugin.Config.UndersuppliedMinVelocity, _plugin.Config.UndersuppliedMaxListings, _plugin.Config.ShowAboveLevel));
     }
 
-    private void OnTabChanged(CatalogTab t)
+    private void OnTabChanged(CatalogTab tab)
     {
-        _tab = t;
-        if (_sortTab != t)
-        {
-            _sort = ViewRequest.DefaultSort(t);
-            _descending = ViewRequest.DefaultDescending(t);
-            _sortTab = t;
-        }
+        _tab = tab;
+        if (_sortTab == tab)
+            return;
+        _sort = ViewRequest.DefaultSort(tab);
+        _descending = ViewRequest.DefaultDescending(tab);
+        _sortTab = tab;
     }
 
     private (UiState State, string Action, string? Reason) OverallState(CatalogSnapshot snap)
@@ -156,248 +188,387 @@ public sealed class MainWindow : Window
         if (run.State == RunState.Running)
             return (UiState.Running, string.IsNullOrEmpty(run.Status) ? run.PhaseLabel : run.Status, null);
         if (run.State == RunState.Blocked)
-            return (UiState.Blocked, "run needs you", string.IsNullOrEmpty(run.Status) ? null : run.Status);
+            return (UiState.Blocked, "run needs attention", string.IsNullOrEmpty(run.Status) ? null : run.Status);
         if (run.State == RunState.Done)
             return (UiState.Ready, "run finished", null);
         if (snap.InventoryDegraded)
-            return (UiState.Missing, "AllaganTools", "counting the current character's bags only");
+            return (UiState.Missing, "inventory counts are limited", Copy.Missing("AllaganTools"));
         if (!snap.LoggedIn)
-            return (UiState.Empty, "not logged in", "showing every recipe");
+            return (UiState.Idle, "waiting for a character", "showing every recipe");
         if (_plugin.Catalog.Busy)
             return (UiState.Running, "computing the catalog", null);
-        return (UiState.Ready, "catalog current", null);
+        if (_plugin.Catalog.LastError is { } error)
+            return (UiState.Failed, "catalog failed", error);
+        if (_section == Section.Cart && snap.Cart.Count == 0)
+            return (UiState.Empty, "cart is empty", "add a recipe from the Catalog");
+        if (_section == Section.Run && run.State == RunState.Idle)
+            return (UiState.Idle, "no run yet", "dispatch a cart to begin");
+        if (_section == Section.Catalog && _plugin.Catalog.View.Generation == snap.Generation && _plugin.Catalog.View.Rows.Count == 0)
+            return (UiState.Empty, "no recipes match", "change the filters or effort bucket");
+        return (UiState.Ready, _section switch
+        {
+            Section.Cart => "cart ready",
+            Section.Run => "run controls ready",
+            Section.Settings => "settings ready",
+            _ => "catalog current",
+        }, null);
     }
 
-    private void DrawTopBar(UiState state, string countDetail)
+    private string LiveCount(CatalogSnapshot snap, RunSnapshot run)
     {
-        // Top bar: title left, live-state pill right (R3 place 1) — the same primitives
-        // Layout.Shell draws for self-beginning windows.
-        var p = ImGui.GetCursorScreenPos();
-        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
-        var barH = Theme.PillHeight;
-        var dl = ImGui.GetWindowDrawList();
-        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
-        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
-        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-        ImGui.TextUnformatted("LazyCrafter");
-        ImGui.PopStyleColor();
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
-        Widgets.StatusPill(state, "LazyCrafter", countDetail, alignRight: true);
-        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
+        switch (_section)
+        {
+            case Section.Catalog:
+                return $"{_plugin.Catalog.View.Rows.Count:N0} shown · {snap.Cart.Count} in cart";
+            case Section.Cart:
+                return $"{snap.Cart.Count} recipes · {snap.CartTotals.Missing.Count()} missing";
+            case Section.Run:
+                if (run.State == RunState.Idle)
+                    return "no run";
+                var done = run.Steps.Count(step => step.State == StepState.Done);
+                return $"{done}/{run.Steps.Count} steps · {RunReport.Elapsed(RunTab.ElapsedFor(run))}";
+            case Section.Settings:
+                var sources = Enum.GetValues<InventorySource>();
+                return $"{sources.Count(source => _plugin.Config.IsSourceEnabled(source))}/{sources.Length} inventory sources";
+            default:
+                return "";
+        }
+    }
+
+    private string LiveSubtext(CatalogSnapshot snap, RunSnapshot run)
+    {
+        var scope = _plugin.Prices.Scope.Length == 0 ? "no market scope" : _plugin.Prices.Scope;
+        return _section switch
+        {
+            Section.Catalog => _plugin.Catalog.Busy ? Copy.Word(UiState.Running) : scope,
+            Section.Cart => snap.Cart.Count == 0 ? "add from the Catalog" : $"worst tier {Fmt.TierName(snap.CartTotals.Tier)}",
+            Section.Run => run.State == RunState.Idle ? "Idle" : run.PhaseLabel,
+            Section.Settings => scope,
+            _ => "",
+        };
+    }
+
+    private void DrawTopBar(UiState state)
+    {
+        var width = ImGui.GetContentRegionAvail().X;
+        var origin = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        const float gap = 2 * Theme.Unit;
+        var brandSize = new Vector2(188, 42);
+        var groups = Enum.GetValues<Section>();
+        var groupSizes = groups.Select(group => new Vector2(MathF.Max(76, ImGui.CalcTextSize(group.ToString()).X + 30), CrafterChrome.ControlHeight)).ToArray();
+        var stateLabel = Copy.Word(state);
+        var statusSize = new Vector2(MathF.Max(80, ImGui.CalcTextSize(stateLabel).X + 43), CrafterChrome.ControlHeight);
+        var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
+        const float minSearchWidth = 180;
+        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + (3 * gap);
+        var groupPositions = new Vector2[groups.Length];
+        var brandPos = new Vector2(0, 12);
+        Vector2 searchPos;
+        Vector2 statusPos;
+        float searchWidth;
+        float barHeight;
+
+        if (singleRow)
+        {
+            barHeight = 66;
+            var x = brandSize.X + gap;
+            var y = (barHeight - CrafterChrome.ControlHeight) / 2f;
+            for (var i = 0; i < groups.Length; i++)
+            {
+                groupPositions[i] = new Vector2(x, y);
+                x += groupSizes[i].X + gap;
+            }
+            searchWidth = MathF.Min(280, width - leftWidth - statusSize.X - (3 * gap));
+            statusPos = new Vector2(width - statusSize.X, y);
+            searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
+        }
+        else
+        {
+            statusPos = new Vector2(width - statusSize.X, 16);
+            var x = 0f;
+            var y = 62f;
+            for (var i = 0; i < groups.Length; i++)
+            {
+                var buttonWidth = MathF.Min(groupSizes[i].X, width);
+                if (x > 0 && x + buttonWidth > width)
+                {
+                    x = 0;
+                    y += CrafterChrome.ControlHeight + gap;
+                }
+                groupPositions[i] = new Vector2(x, y);
+                x += buttonWidth + gap;
+            }
+            var searchY = y + CrafterChrome.ControlHeight + gap;
+            searchWidth = width;
+            searchPos = new Vector2(0, searchY);
+            barHeight = searchY + CrafterChrome.ControlHeight + 12;
+        }
+
+        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        if (CrafterChrome.BrandButton(draw, origin + brandPos, brandSize))
+            Navigate(Destinations[0]);
+        for (var i = 0; i < groups.Length; i++)
+        {
+            var group = groups[i];
+            if (CrafterChrome.OutlineButton(draw, "group_" + group, group.ToString(), origin + groupPositions[i], groupSizes[i], _section == group))
+                _section = group;
+        }
+        DrawSearchInput(origin + searchPos, searchWidth);
+        CrafterChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    private void DrawSearchInput(Vector2 pos, float width)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        ImGui.SetNextItemWidth(width);
+        var padding = Theme.FramePadding;
+        padding.Y = MathF.Max(padding.Y, (CrafterChrome.ControlHeight - ImGui.GetTextLineHeight()) / 2f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, padding);
+        ImGui.InputTextWithHint("##crafter_page_search", "Search pages and settings...", ref _pageSearch, 128);
+        ImGui.PopStyleVar();
+    }
+
+    private void DrawPageSearchResults()
+    {
+        var query = _pageSearch.Trim();
+        if (query.Length == 0)
+            return;
+        var matches = Destinations.Where(destination =>
+                (destination.Title + " " + destination.Description + " " + destination.SearchTerms + " " + destination.Section)
+                .Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(6)
+            .ToArray();
+        CrafterChrome.Card("page_search_results", () =>
+        {
+            Widgets.Caption($"{matches.Length} destinations for ‘{query}’");
+            if (matches.Length == 0)
+            {
+                Widgets.SecondaryWrapped("No page or setting matches this search. Recipe-name search remains inside the Catalog.");
+                return;
+            }
+            foreach (var match in matches)
+                if (ImGui.Selectable($"{match.Section} · {match.Title}##destination_{match.Id}"))
+                    Navigate(match);
+        });
+    }
+
+    private void DrawFeatureRow(CatalogSnapshot snap)
+    {
+        var width = ImGui.GetContentRegionAvail().X;
+        var origin = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        const float gap = 3 * Theme.Unit;
+        var tabs = Enum.GetValues<CatalogTab>();
+        var labels = tabs.Select(tab => BucketLabel(tab, snap)).ToArray();
+        var sizes = labels.Select(label => new Vector2(MathF.Min(width, MathF.Max(116, ImGui.CalcTextSize(label).X + 50)), CrafterChrome.ControlHeight)).ToArray();
+        var positions = new Vector2[tabs.Length];
+        var x = 0f;
+        var y = 8f;
+        for (var i = 0; i < tabs.Length; i++)
+        {
+            if (x > 0 && x + sizes[i].X > width)
+            {
+                x = 0;
+                y += CrafterChrome.ControlHeight + (2 * Theme.Unit);
+            }
+            positions[i] = new Vector2(x, y);
+            x += sizes[i].X + gap;
+        }
+        var barHeight = y + CrafterChrome.ControlHeight + 8;
+        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        for (var i = 0; i < tabs.Length; i++)
+            if (CrafterChrome.FeatureButton(draw, tabs[i].ToString(), labels[i], origin + positions[i], sizes[i], _tab == tabs[i]))
+                OnTabChanged(tabs[i]);
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, barHeight));
     }
 
     private void DrawStatusAnnouncements(CatalogSnapshot snap)
     {
-        // Finished, failed and degraded data are announced once, here (R3) — the conditions the old
-        // coloured banner lines covered, in the kit's banner/info-box shapes.
-        var svc = _plugin.Catalog;
         if (_plugin.GameData is null)
         {
             if (_plugin.GameDataLoad.IsCompleted)
-                Widgets.InfoBox("Game data failed to load — see /xllog.", UiState.Failed);
+                Widgets.InfoBox("Failed — game data could not load. See /xllog for the loader error.", UiState.Failed);
             else
-                Widgets.Banner(UiState.Running, "Loading game data…");
+                Widgets.InfoBox("Running — loading game data. Catalog rows appear when indexing finishes.", UiState.Running);
         }
         if (!snap.LoggedIn)
-            Widgets.Secondary("Not logged in — showing every recipe; job levels, inventory and prices need a character.");
+            Widgets.InfoBox("Idle — showing every recipe. Log in to include job levels, inventory and market prices.", UiState.Idle);
         if (snap.InventoryDegraded)
-            Widgets.InfoBox(
-                "AllaganTools is not available — counting the current character's bags only. "
-                + "Install/enable AllaganTools to count retainers, saddlebag, armoury chest and alts.",
-                UiState.Missing);
-        if (svc.LastError is { } err)
-            Widgets.InfoBox($"Catalog error: {err}", UiState.Failed);
-    }
-
-    private void DrawSectionNav(CatalogSnapshot snap, RunSnapshot run)
-    {
-        var runDot = run.State switch
-        {
-            RunState.Running => UiState.Running,
-            RunState.Blocked => UiState.Blocked,
-            RunState.Failed => UiState.Failed,
-            RunState.Done => UiState.Ready,
-            _ => UiState.Idle,
-        };
-        var catalogDot = _plugin.GameData is null
-            ? (_plugin.GameDataLoad.IsCompleted ? UiState.Failed : UiState.Running)
-            : _plugin.Catalog.Busy ? UiState.Running
-            : UiState.Ready;
-
-        if (Layout.NavSection("lc_nav_run", "Run", null, FontAwesomeIcon.Play.ToIconString(), runDot, _section == Section.Run))
-            _section = Section.Run;
-        ImGui.SameLine();
-        if (Layout.NavSection("lc_nav_catalog", "Catalog", null, FontAwesomeIcon.BoxOpen.ToIconString(), catalogDot, _section == Section.Catalog))
-            _section = Section.Catalog;
-        ImGui.SameLine();
-        if (Layout.NavSection("lc_nav_settings", "Settings", null, FontAwesomeIcon.Cog.ToIconString(), UiState.Ready, _section == Section.Settings))
-            _section = Section.Settings;
-
-        ImGui.Dummy(new Vector2(0, Theme.Unit));
-    }
-
-    private void DrawRunSection(RunSnapshot snapRun)
-    {
-        Layout.PageHeader(null, FontAwesomeIcon.Play.ToIconString(), "Run",
-            "Watch the current dispatch, stop or resume it, and copy the full report.",
-            snapRun.State == RunState.Idle
-                ? "no run"
-                : $"{snapRun.PhaseLabel} — {RunReport.Elapsed(RunTab.ElapsedFor(snapRun))} elapsed");
-        _run.Draw();
+            Widgets.InfoBox(Copy.Missing("AllaganTools") + " — counting the current character's bags only. Enable it to include retainers, saddlebags, armoury chests and other characters.", UiState.Missing);
+        if (_plugin.Catalog.LastError is { } error)
+            Widgets.InfoBox("Catalog error: " + error, UiState.Failed);
     }
 
     private void DrawCatalogSection(CatalogService svc, CatalogSnapshot snap)
     {
-        Layout.PageHeader(null, FontAwesomeIcon.BoxOpen.ToIconString(), "Catalog",
-            "Every recipe you can craft, bucketed by the effort its missing materials take, priced at your market scope.",
-            $"{svc.View.Rows.Count} recipes shown");
-
-        // Effort buckets: the one selector row on the Catalog page (R1); the accent outline marks exactly
-        // the selected bucket. Counts are the live numbers the old tab labels carried.
-        foreach (var t in Enum.GetValues<CatalogTab>())
-        {
-            if (Layout.NavSection($"lc_bucket_{t}", BucketLabel(t, snap), null, BucketGlyph(t), BucketDot(t, snap), _tab == t))
-                OnTabChanged(t);
-            ImGui.SameLine();
-        }
-        ImGui.Dummy(new Vector2(0, 0));
-        ImGui.NewLine();
-
         DrawFilterBar(snap);
-        PushRequest(svc);
-
         var view = svc.View;
-        var avail = ImGui.GetContentRegionAvail();
-        var cartHeight = _cart.DesiredHeight(snap);
-        var bodyHeight = Math.Max(120f, avail.Y - cartHeight - ImGui.GetStyle().ItemSpacing.Y);
-        var treeWidth = Math.Clamp(_treeWidth, 220f, Math.Max(220f, avail.X * 0.5f));
-
-        if (ImGui.BeginChild("##lcraft-table", new Vector2(avail.X - treeWidth - ImGui.GetStyle().ItemSpacing.X, bodyHeight), true))
-        {
-            var (sort, desc) = _table.Draw(view, snap, _tab, _hqOnly, ref _selectedRecipe, _sort, _descending);
-            if (sort != _sort || desc != _descending) { _sort = sort; _descending = desc; }
-        }
-        ImGui.EndChild();
-        ImGui.SameLine();
-        if (ImGui.BeginChild("##lcraft-tree", new Vector2(treeWidth, bodyHeight), true))
-        {
-            if (_selectedRecipe != 0 && snap.ByRecipe.TryGetValue(_selectedRecipe, out var row))
+        CrafterChrome.TwoColumns("catalog", 0.68f,
+            () =>
             {
-                svc.Pin(_selectedRecipe);
-                _tree.Draw(row, snap, view, _hqOnly);
-            }
-            else Widgets.Secondary("Select a recipe in the table to see its ingredients and fulfil buttons.");
-        }
-        ImGui.EndChild();
-
-        _cart.Draw(snap);
+                var (sort, descending) = _table.Draw(view, snap, _tab, _hqOnly, ref _selectedRecipe, _sort, _descending);
+                if (sort == _sort && descending == _descending)
+                    return;
+                _sort = sort;
+                _descending = descending;
+            },
+            () =>
+            {
+                if (_selectedRecipe != 0 && snap.ByRecipe.TryGetValue(_selectedRecipe, out var row))
+                {
+                    svc.Pin(_selectedRecipe);
+                    _tree.Draw(row, snap, view, _hqOnly);
+                }
+                else
+                {
+                    CrafterChrome.Card("recipe_empty", () =>
+                    {
+                        CrafterChrome.Section("Recipe details");
+                        Widgets.InfoBox("Empty — select a recipe to inspect its ingredients, costs and fulfil actions.", UiState.Empty);
+                    });
+                }
+            });
     }
-
-    private void DrawSettingsSection()
-    {
-        var sources = Enum.GetValues<InventorySource>();
-        var on = sources.Count(s => _plugin.Config.IsSourceEnabled(s));
-        Layout.PageHeader(null, FontAwesomeIcon.Cog.ToIconString(), "Settings",
-            "Inventory sources, price basis, catalog thresholds and the dispatch hand-offs.",
-            $"{on} of {sources.Length} inventory sources on");
-        _settings.Draw();
-    }
-
-    private static string BucketLabel(CatalogTab t, CatalogSnapshot snap) => t switch
-    {
-        CatalogTab.Now => $"Now ({snap.Count(EffortTier.Now)})",
-        CatalogTab.Easy => $"Easy ({snap.Count(EffortTier.Easy)})",
-        CatalogTab.SomeEffort => $"Some effort ({snap.Count(EffortTier.SomeEffort)})",
-        CatalogTab.RealEffort => $"Real effort ({snap.RealEffortCount})",
-        CatalogTab.Leveling => "Leveling",
-        CatalogTab.LogCompletion => $"Log completion ({snap.NotYetCrafted})",
-        CatalogTab.Undersupplied => "Undersupplied",
-        _ => t.ToString(),
-    };
-
-    private static string BucketGlyph(CatalogTab t) => t switch
-    {
-        CatalogTab.Now => FontAwesomeIcon.Clock.ToIconString(),
-        CatalogTab.Easy => FontAwesomeIcon.Feather.ToIconString(),
-        CatalogTab.SomeEffort => FontAwesomeIcon.Bolt.ToIconString(),
-        CatalogTab.RealEffort => FontAwesomeIcon.Hammer.ToIconString(),
-        CatalogTab.Leveling => FontAwesomeIcon.ChartBar.ToIconString(),
-        CatalogTab.LogCompletion => FontAwesomeIcon.Book.ToIconString(),
-        CatalogTab.Undersupplied => FontAwesomeIcon.Search.ToIconString(),
-        _ => "",
-    };
-
-    private static UiState BucketDot(CatalogTab t, CatalogSnapshot snap) => t switch
-    {
-        CatalogTab.Now => snap.Count(EffortTier.Now) > 0 ? UiState.Ready : UiState.Empty,
-        CatalogTab.Easy => snap.Count(EffortTier.Easy) > 0 ? UiState.Ready : UiState.Empty,
-        CatalogTab.SomeEffort => snap.Count(EffortTier.SomeEffort) > 0 ? UiState.Ready : UiState.Empty,
-        CatalogTab.RealEffort => snap.RealEffortCount > 0 ? UiState.Ready : UiState.Empty,
-        CatalogTab.LogCompletion => snap.NotYetCrafted > 0 ? UiState.Ready : UiState.Empty,
-        _ => UiState.Idle,
-    };
 
     private void DrawFilterBar(CatalogSnapshot snap)
     {
         var svc = _plugin.Catalog;
-        ImGui.SetNextItemWidth(220f);
-        ImGui.InputTextWithHint("##search", "Search item name...", ref _search, 64);
-        ImGui.SameLine();
+        ImGui.SetNextItemWidth(MathF.Min(240, ImGui.GetContentRegionAvail().X));
+        ImGui.InputTextWithHint("##crafter_recipe_search", "Search recipe names...", ref _search, 64);
 
-        // Job filter: only the crafter jobs, "All" first. On the Leveling tab this is the job being leveled.
-        var jobs = Adapters.PlayerState.CrafterJobs;
+        var jobs = PlayerState.CrafterJobs;
         var isLeveling = _tab == CatalogTab.Leveling;
         var current = isLeveling ? _levelingJob : _jobFilter;
         if (isLeveling && current == 0)
         {
-            // Default to the first unlocked crafter (lowest level first - that is what you level).
             current = snap.Jobs.Where(kv => jobs.Contains(kv.Key)).OrderBy(kv => kv.Value).Select(kv => kv.Key).FirstOrDefault(jobs[0]);
             _levelingJob = current;
         }
-        ImGui.SetNextItemWidth(isLeveling ? 150f : 110f);
+        CrafterChrome.SameLineWrapped(isLeveling ? 150 : 124);
+        ImGui.SetNextItemWidth(isLeveling ? 150 : 124);
         var preview = current == 0 ? "All jobs" : JobLabel(current, snap);
-        if (ImGui.BeginCombo("##job", preview))
+        if (ImGui.BeginCombo("##crafter_job", preview))
         {
-            if (!isLeveling && ImGui.Selectable("All jobs", current == 0)) _jobFilter = 0;
-            foreach (var j in jobs)
+            if (!isLeveling && ImGui.Selectable("All jobs", current == 0))
+                _jobFilter = 0;
+            foreach (var job in jobs)
             {
-                if (ImGui.Selectable(JobLabel(j, snap), current == j))
-                {
-                    if (isLeveling) _levelingJob = j; else _jobFilter = j;
-                }
+                if (!ImGui.Selectable(JobLabel(job, snap), current == job))
+                    continue;
+                if (isLeveling)
+                    _levelingJob = job;
+                else
+                    _jobFilter = job;
             }
             ImGui.EndCombo();
         }
-        ImGui.SameLine();
+
+        CrafterChrome.SameLineWrapped(54);
         Widgets.Checkbox("HQ", ref _hqOnly);
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Price and rank by the HQ row; hide recipes whose result cannot be HQ.");
-        ImGui.SameLine();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Price and rank by the HQ row; hide recipes whose result cannot be HQ.");
+        CrafterChrome.SameLineWrapped(126);
         Widgets.Checkbox("Hide untradeable", ref _hideUntradeable);
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(90f);
-        ImGui.InputFloat("min /day##vel", ref _minVelocity, 0, 0, "%.1f");
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Hide results that sell fewer than this many units per day at your scope.");
-        if (_minVelocity < 0) _minVelocity = 0;
-        ImGui.SameLine();
+        CrafterChrome.SameLineWrapped(90);
+        ImGui.SetNextItemWidth(90);
+        ImGui.InputFloat("min /day##crafter_velocity", ref _minVelocity, 0, 0, "%.1f");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Hide results that sell fewer than this many units per day at the current scope.");
+        if (_minVelocity < 0)
+            _minVelocity = 0;
+        CrafterChrome.SameLineWrapped(100);
         var showAbove = _plugin.Config.ShowAboveLevel;
-        if (Widgets.Checkbox("Above level", ref showAbove)) { _plugin.Config.ShowAboveLevel = showAbove; _plugin.SaveConfig(); }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Also show recipes above your job level and for jobs you have not unlocked.");
-        ImGui.SameLine();
-        if (ImGui.Button("Refresh")) { _plugin.Inventory.Invalidate(); svc.RefreshPrices(); }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Recount inventory and re-fetch stale prices for what is on screen.");
-        ImGui.SameLine();
+        if (Widgets.Checkbox("Above level", ref showAbove))
+        {
+            _plugin.Config.ShowAboveLevel = showAbove;
+            _plugin.SaveConfig();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Also show recipes above the current job level and for jobs not unlocked.");
+        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Refresh"));
+        if (ImGui.Button("Refresh"))
+        {
+            _plugin.Inventory.Invalidate();
+            svc.RefreshPrices();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Recount inventory and re-fetch stale prices for the visible catalog.");
+        CrafterChrome.SameLineWrapped(14);
         Widgets.StatusDot(svc.Busy ? UiState.Running : UiState.Idle);
         ImGui.SameLine();
-        Widgets.Secondary(svc.Busy ? $"{Copy.Word(UiState.Running)} — {svc.Status}" : svc.Status);
+        Widgets.SecondaryWrapped(svc.Busy ? $"{Copy.Word(UiState.Running)} — {svc.Status}" : svc.Status);
         if (ImGui.IsItemHovered() && snap.ComputedAt != DateTime.MinValue)
             ImGui.SetTooltip($"Computed {snap.ComputedAt:HH:mm:ss}; scope {_plugin.Prices.Scope}; {_plugin.Prices.CacheSize} quotes cached; {_plugin.Prices.RequestsMade} Universalis requests ({_plugin.Prices.Failures} failed).");
+        ImGui.Dummy(new Vector2(0, Theme.Unit));
+    }
+
+    private void DrawFooter(CatalogSnapshot snap, RunSnapshot run, UiState state, string action, string? reason)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        var height = width < 620 ? CrafterChrome.NarrowFooterHeight : CrafterChrome.WideFooterHeight;
+        var narrow = width < 620;
+        var draw = ImGui.GetWindowDrawList();
+        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
+
+        var running = _plugin.Dispatch.Running;
+        var actionLabel = running
+            ? "Stop"
+            : _section == Section.Run && run.CanResume
+                ? "Resume"
+                : _section == Section.Cart
+                    ? snap.Cart.Count > 0 ? "Dispatch cart" : "Browse catalog"
+                    : "Open cart";
+        var actionWidth = MathF.Min(width, MathF.Max(96, ImGui.CalcTextSize(actionLabel).X + 40));
+        var actionPos = origin + new Vector2(width - actionWidth, narrow ? 52 : 14);
+        var textRight = narrow ? origin.X + width : actionPos.X - 16;
+        var textPos = origin + new Vector2(24, 8);
+        draw.AddCircleFilled(origin + new Vector2(10, 17), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        draw.AddText(textPos, Theme.Pack(Theme.TextPrimary), CrafterChrome.FitText($"{Copy.Word(state)} · {action}", textRight - textPos.X));
+        draw.AddText(textPos + new Vector2(0, 25), Theme.Pack(Theme.TextSecondary),
+            CrafterChrome.FitText(reason ?? LiveSubtext(snap, run), textRight - textPos.X));
+
+        if (running)
+        {
+            if (CrafterChrome.StopButton(draw, actionPos, new Vector2(actionWidth, 36)))
+                _plugin.Dispatch.Stop();
+        }
+        else if (CrafterChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, new Vector2(actionWidth, 36)))
+        {
+            if (_section == Section.Run && run.CanResume)
+                _plugin.Dispatch.Resume();
+            else if (_section == Section.Cart && snap.Cart.Count > 0)
+                _plugin.Dispatch.DispatchCart();
+            else if (_section == Section.Cart)
+                OpenCatalog();
+            else
+                OpenCart();
+        }
+        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
     }
 
     private string JobLabel(uint jobId, CatalogSnapshot snap)
     {
-        var abbr = _plugin.GameData?.JobAbbr(jobId) ?? jobId.ToString();
-        return snap.Jobs.TryGetValue(jobId, out var lvl) ? $"{abbr} {lvl}" : abbr;
+        var abbreviation = _plugin.GameData?.JobAbbr(jobId) ?? jobId.ToString();
+        return snap.Jobs.TryGetValue(jobId, out var level) ? $"{abbreviation} {level}" : abbreviation;
     }
+
+    private static string BucketLabel(CatalogTab tab, CatalogSnapshot snap) => tab switch
+    {
+        CatalogTab.Now => $"Now ({snap.Count(EffortTier.Now)})",
+        CatalogTab.Easy => $"Easy ({snap.Count(EffortTier.Easy)})",
+        CatalogTab.SomeEffort => $"Some ({snap.Count(EffortTier.SomeEffort)})",
+        CatalogTab.RealEffort => $"Real ({snap.RealEffortCount})",
+        CatalogTab.Leveling => "Leveling",
+        CatalogTab.LogCompletion => $"Log ({snap.NotYetCrafted})",
+        CatalogTab.Undersupplied => "Undersupplied",
+        _ => tab.ToString(),
+    };
 }
