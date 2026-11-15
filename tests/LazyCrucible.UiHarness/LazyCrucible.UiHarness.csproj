@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyCrucible.UiHarness</RootNamespace>
+    <AssemblyName>LazyCrucible.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+    <Using Include="Lalalazy.Crucible" />
+  </ItemGroup>
+
+  <!-- Compile the real window and kit sources; only the game/runtime boundaries are stubbed. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\MainWindow.cs" Link="Real\MainWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\GuideWindow.cs" Link="Real\GuideWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\SuggestionOverlay.cs" Link="Real\SuggestionOverlay.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Real pure guide, data and ranking sources. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaCrucible\**\*.cs" Link="Real\Shared\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Guide\CrucibleGuide.cs" Link="Real\CrucibleGuide.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Guide\GuideNeeds.cs" Link="Real\GuideNeeds.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Policy\RunContext.cs" Link="Real\RunContext.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Policy\FightWarnings.cs" Link="Real\FightWarnings.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Policy\AutoDutyCrucible.cs" Link="Real\AutoDutyCrucible.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Data\CrucibleItems.cs" Link="Real\CrucibleItems.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Data\CrucibleItems.Generated.cs" Link="Real\CrucibleItems.Generated.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Data\CrucibleBoards.cs" Link="Real\CrucibleBoards.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\Data\CrucibleBoards.Generated.cs" Link="Real\CrucibleBoards.Generated.cs" />
+    <EmbeddedResource Include="$(LalaSourceRoot)\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" LogicalName="CrucibleGuide.json" />
+  </ItemGroup>
+</Project>
