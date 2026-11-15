@@ -12,9 +12,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
     <Using Include="Lalalazy.Crucible" />
   </ItemGroup>
+
+  <Target Name="RequireExistingDalamudRuntime" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(DalamudLibPath)' == ''" Text="DalamudLibPath must name an existing runtime directory containing Dalamud.dll, Dalamud.Bindings.ImGui.dll, and cimgui.dll." />
+    <Error Condition="!Exists('$(DalamudLibPath)\Dalamud.dll') Or !Exists('$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll') Or !Exists('$(DalamudLibPath)\cimgui.dll')" Text="DalamudLibPath must contain existing Dalamud.dll, Dalamud.Bindings.ImGui.dll, and cimgui.dll files; no runtime is downloaded or restored." />
+  </Target>
+  <Target Name="UseExistingDalamudNative" AfterTargets="Build">
+    <Copy SourceFiles="$(DalamudLibPath)\cimgui.dll" DestinationFolder="$(OutDir)" />
+  </Target>
 
   <!-- Compile the real window and kit sources; only the game/runtime boundaries are stubbed. -->
   <ItemGroup>

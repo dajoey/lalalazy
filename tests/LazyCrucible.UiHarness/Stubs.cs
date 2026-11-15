@@ -1,41 +1,6 @@
 using System.Numerics;
 using LazyCrucible.Policy;
 
-namespace Dalamud.Interface
-{
-    public enum FontAwesomeIcon
-    {
-        Paw,
-    }
-
-    public static class HarnessIconText
-    {
-        // The production icon is supplied by Dalamud's icon font. The harness uses a
-        // plain glyph because that font is deliberately outside this test project.
-        public static string ToIconString(this FontAwesomeIcon icon) => "P";
-    }
-}
-
-namespace Dalamud.Interface.Windowing
-{
-    public struct WindowSizeConstraints
-    {
-        public Vector2 MinimumSize { get; set; }
-        public Vector2 MaximumSize { get; set; }
-    }
-
-    public abstract class Window
-    {
-        protected Window(string name) => Name = name;
-        public string Name { get; }
-        public WindowSizeConstraints SizeConstraints { get; set; }
-        public Vector2? Size { get; set; }
-        public ImGuiCond SizeCondition { get; set; }
-        public bool IsOpen { get; set; }
-        public abstract void Draw();
-    }
-}
-
 namespace ECommons.DalamudServices
 {
     internal static class Svc

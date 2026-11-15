@@ -10,7 +10,12 @@ if not defined PROGRAMFILES(X86) set "PROGRAMFILES(X86)=%SystemDrive%\Program Fi
 if not defined PROGRAMDATA set "PROGRAMDATA=%SystemDrive%\ProgramData"
 set "DOTNET_EXE=%PROGRAMFILES%\dotnet\dotnet.exe"
 if not defined LALA_SOURCE set "LALA_SOURCE=%~dp0..\.."
-"%DOTNET_EXE%" run --project "%~dp0LazyCrucible.UiHarness.csproj" --configuration Release --configfile "%~dp0NuGet.Config" --property:UseSharedCompilation=false --property:LalaSourceRoot="%LALA_SOURCE%"
+if not defined DalamudLibPath (
+    echo Set DalamudLibPath to an existing runtime directory containing Dalamud.dll, Dalamud.Bindings.ImGui.dll, and cimgui.dll.
+    popd
+    exit /b 2
+)
+"%DOTNET_EXE%" run --project "%~dp0LazyCrucible.UiHarness.csproj" --configuration Release --property:UseSharedCompilation=false --property:LalaSourceRoot="%LALA_SOURCE%" --property:DalamudLibPath="%DalamudLibPath%"
 set "RESULT=%ERRORLEVEL%"
 popd
 exit /b %RESULT%

@@ -1,11 +1,11 @@
 using System.IO.Compression;
 using System.Numerics;
 using System.Text;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace RenderProbe;
 
-internal static class CpuRasterizer
+internal static unsafe class CpuRasterizer
 {
     public static RenderStats Render(
         ImDrawDataPtr drawData,
@@ -24,16 +24,16 @@ internal static class CpuRasterizer
         var displayPos = drawData.DisplayPos;
         for (var listIndex = 0; listIndex < drawData.CmdListsCount; listIndex++)
         {
-            var list = drawData.CmdLists[listIndex];
+            var list = new ImDrawListPtr(drawData.CmdLists[listIndex]);
             for (var commandIndex = 0; commandIndex < list.CmdBuffer.Size; commandIndex++)
             {
                 var command = list.CmdBuffer[commandIndex];
-                if (command.UserCallback != IntPtr.Zero)
+                if (command.UserCallback != null)
                     throw new NotSupportedException("User draw callbacks are outside this probe's scope.");
                 if (command.ElemCount == 0)
                     continue;
-                if (command.TextureId != fontTextureId)
-                    throw new NotSupportedException($"Unexpected texture ID {command.TextureId}; only the ImGui font atlas is registered.");
+                if (command.TextureId.Handle != (ulong)fontTextureId.ToInt64())
+                    throw new NotSupportedException($"Unexpected texture ID {command.TextureId.Handle}; only the ImGui font atlas is registered.");
                 if (command.ElemCount % 3 != 0)
                     throw new InvalidOperationException("Expected indexed triangles in the ImGui draw list.");
 
@@ -55,8 +55,8 @@ internal static class CpuRasterizer
         return new RenderStats(drawData.CmdListsCount, triangles);
     }
 
-    private static Vertex ReadVertex(ImDrawVertPtr value, Vector2 displayPos)
-        => new(value.pos - displayPos, value.uv, value.col);
+    private static Vertex ReadVertex(ImDrawVert value, Vector2 displayPos)
+        => new(value.Pos - displayPos, value.Uv, value.Col);
 
     private static void RasterTriangle(
         byte[] frame,

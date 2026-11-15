@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using ECommons.DalamudServices;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using LazyCrucible;
 using LazyCrucible.Policy;
 using RenderProbe;
@@ -189,7 +189,7 @@ internal static class Program
 
     private static void DrawMainWindow(MainWindow window, bool scrollToAdvisor, bool advisor, Vector2 size)
     {
-        BeginRealWindow(window.Name, size);
+        BeginRealWindow(window.WindowName, size);
         if (advisor)
         {
             // Set the same window storage CollapsingHeader/TreeNode use; no replacement controls are drawn.
@@ -204,7 +204,7 @@ internal static class Program
 
     private static void DrawGuideWindow(GuideWindow window, Vector2 size)
     {
-        BeginRealWindow(window.Name, size);
+        BeginRealWindow(window.WindowName, size);
         window.Draw();
         ImGui.End();
     }
@@ -219,42 +219,23 @@ internal static class Program
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
     }
 
-    private static byte[] BuildFontAtlas(ImFontAtlasPtr fonts, out int width, out int height)
+    private static unsafe byte[] BuildFontAtlas(ImFontAtlasPtr fonts, out int width, out int height)
     {
-        // Dalamud supplies these glyphs in its font atlas. Include the real UI's em dash, arrows and check marks.
-        var ranges = new ushort[]
-        {
-            0x0020, 0x00ff,
-            0x2000, 0x206f,
-            0x2190, 0x21ff,
-            0x2500, 0x25ff,
-            0x2700, 0x27bf,
-            0,
-        };
-        var pinned = GCHandle.Alloc(ranges, GCHandleType.Pinned);
-        try
-        {
-            var fontsDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
-            var fontPath = Path.Combine(fontsDirectory, "seguisym.ttf");
-            if (!File.Exists(fontPath))
-                fontPath = Path.Combine(fontsDirectory, "segoeui.ttf");
-            if (File.Exists(fontPath))
-                fonts.AddFontFromFileTTF(fontPath, 18, default, pinned.AddrOfPinnedObject());
-            else
-                fonts.AddFontDefault();
-
-            fonts.GetTexDataAsRGBA32(out IntPtr pixels, out width, out height, out int bytesPerPixel);
-            if (bytesPerPixel != 4 || width <= 0 || height <= 0)
-                throw new InvalidOperationException("Invalid ImGui RGBA font atlas.");
-            fonts.SetTexID(FontTextureId);
-            var copy = new byte[width * height * 4];
-            Marshal.Copy(pixels, copy, 0, copy.Length);
-            return copy;
-        }
-        finally
-        {
-            pinned.Free();
-        }
+        // Deliberately use only ImGui's embedded font; never read a host font file.
+        fonts.AddFontDefault();
+        byte* pixels = null;
+        var atlasWidth = 0;
+        var atlasHeight = 0;
+        var bytesPerPixel = 0;
+        fonts.GetTexDataAsRGBA32(0, &pixels, &atlasWidth, &atlasHeight, &bytesPerPixel);
+        width = atlasWidth;
+        height = atlasHeight;
+        if (bytesPerPixel != 4 || width <= 0 || height <= 0)
+            throw new InvalidOperationException("Invalid ImGui RGBA font atlas.");
+        fonts.SetTexID(0, new ImTextureID(FontTextureId));
+        var copy = new byte[width * height * 4];
+        Marshal.Copy((IntPtr)pixels, copy, 0, copy.Length);
+        return copy;
     }
 
     private static void ResetState()
