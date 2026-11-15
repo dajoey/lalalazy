@@ -15,6 +15,13 @@ if not defined DalamudLibPath (
     popd
     exit /b 2
 )
+for %%F in (Dalamud.dll Dalamud.Bindings.ImGui.dll cimgui.dll) do (
+    if not exist "%DalamudLibPath%\%%F" (
+        echo Missing required existing runtime file: %%F
+        popd
+        exit /b 2
+    )
+)
 "%DOTNET_EXE%" run --project "%~dp0LazyCrucible.UiHarness.csproj" --configuration Release --property:UseSharedCompilation=false --property:LalaSourceRoot="%LALA_SOURCE%" --property:DalamudLibPath="%DalamudLibPath%"
 set "RESULT=%ERRORLEVEL%"
 popd
