@@ -91,6 +91,8 @@ internal static class Program
                 Console.WriteLine($"{scenario.Name}: output/{scenario.Name}.png | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
             }
             Console.WriteLine($"Rendered {Scenarios.Length} distinct real-source UI states. No window or game process was created.");
+            VerifyToggleInteraction();
+            Console.WriteLine("Interactive drawn toggle: press and release changed the setting through CrucibleShell.");
             return 0;
         }
         catch (Exception ex)
@@ -189,9 +191,50 @@ internal static class Program
         }
     }
 
+    private static void VerifyToggleInteraction()
+    {
+        var context = ImGui.CreateContext();
+        try
+        {
+            var io = ImGui.GetIO();
+            io.DisplaySize = new Vector2(480, 120);
+            io.DisplayFramebufferScale = Vector2.One;
+            io.DeltaTime = 1f / 60f;
+            _ = BuildFontAtlas(io.Fonts, out _, out _);
+            var value = false;
+            var clickPos = Vector2.Zero;
+            var shell = new CrucibleShell();
+            for (var step = 0; step < 3; step++)
+            {
+                io.MousePos = step == 0 ? new Vector2(-10000, -10000) : clickPos;
+                io.MouseDown[0] = step == 1;
+                ImGui.NewFrame();
+                ImGui.SetNextWindowPos(Vector2.Zero);
+                ImGui.SetNextWindowSize(io.DisplaySize);
+                var open = true;
+                ImGui.Begin("Drawn toggle interaction", ref open, ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoSavedSettings);
+                ImGui.SetCursorPos(new Vector2(20, 20));
+                if (step == 0)
+                {
+                    var origin = ImGui.GetCursorScreenPos();
+                    clickPos = origin + new Vector2(ImGui.GetContentRegionAvail().X - 22, 12);
+                }
+                shell.Setting("Interaction setting", () => value, newValue => value = newValue);
+                ImGui.End();
+                ImGui.Render();
+            }
+            if (!value)
+                throw new InvalidOperationException("The drawn toggle did not change the setting after a real press and release.");
+        }
+        finally
+        {
+            ImGui.DestroyContext(context);
+        }
+    }
+
     private static void DrawMainWindow(MainWindow window, bool scrollToAdvisor, bool advisor, Vector2 size)
     {
-        BeginRealWindow(window.WindowName, size);
+        BeginRealWindow(window.WindowName, size, window.Flags);
         if (advisor)
         {
             // Set the same window storage CollapsingHeader/TreeNode use; no replacement controls are drawn.
@@ -206,17 +249,17 @@ internal static class Program
 
     private static void DrawGuideWindow(GuideWindow window, Vector2 size)
     {
-        BeginRealWindow(window.WindowName, size);
+        BeginRealWindow(window.WindowName, size, window.Flags);
         window.Draw();
         ImGui.End();
     }
 
-    private static void BeginRealWindow(string name, Vector2 size)
+    private static void BeginRealWindow(string name, Vector2 size, ImGuiWindowFlags windowFlags)
     {
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
-        ImGui.Begin(name, ref open,
+        ImGui.Begin(name, ref open, windowFlags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
     }
