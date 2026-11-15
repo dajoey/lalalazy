@@ -38,6 +38,7 @@ internal static class Program
         HornRegistrationCases.Run();
         ItemValueCases.Run();
         ScoreRosterCases.Run();
+        UiPresentationCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;

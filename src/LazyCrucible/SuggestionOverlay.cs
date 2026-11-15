@@ -4,15 +4,7 @@ using LalaUiKit;
 
 namespace LazyCrucible;
 
-// Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief: this is a
-// foreground draw-list note anchored to a game screen (no ImGui window), so it
-// takes only kit colours — the card surface behind the text, the amber state
-// colour for the two attention frames (red stays reserved for Stop/Failed, R4),
-// and primary text.
-/// <summary>
-///     Suggestion-only screens: a framed note drawn just above the game screen it is about (the choice LazyCrucible
-///     would make and why). Read-only; it disappears when the screen closes.
-/// </summary>
+/// <summary> Suggestion-only note anchored above the game screen it describes. It never clicks a choice.</summary>
 internal static unsafe class SuggestionOverlay
 {
     public static void Draw()
@@ -28,16 +20,31 @@ internal static unsafe class SuggestionOverlay
             var pos = new Vector2(addon->X, addon->Y) + ImGui.GetMainViewport().Pos;
             var width = addon->RootNode->Width * scale;
             var height = addon->RootNode->Height * scale;
-            var label = $"LazyCrucible: {text}";
             var wrap = Math.Max(240f, width);
-            var size = ImGui.CalcTextSize(label, false, wrap);
-            var boxMin = new Vector2(pos.X, pos.Y - size.Y - 10);
-            var boxMax = new Vector2(pos.X + Math.Min(wrap, size.X) + 12, pos.Y - 2);
-            draw.AddRectFilled(boxMin, boxMax, ImGui.GetColorU32(Theme.Surface with { W = 0.92f }), 4f);
-            draw.AddRect(boxMin, boxMax, ImGui.GetColorU32(Theme.StateAmber), 4f, ImDrawFlags.None, 2f);
-            draw.AddRect(pos, pos + new Vector2(width, height), ImGui.GetColorU32(Theme.StateAmber with { W = 0.9f }), 6f, ImDrawFlags.None, 2f);
-            draw.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(boxMin.X + 6, boxMin.Y + 5),
-                ImGui.GetColorU32(Theme.TextPrimary), label, wrap);
+            var textWidth = wrap - 64;
+            const string title = "LazyCrucible: Suggested choice";
+            const string detail = "Suggestion only · no button is pressed and the choice stays with the player.";
+            var titleSize = ImGui.GetFontSize() * Theme.TitleScale;
+            var detailSize = ImGui.GetFontSize() * Theme.SecondaryScale;
+            var titleHeight = ImGui.CalcTextSize(title).Y * Theme.TitleScale;
+            var bodyHeight = ImGui.CalcTextSize(text, false, textWidth).Y;
+            var detailHeight = ImGui.CalcTextSize(detail, false, textWidth).Y * Theme.SecondaryScale;
+            var boxHeight = titleHeight + bodyHeight + detailHeight + (8 * Theme.Unit);
+            var boxMin = new Vector2(pos.X - 2, pos.Y - boxHeight);
+            var boxMax = new Vector2(pos.X + wrap, pos.Y - 2);
+            var accent = Theme.Pack(Theme.Accent);
+
+            draw.AddRectFilled(boxMin, boxMax, Theme.Pack(Theme.Surface with { W = 0.96f }), 4f);
+            draw.AddRect(boxMin, boxMax, Theme.Pack(Theme.SurfaceBorder), 4f);
+            draw.AddRectFilled(boxMin, boxMin + new Vector2(3, boxHeight), accent, 2f);
+            var iconCenter = boxMin + new Vector2(24, 8 + (titleHeight / 2));
+            var radius = 7f;
+            draw.AddTriangleFilled(iconCenter + new Vector2(0, -radius), iconCenter + new Vector2(radius, 0), iconCenter + new Vector2(0, radius), accent);
+            draw.AddTriangleFilled(iconCenter + new Vector2(0, -radius), iconCenter + new Vector2(0, radius), iconCenter + new Vector2(-radius, 0), accent);
+            draw.AddText(ImGui.GetFont(), titleSize, boxMin + new Vector2(48, 8), accent, title);
+            draw.AddText(ImGui.GetFont(), ImGui.GetFontSize(), boxMin + new Vector2(48, 12 + titleHeight), Theme.Pack(Theme.TextPrimary), text, textWidth);
+            draw.AddText(ImGui.GetFont(), detailSize, boxMin + new Vector2(48, 20 + titleHeight + bodyHeight), Theme.Pack(Theme.TextSecondary), detail, textWidth);
+            draw.AddRect(pos, pos + new Vector2(width, height), accent, 6f, ImDrawFlags.None, 2f);
         }
     }
 }
