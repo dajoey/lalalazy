@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -63,6 +64,8 @@ internal static class Program
 
     public static int Main()
     {
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
         try
         {
             Directory.CreateDirectory(OutputDirectory);
@@ -85,7 +88,7 @@ internal static class Program
                 var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(result.Path))).ToLowerInvariant();
                 if (!hashes.TryAdd(hash, scenario.Name))
                     throw new InvalidOperationException($"{scenario.Name} is byte-identical to {hashes[hash]}.");
-                Console.WriteLine($"{scenario.Name}: {result.Path} | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
+                Console.WriteLine($"{scenario.Name}: output/{scenario.Name}.png | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
             }
             Console.WriteLine($"Rendered {Scenarios.Length} distinct real-source UI states. No window or game process was created.");
             return 0;

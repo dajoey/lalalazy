@@ -28,10 +28,10 @@ internal static class CpuRasterizer
             for (var commandIndex = 0; commandIndex < list.CmdBuffer.Size; commandIndex++)
             {
                 var command = list.CmdBuffer[commandIndex];
-                if (command.ElemCount == 0)
-                    continue;
                 if (command.UserCallback != IntPtr.Zero)
                     throw new NotSupportedException("User draw callbacks are outside this probe's scope.");
+                if (command.ElemCount == 0)
+                    continue;
                 if (command.TextureId != fontTextureId)
                     throw new NotSupportedException($"Unexpected texture ID {command.TextureId}; only the ImGui font atlas is registered.");
                 if (command.ElemCount % 3 != 0)
