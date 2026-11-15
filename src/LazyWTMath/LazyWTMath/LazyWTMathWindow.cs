@@ -24,7 +24,7 @@ internal sealed unsafe class LazyWTMathWindow : Window
             MinimumSize = new Vector2(480, 600),
             MaximumSize = new Vector2(1400, 1000),
         };
-        Flags = ImGuiWindowFlags.NoCollapse;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse;
     }
 
     public override void Draw()
