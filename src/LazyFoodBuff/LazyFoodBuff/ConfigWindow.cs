@@ -22,6 +22,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("LazyFoodBuff##cfg")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(1080, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
