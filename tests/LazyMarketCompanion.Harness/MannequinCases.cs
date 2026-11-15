@@ -35,5 +35,27 @@ internal static class MannequinCases
     check("175 mannequin: the label comparison is case-insensitive and culture-independent",
       !MannequinGate.IsMannequin(new[] { "ADJUST PRICE" }, "Adjust Price")
       && !MannequinGate.IsMannequin(new[] { "adjust price" }, "ADJUST PRICE"), "");
+
+    // 176. The label row (Addon sheet, client data 7.58). Row 930 is the price window TITLE, whose
+    // translation differs from the context-menu action on non-English clients; the action label is
+    // row 959. Reading the title made every real listing look like a mannequin on those clients
+    // (upstream Dagobert dd78468352 moved the lookup to 959). Rows as shipped in the client sheet.
+    var sheet = new (string Lang, string Title930, string Menu959)[]
+    {
+      ("en", "Adjust Price", "Adjust Price"),
+      ("de", "ANGEBOT ÄNDERN", "Preis ändern"),
+      ("fr", "Ajuster le prix", "Changer le prix"),
+      ("ja", "EDIT PRICE", "価格を変更する"),
+    };
+    foreach (var row in sheet)
+    {
+      var text = new System.Collections.Generic.Dictionary<uint, string> { [930] = row.Title930, [959] = row.Menu959 };
+      check($"176 mannequin: a real listing on a {row.Lang} client uses the menu action row, not the window title",
+        !MannequinGate.IsMannequin(new[] { row.Menu959, "Remove" }, text[MannequinGate.AdjustPriceMenuTextRowId]), "");
+      check($"176 mannequin: a mannequin menu on a {row.Lang} client stays mannequin",
+        MannequinGate.IsMannequin(new[] { "Remove from mannequin" }, text[MannequinGate.AdjustPriceMenuTextRowId]), "");
+    }
+    check("176 mannequin: the label row is the context-menu action row 959",
+      MannequinGate.AdjustPriceMenuTextRowId == 959u, "row=" + MannequinGate.AdjustPriceMenuTextRowId);
   }
 }

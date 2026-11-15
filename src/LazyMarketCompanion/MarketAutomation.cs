@@ -2776,9 +2776,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       var reader = new ReaderContextMenu(addon);
-      // Addon sheet row 930 is the client's localized "Adjust Price" context-menu label
+      // Addon sheet row 959 (MannequinGate.AdjustPriceMenuTextRowId) is the client's localized "Adjust Price" context-menu action label; row 930 is the window title
       // (upstream Dagobert 811a5cddb: match the client's own text, not a hardcoded language list).
-      var adjustPriceText = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Addon>().GetRow(930).Text.GetText();
+      var adjustPriceText = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Addon>().GetRow(MannequinGate.AdjustPriceMenuTextRowId).Text.GetText();
       if (!MannequinGate.IsMannequin(reader.Entries.Select(entry => entry.Name), adjustPriceText))
       {
         Svc.Log.Debug("[LMC] clicking adjust price");

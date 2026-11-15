@@ -1,4 +1,11 @@
-﻿## v0.2.8.21 (2026-11-14) [testing]
+﻿## v0.2.8.22 (2026-11-14) [testing]
+### Fixed
+- **Mannequin detection no longer skips every real listing on German, French and Japanese clients.** The check compared the context menu against the price window title text (Addon sheet row 930) instead of the menu's own Adjust Price action text (row 959). On English clients the two read the same, but on German, French and Japanese clients they differ, so each real listing looked like a mannequin and was skipped. The check now reads the menu action text (the fix is ported from upstream Dagobert's Auto Pinch).
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
+## v0.2.8.21 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.2.8.20 (2026-11-10) [testing]
