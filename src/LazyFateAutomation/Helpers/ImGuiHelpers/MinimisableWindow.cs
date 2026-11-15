@@ -1,16 +1,13 @@
-﻿using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
-using Dalamud.Interface.Utility.Raii;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 
 namespace LazyFateAutomation.Helpers.ImGuiHelpers;
 
 /// <summary>
-/// A <see cref="Window"/> that can be minimised via a title bar button. When minimised, only minimal content is shown
+/// A <see cref="Window"/> that can be minimised from its custom content header. When minimised, only minimal content is shown
 /// and the window size is reduced to <see cref="MinimisedSize"/>; when restored, the previous size is applied.
 /// </summary>
 public abstract class MinimisableWindow : Window {
-    private readonly TitleBarButton _minimiseBtn;
     private readonly ImGuiWindowFlags _expandedFlags;
     private Vector2? _savedSize;
 
@@ -22,31 +19,21 @@ public abstract class MinimisableWindow : Window {
     /// <summary>Set from <see cref="DrawContent"/> when minimised to the measured content width; the base uses it for the next frame's window width. Leave 0 to use <see cref="MinimisedSize"/> width.</summary>
     protected float MinimisedContentWidth { get; set; }
 
-    protected MinimisableWindow(string title, ImGuiWindowFlags flags = ImGuiWindowFlags.None) : base(title, flags) {
-        _expandedFlags = flags;
-        _minimiseBtn = new TitleBarButton {
-            Icon = FontAwesomeIcon.Minus,
-            IconOffset = new Vector2(1.5f, 1),
-            Priority = int.MinValue,
-            Click = _ => {
-                Minimised = !Minimised;
-                _minimiseBtn!.Icon = Minimised ? FontAwesomeIcon.WindowMaximize : FontAwesomeIcon.Minus;
-                if (!Minimised && _savedSize is { } saved) {
-                    Size = saved;
-                    SizeCondition = ImGuiCond.Always;
-                }
-            },
-            ShowTooltip = () => {
-                using var _ = ImRaii.Tooltip();
-                ImGui.Text(Minimised ? ExpandTooltipText : MinimiseTooltipText);
-            },
-            AvailableClickthrough = true,
-        };
-        TitleBarButtons.Add(_minimiseBtn);
+    protected MinimisableWindow(string title, ImGuiWindowFlags flags = ImGuiWindowFlags.None) : base(title, flags | ImGuiWindowFlags.NoTitleBar) {
+        _expandedFlags = flags | ImGuiWindowFlags.NoTitleBar;
+        Flags = _expandedFlags;
     }
 
     protected virtual string MinimiseTooltipText => "Minimal View";
     protected virtual string ExpandTooltipText => "Expanded View";
+
+    protected void ToggleMinimised() {
+        Minimised = !Minimised;
+        if (!Minimised && _savedSize is { } saved) {
+            Size = saved;
+            SizeCondition = ImGuiCond.Always;
+        }
+    }
 
     protected abstract void DrawContent(bool minimised);
 
@@ -55,12 +42,12 @@ public abstract class MinimisableWindow : Window {
             var w = MinimisedContentWidth > 0 ? MinimisedContentWidth : MinimisedSize.X;
             Size = new Vector2(w, MinimisedSize.Y);
             SizeCondition = ImGuiCond.Always;
-            Flags = _expandedFlags | ImGuiWindowFlags.NoResize;
+            Flags = _expandedFlags | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize;
             DrawContent(minimised: true);
             return;
         }
 
-        Flags = _expandedFlags;
+        Flags = _expandedFlags | ImGuiWindowFlags.NoTitleBar;
         _savedSize = ImGui.GetWindowSize();
         SizeCondition = ImGuiCond.FirstUseEver;
         DrawContent(minimised: false);

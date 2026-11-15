@@ -1,7 +1,5 @@
 using LazyFateAutomation.Helpers.ImGuiHelpers;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
-using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 using LalaUiKit;
 using System.Globalization;
@@ -60,14 +58,9 @@ public class FateToolKitWindow : MinimisableWindow
         _tweak = tweak;
         Size = new Vector2(1120, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
-        TitleBarButtons.Add(new TitleBarButton
-        {
-            Icon = FontAwesomeIcon.Cog,
-            Click = _ => ToggleSettings(),
-        });
     }
 
-    protected override Vector2 MinimisedSize => new(700, 90);
+    protected override Vector2 MinimisedSize => new(700, 140);
 
     public override bool DrawConditions() => Player.Available;
 
@@ -172,14 +165,21 @@ public class FateToolKitWindow : MinimisableWindow
         var brandSize = new Vector2(MathF.Max(214, (ImGui.CalcTextSize("LazyFateAutomation").X * Theme.TitleScale) + 68), 42);
         var groupSizes = groups.Select(group => new Vector2(MathF.Max(82, ImGui.CalcTextSize(group).X + 32), FateChrome.ControlHeight)).ToArray();
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(Copy.Word(state)).X + 43), FateChrome.ControlHeight);
-        var totalWidth = brandSize.X + statusSize.X + groupSizes.Sum(size => size.X) + ((groups.Length + 1) * gap);
+        var settingsSize = new Vector2(92, FateChrome.ControlHeight);
+        var minimiseSize = new Vector2(96, FateChrome.ControlHeight);
+        var totalWidth = brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X
+            + groupSizes.Sum(size => size.X) + ((groups.Length + 3) * gap);
         var singleRow = width >= totalWidth;
-        var brandWithStatus = singleRow || width >= brandSize.X + statusSize.X + gap;
+        var brandWithControls = !singleRow && width >= brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + (3 * gap);
+        float controlsY = singleRow || brandWithControls ? 16 : 62;
+        float groupY = singleRow ? 16 : brandWithControls ? 62 : 104;
         var brandPos = new Vector2(0, 12);
-        var statusPos = singleRow
-            ? new Vector2(width - statusSize.X, (66 - FateChrome.ControlHeight) / 2f)
-            : new Vector2(width - statusSize.X, brandWithStatus ? 16 : 62);
-        var groupY = singleRow ? (66 - FateChrome.ControlHeight) / 2f : brandWithStatus ? 62 : 104;
+        var right = width;
+        var minimisePos = new Vector2(right - minimiseSize.X, controlsY);
+        right -= minimiseSize.X + gap;
+        var settingsPos = new Vector2(right - settingsSize.X, controlsY);
+        right -= settingsSize.X + gap;
+        var statusPos = new Vector2(right - statusSize.X, controlsY);
         var groupPositions = new Vector2[groups.Length];
         var x = singleRow ? brandSize.X + gap : 0;
         var y = groupY;
@@ -204,12 +204,30 @@ public class FateToolKitWindow : MinimisableWindow
         {
             var group = groups[i];
             var destination = group == "FATEs" ? LivePage : _lastSettingsPage;
-            if (FateChrome.OutlineButton(draw, "group_" + group, group, origin + groupPositions[i], groupSizes[i], Current.Group == group))
+            var size = new Vector2(MathF.Min(groupSizes[i].X, width), FateChrome.ControlHeight);
+            if (FateChrome.OutlineButton(draw, "group_" + group, group, origin + groupPositions[i], size, Current.Group == group))
                 _currentPage = destination;
         }
         FateChrome.StatusPill(draw, origin + statusPos, statusSize, state);
+        DrawSettingsButton("header_settings", settingsPos + origin, settingsSize);
+        if (FateChrome.OutlineButton(draw, "header_minimise", "Minimise", origin + minimisePos, minimiseSize))
+            ToggleMinimised();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(MinimiseTooltipText);
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    private bool DrawSettingsButton(string id, Vector2 pos, Vector2 size)
+    {
+        var showSettings = _currentPage == LivePage;
+        var label = showSettings ? "Settings" : "FATEs";
+        var clicked = FateChrome.OutlineButton(ImGui.GetWindowDrawList(), id, label, pos, size);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(showSettings ? "Open settings" : "Return to live FATEs");
+        if (clicked)
+            ToggleSettings();
+        return clicked;
     }
 
     private void DrawFeatureRow()
@@ -472,24 +490,44 @@ public class FateToolKitWindow : MinimisableWindow
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
         var gap = 2 * Theme.Unit;
-        var runSize = new Vector2(82, FateChrome.ControlHeight);
+        var brandSize = new Vector2(214, 42);
         var statusSize = new Vector2(82, FateChrome.ControlHeight);
+        var settingsSize = new Vector2(92, FateChrome.ControlHeight);
+        var restoreSize = new Vector2(84, FateChrome.ControlHeight);
+        draw.AddRectFilled(origin, origin + new Vector2(width, 50), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, 50), origin + new Vector2(width, 50), Theme.Pack(Theme.SurfaceBorder));
+        if (FateChrome.BrandButton(draw, origin + new Vector2(0, 4), brandSize))
+            _currentPage = LivePage;
+        var right = width;
+        var restorePos = new Vector2(right - restoreSize.X, 8);
+        right -= restoreSize.X + gap;
+        var settingsPos = new Vector2(right - settingsSize.X, 8);
+        right -= settingsSize.X + gap;
+        var statusPos = new Vector2(right - statusSize.X, 8);
+        FateChrome.StatusPill(draw, origin + statusPos, statusSize, state);
+        if (DrawSettingsButton("compact_settings", origin + settingsPos, settingsSize) && Minimised)
+            ToggleMinimised();
+        if (FateChrome.OutlineButton(draw, "compact_restore", "Restore", origin + restorePos, restoreSize))
+            ToggleMinimised();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(ExpandTooltipText);
+
+        var runSize = new Vector2(82, FateChrome.ControlHeight);
         var modeSize = new Vector2(132, FateChrome.ControlHeight);
         var zoneSize = new Vector2(100, FateChrome.ControlHeight);
+        var runOrigin = origin + new Vector2(0, 58);
         var x = 0f;
-        DrawRunButton("compact_primary", origin, runSize);
+        DrawRunButton("compact_primary", runOrigin, runSize);
         x += runSize.X + gap;
-        FateChrome.StatusPill(draw, origin + new Vector2(x, 0), statusSize, state);
-        x += statusSize.X + gap;
         var completed = $"{_tweak.CompletedCount} completed";
-        FateChrome.DrawText(draw, origin + new Vector2(x, 9), FateChrome.FitText(completed, 94), Theme.TextSecondary);
+        FateChrome.DrawText(draw, runOrigin + new Vector2(x, 9), FateChrome.FitText(completed, 94), Theme.TextSecondary);
         x += 102;
-        DrawModeButton("compact_mode", origin + new Vector2(x, 0), modeSize, _tweak.GetCurrentMode().DisplayName);
+        DrawModeButton("compact_mode", runOrigin + new Vector2(x, 0), modeSize, _tweak.GetCurrentMode().DisplayName);
         x += modeSize.X + gap;
-        DrawZoneButton("compact_zones", origin + new Vector2(x, 0), zoneSize);
-        FateChrome.DrawText(draw, origin + new Vector2(0, 44), FateChrome.FitText($"{Copy.Word(state)} · {action}", width), Theme.TextSecondary);
+        DrawZoneButton("compact_zones", runOrigin + new Vector2(x, 0), zoneSize);
+        FateChrome.DrawText(draw, origin + new Vector2(0, 100), FateChrome.FitText($"{Copy.Word(state)} · {action}", width), Theme.TextSecondary);
         ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, 62));
+        ImGui.Dummy(new Vector2(width, 116));
     }
 
     private void DrawFateCard(PublicEvent fate, bool isAvailable)
