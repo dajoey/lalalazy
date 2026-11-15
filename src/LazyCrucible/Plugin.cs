@@ -96,7 +96,7 @@ public sealed class Plugin : IDalamudPlugin
         Guide.InstallNeedModel();
         _window = new MainWindow(this, _mainShell);
         _windowSystem.AddWindow(_window);
-        _guideWindow = new GuideWindow(_guideShell);
+        _guideWindow = new GuideWindow(this, _guideShell);
         _windowSystem.AddWindow(_guideWindow);
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
@@ -340,7 +340,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         if (a.Equals("guide", StringComparison.OrdinalIgnoreCase))
         {
-            _guideWindow.IsOpen = !_guideWindow.IsOpen;
+            ToggleGuide();
             return;
         }
         ToggleWindow();

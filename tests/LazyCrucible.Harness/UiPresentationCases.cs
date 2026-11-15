@@ -34,5 +34,13 @@ internal static class UiPresentationCases
 
         var location = UiPresentationLogic.LocationSuffix(3, 5);
         Check("Guide subtext keeps row/space location", location.Contains("row", StringComparison.OrdinalIgnoreCase), location);
+
+        var pluginSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "Plugin.cs"));
+        Check("Guide slash command routes through ToggleGuide",
+            System.Text.RegularExpressions.Regex.IsMatch(pluginSource,
+                "if \\(a.Equals\\(\"guide\", StringComparison.OrdinalIgnoreCase\\)\\)\\s*\\{\\s*ToggleGuide\\(\\);"));
+        var guideWindowSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "GuideWindow.cs"));
+        Check("Guide window passes its plugin to the shell for footer actions",
+            guideWindowSource.Contains("public override void Draw() => _shell.Draw(_plugin);", StringComparison.Ordinal));
     }
 }
