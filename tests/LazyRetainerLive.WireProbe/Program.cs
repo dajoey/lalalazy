@@ -84,6 +84,34 @@ internal static class Program
         Check(failures, un == "{\"type\":\"Retainers\",\"chars\":[],\"source\":\"plugin\",\"readAt\":1788649999}",
             "503 body exact bytes");
 
+        // 6. Window presentation derives only from real listener and snapshot state.
+        var disabled = RetainerLivePresentation.Status(false, "old bind error", c, true);
+        Check(failures, disabled.State == RetainerLiveState.Idle, "disabled listener is Idle");
+        Check(failures, disabled.Action == "Listener stopped", "disabled listener action");
+        Check(failures, RetainerLivePresentation.LiveSubtext(false, 10504) == "Listener off · snapshots still update",
+            "disabled listener subtext");
+
+        var failed = RetainerLivePresentation.Status(true, "bind failed", c, true);
+        Check(failures, failed.State == RetainerLiveState.Failed && failed.Detail == "bind failed",
+            "bind failure is surfaced");
+
+        var missing = RetainerLivePresentation.Status(true, "", null, false);
+        Check(failures, missing.State == RetainerLiveState.NeedsSetup, "missing first snapshot needs setup");
+        Check(failures, missing.Detail.Contains("503", StringComparison.Ordinal), "missing snapshot explains 503");
+        Check(failures, RetainerLivePresentation.LiveCount(null) == "No snapshot", "empty live count");
+
+        var frozen = RetainerLivePresentation.Status(true, "", c, false);
+        Check(failures, frozen.State == RetainerLiveState.Blocked, "last-known snapshot is Blocked");
+        Check(failures, frozen.Action == "Serving the last-known snapshot", "last-known action");
+
+        var live = RetainerLivePresentation.Status(true, "", c, true);
+        Check(failures, live.State == RetainerLiveState.Ready, "fresh snapshot is Ready");
+        Check(failures, RetainerLivePresentation.ActiveVentures(c) == 3, "three active ventures");
+        Check(failures, RetainerLivePresentation.LiveCount(c) == "4 retainers · 3 active ventures",
+            "live retainer and venture count");
+        Check(failures, RetainerLivePresentation.LiveSubtext(true, 10504) == "127.0.0.1:10504 · GET /retainers",
+            "live endpoint subtext");
+
         if (failures.Count > 0)
         {
             Console.WriteLine($"FAIL ({failures.Count}):");
@@ -91,6 +119,7 @@ internal static class Program
             return 1;
         }
         Console.WriteLine("ALL WIRE CHECKS PASS");
+        Console.WriteLine("ALL PRESENTATION CHECKS PASS");
         return 0;
     }
 

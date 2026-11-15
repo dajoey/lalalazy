@@ -13,5 +13,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\src\LazyRetainerLive\LazyRetainerLive\RetainerState.cs" Link="RetainerState.cs" />
+    <Compile Include="..\..\src\LazyRetainerLive\LazyRetainerLive\RetainerLivePresentation.cs" Link="RetainerLivePresentation.cs" />
   </ItemGroup>
 </Project>
