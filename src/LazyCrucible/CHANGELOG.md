@@ -1,4 +1,8 @@
-﻿## v0.1.9.19 (2026-11-15) [testing]
+﻿## v0.1.9.20 (2026-11-15) [testing]
+- LazyCrucible's settings and fight guide use a searchable, card-based layout with live status, clearer requirements, and grouped controls.
+- Battlehorn picks, fight mechanics, and recent choices are easier to scan at large and small window sizes.
+
+## v0.1.9.19 (2026-11-15) [testing]
 - Internal: added an offline test harness (tests/LazyCrucible.UiHarness) that renders the real main window, guide window and suggestion overlay to PNG images for UI review. The plugin itself is unchanged; no functional changes.
 
 ## v0.1.9.18 (2026-11-14) [testing]
