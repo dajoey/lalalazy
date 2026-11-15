@@ -33,6 +33,7 @@ public sealed class CollectorWindow : Window
     public CollectorWindow(Plugin plugin) : base("Lazy Gear Collector##lazygear")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(1100, 720);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
