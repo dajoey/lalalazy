@@ -18,6 +18,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("Lazy Fish Sitter##cfg")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(900, 640);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
