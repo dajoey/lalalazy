@@ -23,6 +23,10 @@
     <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\MainWindow.cs" Link="Real\MainWindow.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\GuideWindow.cs" Link="Real\GuideWindow.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\SuggestionOverlay.cs" Link="Real\SuggestionOverlay.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\CrucibleShell.cs" Link="Real\CrucibleShell.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\CruciblePages.cs" Link="Real\CruciblePages.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\CrucibleGuidePages.cs" Link="Real\CrucibleGuidePages.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\UiPresentationLogic.cs" Link="Real\UiPresentationLogic.cs" />
     <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 

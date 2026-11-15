@@ -77,7 +77,7 @@ internal static class CruciblePages
     {
         if (ImGui.GetContentRegionAvail().X >= 760)
         {
-            using var columns = Layout.TwoColumns.Begin(0.62f);
+            using var columns = Layout.TwoColumns.Begin(0.72f);
             work();
             columns.Split();
             rail();
@@ -190,68 +190,137 @@ internal static class CruciblePages
         var needs = selection is null ? [] : GuideNeeds.Rows(selection);
         var required = selection is null ? (Covered: 0, Total: 0) : UiPresentationLogic.RequiredCallStats(needs);
         var rosterCount = RunTracker.Roster.Count;
-        DrawStatCards(
-            new Stat("Run roster", rosterCount > 0 ? rosterCount.ToString() : "—", null,
-                rosterCount > 0 ? "Filled on the next entry menu" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"), rosterCount > 0 ? 1f : null),
-            new Stat("Battlehorns", selection is null ? "—" : selection.Picks.Count.ToString(), selection is null ? null : "3",
-                selection is null ? "No fight in focus" : "Ready for the next formation", selection is null ? null : selection.Picks.Count / 3f),
-            new Stat("Required calls", selection is null ? "—" : required.Covered.ToString(), selection is null ? null : required.Total.ToString(),
-                selection is null ? "No fight in focus" : required.Total == 0 ? "No required calls" : "Covered by the live ranking", selection is null || required.Total == 0 ? null : required.Covered / (float)required.Total));
-
         TwoColumns(
             () =>
             {
-                if (focus is null || selection is null)
+                DrawStatCards(
+                    new Stat("Run roster", rosterCount > 0 ? rosterCount.ToString() : "—", null,
+                        rosterCount > 0 ? "Filled on the next entry menu" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"), rosterCount > 0 ? 1f : null),
+                    new Stat("Battlehorns", selection is null ? "—" : selection.Picks.Count.ToString(), selection is null ? null : "3",
+                        selection is null ? "No fight in focus" : "Ready for the next formation", selection is null ? null : selection.Picks.Count / 3f),
+                    new Stat("Required calls", selection is null ? "—" : required.Covered.ToString(), selection is null ? null : required.Total.ToString(),
+                        selection is null ? "No fight in focus" : required.Total == 0 ? "No required calls" : "Covered by the live ranking", selection is null || required.Total == 0 ? null : required.Covered / (float)required.Total));
+
+                CrucibleCard.Draw("battlehorn_plan", 0, () =>
                 {
-                    Section("Battlehorn plan");
-                    Widgets.InfoBox("Idle — no fight is in focus. The four roster and yield settings remain available, but no horn loadout is invented.", UiState.Idle);
-                    return;
-                }
-                Section("Battlehorn plan", $"{focus.Title} · {BST_CrucibleData.Boards[focus.Board - 1].Name}", focus.Counters.Count + focus.Mechanics.Count + " guide calls");
-                foreach (var counter in focus.Counters)
-                    PlanRow(counter.What, string.Join("; ", counter.Src));
-                foreach (var mechanic in focus.Mechanics.Take(2))
-                    PlanRow(mechanic.Name, mechanic.Do);
-                ImGui.Separator();
-                Section("Recommended horns", "Manual changes win; LazyCrucible never starts the fight");
-                Widgets.Body(string.Join(" · ", selection.Picks.Select(p => BeastName(p.Row))));
-                foreach (var pick in selection.Picks)
-                    Widgets.SecondaryWrapped($"{BeastName(pick.Row)}: {pick.Why}");
+                    Section("Battlehorn plan", focus is null ? "No live horn plan" : $"{focus.Title} · {BST_CrucibleData.Boards[focus.Board - 1].Name}",
+                        focus is null ? null : focus.Counters.Count + focus.Mechanics.Count + " guide calls");
+                    if (focus is null || selection is null)
+                    {
+                        Widgets.InfoBox("Idle — no fight is in focus. The four roster and yield settings remain available, but no horn loadout is invented.", UiState.Idle);
+                        return;
+                    }
+                    PlanHeader();
+                    foreach (var counter in focus.Counters)
+                    {
+                        var match = needs.FirstOrDefault(row => row.What == counter.What);
+                        var covered = match.What is not null && match.Covered;
+                        var response = match.What is null ? counter.What : covered
+                            ? $"{match.Tool} — {BeastName(match.CoveredBy)}"
+                            : match.WhyNot ?? "No horn pick answers this call";
+                        PlanRow(counter.What, response, covered ? UiState.Ready : UiState.Blocked, covered ? "Ready" : "Needed");
+                    }
+                    foreach (var mechanic in focus.Mechanics.Take(2))
+                        PlanRow(mechanic.Name, mechanic.Do, UiState.Blocked, "Guide call");
+                    ImGui.Dummy(new Vector2(0, Theme.Unit));
+                    CrucibleCard.Draw("recommended_horns", 0, () =>
+                    {
+                        Widgets.StateText("●", UiState.Ready);
+                        ImGui.SameLine();
+                        Widgets.Body("Recommended horns: " + string.Join(" · ", selection.Picks.Select(p => BeastName(p.Row))));
+                        Widgets.SecondaryWrapped(string.Join(" · ", selection.Picks.Select(p => p.Why))
+                            + ". Manual changes win; knocked-out familiars are never picked; LazyCrucible never starts the fight.");
+                    }, CrucibleCardTone.Recommended);
+                });
             },
             () =>
             {
-                Section("Requirements");
-                Requirement("Beastmaster", "Required", true);
-                Requirement("Master's Bestiary", CrucibleGame.RosterLoaded ? "Loaded" : Copy.Missing("Bestiary"), CrucibleGame.RosterLoaded);
-                Requirement("Active board", ActiveBoard() != 0 ? "Ready" : "Optional", ActiveBoard() != 0);
-                Requirement("AutoDuty", PetSelect.YieldReason == "autoduty_running" ? "Standby" : "Optional", PetSelect.YieldReason != "autoduty_running");
-                ImGui.Separator();
-                Section("Settings");
-                shell.Setting("Fill the run roster at the Bentbranch Meadows entry menu", () => cfg.AutoRoster, value => cfg.AutoRoster = value);
-                Help("Once per visit to the entry menu, sets the ten familiars that cover the board's battles best. A roster changed by hand is left alone until the next run.");
-                shell.Setting("Score: three familiars", () => cfg.ScoreThreeFamiliars, value => cfg.ScoreThreeFamiliars = value);
-                Help("For score runs, uses the best three familiars for the whole board. Off by default and inactive on a screen AutoDuty drives.");
-                shell.Setting("Fill the Battlehorn slots before each fight", () => cfg.AutoHorns, value => cfg.AutoHorns = value);
-                Help("Puts the three familiars that answer the fight's mechanics on the horns. Knocked-out familiars are never picked and the fight is never started.");
-                shell.Setting("Stand down while AutoDuty is running", () => cfg.YieldToAutoDuty, value => cfg.YieldToAutoDuty = value);
-                Help("AutoDuty's settings are read, never changed. The two drivers never overwrite each other.");
+                CrucibleCard.Draw("requirements", 0, () =>
+                {
+                    Section("Requirements");
+                    Requirement("Beastmaster", "Required", true);
+                    Requirement("Master's Bestiary", CrucibleGame.RosterLoaded ? "Loaded" : Copy.Missing("Bestiary"), CrucibleGame.RosterLoaded);
+                    Requirement("Active board", ActiveBoard() != 0 ? "Ready" : "Optional", ActiveBoard() != 0);
+                    Requirement("AutoDuty", PetSelect.YieldReason == "autoduty_running" ? "Standby" : "Optional", PetSelect.YieldReason != "autoduty_running");
+                });
+                CrucibleCard.Draw("roster_settings", 0, () =>
+                {
+                    Section("Settings");
+                    shell.Setting("Fill the run roster at the Bentbranch Meadows entry menu", () => cfg.AutoRoster, value => cfg.AutoRoster = value);
+                    Help("Once per entry-menu visit; a roster changed by hand is left alone until the next run.");
+                    shell.Setting("Score: three familiars", () => cfg.ScoreThreeFamiliars, value => cfg.ScoreThreeFamiliars = value);
+                    Help("Opt in to a three-familiar score roster; never used on an AutoDuty-driven screen.");
+                    shell.Setting("Fill the Battlehorn slots before each fight", () => cfg.AutoHorns, value => cfg.AutoHorns = value);
+                    Help("Ranks three answers to the fight's mechanics; never starts the fight.");
+                    shell.Setting("Stand down while AutoDuty is running", () => cfg.YieldToAutoDuty, value => cfg.YieldToAutoDuty = value);
+                    Help("Reads AutoDuty settings only; the two drivers never overwrite each other.");
+                });
             });
     }
 
-    private static void PlanRow(string call, string response)
+    private static void PlanHeader()
     {
-        Widgets.Body(call);
-        Widgets.SecondaryWrapped(response);
-        ImGui.Separator();
+        var start = ImGui.GetCursorPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        Widgets.Caption("CALL");
+        if (width >= 560)
+        {
+            ImGui.SetCursorPos(new Vector2(start.X + 260, start.Y));
+            Widgets.Caption("RESPONSE");
+            ImGui.SetCursorPos(new Vector2(start.X + width - 104, start.Y));
+            Widgets.Caption("STATE");
+        }
+        else
+        {
+            Widgets.Caption("RESPONSE · STATE");
+        }
+    }
+
+    private static void PlanRow(string call, string response, UiState state, string stateLabel)
+    {
+        CrucibleCard.Row("plan_" + call, () =>
+        {
+            var start = ImGui.GetCursorPos();
+            var width = ImGui.GetContentRegionAvail().X;
+            Widgets.Body(call);
+            if (width >= 560)
+            {
+                ImGui.SetCursorPos(new Vector2(start.X + 260, start.Y));
+                ImGui.PushTextWrapPos(start.X + width - 116);
+                Widgets.SecondaryWrapped(response);
+                ImGui.PopTextWrapPos();
+                var responseBottom = ImGui.GetCursorPosY();
+                ImGui.SetCursorPos(new Vector2(start.X + width - 104, start.Y));
+                Widgets.StateText("● " + stateLabel, state);
+                ImGui.SetCursorPosY(MathF.Max(responseBottom, ImGui.GetCursorPosY()));
+            }
+            else
+            {
+                Widgets.SecondaryWrapped(response);
+                Widgets.StateText(stateLabel, state);
+            }
+        });
     }
 
     private static void Requirement(string label, string value, bool ready)
     {
+        var start = ImGui.GetCursorPos();
+        var width = ImGui.GetContentRegionAvail().X;
         Widgets.StateText(ready ? "✓" : "—", ready ? UiState.Ready : UiState.Idle);
         ImGui.SameLine();
         Widgets.Secondary(label);
-        ImGui.SameLine();
-        Widgets.Caption(value);
+        var valueWidth = ImGui.CalcTextSize(value).X;
+        var labelWidth = ImGui.CalcTextSize(label).X;
+        if (labelWidth + valueWidth + 36 <= width)
+        {
+            ImGui.SetCursorPos(new Vector2(start.X + width - valueWidth, start.Y));
+            Widgets.Caption(value);
+        }
+        else
+        {
+            ImGui.SetCursorPosX(start.X + 24);
+            Widgets.Caption(value);
+        }
     }
 
     private static void DrawFeedShop(CrucibleShell shell)
@@ -356,33 +425,126 @@ internal static class CruciblePages
     {
         var available = ImGui.GetContentRegionAvail().X;
         var stacked = available < 650;
-        var gap = 2 * Theme.Unit;
+        var gap = 3 * Theme.Unit;
         var width = stacked ? available : (available - (2 * gap)) / 3;
-        const float height = 96;
+        const float height = 112;
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
         for (var i = 0; i < stats.Length; i++)
         {
             var stat = stats[i];
             var pos = origin + (stacked ? new Vector2(0, i * (height + gap)) : new Vector2(i * (width + gap), 0));
-            draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.Surface), 4f);
-            draw.AddRect(pos, pos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), 4f);
+            draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.Surface), 8f);
+            draw.AddRect(pos, pos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), 8f);
 
-            ImGui.SetCursorScreenPos(pos + new Vector2(12, 8));
+            ImGui.SetCursorScreenPos(pos + new Vector2(12, 10));
+            Widgets.IconTile(null, FontAwesomeIcon.Paw.ToIconString(), new Vector2(18), false);
+            ImGui.SetCursorScreenPos(pos + new Vector2(38, 11));
             Widgets.Caption(stat.Label);
-            ImGui.SetCursorScreenPos(pos + new Vector2(12, 28));
+            ImGui.SetCursorScreenPos(pos + new Vector2(12, 34));
             Widgets.Title(stat.Cap is null ? stat.Value : $"{stat.Value} / {stat.Cap.TrimStart('/')}");
             if (stat.Fraction is { } fraction)
             {
-                var min = pos + new Vector2(12, 58);
-                var max = pos + new Vector2(width - 12, 62);
+                var min = pos + new Vector2(12, 70);
+                var max = pos + new Vector2(width - 12, 74);
                 draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), 2f);
                 if (fraction > 0)
                     draw.AddRectFilled(min, min + new Vector2((max.X - min.X) * Math.Clamp(fraction, 0, 1), 0), Theme.Pack(Theme.StateGreen), 2f);
             }
-            ImGui.SetCursorScreenPos(pos + new Vector2(12, 70));
+            ImGui.SetCursorScreenPos(pos + new Vector2(12, 84));
             Widgets.Caption(stat.Note);
         }
         ImGui.SetCursorScreenPos(origin + new Vector2(0, stacked ? stats.Length * (height + gap) : height + gap));
     }
+}
+
+internal enum CrucibleCardTone
+{
+    Surface,
+    Row,
+    Recommended,
+    Attention,
+}
+
+/// <summary>Content-measured rounded cards. Backgrounds never cover text and heights follow the live layout.</summary>
+internal static class CrucibleCard
+{
+    private const float Padding = 12;
+    private const float Gap = 12;
+    private static int _depth;
+
+    public static void Draw(string id, float minHeight, Action content, CrucibleCardTone tone = CrucibleCardTone.Surface, float width = 0)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var cardWidth = width <= 0 ? ImGui.GetContentRegionAvail().X : MathF.Min(width, ImGui.GetContentRegionAvail().X);
+        var topLevel = _depth == 0;
+        if (topLevel)
+        {
+            _depth++;
+            // Outer surface, nested row surfaces, then glyphs. Never split channels recursively.
+            draw.ChannelsSplit(3);
+        }
+        try
+        {
+            draw.ChannelsSetCurrent(2);
+            ImGui.SetCursorScreenPos(origin + new Vector2(Padding, Padding));
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, cardWidth - (2 * Padding)));
+            ImGui.BeginGroup();
+            content();
+            ImGui.PopTextWrapPos();
+            ImGui.EndGroup();
+            var contentBottom = ImGui.GetCursorScreenPos().Y;
+            var height = MathF.Max(minHeight, contentBottom - origin.Y + Padding);
+
+            draw.ChannelsSetCurrent(topLevel ? 0 : 1);
+            var (fill, border) = Colors(tone);
+            draw.AddRectFilled(origin, origin + new Vector2(cardWidth, height), fill, 8f);
+            draw.AddRect(origin, origin + new Vector2(cardWidth, height), border, 8f);
+            if (tone is CrucibleCardTone.Recommended or CrucibleCardTone.Attention)
+                draw.AddRectFilled(origin + new Vector2(0, 8), origin + new Vector2(3, height - 8), Theme.Pack(tone == CrucibleCardTone.Recommended ? Theme.StateGreen : Theme.StateAmber), 2f);
+            if (topLevel)
+                draw.ChannelsMerge();
+            else
+                draw.ChannelsSetCurrent(2);
+            ImGui.SetCursorScreenPos(origin + new Vector2(0, height + Gap));
+        }
+        finally
+        {
+            if (topLevel)
+                _depth--;
+        }
+    }
+
+    public static void Row(string id, Action content, float minHeight = 48)
+        => Draw(id, minHeight, content, CrucibleCardTone.Row);
+
+    public static void TwoCards(float leftFraction, Action left, Action right)
+    {
+        if (ImGui.GetContentRegionAvail().X < 520)
+        {
+            left();
+            right();
+            return;
+        }
+        var startX = ImGui.GetCursorPosX();
+        var startY = ImGui.GetCursorScreenPos().Y;
+        var available = ImGui.GetContentRegionAvail().X;
+        var gap = 2 * Theme.Unit;
+        var leftWidth = (available - gap) * leftFraction;
+        CrucibleCard.Draw("two_left", 0, left, CrucibleCardTone.Surface, leftWidth);
+        var leftBottom = ImGui.GetCursorScreenPos().Y;
+        ImGui.SetCursorScreenPos(new Vector2(startX + leftWidth + gap, startY));
+        CrucibleCard.Draw("two_right", 0, right, CrucibleCardTone.Surface, available - leftWidth - gap);
+        var rightBottom = ImGui.GetCursorScreenPos().Y;
+        ImGui.SetCursorScreenPos(new Vector2(startX, MathF.Max(leftBottom, rightBottom)));
+    }
+
+    private static (uint Fill, uint Border) Colors(CrucibleCardTone tone) => tone switch
+    {
+        CrucibleCardTone.Row => (Theme.Pack(Theme.ShellBar), Theme.Pack(Theme.SurfaceBorder)),
+        CrucibleCardTone.Recommended => (Theme.Pack(Theme.StateGreen with { W = 0.13f }), Theme.Pack(Theme.SurfaceBorder)),
+        CrucibleCardTone.Attention => (Theme.Pack(Theme.StateAmber with { W = 0.13f }), Theme.Pack(Theme.SurfaceBorder)),
+        _ => (Theme.Pack(Theme.Surface), Theme.Pack(Theme.SurfaceBorder)),
+    };
 }

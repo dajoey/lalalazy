@@ -219,6 +219,7 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             _guideWindow.FollowFocus();
+            _mainShell.SyncLiveFocus();
         }
         catch (Exception ex)
         {
