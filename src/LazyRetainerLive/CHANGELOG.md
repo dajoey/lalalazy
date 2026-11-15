@@ -1,4 +1,9 @@
-﻿## v0.1.0.4 (2026-11-14) [testing]
+﻿## v0.1.0.5 (2026-11-15) [testing]
+- The settings window has a new card-based layout: a custom header with a live state pill, summary cards for retainers, active ventures and free inventory slots, and cards for the loopback endpoint, snapshot continuity, requirements and settings. The layout wraps responsively at narrow and wide window sizes, and the body scrolls.
+- The window no longer has a native title bar. A footer pinned to the bottom shows the current listener state and keeps the "Stop listener" button reachable at every size.
+- Listener state, retainer details, inventory, venture progress and endpoint information are all taken from the live snapshot and listener status. Saved settings, the listener, automatic port rebinding, commands, Lazy Hub controls and the HTTP response format are unchanged.
+
+## v0.1.0.4 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.0.3 (2026-11-10) [testing]
