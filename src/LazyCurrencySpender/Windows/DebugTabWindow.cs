@@ -12,7 +12,9 @@ namespace CurrencySpender.Windows;
 // Theme.PushFrame/PopFrame. Diagnostic-only window: no footer (Brief R3).
 internal class DebugTabWindow : Window
 {
-    public DebugTabWindow() : base($"")
+    // Unique identity at AddWindow time (see MainTabWindow - its empty base name collided with
+    // the one here on the "" key, fingerprint fdb1567f5ff6); same string PreDraw draws below.
+    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow")
     {
         SizeConstraints = new()
         {

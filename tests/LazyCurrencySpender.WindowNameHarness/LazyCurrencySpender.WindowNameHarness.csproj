@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Asserts the WindowSystem-registration invariant for every
+       src/LazyCurrencySpender/Windows/*Window.cs class: the name passed to base(...) in the
+       constructor is the WindowSystem dictionary key FOREVER (Dalamud keys AddWindow on
+       Window.WindowName at registration time), so it must be provable, non-empty, and pairwise
+       unique before any PreDraw rename runs. The 2026-11-14 incident (fingerprint fdb1567f5ff6,
+       ERR "A window with this name/ID already exists." every session since 1.3.1.5) was
+       MainTabWindow and DebugTabWindow both constructed with base($"") - the first took the ""
+       key, the second threw, and the deferred init lambda died before wiring the rest of the
+       plugin (no UI, no Currencies, no TaskManager for the whole session).
+       The sources are parsed as text because the Window base type is Dalamud-bound and cannot
+       be compiled here (same approach as CheckLocationTable in MissingLocationLogHarness).
+       An optional first argument overrides the source directory
+       (defaults to <repo>/src/LazyCurrencySpender/Windows relative to this binary).
+         dotnet build tests/LazyCurrencySpender.WindowNameHarness -c Release
+         dotnet tests/LazyCurrencySpender.WindowNameHarness/bin/Release/net10.0/LazyCurrencySpender.WindowNameHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCurrencySpender.WindowNameHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>

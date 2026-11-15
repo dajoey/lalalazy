@@ -22,7 +22,11 @@ internal class MainTabWindow : Window
 
     private Section _section = Section.Currencies;
 
-    public MainTabWindow() : base($"")
+    // The name passed to base() is the WindowSystem dictionary key at AddWindow time - PreDraw's
+    // rename never re-keys it. base($"") here made THIS window and DebugTabWindow collide on the
+    // "" key (ERR "A window with this name/ID already exists." once per session since 1.3.1.5,
+    // fingerprint fdb1567f5ff6), so construct with the same identity PreDraw draws.
+    public MainTabWindow() : base($"{P.Name} {P.Version}###MainTabWindow")
     {
         SizeConstraints = new()
         {

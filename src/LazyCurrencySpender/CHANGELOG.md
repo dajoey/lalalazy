@@ -1,4 +1,10 @@
-﻿## v1.3.1.5 (2026-11-14) [testing]
+﻿## v1.3.1.6 (2026-11-15) [testing]
+### Fixed
+- The main and debug windows now register under their own window IDs (Windows/MainTabWindow.cs and Windows/DebugTabWindow.cs constructors): since 1.3.1.5 both were created with a blank internal window ID, so on every launch the second registration threw and the plugin's startup stopped before its interface, task manager and currency list were built - the plugin appeared to do nothing. Both windows now open normally every session.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
+## v1.3.1.5 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v1.3.1.4 (2026-11-10) [testing]
