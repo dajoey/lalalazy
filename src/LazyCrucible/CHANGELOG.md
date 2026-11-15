@@ -1,4 +1,7 @@
-﻿## v0.1.9.18 (2026-11-14) [testing]
+﻿## v0.1.9.19 (2026-11-15) [testing]
+- Internal: added an offline test harness (tests/LazyCrucible.UiHarness) that renders the real main window, guide window and suggestion overlay to PNG images for UI review. The plugin itself is unchanged; no functional changes.
+
+## v0.1.9.18 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.9.17 (2026-11-10) [testing]
