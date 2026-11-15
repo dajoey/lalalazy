@@ -1,4 +1,7 @@
-﻿## v0.0.3.3 (2026-11-14) [testing]
+﻿## v0.0.3.4 (2026-11-15) [testing]
+- The tracker window shows job progress, inventory projections and completion state in a responsive card-based layout: a custom header without the native title bar, summary and job-progress cards, job rows that adapt to the window width, and a persistent footer with the live state. Tracking, settings, commands and refresh behaviour are unchanged.
+
+## v0.0.3.3 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.0.3.2 (2026-11-10) [testing]
