@@ -34,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static CrucibleGuide Guide { get; private set; } = CrucibleGuide.Parse("{}");
 
     private readonly WindowSystem _windowSystem = new("LazyCrucible");
+    private readonly CrucibleShell _shell = new();
     private readonly MainWindow _window;
     private readonly GuideWindow _guideWindow;
     private readonly ChangelogGate _changelog;
@@ -92,9 +93,9 @@ public sealed class Plugin : IDalamudPlugin
 
         Guide = LoadGuide();
         Guide.InstallNeedModel();
-        _window = new MainWindow(this);
+        _window = new MainWindow(this, _shell);
         _windowSystem.AddWindow(_window);
-        _guideWindow = new GuideWindow();
+        _guideWindow = new GuideWindow(_shell);
         _windowSystem.AddWindow(_guideWindow);
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
@@ -290,7 +291,12 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    internal void ToggleGuide() => _guideWindow.IsOpen = !_guideWindow.IsOpen;
+    internal void ToggleGuide()
+    {
+        if (!_guideWindow.IsOpen)
+            _shell.CurrentPage = CrucibleShell.UpcomingPage;
+        _guideWindow.IsOpen = !_guideWindow.IsOpen;
+    }
 
     /// <summary> The embedded fight guide; an unreadable file leaves an empty guide and one error line. </summary>
     private static CrucibleGuide LoadGuide()
