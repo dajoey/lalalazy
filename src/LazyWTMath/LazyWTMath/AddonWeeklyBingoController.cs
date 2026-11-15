@@ -56,8 +56,10 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
             NodeFlags = NodeFlags.Enabled | NodeFlags.Visible,
             Size = new Vector2(existingTextNode->GetWidth(), existingTextNode->GetHeight()),
             Position = new Vector2(existingTextNode->GetXFloat(), existingTextNode->GetYFloat() + existingTextNode->GetHeight()),
-            TextColor = existingTextNode->TextColor.ToVector4(),
-            TextOutlineColor = existingTextNode->EdgeColor.ToVector4(),
+            // Fork: Match the refreshed UI's primary text instead of inheriting the journal's dim label colour.
+            TextColor = LazyWTMathOverlayStyle.TextColor,
+            // Fork: Keep refreshed probabilities legible over the native journal surface.
+            TextOutlineColor = LazyWTMathOverlayStyle.OutlineColor,
             BackgroundColor = existingTextNode->BackgroundColor.ToVector4(),
             FontSize = existingTextNode->FontSize,
             LineSpacing = existingTextNode->LineSpacing,

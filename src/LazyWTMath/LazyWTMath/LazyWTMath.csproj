@@ -21,6 +21,8 @@
        Do not remove this block in an upstream merge. -->
   <ItemGroup>
     <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Fork: Compile the existing UI kit as source for the plugin-local refreshed window. -->
+    <Compile Include="..\..\Shared\LalaUiKit\**\*.cs" Link="LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
