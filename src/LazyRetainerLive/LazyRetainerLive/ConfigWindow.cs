@@ -18,6 +18,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("LazyRetainerLive##cfg")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(980, 680);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
