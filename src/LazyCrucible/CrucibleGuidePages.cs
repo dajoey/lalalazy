@@ -83,158 +83,211 @@ internal static class CrucibleGuidePages
             () =>
             {
                 DrawFightNavigation(shell);
-                ImGui.Separator();
                 DrawBringAndFacts(fight);
             });
     }
 
     private static void DrawFightNavigation(CrucibleShell shell)
     {
-        CruciblePages.Section("Fight navigation");
-        ImGui.Checkbox("Follow the next fight", ref shell.GuideFollow);
-        Widgets.Caption(RunTracker.Focus.Battle >= 0
-            ? $"next: {BST_CrucibleData.BattleLabel(RunTracker.Focus.Board, RunTracker.Focus.Battle)}"
-            : "no fight in focus");
-        Widgets.Secondary("Board");
-        for (var b = 1; b <= 5; b++)
+        CrucibleCard.Draw("fight_navigation", 0, () =>
         {
-            ImGui.SameLine();
-            if (ImGui.RadioButton($"{b}##guideBoard", shell.GuideBoard == b))
+            CruciblePages.Section("Fight navigation");
+            ImGui.Checkbox("Follow the next fight", ref shell.GuideFollow);
+            Widgets.Caption(RunTracker.Focus.Battle >= 0
+                ? $"next: {BST_CrucibleData.BattleLabel(RunTracker.Focus.Board, RunTracker.Focus.Battle)}"
+                : "no fight in focus");
+            Widgets.Secondary("Board");
+            for (var b = 1; b <= 5; b++)
             {
-                shell.GuideBoard = b;
-                shell.GuideBattle = 1;
-                shell.GuideFollow = false;
-            }
-        }
-        ImGui.SetNextItemWidth(-1);
-        if (ImGui.BeginCombo("##guideBattle", Label(shell.GuideBoard, shell.GuideBattle)))
-        {
-            foreach (var battle in BST_CrucibleData.Battles.Where(x => x.Board == shell.GuideBoard).OrderBy(x => x.Battle == 0).ThenBy(x => x.Battle))
-                if (ImGui.Selectable(Label(shell.GuideBoard, battle.Battle), battle.Battle == shell.GuideBattle))
+                if (b > 1)
                 {
-                    shell.GuideBattle = battle.Battle;
+                    if (ImGui.GetContentRegionAvail().X < 36)
+                        ImGui.NewLine();
+                    else
+                        ImGui.SameLine();
+                }
+                if (ImGui.RadioButton($"{b}##guideBoard", shell.GuideBoard == b))
+                {
+                    shell.GuideBoard = b;
+                    shell.GuideBattle = 1;
                     shell.GuideFollow = false;
                 }
-            ImGui.EndCombo();
-        }
+            }
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.BeginCombo("##guideBattle", Label(shell.GuideBoard, shell.GuideBattle)))
+            {
+                foreach (var battle in BST_CrucibleData.Battles.Where(x => x.Board == shell.GuideBoard).OrderBy(x => x.Battle == 0).ThenBy(x => x.Battle))
+                    if (ImGui.Selectable(Label(shell.GuideBoard, battle.Battle), battle.Battle == shell.GuideBattle))
+                    {
+                        shell.GuideBattle = battle.Battle;
+                        shell.GuideFollow = false;
+                    }
+                ImGui.EndCombo();
+            }
+        });
     }
 
     private static void DrawFight(GuideFight fight)
     {
         var selection = CruciblePages.Selection(fight.Board, fight.Battle);
-        CruciblePages.Section("Horn picks", selection.Picks.Count + " ranked picks");
-        if (!CrucibleGame.RosterLoaded)
-            Widgets.Caption("Captured list unavailable; ranking assumes every familiar is captured.");
-        foreach (var pick in selection.Picks)
-        {
-            ImGui.Bullet();
-            ImGui.SameLine();
-            Widgets.Body(CruciblePages.BeastName(pick.Row));
-            ImGui.SameLine();
-            Widgets.SecondaryWrapped(pick.Why);
-        }
-        var rows = GuideNeeds.Rows(selection);
-        var mitigation = GuideNeeds.MitigationRows(selection);
-        if (rows.Count > 0 || mitigation.Count > 0)
-        {
-            ImGui.Separator();
-            CruciblePages.Section("Calls for");
-            foreach (var row in rows)
+        CrucibleCard.TwoCards(0.60f,
+            () =>
             {
-                var state = row.Covered ? UiState.Ready : row.Warn ? UiState.Blocked : UiState.Idle;
-                Widgets.StateText(row.Covered ? "✓" : row.Warn ? "!" : "·", state);
-                ImGui.SameLine();
-                var by = row.Covered ? $" — {CruciblePages.BeastName(row.CoveredBy)}" : $" — {row.WhyNot}";
-                ImGui.TextWrapped($"{row.Tool}{UiPresentationLogic.TierSuffix(row.Tier)}: {row.What}{by}");
-                Src(row.Src.ToList());
-            }
-            foreach (var row in mitigation)
-            {
-                Widgets.StateText(row.CoveredBy != 0 ? "✓" : "·", row.CoveredBy != 0 ? UiState.Ready : UiState.Idle);
-                ImGui.SameLine();
-                var by = row.CoveredBy != 0 ? $" — {CruciblePages.BeastName(row.CoveredBy)} ({row.Skill})" : " — no pick answers it";
-                ImGui.TextWrapped($"{row.Tool}: {row.What}{by}");
-                Src(row.Src.ToList());
-            }
-        }
-        if (fight.Hits.Count > 0)
+                CruciblePages.Section("Horn picks", selection.Picks.Count + " ranked picks");
+                if (!CrucibleGame.RosterLoaded)
+                    Widgets.Caption("Captured list unavailable; ranking assumes every familiar is captured.");
+                foreach (var pick in selection.Picks)
+                {
+                    var point = ImGui.GetCursorScreenPos();
+                    ImGui.GetWindowDrawList().AddCircleFilled(point + new Vector2(4, 8), 4, Theme.Pack(Theme.Accent));
+                    var labelX = ImGui.GetCursorPosX() + 16;
+                    ImGui.SetCursorPosX(labelX);
+                    Widgets.Body(CruciblePages.BeastName(pick.Row));
+                    ImGui.SetCursorPosX(labelX);
+                    Widgets.SecondaryWrapped(pick.Why);
+                }
+            },
+            () => DrawCalls(fight, selection));
+
+        CrucibleCard.Draw("mechanics", 0, () =>
         {
-            ImGui.Separator();
-            CruciblePages.Section("Dangerous hits");
+            CruciblePages.Section("Dangerous hits & mechanics", "Tell → what to do");
+            var rows = GuideNeeds.Rows(selection);
+            bool CoveredByCall(GuideMechanic mechanic) => rows.Any(row =>
+                mechanic.Name.Contains(row.What, StringComparison.OrdinalIgnoreCase)
+                || row.What.Contains(mechanic.Name, StringComparison.OrdinalIgnoreCase));
+            var ordered = fight.Mechanics.OrderByDescending(CoveredByCall)
+                .ThenByDescending(m => m.Tell.Contains("never interruptible", StringComparison.OrdinalIgnoreCase));
+            foreach (var mechanic in ordered)
+                MechanicCard(mechanic, false);
             foreach (var hit in fight.Hits)
-                Mechanic(hit, true);
-        }
-        if (fight.Mechanics.Count > 0)
-        {
-            ImGui.Separator();
-            CruciblePages.Section("Mechanics", "Tell → what to do");
-            foreach (var mechanic in fight.Mechanics)
-                Mechanic(mechanic, false);
-        }
-        if (fight.KillOrder is { } kill)
-        {
-            ImGui.Separator();
-            CruciblePages.Section("Kill order");
-            ImGui.TextWrapped(kill.Text);
-            Src(kill.Src);
-        }
+                MechanicCard(hit, true);
+            if (fight.KillOrder is { } kill)
+                CrucibleCard.Row("kill_order", () =>
+                {
+                    Widgets.Caption("Kill order");
+                    ImGui.TextWrapped(kill.Text);
+                    Src(kill.Src);
+                });
+        });
     }
 
-    private static void Mechanic(GuideMechanic mechanic, bool danger)
+    private static void DrawCalls(GuideFight fight, CrucibleSelection selection)
     {
-        var name = mechanic.Cast is { } cast ? $"{mechanic.Name} ({cast:0.#} s)" : mechanic.Name;
-        if (danger)
-            Widgets.StateText(name, UiState.Blocked);
-        else
-            Widgets.Body(name);
-        Src(mechanic.Src);
-        ImGui.Indent();
-        if (mechanic.Tell.Length > 0)
-            ImGui.TextWrapped("Tell: " + mechanic.Tell);
-        if (mechanic.Do.Length > 0)
-            ImGui.TextWrapped("Do: " + mechanic.Do);
-        ImGui.Unindent();
+        var rows = GuideNeeds.Rows(selection);
+        var mitigation = GuideNeeds.MitigationRows(selection);
+        var required = UiPresentationLogic.RequiredCallStats(rows);
+        CruciblePages.Section("Calls for", required.Total + " required");
+        foreach (var row in rows)
+        {
+            var state = row.Covered ? UiState.Ready : row.Warn ? UiState.Blocked : UiState.Idle;
+            Widgets.StateText(row.Covered ? "✓" : row.Warn ? "!" : "·", state);
+            ImGui.SameLine();
+            var by = row.Covered ? $" — {CruciblePages.BeastName(row.CoveredBy)}" : $" — {row.WhyNot}";
+            ImGui.TextWrapped($"{row.What}{UiPresentationLogic.TierSuffix(row.Tier)}{by}");
+            Widgets.StateText(row.Covered ? "Ready" : row.Warn ? "Needed" : "Useful", state);
+            Src(row.Src.ToList());
+        }
+        foreach (var row in mitigation)
+        {
+            Widgets.StateText(row.CoveredBy != 0 ? "✓" : "·", row.CoveredBy != 0 ? UiState.Ready : UiState.Idle);
+            ImGui.SameLine();
+            var by = row.CoveredBy != 0 ? $" — {CruciblePages.BeastName(row.CoveredBy)} ({row.Skill})" : " — no pick answers it";
+            ImGui.TextWrapped($"{row.Tool}: {row.What}{by}");
+            Src(row.Src.ToList());
+        }
+        foreach (var mechanic in fight.Mechanics.Where(m => m.Tell.Contains("never interruptible", StringComparison.OrdinalIgnoreCase)))
+        {
+            Widgets.StateText("•", UiState.Blocked);
+            ImGui.SameLine();
+            Widgets.Body(mechanic.Name);
+            Widgets.StateText("Guide call", UiState.Blocked);
+            Widgets.SecondaryWrapped(mechanic.Do);
+        }
+        if (rows.Count == 0 && mitigation.Count == 0)
+            Widgets.Secondary("No required horn calls for this fight.");
+    }
+
+    private static void MechanicCard(GuideMechanic mechanic, bool danger)
+    {
+        CrucibleCard.Row("mechanic_" + mechanic.Name, () =>
+        {
+            var name = mechanic.Cast is { } cast ? $"{mechanic.Name} ({cast:0.#} s)" : mechanic.Name;
+            if (danger)
+                Widgets.StateText(name, UiState.Blocked);
+            else
+                Widgets.Body(name);
+            Src(mechanic.Src);
+            if (mechanic.Cast is { } seconds)
+                Widgets.StateText($"{seconds:0.#} s", UiState.Blocked);
+            if (mechanic.Tell.Length > 0)
+            {
+                Widgets.Caption("Tell");
+                ImGui.SameLine();
+                ImGui.TextWrapped(mechanic.Tell);
+            }
+            if (mechanic.Do.Length > 0)
+            {
+                Widgets.Caption("Do");
+                ImGui.SameLine();
+                ImGui.TextWrapped(mechanic.Do);
+            }
+        }, 64);
     }
 
     private static void Src(List<string> src)
     {
         if (src.Count == 0)
             return;
-        ImGui.SameLine();
+        if (ImGui.GetContentRegionAvail().X < 80)
+            ImGui.NewLine();
+        else
+            ImGui.SameLine();
         Widgets.Caption($"[{string.Join(" ", src)}]");
     }
 
     private static void DrawBringAndFacts(GuideFight fight)
     {
-        CruciblePages.Section("Bring");
-        foreach (var item in fight.Bring)
+        CrucibleCard.Draw("bring", 0, () =>
         {
-            ImGui.Bullet();
-            ImGui.SameLine();
-            ImGui.TextWrapped(item.Text);
-            Src(item.Src);
-        }
-        var resists = ResistItems(fight.ThreatFlags);
-        if (resists.Length > 0)
+            CruciblePages.Section("Bring");
+            foreach (var item in fight.Bring)
+            {
+                ImGui.Bullet();
+                ImGui.SameLine();
+                ImGui.TextWrapped(item.Text);
+                if (item.Src.Count > 0)
+                    Widgets.Caption($"[{string.Join(" ", item.Src)}]");
+            }
+            var resists = ResistItems(fight.ThreatFlags);
+            if (resists.Length > 0)
+            {
+                ImGui.Bullet();
+                ImGui.SameLine();
+                ImGui.TextWrapped(resists);
+                Widgets.Caption("[sheet]");
+            }
+        });
+        CrucibleCard.Draw("fight_facts", 0, () =>
         {
-            ImGui.Bullet();
-            ImGui.SameLine();
-            ImGui.TextWrapped(resists);
-            Src(["sheet"]);
-        }
-        ImGui.Separator();
-        CruciblePages.Section("Fight facts");
-        var weak = BST_CrucibleData.Enemies.Where(e => e.Board == fight.Board && e.Battle == fight.Battle)
-            .Select(e => $"{e.Name}: {(e.Weakness == CrucibleWeakness.None ? "no weakness" : e.Weakness.ToString().ToLowerInvariant())}");
-        Widgets.SecondaryWrapped("Weak to  " + string.Join("; ", weak));
-        if (fight.Threats.Count > 0)
-            Widgets.Caption("Threats  " + string.Join(", ", fight.Threats.Select(CrucibleGuide.ThreatLabel)));
-        if (fight.Unknown.Count > 0)
-        {
-            CruciblePages.Section("Not covered by any source");
-            foreach (var unknown in fight.Unknown)
-                Widgets.Caption("· " + unknown);
-        }
+            CruciblePages.Section("Fight facts");
+            var weak = BST_CrucibleData.Enemies.Where(e => e.Board == fight.Board && e.Battle == fight.Battle)
+                .Select(e => $"{e.Name}: {(e.Weakness == CrucibleWeakness.None ? "no weakness" : e.Weakness.ToString().ToLowerInvariant())}");
+            Widgets.SecondaryWrapped("Weak to  " + string.Join("; ", weak));
+            if (fight.Threats.Count > 0)
+                Widgets.Caption("Threats  " + string.Join(", ", fight.Threats.Select(CrucibleGuide.ThreatLabel)));
+            var sources = fight.Hits.Concat(fight.Mechanics).SelectMany(m => m.Src).Concat(fight.Bring.SelectMany(b => b.Src)).ToList();
+            if (fight.KillOrder is { } kill)
+                sources.AddRange(kill.Src);
+            if (sources.Count > 0)
+                Widgets.Caption("Sources  " + string.Join(" · ", sources.Distinct().OrderBy(s => s)));
+            if (fight.Unknown.Count > 0)
+            {
+                CruciblePages.Section("Not covered by any source");
+                foreach (var unknown in fight.Unknown)
+                    Widgets.Caption("· " + unknown);
+            }
+        });
     }
 
     private static string ResistItems(CrucibleThreat threats)

@@ -66,6 +66,20 @@ internal sealed class CrucibleShell
         }
     }
 
+    public void SyncLiveFocus()
+    {
+        if (GuideFollow && RunTracker.Focus.Battle >= 0)
+        {
+            GuideBoard = RunTracker.Focus.Board;
+            GuideBattle = RunTracker.Focus.Battle;
+        }
+        var now = Environment.TickCount64;
+        if (now < _nextIncomingScan)
+            return;
+        _nextIncomingScan = now + 250;
+        Incoming = CrucibleGame.WarnedCast();
+    }
+
     private void WatchIncoming(GuideWindow window)
     {
         var now = Environment.TickCount64;
@@ -93,7 +107,10 @@ internal sealed class CrucibleShell
             DrawFeatureRow();
             DrawPageHeader();
             DrawStatusBanner();
+            var footerHeight = (2 * ImGui.GetFrameHeightWithSpacing()) + (2 * Theme.Unit);
+            ImGui.BeginChild("##crucibleBody", new Vector2(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
             CruciblePages.Render(this, CurrentPage);
+            ImGui.EndChild();
             DrawFooter();
         }
         finally
