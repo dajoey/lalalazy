@@ -1,4 +1,8 @@
-﻿## v0.1.9.20 (2026-11-15) [testing]
+﻿## v0.1.9.21 (2026-11-15) [testing]
+- LazyCrucible's settings and fight guide now use card-based panels, a structured battle plan, and clearer grouped requirements.
+- Main-window guide pages follow the actual focused fight and incoming casts, with persistent footer actions and improved narrow-window wrapping.
+
+## v0.1.9.20 (2026-11-15) [testing]
 - LazyCrucible's settings and fight guide use a searchable, card-based layout with live status, clearer requirements, and grouped controls.
 - Battlehorn picks, fight mechanics, and recent choices are easier to scan at large and small window sizes.
 
