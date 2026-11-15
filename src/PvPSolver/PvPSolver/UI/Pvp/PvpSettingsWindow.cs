@@ -36,6 +36,8 @@ internal sealed class PvpSettingsWindow : Window
         : base("PvP Solver Settings v" + (typeof(PvpSettingsWindow).Assembly.GetName().Version?.ToString() ?? "?") + WindowId,
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse, false)
     {
+        // Fork: the approved custom header replaces the native Dalamud title bar.
+        Flags |= ImGuiWindowFlags.NoTitleBar;
         SizeCondition = ImGuiCond.FirstUseEver;
         Size = new Vector2(1080f, 760f);
         SizeConstraints = new WindowSizeConstraints()
