@@ -20,6 +20,7 @@ internal sealed class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("AutoPotion##cfg")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(1080f, 780f);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
