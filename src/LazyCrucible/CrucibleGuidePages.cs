@@ -135,7 +135,7 @@ internal static class CrucibleGuidePages
             {
                 CruciblePages.Section("Horn picks", selection.Picks.Count + " ranked picks");
                 if (!CrucibleGame.RosterLoaded)
-                    Widgets.Caption("Captured list unavailable; ranking assumes every familiar is captured.");
+                    Widgets.SecondaryWrapped("Captured list unavailable; ranking assumes every familiar is captured.");
                 foreach (var pick in selection.Picks)
                 {
                     var point = ImGui.GetCursorScreenPos();
@@ -275,12 +275,12 @@ internal static class CrucibleGuidePages
                 .Select(e => $"{e.Name}: {(e.Weakness == CrucibleWeakness.None ? "no weakness" : e.Weakness.ToString().ToLowerInvariant())}");
             Widgets.SecondaryWrapped("Weak to  " + string.Join("; ", weak));
             if (fight.Threats.Count > 0)
-                Widgets.Caption("Threats  " + string.Join(", ", fight.Threats.Select(CrucibleGuide.ThreatLabel)));
+                Widgets.SecondaryWrapped("Threats  " + string.Join(", ", fight.Threats.Select(CrucibleGuide.ThreatLabel)));
             var sources = fight.Hits.Concat(fight.Mechanics).SelectMany(m => m.Src).Concat(fight.Bring.SelectMany(b => b.Src)).ToList();
             if (fight.KillOrder is { } kill)
                 sources.AddRange(kill.Src);
             if (sources.Count > 0)
-                Widgets.Caption("Sources  " + string.Join(" · ", sources.Distinct().OrderBy(s => s)));
+                Widgets.SecondaryWrapped("Sources  " + string.Join(" · ", sources.Distinct().OrderBy(s => s)));
             if (fight.Unknown.Count > 0)
             {
                 CruciblePages.Section("Not covered by any source");

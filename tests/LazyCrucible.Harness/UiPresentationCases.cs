@@ -42,5 +42,16 @@ internal static class UiPresentationCases
         var guideWindowSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "GuideWindow.cs"));
         Check("Guide window passes its plugin to the shell for footer actions",
             guideWindowSource.Contains("public override void Draw() => _shell.Draw(_plugin);", StringComparison.Ordinal));
+
+        var guidePagesSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "CrucibleGuidePages.cs"));
+        Check("Missing capture notice wraps inside the horn-picks card",
+            guidePagesSource.Contains("Widgets.SecondaryWrapped(\"Captured list unavailable; ranking assumes every familiar is captured.\")", StringComparison.Ordinal));
+        Check("Fight-facts threats wrap inside the right rail",
+            guidePagesSource.Contains("Widgets.SecondaryWrapped(\"Threats  \"", StringComparison.Ordinal));
+        Check("Fight-facts sources wrap inside the right rail",
+            guidePagesSource.Contains("Widgets.SecondaryWrapped(\"Sources  \"", StringComparison.Ordinal));
+        var cardsSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "CruciblePages.cs"));
+        Check("Manually sized cards bound wrapping to their inner right edge",
+            cardsSource.Contains("ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, cardWidth - (2 * Padding)))", StringComparison.Ordinal));
     }
 }

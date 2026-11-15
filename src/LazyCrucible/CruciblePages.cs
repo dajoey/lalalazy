@@ -489,8 +489,10 @@ internal static class CrucibleCard
         {
             draw.ChannelsSetCurrent(2);
             ImGui.SetCursorScreenPos(origin + new Vector2(Padding, Padding));
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, cardWidth - (2 * Padding)));
             ImGui.BeginGroup();
             content();
+            ImGui.PopTextWrapPos();
             ImGui.EndGroup();
             var contentBottom = ImGui.GetCursorScreenPos().Y;
             var height = MathF.Max(minHeight, contentBottom - origin.Y + Padding);
