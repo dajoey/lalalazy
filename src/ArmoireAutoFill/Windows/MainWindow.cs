@@ -40,6 +40,7 @@ public class MainWindow : Window
         _scanner = scanner;
         _cabinet = cabinet;
         _autoStore = autoStore;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(520, 380),

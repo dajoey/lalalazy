@@ -15,6 +15,7 @@ public class ConfigWindow : Window
     public ConfigWindow()
         : base("Armoire Auto-Fill Settings###ArmoireAutoFillConfig")
     {
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(600, 360);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
