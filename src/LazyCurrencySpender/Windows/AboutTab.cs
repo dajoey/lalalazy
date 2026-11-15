@@ -1,6 +1,5 @@
-using Dalamud.Interface.Colors;
-using Dalamud.Interface;
-using ECommons.DalamudServices;
+using CurrencySpender.Classes;
+using LalaUiKit;
 
 namespace CurrencySpender.Windows;
 
@@ -8,58 +7,28 @@ internal class AboutTab
 {
     internal static void Draw()
     {
-        ImGuiEx.LineCentered("About0", delegate
+        CurrencyChrome.Card("about_project", () =>
         {
-            ImGuiEx.Text($"{Svc.PluginInterface.Manifest.Name} - {P.Version}");
+            CurrencyChrome.Section("Lazy Currency Spender", $"Version {P.Version}");
+            Widgets.SecondaryWrapped("Developed with ♥ by Blackcatz1911/catz/Ayaya\nLazy version by dajoey");
         });
-        ImGui.Separator();
 
-        ImGuiEx.LineCentered("About1-1", delegate
+        CurrencyChrome.Card("about_thanks", () =>
         {
-            ImGuiEx.TextWrapped("Developed with");
+            CurrencyChrome.Section("Special thanks");
+            List<string> thanks = ["The Dalamud Team", "FFXIVClientStructs", "Yuki", "Limiana", "Taurenkey", "MidoriKami", "CriticalImpact", "Haselnussbomber"];
+            Widgets.SecondaryWrapped(string.Join(" · ", thanks));
         });
-        ImGuiEx.LineCentered("About1-2", delegate
+
+        CurrencyChrome.Card("about_links", () =>
         {
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGuiEx.TextWrapped(LalaUiKit.Theme.Accent, FontAwesomeIcon.Heart.ToIconString());
-            ImGui.PopFont();
-        });
-        ImGuiEx.LineCentered("About1-3", delegate
-        {
-            ImGuiEx.TextWrapped("by Blackcatz1911/catz/Ayaya\nLazy version by dajoey");
-        });
-        ImGui.Separator();
-        List<String> thanks = ["The Dalamud Team", "FFXIVClientStructs", "Yuki", "Limiana", "Taurenkey", "MidoriKami", "CriticalImpact", "Haselnussbomber"];
-        ImGuiEx.LineCentered("About3", delegate
-        {
-            ImGui.TextWrapped("Special thanks to:");
-        });
-        foreach (var thank in thanks)
-        {
-            ImGuiEx.LineCentered("Thanks-"+thank, delegate
-            {
-                ImGui.TextWrapped("- " + thank + " -");
-            });
-        }
-        ImGui.Separator();
-        ImGui.TextWrapped("If you have suggestions or feature requests, feel free to open an issue on the repository.");
-        ImGui.Separator();
-        ImGuiEx.LineCentered("About4", delegate
-        {
-            if (ImGui.Button("Lazy GitHub"))
-            {
+            CurrencyChrome.Section("Project links", "Suggestions and feature requests can be raised on the repository.");
+            if (CurrencyChrome.Button("lazy_github", "Lazy GitHub"))
                 GenericHelpers.ShellStart("https://github.com/dajoey/lalalazy");
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Original GitHub"))
-            {
+            if (CurrencyChrome.Button("original_github", "Original GitHub"))
                 GenericHelpers.ShellStart("https://github.com/Blackcatz1911/CurrencySpender");
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Ko-fi"))
-            {
-                GenericHelpers.ShellStart("https://ko-fi.com/catz1911");
-            }
+            if (CurrencyChrome.Button("support_kofi", "♥ Ko-fi"))
+                GenericHelpers.ShellStart(KofiBanner.DonateLink);
         });
     }
 }

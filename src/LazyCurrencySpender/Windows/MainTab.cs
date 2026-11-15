@@ -1,7 +1,7 @@
 using CurrencySpender.Classes;
 using CurrencySpender.Data;
-using Dalamud.Interface.Utility.Raii;
-using System.Data;
+using Dalamud.Bindings.ImGui;
+using LalaUiKit;
 
 namespace CurrencySpender.Windows;
 
@@ -9,160 +9,129 @@ internal class MainTab
 {
     public static bool colored = false;
     internal static bool NotUpdated = true;
-    internal static Dictionary<uint, int> MissingCollectables = new Dictionary<uint, int>();
-    public List<TrackedCurrency> sortedCurrencies = P.Currencies;
+    internal static Dictionary<uint, int> MissingCollectables = new();
+
     internal static unsafe void Draw()
     {
         update();
-        if(Service.Objects.LocalPlayer == null)
+        if (Service.Objects.LocalPlayer == null)
         {
-            UiHelper.WarningText("Please login before using this Plugin!");
+            Widgets.InfoBox("Needs setup — log in before using Lazy Currency Spender.", UiState.NeedsSetup);
             return;
         }
         if (P.Problem)
-        {
-            UiHelper.WarningText("The current shared FATE ranks could not be fetched. Please click the button below:");
-            if (ImGui.Button("Open shared FATE window"))
+            CurrencyChrome.Card("shared_fate_warning", () =>
             {
-                //PlayerHelper.reset();
-                PlayerHelper.openSharedFate();
-            }
-            ImGui.Separator();
+                CurrencyChrome.Section("Shared FATE ranks needed");
+                Widgets.SecondaryWrapped("The current shared FATE ranks could not be fetched. Open the shared FATE window so the plugin can read them.");
+                if (CurrencyChrome.Button("open_shared_fate", "Open shared FATE window", true))
+                    PlayerHelper.openSharedFate();
+            }, CurrencyCardTone.Attention);
+
+        var visibleCurrencies = P.Currencies.Where(currency =>
+            !currency.Child && C.SelectedCurrencies.Contains(currency.ItemId)
+            && (!C.HideEmptyCurrencies || currency.CurrentCount > 0)
+            && !(currency.ItemId == 26807 && P.Problem)).ToList();
+        var availableCount = P.Currencies.Count(currency => currency.Enabled && !currency.Child);
+        var missingCount = visibleCurrencies.Sum(currency => MissingCollectables.TryGetValue(currency.ItemId, out var value) ? Math.Max(0, value) : 0);
+        CurrencyChrome.StatCards(
+            new CurrencyChrome.Stat("Tracked currencies", C.SelectedCurrencies.Count.ToString(), availableCount.ToString(),
+                "Selected in settings", availableCount == 0 ? null : C.SelectedCurrencies.Count / (float)availableCount),
+            new CurrencyChrome.Stat("Visible now", visibleCurrencies.Count.ToString(), C.SelectedCurrencies.Count.ToString(),
+                "After balance and rank filters", C.SelectedCurrencies.Count == 0 ? null : visibleCurrencies.Count / (float)C.SelectedCurrencies.Count),
+            new CurrencyChrome.Stat("Missing collectables", missingCount.ToString(), null,
+                C.ShowMissingCollectables ? "Across visible currencies" : "Enable missing counts in settings", null));
+
+        if (visibleCurrencies.Count == 0)
+        {
+            CurrencyChrome.EmptyState("Empty",
+                "No selected currency matches the current balance and availability filters. Select a currency or change the zero-balance filter.",
+                "Open settings", () => P.configTabWindow.IsOpen = true);
+            return;
         }
-        //var font = UiBuilder.;
-        //font.Scale = 1.1f; 
-        //ImGuiEx.Text(ImGuiColors.DalamudGrey, font, "Test");
-        //ImGui.PopFont();
-        //foreach (TrackedCurrency currency in P.Currencies)
-        //{
-        //    if (currency.Enabled && !currency.Child && C.SelectedCurrencies.Contains(currency.ItemId) &&
-        //        (!C.HideEmptyCurrencies || currency.CurrentCount > 0))
-        //    {
-        //        if (currency.ItemId == 26807 && P.Problem) continue;
-        //        ImGui.Image(currency.Icon.ImGuiHandle, new Vector2(21, 21));
-        //        ImGui.SameLine();
-        //        var text = $"{StringHelper.FormatString(currency.CurrentCount.ToString())}/{StringHelper.FormatString(currency.MaxCount.ToString())} ~{currency.Percentage}% full";
-        //        if (currency.Percentage > 70) ImGuiEx.Text(EColor.RedBright, text);
-        //        else if(currency.Percentage > 50) ImGuiEx.Text(EColor.YellowBright, text);
-        //        else ImGuiEx.Text(text);
-        //        if (C.ShowMissingCollectables && MissingCollectables.TryGetValue(currency.ItemId, out int value) && value > 0)
-        //        {
-        //            ImGuiEx.Text($"Collectables missing: {value}");
-        //        }
-        //        if (ImGuiEx.IconButtonWithText(Dalamud.Interface.FontAwesomeIcon.MagnifyingGlassChart, " "+currency.Name)) {
-        //            P.ToggleSpendingUI(currency);
-        //        }
-        //        ImGui.Separator();
-        //    }
-        //    else
-        //    {
-        //        //if(C.Debug) ImGui.Text($"DEBUG: {currency.Name}");
-        //    }
-        //}
-        if (ImGui.BeginTable("##currencies", C.ShowMissingCollectables?4:3, ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable))
+
+        CurrencyChrome.Card("currency_balances", () =>
         {
-            //ImGui.TableSetupColumn("ID");
-            ImGui.TableSetupColumn("Cur.", ImGuiTableColumnFlags.WidthFixed, 38);
-            if (ImGui.IsItemHovered())
+            CurrencyChrome.Section("Currency balances", "Select Spend it to open the full spending guide.",
+                visibleCurrencies.Count + " visible");
+            if (CurrencyChrome.BeginTable("##currencies", C.ShowMissingCollectables ? 4 : 3,
+                    ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable, horizontalScroll: true))
             {
-                // Display a tooltip or additional info
-                ImGui.BeginTooltip();
-                UiHelper.LeftAlign($"Currency");
-                ImGui.EndTooltip();
-            }
-            ImGui.TableSetupColumn("Amount");
-            if(C.ShowMissingCollectables) ImGui.TableSetupColumn("MC", ImGuiTableColumnFlags.WidthFixed, 30);
-            if (ImGui.IsItemHovered())
-            {
-                // Display a tooltip or additional info
-                ImGui.BeginTooltip();
-                UiHelper.LeftAlign($"Missing Collectables");
-                ImGui.EndTooltip();
-            }
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
-            ImGui.TableHeadersRow();
+                ImGui.TableSetupColumn("Currency", ImGuiTableColumnFlags.WidthFixed, 180);
+                ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.WidthFixed, 150);
+                if (C.ShowMissingCollectables)
+                    ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, 70);
+                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableHeadersRow();
 
-            var sortedCurrencies = P.Currencies;
-            ImGuiTableSortSpecsPtr sortSpecs = ImGui.TableGetSortSpecs();
-            //List<ShopItem> SellableItems = ShopHelper.GetSellableItems(Currency);
-
-            if (!sortSpecs.IsNull && sortSpecs.SpecsCount > 0)
-            {
-                // Retrieve sorting specification
-                ImGuiTableColumnSortSpecsPtr spec = sortSpecs.Specs;
-                int columnIndex = spec.ColumnIndex;
-                bool ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
-
-                // Sort based on the column index
-                switch (columnIndex)
+                var sortedCurrencies = P.Currencies;
+                ImGuiTableSortSpecsPtr sortSpecs = ImGui.TableGetSortSpecs();
+                if (!sortSpecs.IsNull && sortSpecs.SpecsCount > 0)
                 {
-                    case 0:
-                        sortedCurrencies = ascending
-                            ? P.Currencies.ToList()
-                            : P.Currencies.ToList().AsEnumerable().Reverse().ToList();
-                        break;
-
-                    case 1:
-                        sortedCurrencies = ascending
-                            ? sortedCurrencies.OrderBy(c => c.Percentage).ToList()
-                            : sortedCurrencies.OrderByDescending(c => c.Percentage).ToList();
-                        break;
-
-                    case 2: // Sort by MissingCollectables value
-                        sortedCurrencies = ascending
-                            ? sortedCurrencies.OrderBy(c =>
-                                MissingCollectables.TryGetValue(c.ItemId, out int value) ? value : int.MaxValue).ToList()
-                            : sortedCurrencies.OrderByDescending(c =>
-                                MissingCollectables.TryGetValue(c.ItemId, out int value) ? value : int.MinValue).ToList();
-                        break;
-                    default:
-                        sortedCurrencies = P.Currencies; // Use original list order
-                        break; // Do nothing for unhandled columns
+                    ImGuiTableColumnSortSpecsPtr spec = sortSpecs.Specs;
+                    var columnIndex = spec.ColumnIndex;
+                    var ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
+                    switch (columnIndex)
+                    {
+                        case 0:
+                            sortedCurrencies = ascending
+                                ? P.Currencies.ToList()
+                                : P.Currencies.ToList().AsEnumerable().Reverse().ToList();
+                            break;
+                        case 1:
+                            sortedCurrencies = ascending
+                                ? sortedCurrencies.OrderBy(c => c.Percentage).ToList()
+                                : sortedCurrencies.OrderByDescending(c => c.Percentage).ToList();
+                            break;
+                        case 2:
+                            sortedCurrencies = ascending
+                                ? sortedCurrencies.OrderBy(c => MissingCollectables.TryGetValue(c.ItemId, out var value) ? value : int.MaxValue).ToList()
+                                : sortedCurrencies.OrderByDescending(c => MissingCollectables.TryGetValue(c.ItemId, out var value) ? value : int.MinValue).ToList();
+                            break;
+                        default:
+                            sortedCurrencies = P.Currencies;
+                            break;
+                    }
                 }
-            }
-            foreach (TrackedCurrency currency in sortedCurrencies)
-            {
-                if (!currency.Child && C.SelectedCurrencies.Contains(currency.ItemId) &&
-                    (!C.HideEmptyCurrencies || currency.CurrentCount > 0))
+
+                foreach (var currency in sortedCurrencies)
                 {
-                    if (currency.ItemId == 26807 && P.Problem) continue;
+                    if (currency.Child || !C.SelectedCurrencies.Contains(currency.ItemId)
+                        || (C.HideEmptyCurrencies && currency.CurrentCount <= 0)
+                        || (currency.ItemId == 26807 && P.Problem))
+                        continue;
+
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.Image(currency.Icon.Handle, new Vector2(36, 36));
-                    if (ImGui.IsItemHovered())
-                    {
-                        // Display a tooltip or additional info
-                        ImGui.BeginTooltip();
-                        UiHelper.LeftAlign($"{currency.Name}");
-                        ImGui.EndTooltip();
-                    }
+                    ImGui.Image(currency.Icon.Handle, new Vector2(30, 30));
+                    ImGui.SameLine();
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6);
+                    UiHelper.LeftAlign(currency.Name);
+
                     ImGui.TableNextColumn();
                     var text = $"{StringHelper.FormatString(currency.CurrentCount.ToString())}/{StringHelper.FormatString(currency.MaxCount.ToString())}\n~{currency.Percentage}% full";
-                    // Kit colours (R4): red is never progress; a currency filling toward its
-                    // cap is in-progress (amber). Below half-full no state mark is drawn.
-                    if (currency.Percentage > 50) LalaUiKit.Widgets.StatusDot(LalaUiKit.UiState.Running);
+                    if (currency.Percentage > 50)
+                        Widgets.StatusDot(UiState.Running);
                     ImGuiEx.Text(text);
+
                     if (C.ShowMissingCollectables)
                     {
                         ImGui.TableNextColumn();
-                        if (MissingCollectables.TryGetValue(currency.ItemId, out int value))
-                        {
-                            if(value > 0) ImGuiEx.Text($"{value}");
-                            else ImGuiEx.Text("-");
-                        }
+                        if (MissingCollectables.TryGetValue(currency.ItemId, out var value) && value > 0)
+                            UiHelper.LeftAlign(value.ToString());
+                        else
+                            UiHelper.LeftAlign("-");
                     }
+
                     ImGui.TableNextColumn();
-                    if (ImGuiEx.Button($"Spend it!##{currency.ItemId}"))
-                    {
+                    if (CurrencyChrome.Button("spend_" + currency.ItemId, "Spend it", true))
                         P.ToggleSpendingUI(currency);
-                    }
                 }
+                ImGui.EndTable();
             }
-            //}
-            //PluginLog.Verbose("Starting ImGui EndTable rendering...");
-            ImGui.EndTable();
-        }
+        });
     }
+
     public static void update(bool Force = false)
     {
         if (NotUpdated || Force)
@@ -174,15 +143,15 @@ internal class MainTab
                 {
                     var items_max = Generator.items
                         .Where(item => (item.Currency == currency.ItemId || (currency.Children != null && currency.Children.Contains(item.Currency))) && item.Type.HasFlag(ItemType.Collectable) && !item.Disabled && C.SelectedCollectableTypes.Contains((CollectableType)item.CollectableType))
-                        .GroupBy(item => item.Id) // Group by unique item.ItemId
-                        .Select(group => group.First()) // Take the first item from each group
+                        .GroupBy(item => item.Id)
+                        .Select(group => group.First())
                         .ToList().Count();
                     var items_unlocked = Generator.items
                         .Where(item => (item.Currency == currency.ItemId || (currency.Children != null && currency.Children.Contains(item.Currency))) && item.Type.HasFlag(ItemType.Collectable) && !item.Disabled && C.SelectedCollectableTypes.Contains((CollectableType)item.CollectableType) && ItemHelper.IsUnlocked(item.Id))
-                        .GroupBy(item => item.Id) // Group by unique item.ItemId
-                        .Select(group => group.First()) // Take the first item from each group
+                        .GroupBy(item => item.Id)
+                        .Select(group => group.First())
                         .ToList().Count();
-                    MissingCollectables.Add(currency.ItemId, (items_max - items_unlocked));
+                    MissingCollectables.Add(currency.ItemId, items_max - items_unlocked);
                 }
             }
             NotUpdated = false;

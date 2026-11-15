@@ -1,66 +1,58 @@
 using CurrencySpender.Classes;
 using CurrencySpender.Data;
+using Dalamud.Bindings.ImGui;
 
 namespace CurrencySpender.Windows;
 
 internal class DebugMainTab
 {
-    internal unsafe static void Draw()
+    internal static unsafe void Draw()
     {
-        if (ImGuiEx.Button("Generate"))
-        {
+        if (CurrencyChrome.Button("generate_debug_data", "Generate"))
             ShopGen.init();
-        }
-        if (ImGui.BeginTable("##NPC", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit))
+        var collectables = Generator.items.Where(item => item.Currency == 22 && item.Type.HasFlag(ItemType.Collectable)).ToList();
+        CurrencyChrome.Card("debug_collectables", () =>
         {
-            ImGui.TableSetupColumn("ShopId");
-            ImGui.TableSetupColumn("ShopLevel");
-            ImGui.TableSetupColumn("Name");
-            //ImGui.TableSetupColumn("NpcId");
-            //ImGui.TableSetupColumn("NpcName");
-            //ImGui.TableSetupColumn("Location-NpcName");
-            //ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-            //ImGui.TableSetupColumn("Price");
-            //ImGui.TableSetupColumn("");
-            ImGui.TableHeadersRow();
-            foreach (var item in Generator.items.Where(item => item.Currency == 22 && item.Type.HasFlag(ItemType.Collectable)).ToList())
+            CurrencyChrome.Section("Flame Seal collectables", "Generated item and unlock data.", collectables.Count + " rows");
+            if (CurrencyChrome.BeginTable("##NPC", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit, horizontalScroll: true))
             {
-                ImGui.TableNextColumn();
-                //ImGui.Text("text1");
-                ImGui.Text($"{item.Name}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{item.Id}");
-                ImGui.TableNextColumn();
-                //ImGui.Text("text2");
-                ImGui.Text($"{ItemHelper.IsUnlocked(item.Id)}");
+                ImGui.TableSetupColumn("Item");
+                ImGui.TableSetupColumn("Item ID");
+                ImGui.TableSetupColumn("Unlocked");
+                ImGui.TableHeadersRow();
+                foreach (var item in collectables)
+                {
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{item.Name}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{item.Id}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{ItemHelper.IsUnlocked(item.Id)}");
+                }
+                ImGui.EndTable();
             }
-            //PluginLog.Verbose("Starting ImGui EndTable rendering...");
-            ImGui.EndTable();
-        }
-        ImGui.Separator();
-        if (ImGui.BeginTable("##Shops", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit))
+        });
+
+        CurrencyChrome.Card("debug_shops", () =>
         {
-            ImGui.TableSetupColumn("ShopId");
-            ImGui.TableSetupColumn("Name");
-            //ImGui.TableSetupColumn("NpcId");
-            //ImGui.TableSetupColumn("NpcName");
-            //ImGui.TableSetupColumn("Location-NpcName");
-            //ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-            //ImGui.TableSetupColumn("Price");
-            //ImGui.TableSetupColumn("");
-            ImGui.TableHeadersRow();
-            foreach (var shop in Generator.shops)
+            CurrencyChrome.Section("Generated shops", null, Generator.shops.Count + " rows");
+            if (CurrencyChrome.BeginTable("##Shops", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit, horizontalScroll: true))
             {
-                ImGui.TableNextColumn();
-                //ImGui.Text("text1");
-                ImGui.Text($"{shop.ShopId}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{shop.ShopName}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{shop.NpcName}");
+                ImGui.TableSetupColumn("Shop ID");
+                ImGui.TableSetupColumn("Name");
+                ImGui.TableSetupColumn("NPC");
+                ImGui.TableHeadersRow();
+                foreach (var shop in Generator.shops)
+                {
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{shop.ShopId}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{shop.ShopName}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{shop.NpcName}");
+                }
+                ImGui.EndTable();
             }
-            //PluginLog.Verbose("Starting ImGui EndTable rendering...");
-            ImGui.EndTable();
-        }
+        });
     }
 }
