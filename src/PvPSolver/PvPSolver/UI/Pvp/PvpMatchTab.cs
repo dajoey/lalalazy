@@ -18,18 +18,21 @@ internal static class PvpMatchTab
     {
         PvpUi.DrawTab(PvpSettingsCatalog.Match);
 
-        PvpUi.Heading("Commands");
-        for (int i = 0; i < Commands.Length; i++)
+        PvpApprovedChrome.Card("match_commands", () =>
         {
-            (string command, string what) = Commands[i];
-            if (ImGui.SmallButton("Copy##cmd" + i))
+            PvpUi.Heading("Commands");
+            for (int i = 0; i < Commands.Length; i++)
             {
-                ImGui.SetClipboardText(command);
-            }
+                (string command, string what) = Commands[i];
+                if (PvpUi.SmallButton("Copy##cmd" + i))
+                {
+                    ImGui.SetClipboardText(command);
+                }
 
-            ImGui.SameLine();
-            ImGui.TextUnformatted(command);
-            PvpUi.Help(what);
-        }
+                ImGui.SameLine();
+                ImGui.TextUnformatted(command);
+                PvpUi.Help(what);
+            }
+        });
     }
 }

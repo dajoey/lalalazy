@@ -40,7 +40,9 @@ internal static class PvpTargetingTab
         PvpUi.Help(spec.Help);
     }
 
-    private static void DrawTargetList()
+    private static void DrawTargetList() => PvpApprovedChrome.Card("target_priority", DrawTargetListContent);
+
+    private static void DrawTargetListContent()
     {
         PvpUi.Heading("Who to attack");
         PvpUi.Help("The top entry is used first. /pvpsolver Auto Big (or another type from the list) switches to that entry. " +

@@ -17,13 +17,16 @@ internal static class PvpDisplayTab
             }
         }
 
-        PvpUi.Heading("What's new");
-        if (ImGui.Button("Show what's new"))
+        PvpApprovedChrome.Card("display_whats_new", () =>
         {
-            PvPSolverPlugin.ShowChangelog();
-        }
+            PvpUi.Heading("What's new");
+            if (PvpUi.Button("Show what's new"))
+            {
+                PvPSolverPlugin.ShowChangelog();
+            }
 
-        PvpUi.Help("Opens the list of changes in this version.");
+            PvpUi.Help("Opens the list of changes in this version.");
+        });
     }
 
     private static void DrawTeachingColor()
