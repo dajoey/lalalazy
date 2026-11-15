@@ -21,11 +21,14 @@ internal static class HubTheme
     public static readonly Vector4 Amber = Theme.StateAmber;
     public static readonly Vector4 Red = Theme.StateRed;
 
-    // Panels (kit surfaces).
+    // Panels (kit surfaces and borders).
     public static readonly Vector4 Backdrop = Theme.ShellBar;
     public static readonly Vector4 Tray = Theme.Surface;
+    public static readonly Vector4 Border = Theme.SurfaceBorder;
+    public static readonly Vector4 Selected = Theme.Accent with { W = 0.14f };
+    public static readonly Vector4 Pending = Theme.StateAmber with { W = 0.14f };
 
-    // The one accent (R4): the selected/active tab underline.
+    // The one accent (R4): selected navigation, diamonds and active toggle tracks.
     public static readonly Vector4 Accent = Theme.Accent;
 
     /// <summary>
