@@ -19,7 +19,7 @@ internal static class CrucibleGuidePages
             return $"{CruciblePages.Selection(fight.Board, fight.Battle).Picks.Count} horn picks · {fight.Mechanics.Count} mechanics";
         }
         if (page == CrucibleShell.AdvisorPage)
-            return $"{BST_CrucibleNeedFirst.BoardRoster(shell.AdvisorBoard == 0 ? 1 : shell.AdvisorBoard, CrucibleGame.BeastCaptured).Count} advisor candidates";
+            return $"{BST_CrucibleNeedFirst.BoardRoster(EffectiveAdvisorBoard(shell), CrucibleGame.BeastCaptured).Count} advisor candidates";
         if (page == "guide.recent")
             return $"{SelectionScreens.Recent.Count} recorded choices";
         if (page == "guide.browse")
@@ -30,11 +30,16 @@ internal static class CrucibleGuidePages
     public static string LiveSubtext(CrucibleShell shell, string page)
     {
         var board = page == CrucibleShell.AdvisorPage
-            ? shell.AdvisorBoard == 0 ? 1 : shell.AdvisorBoard
+            ? EffectiveAdvisorBoard(shell)
             : Math.Clamp(shell.GuideBoard, 1, 5);
         var battle = page == CrucibleShell.AdvisorPage ? shell.AdvisorBattle : shell.GuideBattle;
-        return $"{BST_CrucibleData.Boards[board - 1].Name} · {Label(board, battle)}";
+        return $"{BST_CrucibleData.Boards[board - 1].Name} · {Label(board, battle)}{UiPresentationLogic.LocationSuffix(board, battle)}";
     }
+
+    private static int EffectiveAdvisorBoard(CrucibleShell shell)
+        => shell.AdvisorBoard is >= 1 and <= 5
+            ? shell.AdvisorBoard
+            : CruciblePages.ActiveBoard() is var active && active != 0 ? active : 1;
 
     public static void Render(CrucibleShell shell, string page)
     {
@@ -140,7 +145,7 @@ internal static class CrucibleGuidePages
                 Widgets.StateText(row.Covered ? "✓" : row.Warn ? "!" : "·", state);
                 ImGui.SameLine();
                 var by = row.Covered ? $" — {CruciblePages.BeastName(row.CoveredBy)}" : $" — {row.WhyNot}";
-                ImGui.TextWrapped($"{row.Tool}: {row.What}{by}");
+                ImGui.TextWrapped($"{row.Tool}{UiPresentationLogic.TierSuffix(row.Tier)}: {row.What}{by}");
                 Src(row.Src.ToList());
             }
             foreach (var row in mitigation)

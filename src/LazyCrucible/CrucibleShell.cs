@@ -129,7 +129,7 @@ internal sealed class CrucibleShell
     {
         if (PetSelect.YieldReason == "conflict_gluttony")
             return (UiState.Failed, "selection writes held");
-        if (PetSelect.YieldReason == "autoduty_running" || ExternalDrivers.StallReason is not null)
+        if (PetSelect.YieldReason == "autoduty_running" || (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is not null))
             return (UiState.Blocked, "AutoDuty attention");
         if (Incoming is not null)
             return (UiState.Running, "incoming cast");
@@ -271,26 +271,18 @@ internal sealed class CrucibleShell
     private void DrawStatusBanner()
     {
         if (PetSelect.YieldReason == "conflict_gluttony")
-        {
             Widgets.InfoBox("LazyCrucible is not writing — an older GluttonyCombo that also fills familiars is loaded and must be updated.", UiState.Failed);
-            return;
-        }
-        if (PetSelect.YieldReason == "autoduty_running")
-        {
+        else if (PetSelect.YieldReason == "autoduty_running")
             Widgets.InfoBox("AutoDuty standby — " + Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces), UiState.Blocked);
-            return;
-        }
-        if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
-        {
+        else if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
             Widgets.InfoBox($"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.", UiState.Blocked);
-            return;
-        }
+
+        // Incoming guidance is independent of the main AutoDuty/conflict banner and must never be suppressed.
         if (Incoming is { } warn)
         {
             var guideDo = Plugin.Guide.File.Fights.SelectMany(f => f.Hits.Concat(f.Mechanics))
                 .Where(m => m.Ids.Contains(warn.CastId) && m.Do.Length > 0).Select(m => m.Do).FirstOrDefault();
             Widgets.InfoBox("INCOMING — " + warn.Text + (guideDo is null ? "" : " Guide: " + guideDo), UiState.Running);
-            return;
         }
         if (CurrentPage == UpcomingPage && Plugin.Guide.Fight(GuideBoard, GuideBattle) is { } fight
             && RunTracker.Focus == (fight.Board, fight.Battle)
@@ -349,10 +341,7 @@ internal sealed class CrucibleShell
                 CurrentPage = RosterHornsPage;
         }
         else if (ImGui.Button("Open the fight guide"))
-        {
             _plugin?.ToggleGuide();
-            CurrentPage = UpcomingPage;
-        }
         Widgets.Caption(secondary);
     }
 }

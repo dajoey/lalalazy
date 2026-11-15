@@ -34,7 +34,8 @@ public sealed class Plugin : IDalamudPlugin
     internal static CrucibleGuide Guide { get; private set; } = CrucibleGuide.Parse("{}");
 
     private readonly WindowSystem _windowSystem = new("LazyCrucible");
-    private readonly CrucibleShell _shell = new();
+    private readonly CrucibleShell _mainShell = new();
+    private readonly CrucibleShell _guideShell = new();
     private readonly MainWindow _window;
     private readonly GuideWindow _guideWindow;
     private readonly ChangelogGate _changelog;
@@ -93,9 +94,9 @@ public sealed class Plugin : IDalamudPlugin
 
         Guide = LoadGuide();
         Guide.InstallNeedModel();
-        _window = new MainWindow(this, _shell);
+        _window = new MainWindow(this, _mainShell);
         _windowSystem.AddWindow(_window);
-        _guideWindow = new GuideWindow(_shell);
+        _guideWindow = new GuideWindow(_guideShell);
         _windowSystem.AddWindow(_guideWindow);
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
@@ -294,7 +295,7 @@ public sealed class Plugin : IDalamudPlugin
     internal void ToggleGuide()
     {
         if (!_guideWindow.IsOpen)
-            _shell.CurrentPage = CrucibleShell.UpcomingPage;
+            _guideShell.CurrentPage = CrucibleShell.UpcomingPage;
         _guideWindow.IsOpen = !_guideWindow.IsOpen;
     }
 

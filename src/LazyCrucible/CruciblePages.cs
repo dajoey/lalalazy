@@ -16,7 +16,7 @@ internal static class CruciblePages
         if (page is CrucibleShell.RosterHornsPage or CrucibleShell.OverviewPage)
         {
             var focus = FocusedFight();
-            var hornText = focus is null ? "no live horn plan" : $"{Selection(focus.Board, focus.Battle).Picks.Count}/3 horns";
+            var hornText = focus is null ? "no ranked horn plan" : $"{Selection(focus.Board, focus.Battle).Picks.Count}/3 horns";
             return $"{hornText} · {Plugin.Guide.File.Fights.Count} guide entries";
         }
         if (page == "run.board_overview")
@@ -97,8 +97,8 @@ internal static class CruciblePages
             new Stat("Run roster", RunTracker.Roster.Count > 0 ? RunTracker.Roster.Count.ToString() : "—", null,
                 RunTracker.Roster.Count > 0 ? "Live run roster" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"),
                 RunTracker.Roster.Count > 0 ? 1f : null),
-            new Stat("Current horn plan", focus is null ? "—" : Selection(focus.Board, focus.Battle).Picks.Count.ToString(), focus is null ? null : "3",
-                focus is null ? "No fight in focus" : "Ranked from the live fight", focus is null ? null : 1f),
+            new Stat("Ranked horn plan", focus is null ? "—" : Selection(focus.Board, focus.Battle).Picks.Count.ToString(), focus is null ? null : "3",
+                focus is null ? "No fight in focus" : "Ranked from the live fight", focus is null ? null : Selection(focus.Board, focus.Battle).Picks.Count / 3f),
             new Stat("Guide coverage", Plugin.Guide.File.Fights.Count.ToString(), "fights", "Real guide entries loaded", null));
 
         TwoColumns(
@@ -188,14 +188,15 @@ internal static class CruciblePages
         var focus = FocusedFight();
         var selection = focus is null ? null : Selection(focus.Board, focus.Battle);
         var needs = selection is null ? [] : GuideNeeds.Rows(selection);
+        var required = selection is null ? (Covered: 0, Total: 0) : UiPresentationLogic.RequiredCallStats(needs);
         var rosterCount = RunTracker.Roster.Count;
         DrawStatCards(
             new Stat("Run roster", rosterCount > 0 ? rosterCount.ToString() : "—", null,
                 rosterCount > 0 ? "Filled on the next entry menu" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"), rosterCount > 0 ? 1f : null),
             new Stat("Battlehorns", selection is null ? "—" : selection.Picks.Count.ToString(), selection is null ? null : "3",
-                selection is null ? "No fight in focus" : "Ready for the next formation", selection is null ? null : 1f),
-            new Stat("Required calls", selection is null ? "—" : needs.Count(n => n.Covered).ToString(), selection is null ? null : needs.Count.ToString(),
-                selection is null ? "No fight in focus" : needs.Count == 0 ? "No ability calls" : "Covered by the live ranking", selection is null || needs.Count == 0 ? null : needs.Count(n => n.Covered) / (float)needs.Count));
+                selection is null ? "No fight in focus" : "Ready for the next formation", selection is null ? null : selection.Picks.Count / 3f),
+            new Stat("Required calls", selection is null ? "—" : required.Covered.ToString(), selection is null ? null : required.Total.ToString(),
+                selection is null ? "No fight in focus" : required.Total == 0 ? "No required calls" : "Covered by the live ranking", selection is null || required.Total == 0 ? null : required.Covered / (float)required.Total));
 
         TwoColumns(
             () =>
@@ -212,7 +213,7 @@ internal static class CruciblePages
                 foreach (var mechanic in focus.Mechanics.Take(2))
                     PlanRow(mechanic.Name, mechanic.Do);
                 ImGui.Separator();
-                Section("Current horns", "Manual changes win; LazyCrucible never starts the fight");
+                Section("Recommended horns", "Manual changes win; LazyCrucible never starts the fight");
                 Widgets.Body(string.Join(" · ", selection.Picks.Select(p => BeastName(p.Row))));
                 foreach (var pick in selection.Picks)
                     Widgets.SecondaryWrapped($"{BeastName(pick.Row)}: {pick.Why}");
