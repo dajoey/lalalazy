@@ -20,6 +20,7 @@ public sealed class TrackerWindow : Window
     public TrackerWindow(Plugin plugin) : base("Lazy Skyward Tracker##lazysky")
     {
         _plugin = plugin;
+        Flags = ImGuiWindowFlags.NoTitleBar;
         Size = new Vector2(1180, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
