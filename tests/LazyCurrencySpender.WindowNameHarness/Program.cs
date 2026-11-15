@@ -74,7 +74,7 @@ internal static class Program
                     id.Id == predraw.Id, id.Id == predraw.Id ? "" : $"ctor registers '{id.Id}', PreDraw renames to '{predraw.Id}'");
         }
 
-        var duplicates = identities.GroupBy(kv => kv.Id).Where(g => g.Count() > 1)
+        var duplicates = identities.GroupBy(kv => kv.Value).Where(g => g.Count() > 1)
             .Select(g => $"{g.Key}: {string.Join(", ", g.Select(kv => kv.Key))}").ToList();
         Check("window identities are pairwise unique", duplicates.Count == 0,
             duplicates.Count == 0 ? $"{identities.Count} unique identities" : string.Join(" | ", duplicates));
