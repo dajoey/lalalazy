@@ -1,4 +1,7 @@
-﻿## v0.1.5.3 (2026-11-14) [testing]
+﻿## v0.1.5.4 (2026-11-15) [testing]
+- The plugin window now presents fishing status, trip details and settings in a responsive card-based layout with a persistent Stop/Enable footer. The native title bar is removed in favour of the drawn top bar. Fishing policy, commands, configuration keys and saved settings are unchanged.
+
+## v0.1.5.3 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.5.2 (2026-11-10) [testing]
