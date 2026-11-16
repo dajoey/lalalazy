@@ -1,3 +1,4 @@
+using System.Reflection;
 using LazyFateAutomation.Helpers.ImGuiHelpers;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
@@ -726,6 +727,10 @@ public class FateToolKitWindow : MinimisableWindow
         }, row: true, gap: last ? 0 : 8, bottomOverlap: FateChrome.RowPadY);
     }
 
+    private static readonly PropertyInfo[] TooltipProperties = [.. typeof(PublicEvent)
+        .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+        .OrderBy(p => p.Name)];
+
     private void DrawFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted)
     {
         const float tipWidth = 320;
@@ -747,17 +752,24 @@ public class FateToolKitWindow : MinimisableWindow
             }
         }
 
-        Add("Level", () => fate.Level.ToString(CultureInfo.InvariantCulture));
-        Add("Type", () => FateChrome.Humanize(fate.Rule.ToString()));
-        Add("State", () => FateChrome.Humanize(fate.State.ToString()));
-        Add("Progress", () => $"{fate.Progress}%");
-        Add("Time left", () => FormatTimeRemaining(fate.TimeRemaining));
-        Add("Duration", () => TimeSpan.FromSeconds(fate.Duration).ToString(@"mm\:ss"));
-        if (fate.HasBonus)
-            Add("Bonus", () => "Yes");
-        Add("Blacklisted", () => isBlacklisted ? "Yes" : "No");
-        if (fate.EventItem is { } item)
-            Add("Turn-in item", () => item.ToString() ?? "");
+        foreach (var prop in TooltipProperties)
+        {
+            var name = prop.Name;
+            Add(FateChrome.Humanize(name), () =>
+            {
+                var raw = prop.GetValue(fate);
+                return raw switch
+                {
+                    null => "?",
+                    float f when name == nameof(PublicEvent.TimeRemaining) => FormatTimeRemaining(f),
+                    Vector3 v when name == nameof(PublicEvent.Position) => v.ToString(),
+                    bool b => b ? "True" : "False",
+                    IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+                    _ => raw.ToString() ?? "?",
+                };
+            });
+        }
+        Add("Blacklist", () => isBlacklisted ? "Yes" : "No");
 
         var line = FateChrome.LineHeight();
         var small = FateChrome.LineHeight(Theme.SecondaryScale);
