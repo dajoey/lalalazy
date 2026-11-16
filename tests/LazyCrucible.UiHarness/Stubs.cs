@@ -44,8 +44,9 @@ namespace LazyCrucible
 
     internal sealed class HarnessTelemetry
     {
-        // The shared LalaTelemetry source is intentionally outside this probe.
-        public void DrawReportButton() { }
+        // The shared LalaTelemetry source is intentionally outside this probe; this draws the same button
+        // (ReportPopup.DrawButton) so the page layout around it is faithful. The popup itself is out of scope.
+        public void DrawReportButton() => Dalamud.Bindings.ImGui.ImGui.Button("Report a problem##lalatelemetry-report-button");
     }
 
     internal static class PetSelect
