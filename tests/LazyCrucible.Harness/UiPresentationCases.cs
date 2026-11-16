@@ -1,3 +1,4 @@
+using System.Numerics;
 using Lalalazy.Crucible;
 using LazyCrucible;
 
@@ -53,5 +54,35 @@ internal static class UiPresentationCases
         var cardsSource = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "LazyCrucible", "CruciblePages.cs"));
         Check("Manually sized cards bound wrapping to their inner right edge",
             cardsSource.Contains("ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, cardWidth - (2 * Padding)))", StringComparison.Ordinal));
+
+        SuggestionPlacementCases();
+    }
+
+    /// <summary>The suggestion note sits above the game screen it describes and must stay on screen at the edges.</summary>
+    private static void SuggestionPlacementCases()
+    {
+        var work = new Vector2(1920, 1080);
+        var box = new Vector2(400, 120);
+        const float gap = 8f;
+
+        var centred = UiPresentationLogic.SuggestionBoxMin(new Vector2(700, 500), 300, box, Vector2.Zero, work, gap);
+        Check("Suggestion note: a centred screen keeps the note above it", centred == new Vector2(698, 372), centred.ToString());
+
+        var top = UiPresentationLogic.SuggestionBoxMin(new Vector2(700, 10), 300, box, Vector2.Zero, work, gap);
+        Check("Suggestion note: a screen at the top edge flips the note below it", top == new Vector2(698, 318), top.ToString());
+
+        var right = UiPresentationLogic.SuggestionBoxMin(new Vector2(1800, 500), 300, box, Vector2.Zero, work, gap);
+        Check("Suggestion note: a screen at the right edge clamps the note's X", right == new Vector2(1520, 372), right.ToString());
+
+        var left = UiPresentationLogic.SuggestionBoxMin(new Vector2(0, 500), 300, box, Vector2.Zero, work, gap);
+        Check("Suggestion note: a screen at the left edge clamps the note's X", left == new Vector2(0, 372), left.ToString());
+
+        var offset = UiPresentationLogic.SuggestionBoxMin(new Vector2(2600, 40), 300, box, new Vector2(1920, 0), work, gap);
+        Check("Suggestion note: placement respects the work area origin of a second monitor",
+            offset == new Vector2(2600 - 2, 348), offset.ToString());
+
+        var tall = UiPresentationLogic.SuggestionBoxMin(new Vector2(700, 20), 1070, box, Vector2.Zero, work, gap);
+        Check("Suggestion note: with no room above or below it stays inside the work area",
+            tall.Y >= 0 && tall.Y + box.Y <= work.Y, tall.ToString());
     }
 }

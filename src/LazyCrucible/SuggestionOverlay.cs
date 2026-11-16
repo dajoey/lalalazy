@@ -30,8 +30,10 @@ internal static unsafe class SuggestionOverlay
             var bodyHeight = ImGui.CalcTextSize(text, false, textWidth).Y;
             var detailHeight = ImGui.CalcTextSize(detail, false, textWidth).Y * Theme.SecondaryScale;
             var boxHeight = titleHeight + bodyHeight + detailHeight + (8 * Theme.Unit);
-            var boxMin = new Vector2(pos.X - 2, pos.Y - (2 * Theme.Unit) - boxHeight);
-            var boxMax = new Vector2(pos.X + wrap, pos.Y - (2 * Theme.Unit));
+            var viewport = ImGui.GetMainViewport();
+            var boxSize = new Vector2(wrap + 2, boxHeight);
+            var boxMin = UiPresentationLogic.SuggestionBoxMin(pos, height, boxSize, viewport.WorkPos, viewport.WorkSize, 2 * Theme.Unit);
+            var boxMax = boxMin + boxSize;
             var accent = Theme.Pack(Theme.Accent);
 
             // The accent edge is clipped to the box's own rounded corners instead of sitting outside them.
