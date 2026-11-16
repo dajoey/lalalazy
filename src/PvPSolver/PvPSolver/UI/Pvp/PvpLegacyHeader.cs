@@ -14,6 +14,8 @@ internal static class PvpLegacyHeader
     internal const string Brand = "PvP Solver";
     internal const string Label = "Legacy settings";
     internal const string ResetLabel = "Reset";
+    internal static readonly string Version = typeof(PvpLegacyHeader).Assembly.GetName().Version?.ToString() ?? "?.?.?";
+    internal static readonly string LabelWithVersion = $"{Label} \u00B7 v{Version}";
     internal const string ResetTip = "Click to reset plugin configs";
 
     /// <summary>
@@ -31,14 +33,22 @@ internal static class PvpLegacyHeader
         const float control = PopupChrome.Control;
         const float gap = PopupChrome.Gap;
         float resetWidth = PopupChrome.ActionWidth(72f, ResetLabel);
-        float labelWidth = PopupChrome.TextWidth(Label) + 32f;
+        float shortWidth = PopupChrome.TextWidth(Label) + 32f;
+        float fullWidth = PopupChrome.TextWidth(LabelWithVersion) + 32f;
         float chipWidth = PopupChrome.BrandWidth(Brand);
 
         // Right cluster, from the right edge: close, Reset, then the label while the chip, label and buttons all fit.
         float closeX = width - gutter - control;
         float resetX = closeX - gap - resetWidth;
-        float labelX = resetX - gap - labelWidth;
-        bool showLabel = gutter + chipWidth + 16f <= labelX;
+        // The pill carries the version while the chip, pill and buttons all fit; otherwise the short pill (or none) is
+        // drawn and the version moves to a tooltip on the brand chip.
+        float fullX = resetX - gap - fullWidth;
+        float shortX = resetX - gap - shortWidth;
+        bool showFull = gutter + chipWidth + 16f <= fullX;
+        bool showLabel = showFull || gutter + chipWidth + 16f <= shortX;
+        string label = showFull ? LabelWithVersion : Label;
+        float labelWidth = showFull ? fullWidth : shortWidth;
+        float labelX = showFull ? fullX : shortX;
 
         // The chip gives way to the controls on a very narrow window (it ellipsises its name).
         float nameRoom = resetX - gap - gutter - 48f - 16f;
@@ -51,7 +61,18 @@ internal static class PvpLegacyHeader
             Vector2 pos = winPos + new Vector2(labelX, top);
             draw.AddRectFilled(pos, pos + new Vector2(labelWidth, control), Theme.Pack(Theme.Surface), control / 2f);
             draw.AddRect(pos, pos + new Vector2(labelWidth, control), Theme.Pack(Theme.SurfaceBorder), control / 2f);
-            PopupChrome.Text(draw, pos + new Vector2(16f, (control - PopupChrome.LineHeight()) / 2f), Label, Theme.TextSecondary);
+            PopupChrome.Text(draw, pos + new Vector2(16f, (control - PopupChrome.LineHeight()) / 2f), label, Theme.TextSecondary);
+        }
+
+        if (!showFull)
+        {
+            float room = width - (2f * gutter) - control - gap;
+            Vector2 chipMin = winPos + new Vector2(gutter, 14f);
+            Vector2 chipMax = chipMin + new Vector2(MathF.Min(chipWidth, room), 40f);
+            if (ImGui.IsWindowHovered() && ImGui.IsMouseHoveringRect(chipMin, chipMax))
+            {
+                PopupChrome.Tip($"{Brand} v{Version}");
+            }
         }
 
         if (PopupChrome.ActionButton(draw, "##legacyReset", ResetLabel, winPos + new Vector2(resetX, top), new Vector2(resetWidth, control)))
