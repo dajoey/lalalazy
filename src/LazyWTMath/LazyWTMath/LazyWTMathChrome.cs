@@ -17,18 +17,44 @@ internal static class LazyWTMathChrome
 
     // ---- measuring: always at the draw size (the font bakes each size separately) ----
 
-    internal static T Measure<T>(float scale, Func<T> measure)
+    // Text metrics repeat every frame for the same strings, so they are cached by (text, width, scale, font size).
+    private const int CacheLimit = 2048;
+    private static readonly Dictionary<(string, float, float), float> WidthCache = new();
+    private static readonly Dictionary<(float, float), float> LineCache = new();
+    private static readonly Dictionary<(string, float, float, float), List<string>> WrapCache = new();
+
+    private static float WidthAt(string text, float scale)
     {
         if (scale == 1f)
-            return measure();
+            return ImGui.CalcTextSize(text).X;
         ImGui.SetWindowFontScale(scale);
-        try { return measure(); }
-        finally { ImGui.SetWindowFontScale(1f); }
+        var width = ImGui.CalcTextSize(text).X;
+        ImGui.SetWindowFontScale(1f);
+        return width;
     }
 
-    internal static float TextWidth(string text, float scale = 1f) => Measure(scale, () => ImGui.CalcTextSize(text).X);
+    internal static float TextWidth(string text, float scale = 1f)
+    {
+        var key = (text, scale, ImGui.GetFontSize());
+        if (WidthCache.TryGetValue(key, out var cached))
+            return cached;
+        if (WidthCache.Count >= CacheLimit)
+            WidthCache.Clear();
+        return WidthCache[key] = WidthAt(text, scale);
+    }
 
-    internal static float LineH(float scale = 1f) => Measure(scale, ImGui.GetTextLineHeight);
+    internal static float LineH(float scale = 1f)
+    {
+        var key = (scale, ImGui.GetFontSize());
+        if (LineCache.TryGetValue(key, out var cached))
+            return cached;
+        if (scale == 1f)
+            return LineCache[key] = ImGui.GetTextLineHeight();
+        ImGui.SetWindowFontScale(scale);
+        var height = ImGui.GetTextLineHeight();
+        ImGui.SetWindowFontScale(1f);
+        return LineCache[key] = height;
+    }
 
     internal static string Fit(string text, float width, float scale = 1f)
     {
@@ -39,18 +65,31 @@ internal static class LazyWTMathChrome
         return Ellipsize(text, width, scale);
     }
 
+    /// <summary>Longest prefix (binary search) that fits with a trailing ellipsis.</summary>
     private static string Ellipsize(string text, float width, float scale)
     {
         const string ellipsis = "…";
-        var length = text.Length;
-        while (length > 0 && TextWidth(text[..length].TrimEnd() + ellipsis, scale) > width)
-            length--;
-        return length == 0 ? "" : text[..length].TrimEnd() + ellipsis;
+        int lo = 0, hi = text.Length;
+        while (lo < hi)
+        {
+            var mid = (lo + hi + 1) / 2;
+            if (TextWidth(text[..mid].TrimEnd() + ellipsis, scale) <= width)
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        return lo == 0 ? "" : text[..lo].TrimEnd() + ellipsis;
     }
 
-    /// <summary>Greedy word wrap measured at the draw size.</summary>
+    /// <summary>Greedy word wrap measured at the draw size. The returned list is cached: do not modify it.</summary>
     internal static List<string> WrapLines(string text, float width, float scale = 1f)
     {
+        var key = (text, width, scale, ImGui.GetFontSize());
+        if (WrapCache.TryGetValue(key, out var cached))
+            return cached;
+        if (WrapCache.Count >= CacheLimit)
+            WrapCache.Clear();
+
         var lines = new List<string>();
         var current = "";
         foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
@@ -66,7 +105,7 @@ internal static class LazyWTMathChrome
         }
         if (current.Length > 0 || lines.Count == 0)
             lines.Add(current);
-        return lines;
+        return WrapCache[key] = lines;
     }
 
     /// <summary>Wraps to at most <paramref name="maxLines"/> lines; the last one ends in an ellipsis when text was cut.</summary>
@@ -162,6 +201,20 @@ internal static class LazyWTMathChrome
         draw.AddLine(c + new Vector2(-5, -5), c + new Vector2(5, 5), color, 1.5f);
         draw.AddLine(c + new Vector2(-5, 5), c + new Vector2(5, -5), color, 1.5f);
         return clicked;
+    }
+
+    /// <summary>Bordered, opaque tooltip anchored under a control and right-aligned to it.</summary>
+    internal static void TooltipBelow(string text, Vector2 anchorRight)
+    {
+        ImGui.SetNextWindowPos(anchorRight, ImGuiCond.Always, new Vector2(1, 0));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 3));
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.TextSecondary with { W = 0.45f });
+        ImGui.SetTooltip(text);
+        ImGui.PopStyleColor(2);
+        ImGui.PopStyleVar(3);
     }
 
     /// <summary>Status pill of a fixed width: dot and word centred, alert states tinted.</summary>

@@ -16,10 +16,12 @@ internal sealed unsafe class LazyWTMathWindow : Window
     private const float CardPad = 16f;
     private const float SectionGap = 16f;
 
+    private static readonly UiState[] AllStates = Enum.GetValues<UiState>();
+
     private readonly Action _showChangelog;
 
     /// <summary>One vertical slice of a column: measured at a width, then drawn at an origin with the height it was given.</summary>
-    private readonly record struct Block(Func<float, float> Height, Action<Vector2, float, float> Draw, bool Stretch = false);
+    private readonly record struct Block(Func<float, float> Height, Action<Vector2, float, float> Draw);
 
     public LazyWTMathWindow(Action showChangelog) : base("Lazy WT Math###LazyWTMathMainWindow")
     {
@@ -106,7 +108,9 @@ internal sealed unsafe class LazyWTMathWindow : Window
         const string whatsNew = "What's new";
         var brandWidth = 16 + 20 + 10 + LazyWTMathChrome.TextWidth(brand, Theme.TitleScale) + 16;
         var whatsNewWidth = MathF.Max(72, LazyWTMathChrome.TextWidth(whatsNew) + 32);
-        var widestState = Enum.GetValues<UiState>().Max(s => LazyWTMathChrome.TextWidth(Copy.Word(s)));
+        var widestState = 0f;
+        foreach (var s in AllStates)
+            widestState = MathF.Max(widestState, LazyWTMathChrome.TextWidth(Copy.Word(s)));
         var statusWidth = 16 + (2 * Theme.DotRadius) + 8 + widestState + 16;
         var closeSize = controlHeight;
         var required = (2 * g) + brandWidth + gap + statusWidth + gap + whatsNewWidth + gap + closeSize;
@@ -140,9 +144,8 @@ internal sealed unsafe class LazyWTMathWindow : Window
             IsOpen = false;
         if (ImGui.IsItemHovered())
         {
-            // Beside the button, so the tooltip never lands on the page content below the bar.
-            ImGui.SetNextWindowPos(new Vector2(closePos.X - 8, closePos.Y + (closeSize / 2f)), ImGuiCond.Always, new Vector2(1, 0.5f));
-            ImGui.SetTooltip("Close");
+            // Directly under the button, inside the bar: it covers neither the top-bar controls nor the page header.
+            LazyWTMathChrome.TooltipBelow("Close", new Vector2(closePos.X + closeSize, closePos.Y + closeSize + 3));
         }
 
         return bandHeight;
@@ -257,15 +260,23 @@ internal sealed unsafe class LazyWTMathWindow : Window
         {
             var railWidth = Math.Clamp(0.26f * width, 300, 360);
             var mainWidth = width - SectionGap - railWidth;
-            var target = MathF.Max(MathF.Max(ColumnHeight(main, mainWidth), ColumnHeight(rail, railWidth)), availableHeight - y - 2);
-            DrawColumn(draw, main, origin + new Vector2(0, y), mainWidth, target);
-            DrawColumn(draw, rail, origin + new Vector2(mainWidth + SectionGap, y), railWidth, target);
-            y += target;
+            // Cards keep their content height. When a notice pushes the sticker map under the fold, the map's
+            // cells give up a little height first so the default window still shows the whole board.
+            _cellShrink = 0;
+            var room = availableHeight - y - 1;
+            var natural = MathF.Max(ColumnHeight(main, mainWidth), ColumnHeight(rail, railWidth));
+            if (natural > room && snapshot.PlayerAvailable)
+                _cellShrink = Math.Clamp((natural - room) / 4f, 0, CellHeight(mainWidth - (2 * CardPad)) - MinCell);
+            var height = MathF.Max(ColumnHeight(main, mainWidth), ColumnHeight(rail, railWidth));
+            DrawColumn(draw, main, origin + new Vector2(0, y), mainWidth);
+            DrawColumn(draw, rail, origin + new Vector2(mainWidth + SectionGap, y), railWidth);
+            y += height;
         }
         else
         {
             var stacked = main.Concat(rail).ToList();
-            DrawColumn(draw, stacked, origin + new Vector2(0, y), width, 0);
+            _cellShrink = 0;
+            DrawColumn(draw, stacked, origin + new Vector2(0, y), width);
             y += ColumnHeight(stacked, width);
         }
 
@@ -276,17 +287,14 @@ internal sealed unsafe class LazyWTMathWindow : Window
     private static float ColumnHeight(List<Block> blocks, float width)
         => blocks.Sum(b => b.Height(width)) + (SectionGap * (blocks.Count - 1));
 
-    /// <summary>Stacks the blocks; the last stretchable one grows so the column ends at <paramref name="targetHeight"/>.</summary>
-    private static void DrawColumn(ImDrawListPtr draw, List<Block> blocks, Vector2 origin, float width, float targetHeight)
+    /// <summary>Stacks the blocks, each at its own measured height.</summary>
+    private static void DrawColumn(ImDrawListPtr draw, List<Block> blocks, Vector2 origin, float width)
     {
-        var extra = MathF.Max(0, targetHeight - ColumnHeight(blocks, width));
         var y = 0f;
-        for (var i = 0; i < blocks.Count; i++)
+        foreach (var block in blocks)
         {
-            var height = blocks[i].Height(width);
-            if (i == blocks.Count - 1 && blocks[i].Stretch)
-                height += extra;
-            blocks[i].Draw(origin + new Vector2(0, y), width, height);
+            var height = block.Height(width);
+            block.Draw(origin + new Vector2(0, y), width, height);
             y += height + SectionGap;
         }
     }
@@ -370,33 +378,31 @@ internal sealed unsafe class LazyWTMathWindow : Window
         return y + LazyWTMathChrome.Paragraph(draw, pos + new Vector2(0, y), description, width, Theme.TextSecondary, Theme.SecondaryScale);
     }
 
-    private static bool Compact(float width) => width < 512;
+    // Cards sit three across at every allowed width; a narrow row uses a smaller value size and tighter padding.
+    private static bool Mini(float width) => width < 512;
 
-    private static float StatCardHeight(bool compact)
+    private static float StatCardHeight(bool mini)
     {
         var small = LazyWTMathChrome.LineH(Theme.SecondaryScale);
-        var value = LazyWTMathChrome.LineH(1.7f);
-        return compact
-            ? CardPad + small + 4 + value + 8 + Theme.BarHeight + CardPad
-            : CardPad + small + 8 + value + 8 + Theme.BarHeight + 8 + small + CardPad;
+        var value = LazyWTMathChrome.LineH(mini ? 1.4f : 1.7f);
+        var pad = mini ? 12f : CardPad;
+        var step = mini ? 6f : 8f;
+        return pad + small + step + value + step + Theme.BarHeight + step + small + pad;
     }
 
-    private static float StatRowHeight(float width)
-        => Compact(width) ? (3 * StatCardHeight(true)) + (2 * 16) : StatCardHeight(false);
+    private static float StatRowHeight(float width) => StatCardHeight(Mini(width));
 
     private static void DrawStatRow(ImDrawListPtr draw, Vector2 origin, float width, LazyWTMathSnapshot snapshot)
     {
-        var compact = Compact(width);
-        var height = StatCardHeight(compact);
-        var cardWidth = compact ? width : (width - 32) / 3f;
+        var mini = Mini(width);
+        var height = StatCardHeight(mini);
+        var gap = mini ? 8f : 16f;
+        var cardWidth = (width - (2 * gap)) / 3f;
         for (var i = 0; i < 3; i++)
-        {
-            var pos = origin + (compact ? new Vector2(0, i * (height + 16)) : new Vector2(i * (cardWidth + 16), 0));
-            DrawStatCard(draw, pos, new Vector2(cardWidth, height), i, snapshot, compact);
-        }
+            DrawStatCard(draw, origin + new Vector2(i * (cardWidth + gap), 0), new Vector2(cardWidth, height), i, snapshot, mini);
     }
 
-    private static void DrawStatCard(ImDrawListPtr draw, Vector2 pos, Vector2 size, int index, LazyWTMathSnapshot snapshot, bool compact)
+    private static void DrawStatCard(ImDrawListPtr draw, Vector2 pos, Vector2 size, int index, LazyWTMathSnapshot snapshot, bool mini)
     {
         var label = index == 0 ? "1 line" : $"{index + 1} lines";
         var valid = snapshot.HasValidProbabilities && snapshot.LineChances.Length == 3;
@@ -406,34 +412,29 @@ internal sealed unsafe class LazyWTMathWindow : Window
         var complete = hasFraction && fraction >= 1f;
         var note = !snapshot.PlayerAvailable ? "No character" : !valid ? "Solver unavailable" : complete ? "Guaranteed" : "Current board";
 
+        var pad = mini ? 12f : CardPad;
+        var step = mini ? 6f : 8f;
+        var valueScale = mini ? 1.4f : 1.7f;
         var small = LazyWTMathChrome.LineH(Theme.SecondaryScale);
-        var valueHeight = LazyWTMathChrome.LineH(1.7f);
-        var inner = size.X - (2 * CardPad);
+        var valueHeight = LazyWTMathChrome.LineH(valueScale);
+        var inner = size.X - (2 * pad);
         LazyWTMathChrome.Panel(draw, pos, size, Theme.Surface, Theme.SurfaceBorder);
 
-        var y = pos.Y + CardPad;
-        LazyWTMathChrome.Diamond(draw, new Vector2(pos.X + CardPad + 5, y + (small / 2f)), 5, Theme.Pack(Theme.Accent));
-        LazyWTMathChrome.Text(draw, new Vector2(pos.X + CardPad + 16, y), label, Theme.TextSecondary, Theme.SecondaryScale);
+        var y = pos.Y + pad;
+        LazyWTMathChrome.Diamond(draw, new Vector2(pos.X + pad + 5, y + (small / 2f)), 5, Theme.Pack(Theme.Accent));
+        LazyWTMathChrome.Text(draw, new Vector2(pos.X + pad + 16, y), label, Theme.TextSecondary, Theme.SecondaryScale);
         var noteColor = complete ? Theme.StateGreen : Theme.TextSecondary;
-        if (compact)
-        {
-            var room = inner - 16 - LazyWTMathChrome.TextWidth(label, Theme.SecondaryScale) - 16;
-            LazyWTMathChrome.TextRight(draw, pos.X + size.X - CardPad, y, LazyWTMathChrome.Fit(note, room, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
-            y += small + 4;
-        }
-        else
-            y += small + 8;
+        y += small + step;
 
-        LazyWTMathChrome.Text(draw, new Vector2(pos.X + CardPad, y), value, valid ? Theme.TextPrimary : Theme.TextSecondary, 1.7f);
-        y += valueHeight + 8;
+        LazyWTMathChrome.Text(draw, new Vector2(pos.X + pad, y), value, valid ? Theme.TextPrimary : Theme.TextSecondary, valueScale);
+        y += valueHeight + step;
 
-        var barMin = new Vector2(pos.X + CardPad, y);
-        var barMax = new Vector2(pos.X + size.X - CardPad, y + Theme.BarHeight);
+        var barMin = new Vector2(pos.X + pad, y);
+        var barMax = new Vector2(pos.X + size.X - pad, y + Theme.BarHeight);
         draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
         if (hasFraction && fraction > 0)
             draw.AddRectFilled(barMin, new Vector2(barMin.X + ((barMax.X - barMin.X) * Math.Clamp(fraction, 0, 1)), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
-        if (!compact)
-            LazyWTMathChrome.Text(draw, new Vector2(pos.X + CardPad, y + Theme.BarHeight + 8), LazyWTMathChrome.Fit(note, inner, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
+        LazyWTMathChrome.Text(draw, new Vector2(pos.X + pad, y + Theme.BarHeight + step), LazyWTMathChrome.Fit(note, inner, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
     }
 
     private const string MapDescriptionFormat = "{0} / 9 stickers placed. Pink diamonds mark the occupied journal cells.";
@@ -444,24 +445,28 @@ internal sealed unsafe class LazyWTMathWindow : Window
         return Card(
             inner => LazyWTMathChrome.LineH() + 4 + LazyWTMathChrome.ParagraphHeight(description, inner, Theme.SecondaryScale)
                      + 12 + MapHeight(inner),
-            (o, inner, extra) =>
+            (o, inner, _) =>
             {
                 var draw = ImGui.GetWindowDrawList();
                 var y = DrawHeading(draw, o, inner, "Sticker map", description) + 12;
-                DrawBoard(draw, o + new Vector2(0, y), inner, snapshot, extra);
-            },
-            stretch: true);
+                DrawBoard(draw, o + new Vector2(0, y), inner, snapshot);
+            });
     }
+
+    private const float MinCell = 30f;
+
+    /// <summary>How much each map cell gives up this frame so the board fits the visible page (0 when it already fits).</summary>
+    private static float _cellShrink;
 
     private static float CellHeight(float width) => Math.Clamp(((width - 24) / 4f) * 0.32f, 40, 56);
 
-    private static float MapHeight(float width) => (4 * CellHeight(width)) + 24;
+    private static float MapHeight(float width) => (4 * (CellHeight(width) - _cellShrink)) + 24;
 
-    private static void DrawBoard(ImDrawListPtr draw, Vector2 origin, float width, LazyWTMathSnapshot snapshot, float extra)
+    private static void DrawBoard(ImDrawListPtr draw, Vector2 origin, float width, LazyWTMathSnapshot snapshot)
     {
         const float gap = 8f;
         var cellWidth = (width - (3 * gap)) / 4f;
-        var cellHeight = MathF.Min(CellHeight(width) + (extra / 4f), MathF.Max(CellHeight(width), 80));
+        var cellHeight = CellHeight(width) - _cellShrink;
         for (var index = 0; index < 16; index++)
         {
             var pos = origin + new Vector2((index % 4) * (cellWidth + gap), (index / 4) * (cellHeight + gap));
@@ -519,14 +524,13 @@ internal sealed unsafe class LazyWTMathWindow : Window
                         DrawShuffleRows(draw, o + new Vector2(0, y), inner, values, rowHeight);
                 }),
             TextCard("About these values", AboutDescription),
-            TextCard("Journal overlay", OverlayDescription, stretch: true),
+            TextCard("Journal overlay", OverlayDescription),
         ];
     }
 
-    private static Block TextCard(string heading, string text, bool stretch = false) => Card(
+    private static Block TextCard(string heading, string text) => Card(
         inner => LazyWTMathChrome.LineH() + 4 + LazyWTMathChrome.ParagraphHeight(text, inner, Theme.SecondaryScale),
-        (o, inner, _) => DrawHeading(ImGui.GetWindowDrawList(), o, inner, heading, text),
-        stretch);
+        (o, inner, _) => DrawHeading(ImGui.GetWindowDrawList(), o, inner, heading, text));
 
     private static void DrawShuffleRows(ImDrawListPtr draw, Vector2 origin, float width, string[] values, float rowHeight)
     {
@@ -544,14 +548,12 @@ internal sealed unsafe class LazyWTMathWindow : Window
 
     // ------------------------------------------------------------------ card container
 
-    /// <summary>Bordered card with 16 px padding; <paramref name="content"/> gets the inner origin, inner width and any stretch.</summary>
-    private static Block Card(Func<float, float> contentHeight, Action<Vector2, float, float> content, bool stretch = false) => new(
+    /// <summary>Bordered card with 16 px padding that takes its content height; <paramref name="content"/> gets the inner origin and width.</summary>
+    private static Block Card(Func<float, float> contentHeight, Action<Vector2, float, float> content) => new(
         w => contentHeight(w - (2 * CardPad)) + (2 * CardPad),
         (o, w, h) =>
         {
             LazyWTMathChrome.Panel(ImGui.GetWindowDrawList(), o, new Vector2(w, h), Theme.Surface, Theme.SurfaceBorder);
-            var inner = w - (2 * CardPad);
-            content(o + new Vector2(CardPad), inner, h - (2 * CardPad) - contentHeight(inner));
-        },
-        stretch);
+            content(o + new Vector2(CardPad), w - (2 * CardPad), 0);
+        });
 }
