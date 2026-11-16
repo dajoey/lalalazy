@@ -331,7 +331,7 @@ internal static class Program
         SetStatic(typeof(PvpAdvancedTab), "_openReset", false);
         SetStatic(typeof(PvpAdvancedTab), "_openRestore", false);
         SetStatic(typeof(PvpAdvancedTab), "_message", string.Empty);
-        SetStatic(typeof(PvpApprovedChrome), "CardDepth", 0);
+        PvpApprovedChrome.BeginFrame();
         ((System.Collections.IDictionary)GetStatic(typeof(PvpJobOptions), "RetryAt")!).Clear();
     }
 
@@ -385,15 +385,16 @@ internal static class Program
                     CheckGlyphs(look);
             }
 
-            var padding = ImGui.GetStyle().WindowPadding;
+            // The shell has no native window padding; scroll and hover positions are measured from the window edge.
+            var padding = Vector2.Zero;
             if (scenario.Hover == Hover.FooterButton)
-                io.MousePos = new Vector2(size.X - padding.X - 56, size.Y - padding.Y - 34);
+                io.MousePos = new Vector2(size.X - 24 - 48, size.Y - 30);
 
             // Frames settle window storage and (for the popups) the modal. A scrolled scenario sends one large mouse
             // wheel step over the page body (ImGui clamps it to the end of the content), then lets the layout settle.
             var frames = scenario.Popup is not null ? 8 : scenario.ScrollY is null ? 3 : 5;
             if (scenario.ScrollY is not null)
-                io.MousePos = new Vector2(padding.X + 1, size.Y / 2f);
+                io.MousePos = new Vector2(padding.X + 40, size.Y / 2f);
             for (var frame = 0; frame < frames; frame++)
             {
                 if (scenario.RetryEveryFrame)
@@ -404,11 +405,13 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags |
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
                     ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 
@@ -464,9 +467,8 @@ internal static class Program
             io.DisplayFramebufferScale = Vector2.One;
             io.DeltaTime = 1f / 60f;
             _ = UiLook.Apply(Options);
-            var padding = ImGui.GetStyle().WindowPadding;
-            // The close button is the last control of the 66 px top bar: 34 px square, flush right, vertically centred.
-            var click = new Vector2(size.X - padding.X - 17, padding.Y + 33);
+            // The close button is the last control of the 68 px header band: 36 px square, one gutter (24 px) from the right edge.
+            var click = new Vector2(size.X - 24 - 18, 34);
             for (var step = 0; step < 4; step++)
             {
                 io.MousePos = step == 0 ? new Vector2(-10000, -10000) : click;
@@ -475,9 +477,11 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 

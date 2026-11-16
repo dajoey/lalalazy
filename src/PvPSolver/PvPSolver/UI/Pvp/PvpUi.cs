@@ -80,36 +80,18 @@ internal static class PvpUi
 
     // ---- text ----------------------------------------------------------------------------------------------------
 
-    /// <summary>A section heading with a rule under it.</summary>
-    internal static void Heading(string text)
-    {
-        ImGui.Spacing();
-        Widgets.Title(text);
-        ImGui.Separator();
-    }
+    /// <summary>A section title of a card; the settings below it are rows separated by hairlines.</summary>
+    internal static void Heading(string text, bool blocks = false) => PvpApprovedChrome.CardTitle(text, blocks);
 
-    /// <summary>Muted, wrapped help text printed under a control, indented by <paramref name="indent"/> scaled pixels.</summary>
-    internal static void Help(string text, float indent = 24f)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return;
-        }
+    /// <summary>Muted help text under a block, at the secondary size, indented by <paramref name="indent"/> pixels.</summary>
+    internal static void Help(string text, float indent = 0f, float after = 8f)
+        => PvpApprovedChrome.Para(text, Theme.SecondaryScale, Muted, after, indent);
 
-        using var color = ImRaii.PushColor(ImGuiCol.Text, Muted);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (indent * Scale));
-        ImGui.TextWrapped(text);
-    }
-
-    /// <summary>Wrapped text in the warning colour.</summary>
-    internal static void WarningText(string text)
-    {
-        using var color = ImRaii.PushColor(ImGuiCol.Text, Warning);
-        ImGui.TextWrapped(text);
-    }
+    /// <summary>A tinted notice in the warning state.</summary>
+    internal static void WarningText(string text) => PvpApprovedChrome.Notice(text, string.Empty, UiState.Blocked);
 
     /// <summary>Wrapped plain text.</summary>
-    internal static void Paragraph(string text) => ImGui.TextWrapped(text);
+    internal static void Paragraph(string text) => PvpApprovedChrome.Para(text, 1f, Theme.TextSecondary, 8);
 
     /// <summary>
     ///     A tooltip for the control just drawn, wrapped to a readable width. Honours the "Show tooltips" setting; the
@@ -131,53 +113,65 @@ internal static class PvpUi
 
     // ---- controls ------------------------------------------------------------------------------------------------
 
-    /// <summary>A right-aligned track toggle. Returns true when clicked; the caller stores the value and saves.</summary>
-    internal static bool Check(string label, ref bool value, bool disabled = false)
-    {
-        using var off = ImRaii.Disabled(disabled);
-        return PvpApprovedChrome.Toggle(label, ref value);
-    }
+    private const float SliderWidth = 180f;
+    private const float DragWidth = 112f;
+
+    /// <summary>The width of a percent readout cell beside a slider (fits "100%").</summary>
+    private static float ValueCell => MathF.Ceiling(PvpApprovedChrome.TextWidth("100%")) + 4f;
 
     /// <summary>
-    ///     A whole-percent slider (<paramref name="points"/> 0 to 100). Returns true while the value changes. The
-    ///     file is saved when the slider is released.
+    ///     A whole-percent slider row (<paramref name="points"/> 0 to 100). Returns true while the value changes. The
+    ///     value is printed to the right of the track, never over the handle, and the file is saved on release.
     /// </summary>
-    internal static bool PercentSlider(string id, ref int points, int min, int max, float width = 200f, bool disabled = false)
+    internal static bool PercentSlider(string id, string label, string? help, ref int points, int min, int max, bool disabled = false,
+        int indent = 0, bool joined = false, Action? onReset = null, bool resetVisible = false)
     {
-        using var off = ImRaii.Disabled(disabled);
-        using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
-        using var grab = ImRaii.PushColor(ImGuiCol.SliderGrab, Theme.Accent);
-        using var active = ImRaii.PushColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
-        ImGui.SetNextItemWidth(width * Scale);
-        bool changed = ImGui.SliderInt(id, ref points, min, max, "%d%%");
-        SaveOnRelease();
+        int value = points;
+        bool changed = false;
+        float cell = ValueCell;
+        PvpApprovedChrome.Row(id, label, help, SliderWidth + 8 + cell, PvpApprovedChrome.BodyControl, pos =>
+        {
+            ImGui.SetCursorScreenPos(pos);
+            changed = PvpApprovedChrome.Field(() =>
+            {
+                ImGui.SetNextItemWidth(SliderWidth);
+                return ImGui.SliderInt("##value", ref value, min, max, string.Empty);
+            });
+            SaveOnRelease();
+            string readout = value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%";
+            PvpApprovedChrome.TextRight(ImGui.GetWindowDrawList(), pos.X + SliderWidth + 8 + cell,
+                pos.Y + ((PvpApprovedChrome.BodyControl - PvpApprovedChrome.LineHeight()) / 2f),
+                readout, disabled ? Theme.TextSecondary : Theme.TextPrimary);
+        }, indent, disabled, joined, onReset, resetVisible);
+        points = value;
         return changed;
     }
 
-    /// <summary>A whole-number drag with a unit suffix. Returns true while the value changes; saved on release.</summary>
-    internal static bool NumberDrag(string id, ref int value, int min, int max, string unit, float width = 120f, bool disabled = false)
+    /// <summary>A whole-number drag row with a unit suffix. Returns true while the value changes; saved on release.</summary>
+    internal static bool NumberDrag(string id, string label, string? help, ref int number, int min, int max, string unit, bool disabled = false,
+        int indent = 0, bool joined = false, Action? onReset = null, bool resetVisible = false)
     {
-        using var off = ImRaii.Disabled(disabled);
-        using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
-        using var grab = ImRaii.PushColor(ImGuiCol.SliderGrab, Theme.Accent);
-        using var active = ImRaii.PushColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
-        ImGui.SetNextItemWidth(width * Scale);
-        bool changed = ImGui.DragInt(id, ref value, 1f, min, max, "%d" + unit);
-        SaveOnRelease();
+        int value = number;
+        bool changed = false;
+        PvpApprovedChrome.Row(id, label, help, DragWidth, PvpApprovedChrome.BodyControl, pos =>
+        {
+            ImGui.SetCursorScreenPos(pos);
+            changed = PvpApprovedChrome.Field(() =>
+            {
+                ImGui.SetNextItemWidth(DragWidth);
+                return ImGui.DragInt("##value", ref value, 1f, min, max, "%d" + unit);
+            });
+            SaveOnRelease();
+        }, indent, disabled, joined, onReset, resetVisible);
+        number = value;
         return changed;
     }
 
-    /// <summary>A small button that is greyed out and does nothing while <paramref name="disabled"/>.</summary>
-    internal static bool SmallButton(string label, bool disabled = false)
-        => PvpApprovedChrome.Button(label, disabled, small: true);
-
-    /// <summary>A small "Reset" button. Returns true when clicked.</summary>
-    internal static bool ResetButton(string id) => PvpApprovedChrome.Button("Reset##" + id, small: true);
-
-    /// <summary>A button that is greyed out with a reason in its tooltip while <paramref name="disabled"/>.</summary>
-    internal static bool Button(string label, bool disabled = false, string? whyDisabled = null)
+    /// <summary>A button of a card body, greyed out with a reason in its tooltip while <paramref name="disabled"/>.</summary>
+    internal static bool Button(string label, bool disabled = false, string? whyDisabled = null,
+        PvpApprovedChrome.ButtonStyle style = PvpApprovedChrome.ButtonStyle.Normal)
     {
-        bool clicked = PvpApprovedChrome.Button(label, disabled);
+        bool clicked = PvpApprovedChrome.InlineButton("b_" + label, label, style, disabled);
         if (disabled)
         {
             Tip(whyDisabled);
@@ -189,10 +183,11 @@ internal static class PvpUi
     // ---- the catalog -----------------------------------------------------------------------------------------------
 
     /// <summary>
-    ///     Draws one section of a tab from the catalog: its heading, then each setting with its help line under it.
-    ///     <paramref name="custom"/> may draw a setting itself and return true; the setting keeps its place in the order.
+    ///     Draws one section of a tab from the catalog as a card: its title, then each setting as a row with its help
+    ///     line. <paramref name="custom"/> may draw a setting itself and return true; the setting keeps its place in the
+    ///     order. <paramref name="after"/> draws extra rows or notes at the end of the same card.
     /// </summary>
-    internal static void DrawSection(string tab, string section, Func<SettingSpec, bool>? custom = null)
+    internal static void DrawSection(string tab, string section, Func<SettingSpec, bool>? custom = null, Action? after = null)
     {
         PvpApprovedChrome.Card("section_" + tab + "_" + section, () =>
         {
@@ -206,6 +201,8 @@ internal static class PvpUi
 
                 DrawSetting(spec);
             }
+
+            after?.Invoke();
         });
     }
 
@@ -236,134 +233,114 @@ internal static class PvpUi
         }
 
         bool parentOn = true;
+        int indent = 0;
         if (spec.Parent.Length > 0)
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (24f * Scale));
+            indent = 1;
             parentOn = PvpBinding.TryGetBool(spec.Parent, out bool parentValue) && parentValue;
         }
 
-        float helpIndent = spec.Parent.Length > 0 ? 48f : 24f;
+        bool joined = indent > 0;
         switch (spec.Control)
         {
             case SettingControl.Toggle:
-                DrawToggle(spec, !parentOn);
-                Help(spec.Help, helpIndent);
+                DrawToggle(spec, !parentOn, indent, joined);
                 break;
             case SettingControl.Percent:
-                DrawPercent(spec, !parentOn);
-                Help(spec.Help + " (default " + OptionText.ToPoints(spec.DefaultNumber).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%)", helpIndent);
+                DrawPercent(spec, !parentOn, indent, joined);
                 break;
             case SettingControl.Seconds:
-                DrawSeconds(spec, !parentOn);
-                Help(spec.Help + " (default " + ((int)spec.DefaultNumber).ToString(System.Globalization.CultureInfo.InvariantCulture) + " s)", helpIndent);
+                DrawSeconds(spec, !parentOn, indent, joined);
                 break;
             case SettingControl.Choice:
-                DrawChoice(spec, !parentOn);
-                Help(spec.Help, helpIndent);
+                DrawChoice(spec, !parentOn, indent, joined);
                 break;
         }
     }
 
-    private static void DrawToggle(SettingSpec spec, bool disabled)
+    private static string WithDefault(string help, string defaultText) => (help + " " + defaultText).Trim();
+
+    private static void DrawToggle(SettingSpec spec, bool disabled, int indent, bool joined)
     {
         bool value = PvpBinding.TryGetBool(spec.Property, out bool current) && current;
-        if (Check(spec.Label, ref value, disabled))
+        if (PvpApprovedChrome.Toggle(spec.Property, spec.Label, spec.Help, ref value, disabled, indent, joined))
         {
             _ = PvpBinding.TrySetBool(spec.Property, value);
             Save();
         }
     }
 
-    private static void DrawPercent(SettingSpec spec, bool disabled)
+    private static void DrawPercent(SettingSpec spec, bool disabled, int indent, bool joined)
     {
         _ = PvpBinding.TryGetFloat(spec.Property, out float ratio);
         int min = OptionText.ToPoints(spec.Min);
         int max = OptionText.ToPoints(spec.Max);
         int points = Math.Clamp(OptionText.ToPoints(ratio), min, max);
-        if (PercentSlider("##value", ref points, min, max, disabled: disabled))
+        string help = WithDefault(spec.Help, "(default " + OptionText.ToPoints(spec.DefaultNumber).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%)");
+        bool differs = OptionText.ToPoints(ratio) != OptionText.ToPoints(spec.DefaultNumber);
+        if (PercentSlider(spec.Property, spec.Label, help, ref points, min, max, disabled, indent, joined, () =>
+            {
+                _ = PvpBinding.TrySetFloat(spec.Property, spec.DefaultNumber);
+                Save();
+            }, differs && !disabled))
         {
             _ = PvpBinding.TrySetFloat(spec.Property, OptionText.FromPoints(points, spec.Min, spec.Max));
             MarkDirty();
         }
-
-        ImGui.SameLine();
-        ImGui.TextWrapped(spec.Label);
-        if (!disabled && OptionText.ToPoints(ratio) != OptionText.ToPoints(spec.DefaultNumber))
-        {
-            ImGui.SameLine();
-            if (ResetButton("reset"))
-            {
-                _ = PvpBinding.TrySetFloat(spec.Property, spec.DefaultNumber);
-                Save();
-            }
-        }
     }
 
-    private static void DrawSeconds(SettingSpec spec, bool disabled)
+    private static void DrawSeconds(SettingSpec spec, bool disabled, int indent, bool joined)
     {
         _ = PvpBinding.TryGetFloat(spec.Property, out float seconds);
         int whole = OptionText.ClampInt((int)MathF.Round(seconds), (int)spec.Min, (int)spec.Max);
-        if (NumberDrag("##value", ref whole, (int)spec.Min, (int)spec.Max, " s", disabled: disabled))
+        string help = WithDefault(spec.Help, "(default " + ((int)spec.DefaultNumber).ToString(System.Globalization.CultureInfo.InvariantCulture) + " s)");
+        bool differs = (int)MathF.Round(seconds) != (int)spec.DefaultNumber;
+        if (NumberDrag(spec.Property, spec.Label, help, ref whole, (int)spec.Min, (int)spec.Max, " s", disabled, indent, joined, () =>
+            {
+                _ = PvpBinding.TrySetFloat(spec.Property, spec.DefaultNumber);
+                Save();
+            }, differs && !disabled))
         {
             _ = PvpBinding.TrySetFloat(spec.Property, OptionText.ClampInt(whole, (int)spec.Min, (int)spec.Max));
             MarkDirty();
         }
-
-        ImGui.SameLine();
-        ImGui.TextWrapped(spec.Label);
-        if (!disabled && (int)MathF.Round(seconds) != (int)spec.DefaultNumber)
-        {
-            ImGui.SameLine();
-            if (ResetButton("reset"))
-            {
-                _ = PvpBinding.TrySetFloat(spec.Property, spec.DefaultNumber);
-                Save();
-            }
-        }
     }
 
-    private static void DrawChoice(SettingSpec spec, bool disabled)
+    private static void DrawChoice(SettingSpec spec, bool disabled, int indent, bool joined)
     {
         _ = PvpBinding.TryGetChoice(spec.Property, out string current);
-        ImGui.TextUnformatted(spec.Label);
-        using var off = ImRaii.Disabled(disabled);
+        string? picked = null;
         if (spec.Choices.Count <= 3)
         {
-            bool first = true;
-            foreach (SettingChoice choice in spec.Choices)
+            (string Name, string Label)[] choices = spec.Choices.Select(c => (c.Name, c.Label)).ToArray();
+            float width = PvpApprovedChrome.ChoiceWidth(choices.Select(c => c.Label));
+            PvpApprovedChrome.Row(spec.Property, spec.Label, spec.Help, width, PvpApprovedChrome.BodyControl,
+                pos => picked = PvpApprovedChrome.ChoiceButtons(spec.Property, choices, current, pos), indent, disabled, joined);
+        }
+        else
+        {
+            string preview = spec.Choices.FirstOrDefault(c => c.Name == current)?.Label ?? current;
+            const float comboWidth = 240f;
+            PvpApprovedChrome.Row(spec.Property, spec.Label, spec.Help, comboWidth, PvpApprovedChrome.BodyControl, pos =>
             {
-                float choiceWidth = MathF.Max(64, ImGui.CalcTextSize(choice.Label).X + 28);
-                if (!first && ImGui.GetContentRegionAvail().X >= choiceWidth + Theme.ItemSpacing.X)
+                ImGui.SetCursorScreenPos(pos);
+                PvpApprovedChrome.Combo("##choice", preview, comboWidth, () =>
                 {
-                    ImGui.SameLine();
-                }
-
-                first = false;
-                if (PvpApprovedChrome.ChoiceButton(choice.Name, choice.Label, choice.Name == current))
-                {
-                    _ = PvpBinding.TrySetChoice(spec.Property, choice.Name);
-                    Save();
-                }
-            }
-
-            return;
+                    foreach (SettingChoice choice in spec.Choices)
+                    {
+                        if (ImGui.Selectable(choice.Label, choice.Name == current))
+                        {
+                            picked = choice.Name;
+                        }
+                    }
+                });
+            }, indent, disabled, joined);
         }
 
-        string preview = spec.Choices.FirstOrDefault(c => c.Name == current)?.Label ?? current;
-        ImGui.SetNextItemWidth(MathF.Min(320f * Scale, ImGui.GetContentRegionAvail().X));
-        using var combo = ImRaii.Combo("##choice", preview);
-        if (!combo)
+        if (picked is not null)
         {
-            return;
-        }
-
-        foreach (SettingChoice choice in spec.Choices)
-        {
-            if (ImGui.Selectable(choice.Label, choice.Name == current))
-            {
-                _ = PvpBinding.TrySetChoice(spec.Property, choice.Name);
-                Save();
-            }
+            _ = PvpBinding.TrySetChoice(spec.Property, picked);
+            Save();
         }
     }
 }

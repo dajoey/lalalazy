@@ -9,12 +9,13 @@ internal static class PvpSurvivalTab
     {
         foreach (string section in PvpSettingsCatalog.SectionsOf(PvpSettingsCatalog.Survival))
         {
-            PvpUi.DrawSection(PvpSettingsCatalog.Survival, section);
-            if (section == "Defensive abilities")
-            {
-                PvpUi.Help("The list of defensives for each job is in the My Job tab, under Defensive abilities.");
-                PvpUi.Help("Not covered by this switch: Guard, Purify, Recuperate when 15,000 or more HP is missing, and Standard-issue Elixir when HP or MP is at one third or less.");
-            }
+            PvpUi.DrawSection(PvpSettingsCatalog.Survival, section, after: section == "Defensive abilities"
+                ? () =>
+                {
+                    PvpUi.Help("The list of defensives for each job is in the My Job tab, under Defensive abilities.");
+                    PvpUi.Help("Not covered by this switch: Guard, Purify, Recuperate when 15,000 or more HP is missing, and Standard-issue Elixir when HP or MP is at one third or less.", after: 0);
+                }
+                : null);
         }
     }
 }

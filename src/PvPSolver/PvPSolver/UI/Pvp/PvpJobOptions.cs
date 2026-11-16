@@ -77,7 +77,15 @@ internal static class PvpJobOptions
         Load state = Get(job, out ICustomRotation? rotation, out string message);
         if (state != Load.Ready || rotation == null)
         {
-            PvpUi.Help(message, 0f);
+            if (state == Load.Failed)
+            {
+                PvpUi.WarningText(message);
+            }
+            else
+            {
+                PvpUi.Help(message, 0f, 0f);
+            }
+
             return;
         }
 
@@ -106,7 +114,7 @@ internal static class PvpJobOptions
 
         if (options.Count == 0)
         {
-            PvpUi.Help("This job has no extra options.", 0f);
+            PvpUi.Help("This job has no extra options.", 0f, 0f);
             return;
         }
 
@@ -146,28 +154,24 @@ internal static class PvpJobOptions
 
     private static void DrawOne(IRotationConfig config, bool isChild)
     {
-        if (isChild)
-        {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (24f * PvpUi.Scale));
-        }
-
         string label = config.DisplayName;
         string value = config.Value;
         string defaultText = config.DefaultValue;
-        float indent = isChild ? 48f : 24f;
+        int indent = isChild ? 1 : 0;
+        string id = config.Name;
 
         switch (config)
         {
             case RotationConfigBoolean:
             {
                 bool on = OptionText.TryRead(value, out bool parsed) && parsed;
-                if (PvpUi.Check(label, ref on))
+                if (PvpApprovedChrome.Toggle(id, label, DefaultLine(OptionKind.Bool, defaultText), ref on, indent: indent, joined: isChild,
+                        onReset: () => ResetTo(config, defaultText), resetVisible: !OptionText.SameValue(OptionKind.Bool, value, defaultText)))
                 {
                     config.Value = OptionText.Write(on);
                     PvpUi.Save();
                 }
 
-                DefaultLine(config, OptionKind.Bool, value, defaultText, indent);
                 break;
             }
 
@@ -182,15 +186,13 @@ internal static class PvpJobOptions
                 int min = OptionText.ToPoints(percent.Min);
                 int max = OptionText.ToPoints(percent.Max);
                 int points = Math.Clamp(OptionText.ToPoints(ratio), min, max);
-                if (PvpUi.PercentSlider("##value", ref points, min, max))
+                if (PvpUi.PercentSlider(id, label, DefaultLine(OptionKind.Percent, defaultText), ref points, min, max, indent: indent, joined: isChild,
+                        onReset: () => ResetTo(config, defaultText), resetVisible: !OptionText.SameValue(OptionKind.Percent, value, defaultText)))
                 {
                     config.Value = OptionText.Write(OptionText.FromPoints(points, percent.Min, percent.Max));
                     PvpUi.MarkDirty();
                 }
 
-                ImGui.SameLine();
-                ImGui.TextWrapped(label);
-                DefaultLine(config, OptionKind.Percent, config.Value, defaultText, indent);
                 break;
             }
 
@@ -202,17 +204,25 @@ internal static class PvpJobOptions
                     break;
                 }
 
-                ImGui.SetNextItemWidth(160f * PvpUi.Scale);
-                if (ImGui.DragFloat("##value", ref amount, number.Speed, number.Min, number.Max, "%.2f" + number.UnitType.ToSymbol()))
+                float edited = amount;
+                bool changed = false;
+                PvpApprovedChrome.Row(id, label, DefaultLine(OptionKind.Float, defaultText), 120f, PvpApprovedChrome.BodyControl, pos =>
                 {
-                    config.Value = OptionText.Write(OptionText.ClampFloat(amount, number.Min, number.Max, number.Min));
+                    ImGui.SetCursorScreenPos(pos);
+                    changed = PvpApprovedChrome.Field(() =>
+                    {
+                        ImGui.SetNextItemWidth(120f);
+                        return ImGui.DragFloat("##value", ref edited, number.Speed, number.Min, number.Max, "%.2f" + number.UnitType.ToSymbol());
+                    });
+                    PvpUi.SaveOnRelease();
+                }, indent, joined: isChild, onReset: () => ResetTo(config, defaultText),
+                    resetVisible: !OptionText.SameValue(OptionKind.Float, value, defaultText));
+                if (changed)
+                {
+                    config.Value = OptionText.Write(OptionText.ClampFloat(edited, number.Min, number.Max, number.Min));
                     PvpUi.MarkDirty();
                 }
 
-                PvpUi.SaveOnRelease();
-                ImGui.SameLine();
-                ImGui.TextWrapped(label);
-                DefaultLine(config, OptionKind.Float, config.Value, defaultText, indent);
                 break;
             }
 
@@ -224,15 +234,13 @@ internal static class PvpJobOptions
                     break;
                 }
 
-                if (PvpUi.NumberDrag("##value", ref amount, whole.Min, whole.Max, string.Empty, width: 160f))
+                if (PvpUi.NumberDrag(id, label, DefaultLine(OptionKind.Int, defaultText), ref amount, whole.Min, whole.Max, string.Empty, indent: indent, joined: isChild,
+                        onReset: () => ResetTo(config, defaultText), resetVisible: !OptionText.SameValue(OptionKind.Int, value, defaultText)))
                 {
                     config.Value = OptionText.Write(OptionText.ClampInt(amount, whole.Min, whole.Max));
                     PvpUi.MarkDirty();
                 }
 
-                ImGui.SameLine();
-                ImGui.TextWrapped(label);
-                DefaultLine(config, OptionKind.Int, config.Value, defaultText, indent);
                 break;
             }
 
@@ -245,60 +253,73 @@ internal static class PvpJobOptions
                     index = 0;
                 }
 
-                ImGui.SetNextItemWidth(240f * PvpUi.Scale);
-                if (ImGui.Combo("##value", ref index, names, names.Length))
+                int picked = -1;
+                const float width = 240f;
+                PvpApprovedChrome.Row(id, label, DefaultLine(OptionKind.Text, defaultText), width, PvpApprovedChrome.BodyControl, pos =>
                 {
+                    ImGui.SetCursorScreenPos(pos);
+                    PvpApprovedChrome.Combo("##value", names.Length > 0 ? names[index] : string.Empty, width, () =>
+                    {
+                        for (int i = 0; i < names.Length; i++)
+                        {
+                            if (ImGui.Selectable(names[i], i == index))
+                            {
+                                picked = i;
+                            }
+                        }
+                    });
+                }, indent, joined: isChild, onReset: () => ResetTo(config, defaultText),
+                    resetVisible: !OptionText.SameValue(OptionKind.Text, value, defaultText));
+                if (picked >= 0)
+                {
+                    index = picked;
                     combo.Value = names[index];
                     PvpUi.Save();
                 }
 
-                ImGui.SameLine();
-                ImGui.TextWrapped(label);
-                DefaultLine(config, OptionKind.Text, config.Value, defaultText, indent);
                 break;
             }
 
             case RotationConfigString:
             {
                 string text = value;
-                ImGui.SetNextItemWidth(240f * PvpUi.Scale);
-                if (ImGui.InputTextWithHint("##value", label, ref text, 128))
+                bool changed = false;
+                PvpApprovedChrome.Row(id, label, DefaultLine(OptionKind.Text, defaultText), 240f, PvpApprovedChrome.BodyControl, pos =>
+                {
+                    ImGui.SetCursorScreenPos(pos);
+                    changed = PvpApprovedChrome.Field(() =>
+                    {
+                        ImGui.SetNextItemWidth(240f);
+                        return ImGui.InputTextWithHint("##value", string.Empty, ref text, 128);
+                    });
+                    PvpUi.SaveOnRelease();
+                }, indent, joined: isChild, onReset: () => ResetTo(config, defaultText),
+                    resetVisible: !OptionText.SameValue(OptionKind.Text, value, defaultText));
+                if (changed)
                 {
                     config.Value = text;
                     PvpUi.MarkDirty();
                 }
 
-                PvpUi.SaveOnRelease();
-                DefaultLine(config, OptionKind.Text, config.Value, defaultText, indent);
                 break;
             }
         }
     }
 
-    // "(default 75%)" in muted text, with a Reset button while the value differs from the default.
-    private static void DefaultLine(IRotationConfig config, OptionKind kind, string value, string defaultText, float indent)
+    // "(default 75%)" is the help line of the row; the Reset button sits left of the control while the value differs.
+    private static string DefaultLine(OptionKind kind, string defaultText) => OptionText.DefaultLabel(kind, defaultText);
+
+    private static void ResetTo(IRotationConfig config, string defaultText)
     {
-        string defaultLabel = OptionText.DefaultLabel(kind, defaultText);
-        PvpUi.Help(defaultLabel, indent);
-        if (!OptionText.SameValue(kind, value, defaultText))
-        {
-            ImGui.SameLine();
-            if (PvpUi.ResetButton("reset"))
-            {
-                config.Value = defaultText;
-                PvpUi.Save();
-            }
-        }
+        config.Value = defaultText;
+        PvpUi.Save();
     }
 
-    private static void BadValue(IRotationConfig config, string label, string value, float indent)
-    {
-        PvpUi.WarningText($"{label}: the stored value \"{value}\" is not a valid number.");
-        ImGui.SameLine();
-        if (PvpUi.ResetButton("reset"))
-        {
-            config.Value = config.DefaultValue;
-            PvpUi.Save();
-        }
-    }
+    private static void BadValue(IRotationConfig config, string label, string value, int indent)
+        => PvpApprovedChrome.Row(config.Name, label, $"The stored value \"{value}\" is not a valid number.", 0, 0, null, indent,
+            onReset: () =>
+            {
+                config.Value = config.DefaultValue;
+                PvpUi.Save();
+            }, resetVisible: true);
 }
