@@ -1,4 +1,10 @@
-﻿## v0.1.2.17 (2026-11-15) [testing]
+﻿## v0.1.2.18 (2026-11-15) [testing]
+- The first-start tutorial has a new look and walks through the PvP Solver settings window tab by tab, with buttons that open the matching tab.
+- The control and cooldown windows have a clean bordered look, and an unlocked window can be moved by a small handle along its top edge.
+- The full legacy settings window has a matching header that shows the plugin version, with a Reset button and a close button. The reset and restore confirmations in the Advanced tab no longer show a plain title bar.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.1.2.17 (2026-11-15) [testing]
 - The settings window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The window uses a header band with a brand chip, a drawn close button, a fixed-width status pill, a section band and a footer with the main action.
 - Settings are rows inside cards, with the label and a muted help line on the left, the control on the right and a Reset beside any value that differs from its default.
