@@ -1,4 +1,11 @@
-﻿## v1.3.1.7 (2026-11-15) [testing]
+﻿## v1.3.1.8 (2026-11-15) [testing]
+- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The main, settings, spending-guide, debug and setup windows share one look: a header bar with brand, status and window buttons, a navigation band, a page title block and a status footer.
+- Currency balances and spending-guide tables use fixed, right-aligned number columns and framed Flag, TP and Spend it buttons; long names are shortened with the full name on hover.
+- In narrow windows the tables keep their sideways scroll and a readable name column, so every button stays reachable.
+- The settings window gains a framed Minimum sales field and a full-width separator list, and the instructions use numbered step cards.
+
+## v1.3.1.7 (2026-11-15) [testing]
 ### Changed
 - The plugin windows now use responsive card-based layouts with custom close and minimize controls in place of the native title bars, clear currency state indicators, and scrollable settings, wizard and table content. Currency calculations, spending behavior and saved configuration are unchanged.
 ### Notes
