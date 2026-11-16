@@ -7,9 +7,146 @@ namespace AutoPotion;
 /// <summary>Drawn controls for AutoPotion's settings shell and rounded cards.</summary>
 internal static class AutoPotionChrome
 {
-    private const float CardPadding = 12f;
-    private const float CardGap = 12f;
+    internal const float CardPad = 16f;
+    internal const float CardGap = 16f;
+    internal const float Radius = 8f;
+    internal const float Row = 36f;
     private static readonly Vector2 ToggleSize = new(44f, 24f);
+
+    // Inner right edges (screen X) of the containers being drawn: cards and columns narrow what a widget may use.
+    private static readonly Stack<float> Rights = new();
+    private static readonly Dictionary<string, (float Main, float Rail)> ColumnHeights = new();
+    private static float _fillBottom;
+    private static float _stretch;
+    private static float _lastBottom;
+
+    /// <summary>Set while the master switch is off: rule rows are drawn muted. Drawing only; no control changes.</summary>
+    internal static bool Dim;
+
+    internal static void Reset()
+    {
+        Dim = false;
+        Rights.Clear();
+        _fillBottom = 0f;
+        _stretch = 0f;
+        _lastBottom = 0f;
+    }
+
+    internal static void PushRight(float x) => Rights.Push(x);
+
+    internal static void PopRight() => Rights.Pop();
+
+    /// <summary>Width from the cursor to the innermost container's inner right edge.</summary>
+    internal static float Avail() =>
+        Rights.Count > 0 ? Rights.Peek() - ImGui.GetCursorScreenPos().X : ImGui.GetContentRegionAvail().X;
+
+    // ---- text measured at the size it is drawn ----
+
+    private static T Measure<T>(float scale, Func<T> measure)
+    {
+        if (scale == 1f)
+            return measure();
+        ImGui.SetWindowFontScale(scale);
+        try
+        {
+            return measure();
+        }
+        finally
+        {
+            ImGui.SetWindowFontScale(1f);
+        }
+    }
+
+    internal static float TextWidth(string text, float scale = 1f) => Measure(scale, () => ImGui.CalcTextSize(text).X);
+
+    internal static float LineHeight(float scale = 1f) => Measure(scale, () => ImGui.GetTextLineHeight());
+
+    internal static float WrappedHeight(string text, float width, float scale = 1f) =>
+        Measure(scale, () => ImGui.CalcTextSize(text, false, MathF.Max(1f, width)).Y);
+
+    internal static Vector4 Alpha(Vector4 color, float alpha) => color with { W = alpha };
+
+    internal static void DrawText(ImDrawListPtr draw, Vector2 pos, string text, Vector4 color, float scale = 1f)
+    {
+        if (text.Length == 0)
+            return;
+        draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * scale, pos, Theme.Pack(color), text);
+    }
+
+    internal static void DrawTextRight(ImDrawListPtr draw, float right, float y, string text, Vector4 color, float scale = 1f) =>
+        DrawText(draw, new Vector2(right - TextWidth(text, scale), y), text, color, scale);
+
+    /// <summary>Draws wrapped text at the given width and returns its measured height.</summary>
+    internal static float DrawWrapped(ImDrawListPtr draw, Vector2 pos, string text, float width, Vector4 color, float scale = 1f)
+    {
+        if (text.Length == 0)
+            return 0f;
+        var height = WrappedHeight(text, width, scale);
+        draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * scale, pos, Theme.Pack(color), text, MathF.Max(1f, width));
+        return height;
+    }
+
+    /// <summary>Shortens text with an ellipsis until it fits one line at the draw size.</summary>
+    internal static string Fit(string text, float width, float scale = 1f)
+    {
+        if (width <= 0f)
+            return "";
+        if (TextWidth(text, scale) <= width)
+            return text;
+        const string ellipsis = "…";
+        var low = 0;
+        var high = text.Length;
+        while (low < high)
+        {
+            var mid = (low + high + 1) / 2;
+            if (TextWidth(text[..mid].TrimEnd() + ellipsis, scale) <= width)
+                low = mid;
+            else
+                high = mid - 1;
+        }
+        return low == 0 ? "" : text[..low].TrimEnd() + ellipsis;
+    }
+
+    /// <summary>Keeps at most maxLines wrapped lines, ending the last one with an ellipsis.</summary>
+    internal static string ClampLines(string text, float width, float scale, int maxLines)
+    {
+        var limit = (LineHeight(scale) * maxLines) + 1f;
+        if (WrappedHeight(text, width, scale) <= limit)
+            return text;
+        const string ellipsis = "…";
+        var low = 0;
+        var high = text.Length;
+        while (low < high)
+        {
+            var mid = (low + high + 1) / 2;
+            if (WrappedHeight(text[..mid].TrimEnd() + ellipsis, width, scale) <= limit)
+                low = mid;
+            else
+                high = mid - 1;
+        }
+        return low == 0 ? "" : text[..low].TrimEnd() + ellipsis;
+    }
+
+    /// <summary>Full text on hover for something that was elided.</summary>
+    internal static void HoverTip(Vector2 min, Vector2 max, string full)
+    {
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseHoveringRect(min, max))
+            ImGui.SetTooltip(full);
+    }
+
+    /// <summary>One block of text at the cursor, wrapped to the available width; advances by its measured height plus after.</summary>
+    internal static void TextBlock(string text, float scale, Vector4 color, float after = 0f)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var width = Avail();
+        var height = DrawWrapped(ImGui.GetWindowDrawList(), origin, text, width, color, scale);
+        ImGui.Dummy(new Vector2(width, MathF.Max(1f, height + after - Theme.ItemSpacing.Y)));
+    }
+
+    /// <summary>Vertical space of exactly px between the previous item and the next.</summary>
+    internal static void Gap(float px) => ImGui.Dummy(new Vector2(1f, MathF.Max(0f, px - Theme.ItemSpacing.Y)));
+
+    // ---- shell pieces ----
 
     internal static void Diamond(ImDrawListPtr draw, Vector2 center, float radius, uint color)
     {
@@ -24,34 +161,16 @@ internal static class AutoPotionChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
+    internal static float BrandWidth() => 12f + 24f + 12f + TextWidth("AutoPotion", Theme.TitleScale) + 16f;
+
     internal static void Brand(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), 2f * Theme.Unit);
-        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), 2f * Theme.Unit);
-        Diamond(draw, pos + new Vector2(23f, size.Y / 2f), 15f, Theme.Pack(Theme.Accent));
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), Radius);
+        Diamond(draw, pos + new Vector2(12f + 12f, size.Y / 2f), 12f, Theme.Pack(Theme.Accent));
         const string label = "AutoPotion";
-        var textSize = ImGui.CalcTextSize(label) * Theme.TitleScale;
-        draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * Theme.TitleScale,
-            pos + new Vector2(50f, ((size.Y - textSize.Y) / 2f) - 1f), Theme.Pack(Theme.TextPrimary), label);
-    }
-
-    internal static bool FeatureButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size, bool selected)
-    {
-        ImGui.SetCursorScreenPos(pos);
-        var clicked = ImGui.InvisibleButton("##autopotion_feature_" + id, size);
-        var hovered = ImGui.IsItemHovered();
-        var fill = selected ? Theme.Accent with { W = 0.14f } : Theme.Surface;
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(fill), 2f * Theme.Unit);
-        if (selected || hovered)
-            draw.AddRect(pos, pos + size, Theme.Pack(Theme.Accent), 2f * Theme.Unit);
-        var marker = pos + new Vector2(16f, size.Y / 2f);
-        draw.AddCircle(marker, 6f, Theme.Pack(selected ? Theme.Accent : Theme.TextSecondary), 12, 1f);
-        if (selected)
-            draw.AddCircleFilled(marker, 3f, Theme.Pack(Theme.Accent));
-        var textSize = ImGui.CalcTextSize(label);
-        draw.AddText(pos + new Vector2(30f, ((size.Y - textSize.Y) / 2f) - 1f),
-            Theme.Pack(selected ? Theme.Accent : Theme.TextPrimary), label);
-        return clicked;
+        var lineHeight = LineHeight(Theme.TitleScale);
+        DrawText(draw, pos + new Vector2(48f, (size.Y - lineHeight) / 2f), label, Theme.TextPrimary, Theme.TitleScale);
     }
 
     internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
@@ -59,132 +178,95 @@ internal static class AutoPotionChrome
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##autopotion_close", size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), 2f * Theme.Unit);
-        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2f * Theme.Unit);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Alpha(Theme.Accent, 0.14f) : Theme.Surface), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
         var center = pos + (size / 2f);
-        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextPrimary);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
         draw.AddLine(center + new Vector2(-6f, -6f), center + new Vector2(6f, 6f), color, 1.5f);
         draw.AddLine(center + new Vector2(-6f, 6f), center + new Vector2(6f, -6f), color, 1.5f);
         if (hovered)
-            ImGui.SetTooltip("Close");
+        {
+            // Anchored right-aligned 4 px under the button so it never follows the pointer over the glyph.
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4f), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 4f));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
         return clicked;
     }
 
-    internal static Vector2 StatusSize(UiState state)
+    /// <summary>Width of the status pill: fixed to the widest state word so nothing shifts when the state changes.</summary>
+    internal static float StatusWidth()
     {
-        var label = Copy.Word(state);
-        return new Vector2(MathF.Max(76f, ImGui.CalcTextSize(label).X + 43f), 34f);
+        var widest = 0f;
+        foreach (var state in Enum.GetValues<UiState>())
+            widest = MathF.Max(widest, TextWidth(Copy.Word(state)));
+        return MathF.Max(104f, (2f * Theme.DotRadius) + 8f + widest + 32f);
     }
 
     internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
     {
         var label = Copy.Word(state);
         var color = Copy.MarkColor(state);
+        var neutral = state is UiState.Idle or UiState.Empty or UiState.NeedsSetup;
         draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), size.Y / 2f);
         draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), size.Y / 2f);
-        draw.AddCircleFilled(pos + new Vector2(15f, size.Y / 2f), Theme.DotRadius, Theme.Pack(color));
-        var textSize = ImGui.CalcTextSize(label);
-        draw.AddText(pos + new Vector2(27f, (size.Y - textSize.Y) / 2f), Theme.Pack(color), label);
+        var textWidth = TextWidth(label);
+        var content = (2f * Theme.DotRadius) + 8f + textWidth;
+        var left = pos.X + ((size.X - content) / 2f);
+        draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
+        DrawText(draw, new Vector2(left + (2f * Theme.DotRadius) + 8f, pos.Y + ((size.Y - LineHeight()) / 2f)), label, neutral ? Theme.TextSecondary : color);
     }
 
-    internal static bool Toggle(string id, string literalLabel, ref bool value, string? help = null)
-    {
-        var pos = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var labelWidth = MathF.Max(20f, width - ToggleSize.X - (3f * Theme.Unit));
-        var labelSize = ImGui.CalcTextSize(literalLabel, false, labelWidth);
-        var rowHeight = MathF.Max(ToggleSize.Y, labelSize.Y);
-        var helpHeight = string.IsNullOrWhiteSpace(help)
-            ? 0f
-            : ImGui.CalcTextSize(help, false, width / Theme.CaptionScale).Y * Theme.CaptionScale;
-        var togglePos = pos + new Vector2(width - ToggleSize.X, 0f);
+    // ---- cards and columns ----
 
-        ImGui.SetCursorScreenPos(togglePos);
-        var clicked = ImGui.InvisibleButton("##autopotion_setting_" + id, ToggleSize);
-        if (clicked)
-            value = !value;
-        var hovered = ImGui.IsItemHovered();
-        var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(togglePos, togglePos + ToggleSize,
-            Theme.Pack(value ? Theme.Accent : Theme.SurfaceBorder), ToggleSize.Y / 2f);
-        if (hovered)
-            draw.AddRect(togglePos, togglePos + ToggleSize, Theme.Pack(Theme.Accent), ToggleSize.Y / 2f);
-        draw.AddCircleFilled(togglePos + new Vector2(value ? 32f : 12f, 12f), 8f,
-            Theme.Pack(value ? Theme.Surface : Theme.TextSecondary));
-
-        var labelY = labelSize.Y <= ImGui.GetTextLineHeight() + 1f
-            ? (ToggleSize.Y - labelSize.Y) / 2f
-            : 0f;
-        ImGui.SetCursorScreenPos(pos + new Vector2(0f, labelY));
-        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + labelWidth);
-        ImGui.TextUnformatted(literalLabel);
-        ImGui.PopTextWrapPos();
-
-        if (helpHeight > 0f)
-        {
-            ImGui.SetCursorScreenPos(pos + new Vector2(0f, rowHeight + Theme.Unit));
-            ImGui.SetWindowFontScale(Theme.CaptionScale);
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
-            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + width);
-            ImGui.TextUnformatted(help);
-            ImGui.PopTextWrapPos();
-            ImGui.PopStyleColor();
-            ImGui.SetWindowFontScale(1f);
-        }
-
-        var totalHeight = rowHeight + (helpHeight > 0f ? Theme.Unit + helpHeight : 0f);
-        ImGui.SetCursorScreenPos(pos + new Vector2(0f, totalHeight + Theme.ItemSpacing.Y));
-        return clicked;
-    }
-
-    internal static bool ThresholdSlider(string id, string label, ref float value)
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        ImGui.TextUnformatted(label);
-        ImGui.SameLine();
-        var valueText = $"{value:F0}%";
-        var valueWidth = ImGui.CalcTextSize(valueText).X;
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0f, ImGui.GetContentRegionAvail().X - valueWidth));
-        Widgets.Secondary(valueText);
-
-        ImGui.SetNextItemWidth(MathF.Max(1f, width));
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, Theme.Unit);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ShellBar);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Theme.Accent);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
-        var changed = ImGui.SliderFloat("##autopotion_threshold_" + id, ref value, 1f, 99f, "%.0f%%");
-        ImGui.PopStyleColor(5);
-        ImGui.PopStyleVar();
-        return changed;
-    }
-
-    /// <summary>A content-measured rounded card; its background is drawn behind the completed content.</summary>
-    internal static void Card(string id, Action content, float width = 0f, float minHeight = 0f)
+    /// <summary>
+    ///     A content-measured rounded card. Nested widgets read the card's inner right edge through <see cref="Avail"/>.
+    ///     With fill the card ends a column: it stretches to the column bottom so both columns finish together.
+    /// </summary>
+    internal static void Card(string id, Action content, bool fill = false, float padY = CardPad)
     {
         var draw = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
-        var cardWidth = width <= 0f ? ImGui.GetContentRegionAvail().X : MathF.Min(width, ImGui.GetContentRegionAvail().X);
-        draw.ChannelsSplit(2);
+        var width = Avail();
+        draw.ChannelsSplit(3);
         try
         {
-            draw.ChannelsSetCurrent(1);
+            draw.ChannelsSetCurrent(2);
             ImGui.PushID(id);
-            ImGui.SetCursorScreenPos(origin + new Vector2(CardPadding, CardPadding));
-            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1f, cardWidth - (2f * CardPadding)));
+            PushRight(origin.X + width - CardPad);
+            ImGui.SetCursorScreenPos(origin + new Vector2(CardPad, padY));
             ImGui.BeginGroup();
             content();
+            ImGui.Dummy(new Vector2(1f, 0f));
             ImGui.EndGroup();
-            ImGui.PopTextWrapPos();
+            PopRight();
             ImGui.PopID();
 
-            var contentBottom = ImGui.GetCursorScreenPos().Y;
-            var height = MathF.Max(minHeight, contentBottom - origin.Y + CardPadding);
+            var natural = MathF.Max(Theme.CardMinHeight, ImGui.GetItemRectMax().Y - origin.Y + padY);
+            var height = natural;
+            if (fill && _fillBottom > 0f)
+            {
+                height = MathF.Max(natural, _fillBottom - origin.Y);
+                _stretch += height - natural;
+            }
+
             draw.ChannelsSetCurrent(0);
-            draw.AddRectFilled(origin, origin + new Vector2(cardWidth, height), Theme.Pack(Theme.Surface), 2f * Theme.Unit);
-            draw.AddRect(origin, origin + new Vector2(cardWidth, height), Theme.Pack(Theme.SurfaceBorder), 2f * Theme.Unit);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0f, height + CardGap));
+            draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.Surface), Radius);
+            draw.AddRect(origin, origin + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), Radius);
+            _lastBottom = origin.Y + height;
+            ImGui.SetCursorScreenPos(origin + new Vector2(0f, height));
+            if (fill && _fillBottom > 0f)
+                ImGui.Dummy(new Vector2(1f, 0f));
+            else
+                ImGui.Dummy(new Vector2(width, MathF.Max(0f, CardGap - Theme.ItemSpacing.Y)));
         }
         finally
         {
@@ -192,15 +274,262 @@ internal static class AutoPotionChrome
         }
     }
 
+    /// <summary>
+    ///     Main column and rail side by side with equal bottoms; below the breakpoint they stack. Each column is a group so the
+    ///     cursor's left edge is re-based, and the last card of each column fills to the shared bottom.
+    /// </summary>
+    internal static void Columns(string id, Action main, Action rail, float breakpoint)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var width = Avail();
+        if (width < breakpoint)
+        {
+            var saved = _fillBottom;
+            _fillBottom = 0f;
+            main();
+            ImGui.Dummy(new Vector2(1f, 0f));
+            rail();
+            _fillBottom = saved;
+            return;
+        }
+
+        var railWidth = Math.Clamp(0.26f * width, 300f, 360f);
+        var mainWidth = width - railWidth - CardGap;
+        ColumnHeights.TryGetValue(id, out var previous);
+        var natural = MathF.Max(previous.Main, previous.Rail);
+        var viewport = ImGui.GetWindowHeight() - 17f - ImGui.GetCursorPos().Y;
+        var outerFill = _fillBottom;
+        _fillBottom = origin.Y + MathF.Max(natural, viewport);
+
+        ImGui.SetCursorScreenPos(origin);
+        PushRight(origin.X + mainWidth);
+        ImGui.BeginGroup();
+        _stretch = 0f;
+        _lastBottom = origin.Y;
+        main();
+        ImGui.EndGroup();
+        PopRight();
+        var mainBottom = _lastBottom;
+        var mainNatural = mainBottom - origin.Y - _stretch;
+
+        ImGui.SetCursorScreenPos(origin + new Vector2(mainWidth + CardGap, 0f));
+        PushRight(origin.X + width);
+        ImGui.BeginGroup();
+        _stretch = 0f;
+        _lastBottom = origin.Y;
+        rail();
+        ImGui.EndGroup();
+        PopRight();
+        var railBottom = _lastBottom;
+        var railNatural = railBottom - origin.Y - _stretch;
+
+        ColumnHeights[id] = (mainNatural, railNatural);
+        _fillBottom = outerFill;
+        ImGui.SetCursorScreenPos(new Vector2(origin.X, MathF.Max(mainBottom, railBottom)));
+        ImGui.Dummy(new Vector2(width, 0f));
+    }
+
+    internal static void Section(string title, string description)
+    {
+        TextBlock(title, Theme.TitleScale, Theme.TextPrimary, 4f);
+        TextBlock(description, Theme.SecondaryScale, Theme.TextSecondary, 12f);
+    }
+
+    // ---- rows ----
+
+    /// <summary>A setting row: label and help on the left, the switch on the right, both centred in the row.</summary>
+    internal static bool Toggle(string id, string label, ref bool value, string? help = null, bool separator = false, bool more = false)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = Avail();
+        var textWidth = MathF.Max(20f, width - ToggleSize.X - 16f);
+        var labelHeight = WrappedHeight(label, textWidth);
+        var hasHelp = !string.IsNullOrWhiteSpace(help);
+        var helpHeight = hasHelp ? WrappedHeight(help!, textWidth, Theme.SecondaryScale) : 0f;
+        var block = labelHeight + (hasHelp ? 4f + helpHeight : 0f);
+        var core = MathF.Max(ToggleSize.Y, block);
+        var top = separator ? 12f : 0f;
+        var rowHeight = top + core + (more ? 12f : 0f);
+
+        if (separator)
+            draw.AddLine(origin, origin + new Vector2(width, 0f), Theme.Pack(Theme.SurfaceBorder));
+
+        var togglePos = origin + new Vector2(width - ToggleSize.X, top + ((core - ToggleSize.Y) / 2f));
+        ImGui.SetCursorScreenPos(togglePos);
+        var clicked = ImGui.InvisibleButton("##autopotion_setting_" + id, ToggleSize);
+        if (clicked)
+            value = !value;
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(togglePos, togglePos + ToggleSize, Theme.Pack(value ? (Dim ? Alpha(Theme.Accent, 0.45f) : Theme.Accent) : Theme.SurfaceBorder), ToggleSize.Y / 2f);
+        if (hovered)
+            draw.AddRect(togglePos, togglePos + ToggleSize, Theme.Pack(Theme.Accent), ToggleSize.Y / 2f);
+        draw.AddCircleFilled(togglePos + new Vector2(value ? 32f : 12f, 12f), 8f, Theme.Pack(value ? Theme.Surface : Theme.TextSecondary));
+
+        var textPos = origin + new Vector2(0f, top + ((core - block) / 2f));
+        DrawWrapped(draw, textPos, label, textWidth, Dim ? Theme.TextSecondary : Theme.TextPrimary);
+        if (hasHelp)
+            DrawWrapped(draw, textPos + new Vector2(0f, labelHeight + 4f), help!, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, MathF.Max(1f, rowHeight - Theme.ItemSpacing.Y)));
+        return clicked;
+    }
+
+    internal static bool ThresholdSlider(string id, string label, ref float value)
+    {
+        // The value is drawn on the label line at the right, clear of the thumb; the slider's own text is hidden
+        // (transparent) so its format, and therefore the rounding of the saved value, stay as they were.
+        var draw = ImGui.GetWindowDrawList();
+        var labelOrigin = ImGui.GetCursorScreenPos();
+        var width = Avail();
+        var valueText = $"{value:F0}%";
+        var valueWidth = TextWidth(valueText, Theme.SecondaryScale);
+        var labelHeight = LineHeight(Theme.SecondaryScale);
+        DrawText(draw, labelOrigin, Fit(label, width - valueWidth - 12f, Theme.SecondaryScale), Theme.TextSecondary, Theme.SecondaryScale);
+        DrawText(draw, new Vector2(labelOrigin.X + width - valueWidth, labelOrigin.Y), valueText, Dim ? Theme.TextSecondary : Theme.TextPrimary, Theme.SecondaryScale);
+        ImGui.Dummy(new Vector2(width, MathF.Max(1f, labelHeight + 4f - Theme.ItemSpacing.Y)));
+
+        var padY = MathF.Max(0f, (28f - ImGui.GetFontSize()) / 2f);
+        ImGui.SetNextItemWidth(MathF.Max(1f, width));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.GrabMinSize, 16f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(Theme.FramePadding.X, padY));
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Dim ? Alpha(Theme.Accent, 0.5f) : Theme.Accent);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
+        ImGui.PushStyleColor(ImGuiCol.Text, 0u);
+        var changed = ImGui.SliderFloat("##autopotion_threshold_" + id, ref value, 1f, 99f, "%.0f%%");
+        ImGui.PopStyleColor(6);
+        ImGui.PopStyleVar(4);
+        return changed;
+    }
+
+    /// <summary>A requirement row: state glyph, label, and a state-coloured value on the right, all on one line.</summary>
+    internal static void Requirement(string label, string value, UiState state)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = Avail();
+        var lineHeight = LineHeight();
+        var rowHeight = lineHeight + 12f;
+        var mid = origin.Y + (rowHeight / 2f);
+        var slot = origin.X + 10f;
+
+        if (state == UiState.Ready)
+        {
+            var color = Theme.Pack(Theme.StateGreen);
+            draw.AddLine(new Vector2(slot - 5f, mid), new Vector2(slot - 1.5f, mid + 3.5f), color, 1.5f);
+            draw.AddLine(new Vector2(slot - 1.5f, mid + 3.5f), new Vector2(slot + 5f, mid - 4f), color, 1.5f);
+        }
+        else
+        {
+            var color = Theme.Pack(state is UiState.Blocked or UiState.Missing ? Theme.StateAmber : Theme.TextSecondary);
+            draw.AddLine(new Vector2(slot - 4f, mid), new Vector2(slot + 4f, mid), color, 1.5f);
+        }
+
+        var valueColor = state switch
+        {
+            UiState.Ready => Theme.StateGreen,
+            UiState.Missing or UiState.Blocked => Theme.StateAmber,
+            _ => Theme.TextSecondary,
+        };
+        var valueWidth = TextWidth(value, Theme.SecondaryScale);
+        var textY = origin.Y + ((rowHeight - lineHeight) / 2f);
+        var labelRoom = width - 24f - valueWidth - 12f;
+        var shown = Fit(label, labelRoom);
+        DrawText(draw, new Vector2(origin.X + 24f, textY), shown, Theme.TextSecondary);
+        if (shown != label)
+            HoverTip(new Vector2(origin.X + 24f, origin.Y), new Vector2(origin.X + 24f + labelRoom, origin.Y + rowHeight), label);
+        DrawText(draw, new Vector2(origin.X + width - valueWidth, origin.Y + ((rowHeight - LineHeight(Theme.SecondaryScale)) / 2f)),
+            value, valueColor, Theme.SecondaryScale);
+        ImGui.Dummy(new Vector2(width, rowHeight - Theme.ItemSpacing.Y));
+    }
+
+    // ---- stat cards ----
+
+    internal static float StatHeight(bool compact, float noteHeight = 0f) => compact
+        ? 12f + MathF.Max(LineHeight(Theme.SecondaryScale), LineHeight(1.35f)) + 8f + Theme.BarHeight + 12f
+        : 16f + LineHeight(Theme.SecondaryScale) + 8f + LineHeight(1.7f) + 8f + Theme.BarHeight + 8f + MathF.Max(noteHeight, LineHeight(Theme.SecondaryScale)) + 16f;
+
+    /// <summary>Height of a stat note wrapped to the card's inner width, so a long note grows the card instead of being cut.</summary>
+    internal static float StatNoteHeight(float cardWidth, string note) => WrappedHeight(note, cardWidth - 32f, Theme.SecondaryScale);
+
+    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, float height, bool compact, string label, string value, string? cap, float? fraction, string note)
+    {
+        var pad = compact ? 12f : 16f;
+        var inner = width - (2f * pad);
+        draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.Surface), Radius);
+        draw.AddRect(pos, pos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), Radius);
+
+        var labelHeight = LineHeight(Theme.SecondaryScale);
+        var valueScale = compact ? 1.35f : 1.7f;
+        var valueHeight = LineHeight(valueScale);
+        var capHeight = LineHeight(Theme.SecondaryScale);
+        var y = pos.Y + (compact ? 12f : 16f);
+        var x = pos.X + pad;
+
+        if (compact)
+        {
+            var rowHeight = MathF.Max(labelHeight, valueHeight);
+            Diamond(draw, new Vector2(x + 5f, y + (rowHeight / 2f)), 5f, Theme.Pack(Theme.Accent));
+            DrawText(draw, new Vector2(x + 16f, y + ((rowHeight - labelHeight) / 2f)), label, Theme.TextSecondary, Theme.SecondaryScale);
+            var capWidth = cap is null ? 0f : TextWidth(cap, Theme.SecondaryScale) + 8f;
+            var valueWidth = TextWidth(value, valueScale);
+            var right = pos.X + width - pad;
+            DrawText(draw, new Vector2(right - capWidth - valueWidth, y + ((rowHeight - valueHeight) / 2f)), value, Theme.TextPrimary, valueScale);
+            if (cap is not null)
+                DrawText(draw, new Vector2(right - capWidth + 8f, y + rowHeight - capHeight - (0.08f * valueHeight)), cap, Theme.TextSecondary, Theme.SecondaryScale);
+            y += rowHeight + 8f;
+        }
+        else
+        {
+            Diamond(draw, new Vector2(x + 5f, y + (labelHeight / 2f)), 5f, Theme.Pack(Theme.Accent));
+            DrawText(draw, new Vector2(x + 16f, y), Fit(label, inner - 16f, Theme.SecondaryScale), Theme.TextSecondary, Theme.SecondaryScale);
+            y += labelHeight + 8f;
+            DrawText(draw, new Vector2(x, y), value, Theme.TextPrimary, 1.7f);
+            if (cap is not null)
+            {
+                var valueWidth = TextWidth(value, 1.7f);
+                DrawText(draw, new Vector2(x + valueWidth + 8f, y + valueHeight - capHeight - (0.08f * valueHeight)), cap, Theme.TextSecondary, Theme.SecondaryScale);
+            }
+            y += valueHeight + 8f;
+        }
+
+        // The 4 px bar slot is always reserved; only a real ratio draws a track.
+        if (fraction is { } ratio)
+        {
+            var barMin = new Vector2(x, y);
+            var barMax = new Vector2(x + inner, y + Theme.BarHeight);
+            draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
+            var filled = Math.Clamp(ratio, 0f, 1f);
+            if (filled > 0f)
+                draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * filled), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
+        }
+
+        if (!compact)
+        {
+            y += Theme.BarHeight + 8f;
+            DrawWrapped(draw, new Vector2(x, y), note, inner, fraction is >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
+        }
+    }
+
+    // ---- footer button ----
+
+    internal static Vector2 StopSize() => new(MathF.Max(72f, TextWidth("Stop") + 32f), 36f);
+
     internal static bool StopButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##autopotion_stop", size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.StateRed with { W = 0.85f } : Theme.StateRed), 2f * Theme.Unit);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Alpha(Theme.StateRed, hovered ? 0.24f : 0.12f)), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(Alpha(Theme.StateRed, hovered ? 0.85f : 0.55f)), Radius);
         const string label = "Stop";
-        var textSize = ImGui.CalcTextSize(label);
-        draw.AddText(pos + ((size - textSize) / 2f) - new Vector2(0f, 1f), Theme.Pack(Theme.TextPrimary), label);
+        DrawText(draw, pos + new Vector2((size.X - TextWidth(label)) / 2f, (size.Y - LineHeight()) / 2f), label, Theme.TextPrimary);
         return clicked;
     }
 }
