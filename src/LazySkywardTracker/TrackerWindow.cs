@@ -239,6 +239,10 @@ public sealed class TrackerWindow : Window
             var titleTop = textOrigin.Y + ((tile - titleHeight) / 2f);
             SkywardChrome.DrawWrapped(draw, new Vector2(textOrigin.X, titleTop), shownTitle, textWidth, Theme.TextPrimary, SkywardChrome.PageTitleScale);
             blockBottom = origin.Y + tile;
+            var shortCount = $"{live.Completed} of {Plugin.AchievementIds.Length}";
+            var shortWidth = SkywardChrome.TextWidth(shortCount, Theme.SecondaryScale);
+            if (shortWidth + SkywardChrome.TextWidth(title, SkywardChrome.PageTitleScale) + (4 * Theme.Unit) <= width - textX - gutter)
+                SkywardChrome.DrawTextRight(draw, _winPos.X + width - gutter, origin.Y + ((tile - SkywardChrome.LineHeight(Theme.SecondaryScale)) / 2f), shortCount, Theme.TextSecondary, Theme.SecondaryScale);
         }
         else
         {
@@ -248,7 +252,7 @@ public sealed class TrackerWindow : Window
             var descriptionHeight = SkywardChrome.DrawWrapped(draw, new Vector2(textOrigin.X, descriptionTop), shownDescription, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
             blockBottom = descriptionTop + descriptionHeight;
             if (shownDescription != description && ImGui.IsMouseHoveringRect(textOrigin, new Vector2(textOrigin.X + textWidth, blockBottom)))
-                ImGui.SetTooltip(description);
+                SkywardChrome.TextTooltip(description);
 
             if (wide)
             {
@@ -336,7 +340,7 @@ public sealed class TrackerWindow : Window
             y += valueHeight + (2 * Theme.Unit);
 
             if (stat.Fraction is { } fraction)
-                SkywardChrome.Progress(draw, new Vector2(pos.X + pad, y), inner, fraction, Theme.StateGreen);
+                SkywardChrome.Progress(draw, new Vector2(pos.X + pad, y), inner, fraction, fraction >= 1f ? Theme.StateGreen : Theme.Accent);
             y += Theme.BarHeight + (2 * Theme.Unit);
             if (!stacked)
                 SkywardChrome.DrawFitted(draw, new Vector2(pos.X + pad, y), stat.Note, inner, noteColor, Theme.SecondaryScale);
@@ -605,7 +609,7 @@ public sealed class TrackerWindow : Window
             row.Width - noteWidth - Gap, Theme.TextSecondary, Theme.CaptionScale);
         SkywardChrome.DrawTextRight(draw, right, y, pointsNote, done ? Theme.StateGreen : Theme.TextSecondary, Theme.CaptionScale);
 
-        ProjectionHitArea(id, new Vector2(left, barTop - (2 * Theme.Unit)), new Vector2(row.Width, Theme.BarHeight + (4 * Theme.Unit)),
+        ProjectionHitArea(id, new Vector2(left, barTop - (2 * Theme.Unit)), new Vector2(row.Width, (2 * Theme.Unit) + Theme.BarHeight + (3 * Theme.Unit / 2f) + captionHeight + (2 * Theme.Unit)),
             current, max, inventoryPoints, projection);
     }
 
@@ -620,7 +624,7 @@ public sealed class TrackerWindow : Window
         uint inventoryPoints,
         bool done)
     {
-        SkywardChrome.Progress(draw, pos, width, fraction, Theme.StateGreen);
+        SkywardChrome.Progress(draw, pos, width, fraction, done ? Theme.StateGreen : Theme.Accent);
         if (done || inventoryPoints == 0 || projectedFraction <= fraction)
             return;
         var from = Math.Clamp(fraction, 0f, 1f);
