@@ -144,7 +144,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             InternalName = "LazyHub",
             Title = "lalalazy",
-            Size = new Vector2(1080f, 800f),
+            Size = new Vector2(1080f, HubLayout.WindowHeightForQuick(8)),
         };
 
     private void SetSafeMode(bool on)

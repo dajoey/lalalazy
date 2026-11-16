@@ -28,6 +28,15 @@ internal static class HubTheme
     public static readonly Vector4 Selected = Theme.Accent with { W = 0.14f };
     public static readonly Vector4 Pending = Theme.StateAmber with { W = 0.14f };
 
+    /// <summary>The shell body and bands: the kit's darkest neutral, opaque, so the game window skin never shows through.</summary>
+    public static readonly Vector4 Shell = Theme.ShellBar;
+
+    /// <summary>Idle pill border: the kit border at reduced strength.</summary>
+    public static readonly Vector4 BorderSoft = Theme.SurfaceBorder with { W = 0.6f };
+
+    /// <summary>Switch track when off: the kit neutral at low strength over a card.</summary>
+    public static readonly Vector4 TrackOff = Theme.StateNeutral with { W = 0.35f };
+
     // The one accent (R4): selected navigation, diamonds and active toggle tracks.
     public static readonly Vector4 Accent = Theme.Accent;
 
@@ -38,6 +47,7 @@ internal static class HubTheme
     public static readonly Vector3 ChromeTint = new(0f, 0f, 0f);
 
     // R7 type scale at the native 14 px base: the four kit scales rounded to whole pixels.
+    public const uint FontPage = 19;       // round(1.35 x 14), the page title
     public const uint FontTitle = 16;      // round(1.15 x 14)
     public const uint FontBody = 14;       // 1.00 x 14
     public const uint FontSecondary = 13;  // round(0.90 x 14)

@@ -24,7 +24,7 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
     private const float CellHeight = 60f;
     private const float ColumnGap = 12f;
     private const float IconSize = 44f;
-    private const float OpenWidth = 64f;
+    private const float OpenWidth = 72f;
 
     private sealed class Row
     {
