@@ -1,0 +1,3 @@
+output/
+.nuget/
+imgui.ini
