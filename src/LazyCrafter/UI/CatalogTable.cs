@@ -31,11 +31,15 @@ public sealed class CatalogTable
         Extra,
     }
 
-    private sealed record ColumnSpec(Col Id, string Header, SortKey Key, string Sample, int Priority, bool Stretch = false, ImGuiTableColumnFlags Extra = 0);
+    private sealed record ColumnSpec(Col Id, string Header, SortKey Key, string Sample, int Priority, bool Stretch = false, ImGuiTableColumnFlags Extra = 0)
+    {
+        /// <summary>Numeric columns draw right-aligned values, so their header is right-aligned too.</summary>
+        public bool Right => Id is not (Col.Item or Col.Job or Col.Tier or Col.Missing);
+    }
 
     private static readonly ColumnSpec[] Columns =
     [
-        new(Col.Item, "Item", SortKey.Name, "", 0, true, ImGuiTableColumnFlags.NoHide),
+        new(Col.Item, "Item", SortKey.Name, "", 0, true),
         new(Col.Job, "Job", SortKey.Job, "BSM", 1),
         new(Col.Lvl, "Lvl", SortKey.Level, "100", 2),
         new(Col.Can, "Can", SortKey.Craftable, "999", 3),
@@ -104,8 +108,8 @@ public sealed class CatalogTable
             else
                 height = MathF.Min(rowsHeight, 440);
 
-            var flags = ImGuiTableFlags.Sortable | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.BordersInnerH
-                      | ImGuiTableFlags.Hideable | ImGuiTableFlags.SizingStretchProp;
+            var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.BordersInnerH
+                      | ImGuiTableFlags.SizingStretchProp;
             if (!ImGui.BeginTable($"##crafter_catalog_{tab}_{mask}", specs.Count(spec => visible[specs.IndexOf(spec)]), flags, new Vector2(tableWidth, height)))
                 return;
 
@@ -117,27 +121,30 @@ public sealed class CatalogTable
                     continue;
                 var spec = specs[i];
                 visibleSpecs.Add(spec);
-                var effectiveFlags = spec.Extra;
-                if (spec.Key == sort)
-                    effectiveFlags &= ~ImGuiTableColumnFlags.PreferSortDescending;
-                if (spec.Stretch)
-                    effectiveFlags |= ImGuiTableColumnFlags.WidthStretch;
-                else
-                    effectiveFlags |= ImGuiTableColumnFlags.WidthFixed;
-                if (spec.Key == sort)
-                    effectiveFlags |= (descending ? ImGuiTableColumnFlags.PreferSortDescending : ImGuiTableColumnFlags.PreferSortAscending) | ImGuiTableColumnFlags.DefaultSort;
+                var effectiveFlags = spec.Extra & ~ImGuiTableColumnFlags.PreferSortDescending;
+                effectiveFlags |= spec.Stretch ? ImGuiTableColumnFlags.WidthStretch : ImGuiTableColumnFlags.WidthFixed;
                 var width = spec.Stretch ? (spec.Id == Col.Item ? 1f : 1.2f) : ColumnWidth(spec);
                 ImGui.TableSetupColumn(spec.Header, effectiveFlags, width, (uint)spec.Key + 1);
             }
-            ImGui.TableHeadersRow();
 
-            var sortSpecs = ImGui.TableGetSortSpecs();
-            if (!sortSpecs.IsNull && sortSpecs.SpecsDirty && sortSpecs.SpecsCount > 0)
+            // Headers are drawn by hand so numeric columns line up with their values and the sort arrow has its own slot.
+            ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+            for (var i = 0; i < visibleSpecs.Count; i++)
             {
-                var spec = sortSpecs.Specs;
-                sort = (SortKey)(spec.ColumnUserID - 1);
-                descending = spec.SortDirection == ImGuiSortDirection.Descending;
-                sortSpecs.SpecsDirty = false;
+                var spec = visibleSpecs[i];
+                ImGui.TableSetColumnIndex(i);
+                var direction = spec.Key == sort ? (descending ? -1 : 1) : 0;
+                var pressed = CrafterChrome.HeaderCell("##head_" + spec.Id, spec.Header, spec.Right, direction, true);
+                if (pressed == 0)
+                {
+                    if (spec.Key == sort)
+                        descending = !descending;
+                    else
+                    {
+                        sort = spec.Key;
+                        descending = spec.Extra.HasFlag(ImGuiTableColumnFlags.PreferSortDescending);
+                    }
+                }
             }
 
             var shown = visibleSpecs.Select(spec => spec.Id).ToHashSet();
@@ -156,7 +163,12 @@ public sealed class CatalogTable
             }
             clipper.End();
             clipper.Destroy();
+            var fade = ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1;
+            var fadeMin = ImGui.GetWindowPos();
+            var fadeMax = fadeMin + ImGui.GetWindowSize() - new Vector2(ImGui.GetScrollMaxY() > 0 ? 2 * Theme.Unit + 2 : 0, 0);
             ImGui.EndTable();
+            if (fade)
+                CrafterChrome.FadeBottom(ImGui.GetForegroundDrawList(), fadeMin, fadeMax, Theme.Pack(Theme.Surface));
         }, minHeight: minHeight);
         selected = selectedRecipe;
         return (sort, descending);
@@ -174,11 +186,11 @@ public sealed class CatalogTable
         return list;
     }
 
-    // ImGui adds the cell padding (2 x 8 px) to a fixed column's content width, which leaves room for the sort arrow.
+    // ImGui adds the cell padding (2 x 8 px) to a fixed column's content width; ColumnWidth is the content only.
     private const float CellPad = 4 * Theme.Unit;
 
     private static float ColumnWidth(ColumnSpec spec)
-        => MathF.Max(CrafterChrome.TextWidth(spec.Header) + 18, CrafterChrome.TextWidth(spec.Sample));
+        => MathF.Max(CrafterChrome.TextWidth(spec.Header) + CrafterChrome.SortArrowReserve, CrafterChrome.TextWidth(spec.Sample));
 
     /// <summary>Columns that fit beside a readable item name, by priority; the sorted column always stays.</summary>
     private static bool[] VisibleColumns(IReadOnlyList<CatalogRow> rows, CatalogTab tab, string? extra, SortKey sort, float tableWidth)

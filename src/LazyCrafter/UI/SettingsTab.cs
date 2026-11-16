@@ -81,8 +81,6 @@ public sealed class SettingsTab
     private void DrawInventorySources()
     {
         CrafterChrome.Section("Inventory sources", "Choose where AllaganTools may count owned materials. The free company chest remains opt-in because it is shared property.");
-        if (_plugin.Inventory.Degraded)
-            CrafterChrome.Notice(Copy.Missing("AllaganTools"), "Only the current character's bags are counted.", UiState.Missing);
         var first = true;
         foreach (var source in Enum.GetValues<InventorySource>())
         {

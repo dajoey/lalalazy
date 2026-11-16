@@ -47,7 +47,7 @@ public sealed class RunTab
 
         CrafterChrome.DrawStatCards(
             new CrafterChrome.Stat("Phase", snapshot.State == RunState.Idle ? "Idle" : snapshot.PhaseLabel, null,
-                snapshot.State == RunState.Idle ? "No dispatch has started" : Copy.Word(RunUiState(snapshot.State)), null),
+                snapshot.State == RunState.Idle ? "No dispatch has started" : snapshot.Pass > 0 ? $"Pass {snapshot.Pass}" : "First pass", null),
             new CrafterChrome.Stat("Elapsed", snapshot.State == RunState.Idle ? "—" : RunReport.Elapsed(elapsed), null,
                 snapshot.StartedAt == DateTime.MinValue ? "No start time" : $"Started {snapshot.StartedAt.ToLocalTime():HH:mm:ss}", null),
             new CrafterChrome.Stat("Steps", done.ToString(), snapshot.Steps.Count.ToString(),
@@ -368,7 +368,7 @@ public sealed class RunTab
             ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("888") + (4 * Theme.Unit));
             ImGui.TableSetupColumn("State", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("Pending") + (4 * Theme.Unit));
             ImGui.TableSetupColumn("Reason / status", ImGuiTableColumnFlags.WidthStretch, 3f);
-            ImGui.TableHeadersRow();
+            CrafterChrome.HeadersRow(["Step", "Item", "Qty", "State", "Reason / status"], 2);
             var index = 0;
             foreach (var step in snapshot.Steps)
             {
@@ -381,7 +381,7 @@ public sealed class RunTab
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(step.Name);
                 ImGui.TableNextColumn();
-                ImGui.TextUnformatted(step.Quantity.ToString());
+                CrafterChrome.CellRight(step.Quantity.ToString(), Theme.TextPrimary);
                 ImGui.TableNextColumn();
                 ImGui.TextColored(StateColor(step.State), Capitalize(RunReport.StateName(step.State)));
                 ImGui.TableNextColumn();

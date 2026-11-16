@@ -246,6 +246,99 @@ internal static class CrafterChrome
         }
     }
 
+    /// <summary>A soft fade over the bottom of a scrolling region, so a cut row reads as "continues below".</summary>
+    internal static void FadeBottom(ImDrawListPtr draw, Vector2 min, Vector2 max, uint color, float height = 6 * Theme.Unit)
+    {
+        var top = MathF.Max(min.Y, max.Y - height);
+        var clear = color & 0x00FFFFFFu;
+        draw.PushClipRect(min, max, true);
+        draw.AddRectFilledMultiColor(new Vector2(min.X, top), max, clear, clear, color, color);
+        draw.PopClipRect();
+    }
+
+    // ---- table headers ----
+
+    /// <summary>Width a sortable header keeps free for its sort arrow, so the label never shares its cell with the arrow.</summary>
+    internal static float SortArrowReserve => 14f;
+
+    /// <summary>
+    ///     One table header cell drawn by hand: the label sits at the left or right edge of the cell, so numeric columns
+    ///     line up with their right-aligned values, and the sort arrow takes its own slot beside the label. Returns the
+    ///     mouse button pressed on a sortable header (0 left, 1 right) or -1.
+    /// </summary>
+    internal static int HeaderCell(string id, string label, bool right, int sortDirection = 0, bool sortable = false)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = MathF.Max(1, ImGui.GetContentRegionAvail().X);
+        var height = ImGui.GetTextLineHeight();
+        var pressed = -1;
+        var hovered = false;
+        if (sortable)
+        {
+            ImGui.InvisibleButton(id, new Vector2(width, height));
+            hovered = ImGui.IsItemHovered();
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                pressed = 0;
+            else if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                pressed = 1;
+        }
+        else
+        {
+            ImGui.Dummy(new Vector2(width, height));
+        }
+
+        var reserve = sortable ? SortArrowReserve : 0f;
+        var fitted = Fit(label, MathF.Max(8, width - reserve));
+        var textWidth = TextWidth(fitted);
+        var color = hovered ? Theme.TextPrimary : sortDirection != 0 ? Theme.TextPrimary : Theme.TextSecondary;
+        var textX = right ? pos.X + width - textWidth : pos.X;
+        DrawText(draw, new Vector2(textX, pos.Y), fitted, color);
+        if (sortDirection != 0)
+        {
+            var arrowX = right ? textX - 4f - 4f : textX + textWidth + 4f + 4f;
+            var centre = new Vector2(arrowX, pos.Y + (height / 2f));
+            var up = sortDirection > 0;
+            var a = centre + new Vector2(-4f, up ? 2.5f : -2.5f);
+            var b = centre + new Vector2(4f, up ? 2.5f : -2.5f);
+            var c = centre + new Vector2(0f, up ? -2.5f : 2.5f);
+            draw.AddTriangleFilled(a, b, c, Theme.Pack(Theme.Accent));
+        }
+        return pressed;
+    }
+
+    /// <summary>
+    ///     A non-sortable header row: every label aligned like its column's values (right for the listed columns). A
+    ///     label that starts with "##" is a column without a header text.
+    /// </summary>
+    internal static void HeadersRow(string[] labels, params int[] rightAligned)
+    {
+        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        for (var i = 0; i < labels.Length; i++)
+        {
+            ImGui.TableSetColumnIndex(i);
+            if (labels[i].StartsWith("##", StringComparison.Ordinal))
+            {
+                ImGui.Dummy(new Vector2(1, ImGui.GetTextLineHeight()));
+                continue;
+            }
+            HeaderCell("##h" + i, labels[i], Array.IndexOf(rightAligned, i) >= 0);
+        }
+    }
+
+    /// <summary>Right-aligned text in the current table cell (values under a right-aligned header).</summary>
+    internal static void CellRight(string text, Vector4 color)
+    {
+        var width = ImGui.CalcTextSize(text).X;
+        var available = ImGui.GetContentRegionAvail().X;
+        if (available > width)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + available - width);
+        // The cell may wrap its text; a value placed against the right edge must stay on one line.
+        ImGui.PushTextWrapPos(-1f);
+        ImGui.TextColored(color, text);
+        ImGui.PopTextWrapPos();
+    }
+
     // ---- shell controls ----
 
     internal static float BrandWidth()

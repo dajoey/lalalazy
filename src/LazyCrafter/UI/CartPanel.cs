@@ -60,7 +60,7 @@ public sealed class CartPanel
             new CrafterChrome.Stat("Missing materials", dataFailed && cart.Count == 0 ? "—" : missingCount.ToString(), null,
                 dataFailed && cart.Count == 0 ? "Unknown until game data loads" : missingCount == 0 ? "Every material is accounted for" : $"Worst tier {Fmt.TierName(totals.Tier)}", null),
             new CrafterChrome.Stat("Estimated cash cost", hasEstimate ? (complete ? "" : ">") + Fmt.Gil(cashCost) : "—", null,
-                !hasEstimate ? "No material prices are available yet" : complete ? "Material estimate is complete" : "Lower bound; some materials are unpriced", null));
+                !hasEstimate ? "No prices available yet" : complete ? "Estimate is complete" : "Lower bound; some unpriced", null));
 
         if (cart.Count == 0)
         {
@@ -180,7 +180,7 @@ public sealed class CartPanel
         ImGui.TableSetupColumn("Tier", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("Blocked") + (3 * Theme.Unit));
         ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("<888,888") + (3 * Theme.Unit));
         ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.ControlHeight);
-        ImGui.TableHeadersRow();
+        CrafterChrome.HeadersRow(["Recipe", "Crafts", "Tier", "Cost", "##remove"], 3);
         foreach (var line in snap.Cart)
         {
             ImGui.TableNextRow();
@@ -196,9 +196,9 @@ public sealed class CartPanel
             CellText(Fmt.TierName(line.Assessment.Tier), Fmt.TierColor(line.Assessment.Tier));
             ImGui.TableNextColumn();
             if (line.Estimate is { } estimate)
-                CellText((estimate.CostComplete ? "" : ">") + Fmt.Gil(estimate.CashCost), Theme.TextPrimary);
+                CellText((estimate.CostComplete ? "" : ">") + Fmt.Gil(estimate.CashCost), Theme.TextPrimary, true);
             else
-                CellText("-", Theme.TextSecondary);
+                CellText("-", Theme.TextSecondary, true);
             ImGui.TableNextColumn();
             var removeWidth = CrafterChrome.SmallButtonWidth("×");
             var removeHeight = CrafterChrome.LineHeight(Theme.SecondaryScale) + (3 * Theme.Unit);
@@ -216,11 +216,15 @@ public sealed class CartPanel
     }
 
     /// <summary>One line of cell text centred in a control-height row (drawn directly, so a framed neighbour cannot shift it).</summary>
-    private static void CellText(string text, System.Numerics.Vector4 color)
+    private static void CellText(string text, System.Numerics.Vector4 color, bool right = false)
     {
         var pos = ImGui.GetCursorScreenPos();
         var width = ImGui.GetContentRegionAvail().X;
-        CrafterChrome.DrawFitted(ImGui.GetWindowDrawList(), pos + new System.Numerics.Vector2(0, (CrafterChrome.ControlHeight - CrafterChrome.LineHeight()) / 2f), text, width, color);
+        var y = pos.Y + ((CrafterChrome.ControlHeight - CrafterChrome.LineHeight()) / 2f);
+        if (right)
+            CrafterChrome.DrawFittedRight(ImGui.GetWindowDrawList(), pos.X + width, y, text, width, color);
+        else
+            CrafterChrome.DrawFitted(ImGui.GetWindowDrawList(), new System.Numerics.Vector2(pos.X, y), text, width, color);
         ImGui.Dummy(new System.Numerics.Vector2(1, CrafterChrome.ControlHeight));
     }
 
@@ -243,21 +247,21 @@ public sealed class CartPanel
         ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("Need") + (4 * Theme.Unit));
         ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthStretch, 1.3f);
         ImGui.TableSetupColumn("Est.", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("888,888") + (3 * Theme.Unit));
-        ImGui.TableHeadersRow();
+        CrafterChrome.HeadersRow(["Material", "Need", "Source", "Est."], 1, 3);
         foreach (var leaf in missing)
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.TextColored(Fmt.TierColor(leaf.Tier), _plugin.GameData?.ItemName(leaf.ItemId) ?? $"#{leaf.ItemId}");
             ImGui.TableNextColumn();
-            ImGui.TextUnformatted(leaf.Missing.ToString());
+            CrafterChrome.CellRight(leaf.Missing.ToString(), Theme.TextPrimary);
             ImGui.TableNextColumn();
             ImGui.TextColored(Theme.TextSecondary, string.Join(", ", leaf.Sources.Where(source => source != Core.Model.SourceKind.OnHand).Select(Fmt.SourceName)));
             ImGui.TableNextColumn();
             if (_plugin.Catalog.UnitCost(leaf.ItemId) is { } unit)
-                ImGui.TextUnformatted(Fmt.Gil(unit * leaf.Missing));
+                CrafterChrome.CellRight(Fmt.Gil(unit * leaf.Missing), Theme.TextPrimary);
             else
-                ImGui.TextDisabled("-");
+                CrafterChrome.CellRight("-", Theme.TextSecondary);
         }
         ImGui.PopStyleVar();
         ImGui.PopTextWrapPos();

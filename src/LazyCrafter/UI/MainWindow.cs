@@ -224,7 +224,7 @@ public sealed class MainWindow : Window
         if (run.State == RunState.Done)
             return (UiState.Ready, "run finished", null);
         if (snap.InventoryDegraded)
-            return (UiState.Missing, "inventory counts are limited", Copy.Missing("AllaganTools"));
+            return (UiState.Missing, "inventory counts are limited", "counting this character's bags only");
         if (!snap.LoggedIn)
             return (UiState.Idle, "waiting for a character", "showing every recipe");
         if (_plugin.Catalog.Busy)
@@ -274,7 +274,7 @@ public sealed class MainWindow : Window
         {
             Section.Catalog => _plugin.Catalog.Busy ? "Computing" : scope,
             Section.Cart => snap.Cart.Count == 0 ? "add from the Catalog" : $"worst tier {Fmt.TierName(snap.CartTotals.Tier)}",
-            Section.Run => run.State == RunState.Idle ? "" : run.PhaseLabel,
+            Section.Run => run.State == RunState.Idle ? "" : scope,
             Section.Settings => scope,
             _ => "",
         };
@@ -495,6 +495,9 @@ public sealed class MainWindow : Window
         const float tile = 44f;
         const float padTop = 20f;
         var wide = winWidth >= 760;
+        // A short window keeps the body: the header shrinks to the title and its meta on one line.
+        if (ImGui.GetWindowHeight() < 640)
+            return DrawCompactPageHeader(draw, winPos, winWidth, gutter, top, destination, count, subtext);
         var textX = gutter + tile + (4 * Theme.Unit);
         var metaWidth = wide
             ? MathF.Min(winWidth * 0.40f, MathF.Max(CrafterChrome.TextWidth(count, Theme.SecondaryScale), CrafterChrome.TextWidth(subtext, Theme.SecondaryScale)))
@@ -539,6 +542,23 @@ public sealed class MainWindow : Window
         }
         var height = MathF.Max(tile, blockBottom - origin.Y);
         return top + padTop + height + (2 * Theme.Unit);
+    }
+
+    private static float DrawCompactPageHeader(ImDrawListPtr draw, Vector2 winPos, float winWidth, float gutter, float top, Destination destination, string count, string subtext)
+    {
+        const float padTop = 14f;
+        var meta = subtext.Length > 0 ? count + " · " + subtext : count;
+        var titleHeight = CrafterChrome.LineHeight(CrafterChrome.PageTitleScale);
+        var inner = winWidth - (2 * gutter);
+        var metaWidth = MathF.Min(inner * 0.5f, CrafterChrome.TextWidth(meta, Theme.SecondaryScale));
+        var titleWidth = inner - metaWidth - CrafterChrome.Gap;
+        var origin = winPos + new Vector2(gutter, top + padTop);
+        var title = CrafterChrome.Fit(destination.Title, titleWidth, CrafterChrome.PageTitleScale);
+        CrafterChrome.DrawText(draw, origin, title, Theme.TextPrimary, CrafterChrome.PageTitleScale);
+        if (title != destination.Title && ImGui.IsMouseHoveringRect(origin, origin + new Vector2(titleWidth, titleHeight)))
+            ImGui.SetTooltip(destination.Title);
+        CrafterChrome.DrawFittedRight(draw, winPos.X + winWidth - gutter, origin.Y + ((titleHeight - CrafterChrome.LineHeight(Theme.SecondaryScale)) / 2f), meta, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        return top + padTop + titleHeight + (2 * Theme.Unit);
     }
 
     private void DrawStatusAnnouncements(CatalogSnapshot snap)
@@ -613,13 +633,23 @@ public sealed class MainWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0f);
         ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
-        ImGui.BeginChild("##crafter_rail", new Vector2(railWidth, height), false);
+        var railHeight = height - TrailingGap;
+        var populated = _selectedRecipe != 0 && snap.ByRecipe.ContainsKey(_selectedRecipe);
+        // The empty card never scrolls; a populated rail scrolls as one column and ends level with the table card.
+        ImGui.BeginChild("##crafter_rail", new Vector2(railWidth, railHeight), false,
+            populated ? ImGuiWindowFlags.None : ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
-        var reserve = _railScrolls ? (2 * Theme.Unit) + 2 + Theme.Unit : 0;
+        // One pixel keeps the card border inside the child clip; a scrollbar needs its own lane.
+        var reserve = _railScrolls ? (2 * Theme.Unit) + 2 + Theme.Unit : 1;
         CrafterChrome.PushRight(railOrigin.X + railWidth - reserve);
         Details(height);
         CrafterChrome.PopRight();
-        _railScrolls = ImGui.GetScrollMaxY() > 0;
+        _railScrolls = populated && ImGui.GetScrollMaxY() > 0;
+        if (_railScrolls && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+        {
+            var railPos = ImGui.GetWindowPos();
+            CrafterChrome.FadeBottom(ImGui.GetWindowDrawList(), railPos, railPos + new Vector2(railWidth, railHeight), ImGui.GetColorU32(ImGuiCol.WindowBg));
+        }
         ImGui.PopStyleVar();
         ImGui.EndChild();
         ImGui.PopStyleColor();
