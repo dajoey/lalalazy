@@ -353,7 +353,7 @@ public static class UserConfig
             else if (!descriptionAsTooltip)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, descriptionColor);
-                ImGui.TextWrapped(checkboxDescription);
+                GluttonyChrome.WrappedText(checkboxDescription); // Fork: wrap at the card's inner edge.
                 ImGui.PopStyleColor();
             }
         }

@@ -40,8 +40,8 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
         // Fork: rounded forecast card (a disposable scope keeps the entry loop as it was); entry source, order and
         // click-through behaviour are unchanged.
         using var card = GluttonyChrome.BeginCard(0, GluttonyChrome.OverlayCardWidth * ImGuiHelpers.GlobalScale);
-        LalaUiKit.Widgets.Title("Fight Brain");
-        LalaUiKit.Widgets.Caption($"{entries.Count} code forecasts");
+        // Fork: brand mark and aligned time column for the forecast card.
+        GluttonyChrome.ForecastHeader("Fight Brain", $"{entries.Count} code forecasts");
         foreach (var (hit, seconds) in entries)
         {
             var label = hit.Kind switch
@@ -53,7 +53,7 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
                 AutoRotation.FightBrainHitKind.Downtime => "downtime",
                 _ => hit.Kind.ToString(),
             };
-            ImGui.TextUnformatted($"{seconds,5:F1}s  {label}");
+            GluttonyChrome.ForecastRow(seconds, label, seconds <= entries[0].Seconds);
         }
         ImGuiHelpers.ScaledDummy(1);
     }

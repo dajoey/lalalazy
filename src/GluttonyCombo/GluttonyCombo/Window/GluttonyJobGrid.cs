@@ -26,8 +26,6 @@ internal static class GluttonyJobGrid
             var special = jobs.Where(pair => pair.Value[0].JobInfo.Role is JobRole.Limited or JobRole.All or JobRole.DoL or JobRole.DoH).ToList();
             Widgets.Title("Regular Jobs");
             DrawTable("gc_pve_regular", regular, false);
-            if (regular.Count > 0 && special.Count > 0)
-                ImGui.Dummy(new Vector2(0, 2 * Theme.Unit));
             Widgets.Title("Limited Jobs and Misc");
             DrawTable("gc_pve_special", special, false);
             return;
@@ -43,9 +41,7 @@ internal static class GluttonyJobGrid
             return;
         }
 
-        var columns = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / 220f));
-        using var table = ImRaii.Table(id, columns);
-        if (!table)
+        if (!GluttonyChrome.BeginTileTable(id, ImGui.GetContentRegionAvail().X, out var columns))
             return;
         foreach (var (job, presets) in jobs)
         {
@@ -74,5 +70,6 @@ internal static class GluttonyJobGrid
             }
             ImGui.Dummy(new Vector2(0, Theme.Unit));
         }
+        GluttonyChrome.EndTileTable();
     }
 }

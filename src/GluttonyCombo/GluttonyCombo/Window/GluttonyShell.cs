@@ -75,6 +75,9 @@ internal static class GluttonyShell
             : [];
         features = GluttonyShellNavigation.Features(page, JobOpen(page), content, IncludeDebug);
         var (title, description, count) = PageDetails(page);
+        // While a search is active the count in the header is the number of matches, not the size of the job's list.
+        if (PresetPageSearching(page))
+            count = SearchCount(page);
         var state = LiveState();
         var enabled = FooterEnabled();
         var paused = AutoRotationController.Paused;
@@ -89,7 +92,10 @@ internal static class GluttonyShell
             SearchHint = page == GluttonyPage.Settings ? SettingsUI.Info_searchHintText : FeaturesUI.Search_searchHintText,
             Features = features.Select(feature => new ShellFeature(feature.Id, feature.Label, FeatureSelected(window, page, feature))).ToList(),
             FeaturesCollapsed = Service.Configuration.UILeftColumnCollapsed,
-            // Fork: the problem-report button the old sidebar showed on every page.
+            ExpandHelp = MainWindowUI.Button_ExpandSidebar,
+            // The old header showed the plugin version; the brand chip keeps it as its tooltip.
+            BrandHelp = $"{GluttonyCombo.P.Name} {GluttonyCombo.P.GetType().Assembly.GetName().Version}",
+            // Fork: the problem-report button the old sidebar showed on every page; the shell draws it in the footer.
             ReportButton = GluttonyCombo.P.Telemetry is { } telemetry ? () => telemetry.DrawReportButton() : null,
             Title = title,
             Description = description,
@@ -202,12 +208,24 @@ internal static class GluttonyShell
                     $"{rotationCount} rotation · {utilityCount} utility");
             case GluttonyPage.About:
                 return (GluttonyCombo.P.Name, "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.",
-                    $"{ConfigWindow.groupedPresets.Values.Sum(list => list.Count)} job presets");
+                    $"v{GluttonyCombo.P.GetType().Assembly.GetName().Version} · {ConfigWindow.groupedPresets.Values.Sum(list => list.Count)} job presets");
             case GluttonyPage.Debug:
                 return ("Debug", "Inspect live game, rotation, and IPC state.", $"{ConfigWindow.presetChildren.Count} presets");
             default:
                 return (GluttonyCombo.P.Name, "Combos and settings.", "");
         }
+    }
+
+    private static bool PresetPageSearching(GluttonyPage page) =>
+        page is GluttonyPage.PvE or GluttonyPage.PvP && JobOpen(page) && FeaturesWindow.IsSearching;
+
+    private static string SearchCount(GluttonyPage page)
+    {
+        var job = page == GluttonyPage.PvP ? FeaturesWindow.OpenPvPJob : FeaturesWindow.OpenJob;
+        if (job is not { } openJob || !ConfigWindow.groupedPresets.TryGetValue(openJob, out var presets))
+            return "";
+        var matches = presets.Count(preset => preset.IsPvP == (page == GluttonyPage.PvP) && FeaturesWindow.PresetMatchesSearch(preset.Preset));
+        return matches == 1 ? "1 result" : $"{matches} results";
     }
 
     private static void DrawAbout()
@@ -216,18 +234,17 @@ internal static class GluttonyShell
         {
             Widgets.Title("Source and credits");
             Widgets.SecondaryWrapped("GluttonyCombo preserves the upstream combo suite and its fork integrations.");
-            if (ImGui.Button("GitHub: dajoey/lalalazy"))
+            if (GluttonyChrome.StyledButton("GitHub: dajoey/lalalazy"))
                 Process.Start(new ProcessStartInfo { FileName = "https://github.com/dajoey/lalalazy", UseShellExecute = true });
-            if (ImGui.GetContentRegionAvail().X >= 420)
-                ImGui.SameLine();
-            if (ImGui.Button("Additional custom action icons by alexisoffline"))
+            if (GluttonyChrome.StyledButton("Additional custom action icons by alexisoffline"))
                 Process.Start(new ProcessStartInfo { FileName = "https://ko-fi.com/alexisoffline/", UseShellExecute = true });
         });
         GluttonyChrome.Card("about_support", () =>
         {
             Widgets.Title("Support");
             Widgets.SecondaryWrapped("Conflict warnings stay visible above every page. Reports use the existing telemetry surface.");
-            GluttonyCombo.P.Telemetry?.DrawReportButton();
+            if (GluttonyCombo.P.Telemetry is { } telemetry)
+                GluttonyChrome.StyledButtonCallback(ImGui.GetCursorScreenPos(), () => telemetry.DrawReportButton());
         });
     }
 

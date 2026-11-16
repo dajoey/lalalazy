@@ -5,12 +5,14 @@ using Dalamud.Bindings.ImGui;
 using GluttonyCombo.Window;
 using LalaUiKit;
 using Lala.UiRender;
+using Widgets = GluttonyCombo.Window.Widgets;
 
 namespace GluttonyCombo.UiHarness;
 
-// Renders the real shell drawing (GluttonyShellView + GluttonyChrome) for every window and top-level page. The plugin's own
-// preset, settings and rotation renderers depend on game state and are not linked; their pages show sample bodies built
-// from the same drawn controls (Card, Toggle, JobButton) so the shell around them is the real code.
+// Renders the real shell drawing (GluttonyShellView + GluttonyChrome), the real preset card box (InfoBox), the real
+// text and notice widgets and the real "New changes" window drawing and wording. The plugin's own preset list, settings
+// and rotation renderers depend on live game state and are not linked: their pages show sample bodies that make the same
+// calls (InfoBox around toggle rows, loose toggles under headings, collapsing sections) with a small set of sample data.
 internal static unsafe class Program
 {
     private static int _checks;
@@ -19,6 +21,10 @@ internal static unsafe class Program
     private static readonly SortedSet<string> Missing = [];
     private static int _nonAscii;
     private static readonly List<string> Drawn = [];
+    private static readonly Dictionary<string, List<int>> RulesByScenario = [];
+    private static readonly Dictionary<string, int> RightEdgeByScenario = [];
+    private static readonly Dictionary<string, float> SearchWidthByScenario = [];
+    private static int _reportDraws;
 
     private const int WideW = 1040;
     private const int WideH = 720;
@@ -61,6 +67,8 @@ internal static unsafe class Program
                 if (!hashes.TryAdd(hash, scenario.Name))
                     throw new InvalidOperationException($"{scenario.Name} is byte-identical to {hashes[hash]}.");
             }
+            if (_options.IsGame)
+                VerifyConsistency();
             VerifyToggleInteraction();
             VerifyCloseInteraction();
             CheckGlyphs();
@@ -93,10 +101,11 @@ internal static unsafe class Program
             SearchHint = hint,
             Features = features,
             FeaturesCollapsed = collapsed,
+            BrandHelp = "GluttonyCombo v1.2.3",
             Title = title,
             Description = description,
             Meta = meta.Length == 0 ? [] : [meta],
-            ReportButton = () => ImGui.Button("Report a problem##r"),
+            ReportButton = () => { _reportDraws++; ImGui.Button("Report a problem##r"); },
             Footer = new ShellFooter
             {
                 State = state,
@@ -136,7 +145,7 @@ internal static unsafe class Program
         {
             Name = name, Width = w, Height = h, Search = search, Body = body,
             Model = () => Model("Combos", UiState.Ready, "Paladin", "Job combos, options, and content presets.",
-                "12 preset groups", pve, search: true, descriptions: true),
+                search.Length > 0 ? "3 results" : "12 preset groups", pve, search: true, descriptions: true),
         };
 
         if (!game)
@@ -146,7 +155,7 @@ internal static unsafe class Program
                 new Scenario { Name = "shell-pve-jobs", Width = 960, Height = 700, Body = JobGrid(false), Model = () => Model("Combos", UiState.Ready, "PvE Features", "Select a job to see its combos.", "24 jobs", Features("Combos", 0)) },
                 Pve("shell-pve-presets", 960, 700, PresetList),
                 new Scenario { Name = "shell-autorotation-running", Width = 960, Height = 700, Body = AutoRotationPage, Model = () => Model("Automation", UiState.Running, "AutoRotation", "Choose how the rotation picks targets.", "4 auto modes", Features("Automation", 0), stop: "Stop") },
-                new Scenario { Name = "major-changes", Kind = Kind.Major, Width = 780, Height = 620, Model = () => new ShellModel(), Body = MajorBody },
+                new Scenario { Name = "major-changes", Kind = Kind.Major, Width = 780, Height = 620, Model = () => new ShellModel() },
             ];
         }
 
@@ -159,6 +168,7 @@ internal static unsafe class Program
             Pve("main-pve-job-presets-1040x720", WideW, WideH, PresetList),
             Pve("main-pve-job-presets-700x640", NarrowW, NarrowH, PresetList),
             Pve("main-pve-search-results-1040x720", WideW, WideH, SearchResults, search: "mitigation"),
+            Pve("main-pve-nested-options-1040x720", WideW, WideH, NestedList),
             new() { Name = "main-pve-adventurer-content-1040x720", Body = PresetList, Search = "",
                 Model = () => Model("Combos", UiState.Ready, "Adventurer", "Job combos, options, and content presets.", "6 preset groups", adv, search: true, descriptions: true) },
             new() { Name = "main-pve-adventurer-content-700x640", Width = NarrowW, Height = NarrowH, Body = PresetList,
@@ -184,17 +194,20 @@ internal static unsafe class Program
             new() { Name = "main-settings-700x640", Width = NarrowW, Height = NarrowH, Body = SettingsPage,
                 Model = () => Model("System", UiState.Ready, "Settings", "Everything that changes how the combos behave.", "62 settings", Features("System", 0), search: true, hint: "Search settings...") },
             new() { Name = "main-about-1040x720", Body = AboutPage,
-                Model = () => Model("System", UiState.Ready, "GluttonyCombo", "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.", "640 job presets", Features("System", 1)) },
+                Model = () => Model("System", UiState.Ready, "GluttonyCombo", "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.", "v1.2.3 · 640 job presets", Features("System", 1)) },
             new() { Name = "main-close-tooltip-1040x720", HoverClose = true, Body = JobGrid(false),
                 Model = () => Model("Combos", UiState.Ready, "PvE Features", "Select a job to see its combos.", "24 jobs", Features("Combos", 0)) },
             // Other windows.
-            new() { Name = "major-changes-780x620", Kind = Kind.Major, Width = 780, Height = 620, Model = () => new ShellModel(), Body = MajorBody },
-            new() { Name = "major-changes-560x500", Kind = Kind.Major, Width = 560, Height = 500, Model = () => new ShellModel(), Body = MajorBody },
-            new() { Name = "overlay-fight-brain-strip-260x170", Kind = Kind.Strip, Width = 260, Height = 170, Model = () => new ShellModel(), Body = StripBody },
+            new() { Name = "major-changes-780x620", Kind = Kind.Major, Width = 780, Height = 620, Model = () => new ShellModel() },
+            new() { Name = "major-changes-560x500", Kind = Kind.Major, Width = 560, Height = 500, Model = () => new ShellModel() },
+            new() { Name = "overlay-fight-brain-strip-260x200", Kind = Kind.Strip, Width = 260, Height = 200, Model = () => new ShellModel(), Body = StripBody },
         ];
     }
 
-    // ---- sample bodies (drawn controls only; the plugin's own renderers are not linked) ----
+    // ---- sample bodies ----
+    // The preset cards are the plugin's own InfoBox drawn the way the real renderers call it; the rows inside follow
+    // Presets.DrawPreset (toggle, indented description, children). Job tiles, notices, headings and toggles are the
+    // plugin's shared drawing code. The preset data itself is a small sample set.
 
     private static Action JobGrid(bool pvp) => () =>
     {
@@ -204,8 +217,7 @@ internal static unsafe class Program
         string[] special = ["Adventurer - ADV", "Blue Mage - BLU", "Miner - MIN", "Botanist - BTN", "Fisher - FSH"];
         void Table(string id, string[] jobs)
         {
-            var columns = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / 220f));
-            if (!ImGui.BeginTable(id, columns))
+            if (!GluttonyChrome.BeginTileTable(id, ImGui.GetContentRegionAvail().X, out _))
                 return;
             foreach (var job in jobs)
             {
@@ -216,13 +228,12 @@ internal static unsafe class Program
                 ImGui.Dummy(new Vector2(0, Theme.Unit));
                 Drawn.Add(job);
             }
-            ImGui.EndTable();
+            GluttonyChrome.EndTileTable();
         }
         if (!pvp)
         {
             Widgets.Title("Regular Jobs");
             Table("pve_regular", regular);
-            ImGui.Dummy(new Vector2(0, 2 * Theme.Unit));
             Widgets.Title("Limited Jobs and Misc");
             Table("pve_special", special);
             return;
@@ -235,45 +246,98 @@ internal static unsafe class Program
         Widgets.Banner(UiState.Blocked, "Action replacing is off: PvP combos need it.");
     }
 
-    private static bool _a = true, _b, _c = true, _d, _e = true;
+    private static bool _a = true, _b = true, _c = true, _d, _e = true;
 
-    private static void Preset(string title, string text, ref bool on, params (string, bool)[] children)
+    private sealed record Row(string Name, string Description, bool On, Row[]? Children = null);
+
+    // Mirrors Presets.DrawPreset: spacing, toggle, an indented secondary description, then the children one level in.
+    private static void DrawPresetRow(Row row, Func<bool> state, Action<bool> set)
+    {
+        var enabled = state();
+        ImGui.Spacing();
+        if (GluttonyChrome.Toggle($"{row.Name}###{row.Name}", ref enabled))
+            set(enabled);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
+        ImGui.Text(string.Empty);
+        ImGui.SameLine();
+        GluttonyChrome.WrappedText(row.Description);
+        ImGui.PopStyleColor();
+        ImGui.Spacing();
+        Drawn.Add(row.Name + row.Description);
+        if (row.Children is null || !enabled)
+            return;
+        ImGui.Indent();
+        foreach (var child in row.Children)
+        {
+            var on = child.On;
+            if (child.Children is { Length: > 0 })
+            {
+                var box = new InfoBox { HasMaxWidth = true, CurveRadius = 4f, ContentsAction = () => DrawPresetRow(child, () => on, v => on = v) };
+                box.Draw();
+                ImGui.Spacing();
+            }
+            else
+                DrawPresetRow(child, () => on, v => on = v);
+        }
+        ImGui.Unindent();
+    }
+
+    // Mirrors PvEFeatures.DrawHeadingContents: one InfoBox per top-level preset, a spacing after each.
+    private static void PresetBox(Row row, ref bool on)
     {
         var enabled = on;
-        GluttonyChrome.Card("preset_" + title, () =>
-        {
-            GluttonyChrome.Toggle(title + "##" + title, ref enabled);
-            Widgets.SecondaryWrapped(text);
-            ImGui.Indent();
-            foreach (var (name, value) in children)
-            {
-                var v = value;
-                GluttonyChrome.Toggle(name + "##" + title + name, ref v);
-            }
-            ImGui.Unindent();
-            Drawn.Add(title + text);
-        });
+        var box = new InfoBox { ContentsOffset = 5f, ContentsAction = () => DrawPresetRow(row, () => enabled, v => enabled = v) };
+        box.Draw();
+        ImGui.Spacing();
         on = enabled;
     }
 
     private static void PresetList()
     {
-        Preset("Advanced Mode - Single Target", "Replaces Fast Blade with a full single target rotation, tuned for the current job gauge.", ref _a,
-            ("Include Mitigations", true), ("Use Interrupt", false), ("Burst only on bosses", true));
-        Preset("Advanced Mode - AoE", "Replaces Total Eclipse with the area rotation.", ref _b, ("Include Mitigations", false));
-        Preset("Simple Mode - Single Target", "Recommended values, no options to tune.", ref _c);
-        Preset("Mitigation - Tankbusters", "Uses defensive actions when a tankbuster is detected.", ref _d, ("Warn in chat", false));
-        Preset("Balance Opener", "Opens the fight with the standard burst sequence.", ref _e);
+        PresetBox(new("Advanced Mode - Single Target", "Replaces Fast Blade with a full single target rotation, tuned for the current job gauge.", true,
+        [
+            new("Include Mitigations", "Uses defensive actions at set health thresholds.", true),
+            new("Use Interrupt", "Interrupts enemy casts when able.", false),
+            new("Burst only on bosses", "Keeps burst actions for boss targets.", true),
+        ]), ref _a);
+        PresetBox(new("Advanced Mode - AoE", "Replaces Total Eclipse with the area rotation.", true,
+        [
+            new("Include Mitigations", "Uses defensive actions when several enemies attack.", true,
+            [
+                new("Reprisal", "Uses Reprisal when the enemy count is reached.", true),
+            ]),
+        ]), ref _b);
+        PresetBox(new("Simple Mode - Single Target", "Recommended values, no options to tune.", true), ref _c);
+        PresetBox(new("Mitigation - Tankbusters", "Uses defensive actions when a tankbuster is detected.", true,
+            [new("Warn in chat", "Prints a chat line before a tankbuster.", false)]), ref _d);
+        PresetBox(new("Balance Opener", "Opens the fight with the standard burst sequence.", true), ref _e);
+    }
+
+    // A preset whose option has options of its own: the inner level is drawn in a nested box.
+    private static void NestedList()
+    {
+        PresetBox(new("Advanced Mode - AoE", "Replaces Total Eclipse with the area rotation.", true,
+        [
+            new("Include Mitigations", "Uses defensive actions when several enemies attack.", true,
+            [
+                new("Reprisal", "Uses Reprisal when the enemy count is reached.", true),
+                new("Arm's Length", "Uses Arm's Length when the enemy count is reached.", false),
+            ]),
+            new("Interrupt", "Interrupts enemy casts when able.", false),
+        ]), ref _b);
+        PresetBox(new("Simple Mode - AoE", "Recommended values, no options to tune.", true), ref _c);
     }
 
     private static void SearchResults()
     {
-        Widgets.Caption("3 results");
-        Preset("Mitigation - Tankbusters", "Uses defensive actions when a tankbuster is detected.", ref _d, ("Warn in chat", false));
-        Preset("Advanced Mode - Single Target", "Includes mitigation options at set health thresholds.", ref _a, ("Include Mitigations", true));
-        Preset("Advanced Mode - AoE", "Includes mitigation options when several enemies attack.", ref _b);
+        PresetBox(new("Mitigation - Tankbusters", "Uses defensive actions when a tankbuster is detected.", true,
+            [new("Warn in chat", "Prints a chat line before a tankbuster.", false)]), ref _d);
+        PresetBox(new("Advanced Mode - Single Target", "Includes mitigation options at set health thresholds.", true,
+            [new("Include Mitigations", "Uses defensive actions at set health thresholds.", true)]), ref _a);
+        PresetBox(new("Advanced Mode - AoE", "Includes mitigation options when several enemies attack.", true), ref _b);
     }
 
+    // Mirrors AutoRotationTab.Draw: loose toggles under headings, then collapsing sections.
     private static void AutoRotationPage()
     {
         bool on = true, o = false, t = true;
@@ -284,28 +348,28 @@ internal static unsafe class Program
         Widgets.Title("Automatic activation");
         GluttonyChrome.Toggle("Enable AutoRotation when entering an instance", ref t);
         GluttonyChrome.Toggle("Disable AutoRotation when leaving an instance", ref o);
-        GluttonyChrome.Card("autorot_dps", () =>
+        ImGui.SetNextItemOpen(true, ImGuiCond.Always);
+        if (ImGui.CollapsingHeader("Damage settings"))
         {
-            Widgets.Title("Damage settings");
-            Widgets.SecondaryWrapped("Targeting mode, range fallback and quest priority.");
             GluttonyChrome.Toggle("Attack an in-range enemy when the chosen target is out of range", ref t);
             GluttonyChrome.Toggle("Prefer non-combat targets", ref o);
-        });
+        }
+        if (ImGui.CollapsingHeader("Healing settings"))
+            GluttonyChrome.Toggle("Manage Kardia", ref t);
+        Drawn.Add("Damage settings Healing settings");
     }
 
+    // Mirrors CustomActions.Draw: a heading, wrapped explanation, rows of toggles and a closing toggle.
     private static void CustomActionsPage()
     {
         bool a = true, b = false;
         Widgets.Title("Rotation Buttons");
-        Widgets.SecondaryWrapped("These buttons replace the need to replace actions for all features marked as either Simple or Advanced. Drag the icon to a hotbar.");
-        GluttonyChrome.Card("ca_buttons", () =>
-        {
-            GluttonyChrome.Toggle("Single Target DPS##ca1", ref a);
-            GluttonyChrome.Toggle("AoE DPS##ca2", ref b);
-            GluttonyChrome.Toggle("Single Target Heals##ca3", ref a);
-            GluttonyChrome.Toggle("AoE Heals##ca4", ref b);
-        });
-        GluttonyChrome.Toggle("Do not override icons with job actions##ca5", ref b);
+        Widgets.SecondaryWrapped("These buttons replace the need to replace actions for all features marked as either Simple or Advanced. Enable the type of combo you're wanting to use custom actions for, and drag the icon to your hotbar.");
+        GluttonyChrome.Toggle("Single Target DPS##ca1", ref a);
+        GluttonyChrome.Toggle("AoE DPS##ca2", ref b);
+        GluttonyChrome.Toggle("Single Target Heals##ca3", ref a);
+        GluttonyChrome.Toggle("AoE Heals##ca4", ref b);
+        GluttonyChrome.Toggle("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)##ca5", ref b);
     }
 
     private static void SettingsPage()
@@ -320,49 +384,33 @@ internal static unsafe class Program
         GluttonyChrome.Toggle("Treat training dummies as enemies##s5", ref b);
     }
 
+    // Mirrors GluttonyShell.DrawAbout.
     private static void AboutPage()
     {
         GluttonyChrome.Card("about_links", () =>
         {
             Widgets.Title("Source and credits");
             Widgets.SecondaryWrapped("GluttonyCombo preserves the upstream combo suite and its fork integrations.");
-            ImGui.Button("Project page");
-            ImGui.Button("Custom action icon credits");
+            GluttonyChrome.StyledButton("GitHub: dajoey/lalalazy");
+            GluttonyChrome.StyledButton("Additional custom action icons by alexisoffline");
         });
         GluttonyChrome.Card("about_support", () =>
         {
             Widgets.Title("Support");
             Widgets.SecondaryWrapped("Conflict warnings stay visible above every page. Reports use the existing telemetry surface.");
-            ImGui.Button("Report a problem");
+            GluttonyChrome.StyledButtonCallback(ImGui.GetCursorScreenPos(), () => ImGui.Button("Report a problem##about"));
         });
     }
 
-    private static void MajorBody()
-    {
-        Widgets.Title("Tank In-Combo Mitigation Has Been Overhauled and Moved");
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.StateAmber);
-        ImGui.TextUnformatted("You had one of these tanks configured! Please Read!");
-        ImGui.PopStyleColor();
-        ImGui.TextUnformatted("Tanks have had their In-Combo Mitigation completely overhauled.\nMitigation is now in its own Section, under the Advanced Combos.\n\nPvE Features > [Tank of choice] > Advanced Mitigation Options");
-        ImGui.NewLine();
-        ImGui.Button("> Open Dark Knight's Config##m2");
-        ImGui.Button("> Open Paladin's Config##m3");
-        ImGui.Separator();
-        Widgets.Title("Raidwide-Detection Improved, Tankbuster Detection Added");
-        ImGui.TextUnformatted("Raidwide detection has been improved to now also check for nearby\nstack marker visual effects.\n\n(Can also search for 'Tankbuster' in your tank's configuration)");
-        ImGui.Separator();
-        ImGui.SetCursorPosX((ImGui.GetContentRegionAvail().X - 200) / 2f);
-        ImGui.Button("Close and Do Not Show again");
-    }
-
+    // Mirrors FightBrainStrip.Draw.
     private static void StripBody()
     {
         using var card = GluttonyChrome.BeginCard(0, GluttonyChrome.OverlayCardWidth);
-        Widgets.Title("Fight Brain");
-        Widgets.Caption("3 code forecasts");
-        ImGui.TextUnformatted("  4.2s  raidwide");
-        ImGui.TextUnformatted(" 11.8s  tankbuster");
-        ImGui.TextUnformatted(" 19.5s  knockback");
+        GluttonyChrome.ForecastHeader("Fight Brain", "3 code forecasts");
+        (double, string)[] rows = [(4.2, "raidwide"), (11.8, "tankbuster"), (19.5, "knockback")];
+        foreach (var (seconds, label) in rows)
+            GluttonyChrome.ForecastRow(seconds, label, seconds <= rows[0].Item1);
+        ImGui.Dummy(new Vector2(1, 1));
     }
 
     // ---- rendering ----
@@ -390,6 +438,7 @@ internal static unsafe class Program
                     var g = GluttonyChrome.Gutter(s.Width);
                     io.MousePos = new Vector2(s.Width - g - 18, 34);
                 }
+                _reportDraws = 0;
                 ImGui.NewFrame();
                 DrawWindow(s, ref search, ref descriptions);
                 ImGui.Render();
@@ -410,7 +459,10 @@ internal static unsafe class Program
             var path = Path.Combine(_outputDirectory, s.Name + ".png");
             PngWriter.Write(path, frame, s.Width, s.Height);
             if (s.Kind == Kind.Shell)
+            {
                 VerifyGeometry(s, frame);
+                VerifyLayout(s, frame);
+            }
             return path;
         }
         finally
@@ -442,24 +494,23 @@ internal static unsafe class Program
                     ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
                 Theme.PushFrame();
                 GluttonyChrome.PushControlColors();
-                var gutter = GluttonyChrome.Gutter(s.Width);
-                GluttonyChrome.DrawTitleBand(ImGui.GetWindowDrawList(), ImGui.GetWindowPos(), s.Width, gutter, "New changes");
-                ImGui.SetCursorPos(new Vector2(0, GluttonyChrome.TitleBandHeight));
-                GluttonyChrome.BeginBody(new Vector2(s.Width, s.Height - GluttonyChrome.TitleBandHeight), gutter, "majorChangesBody");
-                s.Body();
-                GluttonyChrome.EndBody();
+                GluttonyMajorChanges.Draw(ImGui.GetWindowPos(), ImGui.GetWindowSize(), GluttonyMajorChanges.Sections(true), "majorChangesBody");
+                Drawn.Add(string.Concat(GluttonyMajorChanges.Sections(true).SelectMany(x => x.Paragraphs.Append(x.Title).Append(x.Alert ?? ""))) +
+                          GluttonyMajorChanges.DismissLabel);
                 GluttonyChrome.PopControlColors();
                 Theme.PopFrame();
                 ImGui.End();
                 break;
             case Kind.Strip:
                 ImGui.SetNextWindowPos(new Vector2(20, 20));
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
                 ImGui.Begin("strip", ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize |
                     ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs);
                 Theme.PushFrame();
                 s.Body();
                 Theme.PopFrame();
                 ImGui.End();
+                ImGui.PopStyleVar();
                 break;
         }
         ImGui.PopStyleVar();
@@ -498,6 +549,49 @@ internal static unsafe class Program
         Check(left >= right - 37 && left <= right - 35, $"{s.Name}: close box starts at right gutter - 36 (found {right - left} px).");
         Check(rules.Any(y => y > s.Height - 80 && y < s.Height - 55), $"{s.Name}: footer top rule 60 px above the window bottom (rules {string.Join(",", rules.TakeLast(3))}).");
         _ = g;
+    }
+
+    /// <summary>Per-image measurements on the pixels; the cross-image comparisons run in <see cref="VerifyConsistency"/>.</summary>
+    private static void VerifyLayout(Scenario s, byte[] f)
+    {
+        var w = s.Width;
+        var g = (int)GluttonyChrome.Gutter(w);
+        Check(_reportDraws == 1, $"{s.Name}: the problem-report button is drawn exactly once, so it is reachable in this layout (drew {_reportDraws}).");
+        RulesByScenario[s.Name] = Enumerable.Range(0, s.Height).Where(y => Near(Px(f, w, 3, y), Theme.SurfaceBorder, 10) && Near(Px(f, w, w - 3, y), Theme.SurfaceBorder, 10)).ToList();
+        // Right edge of body content: the rightmost non-background pixel between the bands, left of the scroll bar zone.
+        var bg = Px(f, w, 3, 300);
+        var right = 0;
+        for (var y = 200; y < s.Height - 120; y++)
+            for (var x = w - 14; x > w / 2; x--)
+            {
+                var c = Px(f, w, x, y);
+                if (Math.Abs(c.R - bg.R) > 8 || Math.Abs(c.G - bg.G) > 8 || Math.Abs(c.B - bg.B) > 8)
+                {
+                    right = Math.Max(right, x);
+                    break;
+                }
+            }
+        RightEdgeByScenario[s.Name] = right;
+        Check(right >= w - g - 2 && right <= w - g, $"{s.Name}: body content ends at the gutter (right edge {right}, expected {w - g - 1}..{w - g}).");
+        SearchWidthByScenario[s.Name] = GluttonyShellView.LastSearchWidth;
+    }
+
+    private static void VerifyConsistency()
+    {
+        string W(string n) => n;
+        var normal = RulesByScenario["main-pve-job-presets-1040x720"];
+        var collapsed = RulesByScenario["main-pve-destinations-collapsed-1040x720"];
+        Check(normal.Take(2).SequenceEqual(collapsed.Take(2)), "The sub-navigation band has the same height collapsed and expanded (rules " +
+              $"{string.Join(",", normal.Take(2))} vs {string.Join(",", collapsed.Take(2))}).");
+        var searchPages = new[] { "main-pve-job-presets-1040x720", "main-settings-1040x720", "main-pve-search-results-1040x720", "main-pvp-job-presets-1040x720" };
+        Check(searchPages.Select(n => SearchWidthByScenario[W(n)]).Distinct().Count() == 1, "The search field has one width on every page of the wide window.");
+        var narrowPages = new[] { "main-pve-job-presets-700x640", "main-settings-700x640", "main-pve-adventurer-content-700x640" };
+        Check(narrowPages.Select(n => SearchWidthByScenario[W(n)]).Distinct().Count() == 1, "The search field has one width on every page of the narrow window.");
+        var wideEdges = RightEdgeByScenario.Where(kv => kv.Key.EndsWith("1040x720")).Select(kv => kv.Value).Distinct().ToList();
+        Check(wideEdges.Count <= 2 && wideEdges.Max() - wideEdges.Min() <= 1, $"Scrolling and non-scrolling pages share one right edge ({string.Join(",", wideEdges)}).");
+        var narrowEdges = RightEdgeByScenario.Where(kv => kv.Key.EndsWith("700x640")).Select(kv => kv.Value).Distinct().ToList();
+        Check(narrowEdges.Max() - narrowEdges.Min() <= 1, $"The narrow window shares one right edge too ({string.Join(",", narrowEdges)}).");
+        Check(GluttonyChrome.StateColor(UiState.Running) != GluttonyChrome.StateColor(UiState.Blocked), "Running and Blocked read differently.");
     }
 
     private static void VerifyNavigation()

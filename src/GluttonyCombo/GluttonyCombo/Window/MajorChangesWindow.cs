@@ -58,24 +58,26 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
-    // Fork: header band with a real close control, then the upstream body in its own scrolling child.
+    // Fork: header band with a real close control, page header, one card per change and a footer with the dismiss
+    // action (drawing and wording in GluttonyMajorChanges); the upstream body below is kept for merge context.
     public override void Draw()
     {
         Theme.PushFrame();
         GluttonyChrome.PushControlColors();
         try
         {
-            var winPos = ImGui.GetWindowPos();
-            var winSize = ImGui.GetWindowSize();
-            var gutter = GluttonyChrome.Gutter(winSize.X);
-            var draw = ImGui.GetWindowDrawList();
-            ImGui.SetCursorPos(System.Numerics.Vector2.Zero);
-            var close = GluttonyChrome.DrawTitleBand(draw, winPos, winSize.X, gutter, "New changes");
-            ImGui.SetCursorPos(new System.Numerics.Vector2(0, GluttonyChrome.TitleBandHeight));
-            GluttonyChrome.BeginBody(new System.Numerics.Vector2(winSize.X, winSize.Y - GluttonyChrome.TitleBandHeight), gutter, "majorChangesBody");
-            DrawBody();
-            GluttonyChrome.EndBody();
-            if (close)
+            var result = GluttonyMajorChanges.Draw(ImGui.GetWindowPos(), ImGui.GetWindowSize(),
+                GluttonyMajorChanges.Sections(WasUsingOldDRKConfigs || WasUsingOldGNBConfigs ||
+                                              WasUsingOldPLDConfigs || WasUsingOldWARConfigs),
+                "majorChangesBody");
+            if (result.Link is { } job)
+                GluttonyCombo.P.HandleOpenCommand([job], forceOpen: true);
+            if (result.Dismiss)
+            {
+                Service.Configuration.HideMajorChangesForVersion = Version;
+                Service.Configuration.Save();
+            }
+            if (result.Close || result.Dismiss)
                 IsOpen = false;
         }
         finally

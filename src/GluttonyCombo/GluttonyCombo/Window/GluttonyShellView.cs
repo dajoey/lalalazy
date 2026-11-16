@@ -22,6 +22,8 @@ internal sealed class ShellFooter
 internal sealed class ShellModel
 {
     public string Brand = "GluttonyCombo";
+    /// <summary>Tooltip of the brand chip (the plugin name with its version).</summary>
+    public string? BrandHelp;
     public IReadOnlyList<string> Groups = [];
     public string CurrentGroup = "";
     public UiState State;
@@ -34,8 +36,13 @@ internal sealed class ShellModel
     public string Description = "";
     public string[] Meta = [];
     public ShellFooter Footer = new();
-    /// <summary>Optional shared problem-report button, drawn at the right end of the sub-navigation band when it fits.</summary>
+    /// <summary>Optional shared problem-report button, drawn in the footer so it stays reachable on every page and layout.</summary>
     public Action? ReportButton;
+    public string ReportLabel = "Report a problem";
+    /// <summary>Tooltip text for the Descriptions switch.</summary>
+    public string DescriptionsHelp = "Also match preset descriptions when searching";
+    /// <summary>Tooltip of the collapsed destinations control.</summary>
+    public string ExpandHelp = "Show all destinations";
 }
 
 internal sealed class ShellResult
@@ -53,6 +60,12 @@ internal static class GluttonyShellView
 {
     private const float BandPad = 14;
     private const float BrandHeight = 40;
+    private const float MinSearch = 160;
+    private const float MaxSearch = 240;
+    private const float WideGap = 16;
+
+    /// <summary>Width of the search field drawn last (read by the render harness to check every page agrees).</summary>
+    internal static float LastSearchWidth { get; private set; }
 
     internal static ShellResult Draw(ShellModel model, ref string search, ref bool descriptions,
         Action? bodyPrefix, Action body)
@@ -66,10 +79,10 @@ internal static class GluttonyShellView
             var winSize = ImGui.GetWindowSize();
             var gutter = GluttonyChrome.Gutter(winSize.X);
             ImGui.SetCursorPos(Vector2.Zero);
-            var y = DrawTopBar(model, result, winPos, winSize.X, gutter, ref search, ref descriptions);
-            y = DrawFeatureBar(model, result, winPos, winSize.X, gutter, y);
+            var y = DrawTopBar(model, result, winPos, winSize.X, gutter, ref search, ref descriptions, out var searchInBand, out var tallBand);
+            y = DrawFeatureBar(model, result, winPos, winSize.X, gutter, y, tallBand, searchInBand, ref search, ref descriptions);
             y = DrawPageHeader(model, winPos, winSize.X, gutter, y);
-            var footerHeight = FooterHeight(winSize.X, model.Footer.StopLabel is not null);
+            var footerHeight = FooterHeight(winSize.X, model.Footer.StopLabel is not null || model.ReportButton is not null);
             ImGui.SetCursorPos(new Vector2(0, y));
             DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter, bodyPrefix, body);
             DrawFooter(model, result, winPos, winSize, gutter, footerHeight);
@@ -85,25 +98,25 @@ internal static class GluttonyShellView
     // ---- header band ----
 
     private static float DrawTopBar(ShellModel m, ShellResult r, Vector2 winPos, float winW, float gutter,
-        ref string search, ref bool descriptions)
+        ref string search, ref bool descriptions, out bool searchInBand, out bool tallBand)
     {
         var draw = ImGui.GetWindowDrawList();
         const float gap = GluttonyChrome.Gap;
-        const float wideGap = 16;
-        const float minSearch = 180;
-        const float maxSearch = 360;
         var inner = winW - (2 * gutter);
         var brandW = GluttonyChrome.BrandWidth(m.Brand);
         var groupW = m.Groups.Select(g => MathF.Max(88, GluttonyChrome.TextWidth(g) + 32)).ToArray();
         var groupsW = groupW.Sum() + ((groupW.Length - 1) * gap);
         var pillW = GluttonyChrome.PillWidth();
         var rightW = pillW + gap + GluttonyChrome.Control;
-        var descW = m.ShowDescriptions ? GluttonyChrome.ActionWidth(96, "Descriptions") : 0;
-        var searchExtra = descW > 0 ? descW + gap : 0;
+        var chipW = GluttonyChrome.ChipWidth("Descriptions");
 
-        var navFits = inner >= brandW + wideGap + groupsW + wideGap + rightW;
-        var room = navFits ? inner - (brandW + wideGap + groupsW + wideGap) - rightW - wideGap : 0;
-        var searchOnRow = m.ShowSearch && navFits && room >= minSearch + searchExtra;
+        var navFits = inner >= brandW + WideGap + groupsW + WideGap + rightW;
+        var room = navFits ? inner - (brandW + WideGap + groupsW + WideGap) - rightW - WideGap : 0;
+        // The decision uses the widest case (search plus the Descriptions switch), so it depends on the window width only:
+        // every page of a window gets the same header and the same search width.
+        var searchOnBar = navFits && room >= MinSearch + gap + chipW;
+        searchInBand = m.ShowSearch && !searchOnBar;
+        tallBand = !searchOnBar;
 
         var controlY = BandPad + ((BrandHeight - GluttonyChrome.Control) / 2f);
         var closePos = new Vector2(winW - gutter - GluttonyChrome.Control, controlY);
@@ -113,7 +126,7 @@ internal static class GluttonyShellView
         float bottom;
         if (navFits)
         {
-            var x = gutter + brandW + wideGap;
+            var x = gutter + brandW + WideGap;
             for (var i = 0; i < groupPos.Length; i++)
             {
                 groupPos[i] = new Vector2(x, controlY);
@@ -137,54 +150,27 @@ internal static class GluttonyShellView
             bottom = rowY + GluttonyChrome.Control;
         }
 
-        Vector2 searchPos = default, descPos = default;
-        var searchW = 0f;
-        if (m.ShowSearch)
-        {
-            if (searchOnRow)
-            {
-                descPos = new Vector2(pillPos.X - wideGap - descW, controlY);
-                searchW = MathF.Min(maxSearch, room - searchExtra);
-                searchPos = new Vector2((descW > 0 ? descPos.X - gap : pillPos.X - wideGap) - searchW, controlY);
-            }
-            else
-            {
-                var rowY = bottom + gap;
-                searchW = inner - searchExtra;
-                searchPos = new Vector2(gutter, rowY);
-                descPos = new Vector2(winW - gutter - descW, rowY);
-                bottom = rowY + GluttonyChrome.Control;
-            }
-        }
-
         var barH = bottom + BandPad;
         draw.PushClipRect(winPos, winPos + new Vector2(winW, barH + 1), false);
         draw.AddRectFilled(winPos, winPos + new Vector2(winW, barH), Theme.Pack(Theme.ShellBar));
         draw.AddLine(winPos + new Vector2(0, barH), winPos + new Vector2(winW, barH), Theme.Pack(Theme.SurfaceBorder));
         draw.PopClipRect();
 
-        if (GluttonyChrome.BrandButton(draw, m.Brand, winPos + new Vector2(gutter, BandPad), new Vector2(brandW, BrandHeight)))
+        if (GluttonyChrome.BrandButton(draw, m.Brand, winPos + new Vector2(gutter, BandPad), new Vector2(brandW, BrandHeight), m.BrandHelp))
             r.Brand = true;
         for (var i = 0; i < m.Groups.Count; i++)
             if (GluttonyChrome.OutlineButton(draw, "group_" + m.Groups[i], m.Groups[i], winPos + groupPos[i], groupSize[i],
                     m.Groups[i] == m.CurrentGroup) && m.Groups[i] != m.CurrentGroup)
                 r.Group = m.Groups[i];
 
-        if (m.ShowSearch)
+        if (m.ShowSearch && searchOnBar)
         {
-            ImGui.SetCursorScreenPos(winPos + searchPos);
-            ImGui.SetNextItemWidth(searchW);
-            var padding = Theme.FramePadding;
-            padding.Y = MathF.Max(padding.Y, (GluttonyChrome.Control - ImGui.GetTextLineHeight()) / 2f);
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, padding);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, GluttonyChrome.Radius);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
-            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
-            ImGui.InputTextWithHint("##gc_shell_search", m.SearchHint, ref search, 30, ImGuiInputTextFlags.AutoSelectAll);
-            ImGui.PopStyleColor();
-            ImGui.PopStyleVar(3);
-            if (descW > 0 && GluttonyChrome.OutlineButton(draw, "search_descriptions", "Descriptions", winPos + descPos,
-                    new Vector2(descW, GluttonyChrome.Control), descriptions))
+            var searchX = gutter + brandW + WideGap + groupsW + WideGap;
+            var searchW = MathF.Min(MaxSearch, room - gap - chipW);
+            DrawSearch(winPos + new Vector2(searchX, controlY), searchW, m.SearchHint, ref search);
+            if (m.ShowDescriptions && GluttonyChrome.ToggleChip(draw, "search_descriptions", "Descriptions",
+                    winPos + new Vector2(searchX + searchW + gap, controlY), new Vector2(chipW, GluttonyChrome.Control), descriptions,
+                    m.DescriptionsHelp))
             {
                 descriptions = !descriptions;
                 r.DescriptionsToggled = true;
@@ -197,6 +183,43 @@ internal static class GluttonyShellView
         return barH + 1;
     }
 
+    /// <summary>The search field: dim hint, 36 high, with a clear button once there is text.</summary>
+    private static void DrawSearch(Vector2 pos, float width, string hint, ref string search)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        LastSearchWidth = width;
+        ImGui.SetCursorScreenPos(pos);
+        ImGui.SetNextItemWidth(width);
+        var padding = Theme.FramePadding;
+        padding.X = 16;
+        padding.Y = MathF.Max(padding.Y, (GluttonyChrome.Control - ImGui.GetTextLineHeight()) / 2f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, padding);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, GluttonyChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+        // The hint is drawn in the disabled text colour; keep it clearly dimmer than typed text.
+        ImGui.PushStyleColor(ImGuiCol.TextDisabled, Theme.TextSecondary with { W = 0.55f });
+        ImGui.InputTextWithHint("##gc_shell_search", hint, ref search, 30, ImGuiInputTextFlags.AutoSelectAll);
+        ImGui.SetItemAllowOverlap();
+        ImGui.PopStyleColor(2);
+        ImGui.PopStyleVar(3);
+        if (search.Length == 0)
+            return;
+        var box = new Vector2(24, 24);
+        var boxPos = pos + new Vector2(width - 28, (GluttonyChrome.Control - box.Y) / 2f);
+        ImGui.SetCursorScreenPos(boxPos);
+        var clear = ImGui.InvisibleButton("##gc_search_clear", box);
+        var hovered = ImGui.IsItemHovered();
+        var c = boxPos + (box / 2f);
+        var col = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        draw.AddLine(c + new Vector2(-4, -4), c + new Vector2(4, 4), col, 1.5f);
+        draw.AddLine(c + new Vector2(-4, 4), c + new Vector2(4, -4), col, 1.5f);
+        if (hovered)
+            ImGui.SetTooltip("Clear the search");
+        if (clear)
+            search = "";
+    }
+
     // ---- sub-navigation band ----
 
     private static void DrawBar(ImDrawListPtr draw, Vector2 winPos, float winW, float top, float height)
@@ -207,46 +230,72 @@ internal static class GluttonyShellView
         draw.PopClipRect();
     }
 
-    private static float DrawFeatureBar(ShellModel m, ShellResult r, Vector2 winPos, float winW, float gutter, float top)
+    private static float DrawFeatureBar(ShellModel m, ShellResult r, Vector2 winPos, float winW, float gutter, float top,
+        bool tallBand, bool searchInBand, ref string search, ref bool descriptions)
     {
         var draw = ImGui.GetWindowDrawList();
         var inner = winW - (2 * gutter);
+        var features = m.Features;
+        var hasLeft = m.FeaturesCollapsed || features.Count >= 2;
+        if (!hasLeft && !searchInBand)
+            return top;
+
+        // One band height for every state of a window: collapsed, pills, field, with or without search.
+        var rowH = tallBand ? GluttonyChrome.Control : 32f;
+        var height = 12 + rowH + 12;
+        DrawBar(draw, winPos, winW, top, height);
+        var rowTop = top + 12;
+        var leftTop = rowTop + ((rowH - 32f) / 2f);
+        const float gap = 8;
+
+        var chipW = searchInBand && m.ShowDescriptions ? GluttonyChrome.ChipWidth("Descriptions") : 0;
+        var searchW = searchInBand ? MathF.Min(MaxSearch, MathF.Max(MinSearch, inner * 0.34f)) : 0;
+        var rightW = searchInBand ? searchW + (chipW > 0 ? gap + chipW : 0) : 0;
+        var leftRoom = searchInBand ? inner - rightW - WideGap : inner;
+
+        if (searchInBand)
+        {
+            var searchPos = winPos + new Vector2(winW - gutter - rightW, rowTop);
+            DrawSearch(searchPos, searchW, m.SearchHint, ref search);
+            if (chipW > 0 && GluttonyChrome.ToggleChip(draw, "search_descriptions", "Descriptions",
+                    winPos + new Vector2(winW - gutter - chipW, rowTop), new Vector2(chipW, GluttonyChrome.Control), descriptions,
+                    m.DescriptionsHelp))
+            {
+                descriptions = !descriptions;
+                r.DescriptionsToggled = true;
+            }
+        }
+
+        if (!hasLeft)
+            return top + height + 1;
+
+        var current = features.FirstOrDefault(f => f.Selected)?.Label ?? (features.Count > 0 ? features[0].Label : "");
         if (m.FeaturesCollapsed)
         {
-            const float height = 12 + GluttonyChrome.Control + 12;
-            DrawBar(draw, winPos, winW, top, height);
-            var label = "Show destinations";
-            var size = new Vector2(MathF.Min(inner, GluttonyChrome.ActionWidth(96, label)), GluttonyChrome.Control);
-            if (GluttonyChrome.ActionButton(draw, "expand_features", label, winPos + new Vector2(gutter, top + 12), size))
+            // Shows the current destination, so the collapsed state says where the page is; one click brings the list back.
+            var label = "Destination: " + current;
+            var buttonW = MathF.Min(leftRoom, MathF.Max(160, GluttonyChrome.TextWidth(label) + 16 + 32));
+            var buttonPos = winPos + new Vector2(gutter, leftTop);
+            if (DestinationField(draw, "expand_features", buttonPos, new Vector2(buttonW, 32), label, false))
                 r.ExpandFeatures = true;
+            if (ImGui.IsMouseHoveringRect(buttonPos, buttonPos + new Vector2(buttonW, 32)))
+                ImGui.SetTooltip(m.ExpandHelp);
             return top + height + 1;
         }
 
-        var features = m.Features;
-        if (features.Count < 2)
-            return top;
-        const float gap = 12;
+        const float pillGap = 12;
         var sizes = features.Select(f => new Vector2(GluttonyChrome.FeatureWidth(f.Label), 32)).ToArray();
-        var total = sizes.Sum(s => s.X) + ((features.Count - 1) * gap);
-        if (total > inner)
+        var total = sizes.Sum(s => s.X) + ((features.Count - 1) * pillGap);
+        if (total > leftRoom)
         {
-            const float height = 12 + GluttonyChrome.Control + 12;
-            DrawBar(draw, winPos, winW, top, height);
-            var fieldPos = winPos + new Vector2(gutter, top + 12);
-            var fieldSize = new Vector2(inner, GluttonyChrome.Control);
-            ImGui.SetCursorScreenPos(fieldPos);
-            var open = ImGui.InvisibleButton("##gc_feature_menu", fieldSize);
-            var hovered = ImGui.IsItemHovered();
-            draw.AddRectFilled(fieldPos, fieldPos + fieldSize, Theme.Pack(Theme.Accent with { W = 0.14f }), GluttonyChrome.Radius);
-            draw.AddRect(fieldPos, fieldPos + fieldSize, Theme.Pack(hovered ? Theme.Accent : Theme.Accent with { W = 0.6f }), GluttonyChrome.Radius);
-            var current = features.FirstOrDefault(f => f.Selected)?.Label ?? features[0].Label;
-            GluttonyChrome.DrawText(draw, fieldPos + new Vector2(16, (fieldSize.Y - GluttonyChrome.LineHeight()) / 2f),
-                GluttonyChrome.FitText(current, inner - 56), Theme.Accent);
-            GluttonyChrome.Chevron(draw, fieldPos + new Vector2(inner - 20, fieldSize.Y / 2f), Theme.Accent);
+            var fieldW = searchInBand ? MathF.Min(leftRoom, 280) : inner;
+            var fieldPos = winPos + new Vector2(gutter, leftTop);
+            var fieldSize = new Vector2(fieldW, 32);
+            var open = DestinationField(draw, "feature_menu", fieldPos, fieldSize, "Destination: " + current, true);
             if (open)
                 ImGui.OpenPopup("##gc_feature_popup");
             ImGui.SetNextWindowPos(fieldPos + new Vector2(0, fieldSize.Y + 4));
-            ImGui.SetNextWindowSize(new Vector2(inner, 0));
+            ImGui.SetNextWindowSize(new Vector2(MathF.Max(fieldW, 220), 0));
             ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, GluttonyChrome.Radius);
             ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(8, 8));
@@ -268,27 +317,32 @@ internal static class GluttonyShellView
             return top + height + 1;
         }
 
-        const float bandHeight = 12 + 32 + 12;
-        DrawBar(draw, winPos, winW, top, bandHeight);
         var px = gutter;
         for (var i = 0; i < features.Count; i++)
         {
-            if (GluttonyChrome.FeatureButton(draw, features[i].Id, features[i].Label, winPos + new Vector2(px, top + 12),
+            if (GluttonyChrome.FeatureButton(draw, features[i].Id, features[i].Label, winPos + new Vector2(px, leftTop),
                     sizes[i], features[i].Selected))
                 r.Feature = i;
-            px += sizes[i].X + gap;
+            px += sizes[i].X + pillGap;
         }
-        if (m.ReportButton is { } report)
-        {
-            const string label = "Report a problem";
-            var width = GluttonyChrome.TextWidth(label) + (2 * Theme.FramePadding.X);
-            if (px - gap + 16 + width <= winW - gutter)
-            {
-                ImGui.SetCursorScreenPos(winPos + new Vector2(winW - gutter - width, top + 12 + ((32 - (ImGui.GetTextLineHeight() + (2 * Theme.FramePadding.Y))) / 2f)));
-                report();
-            }
-        }
-        return top + bandHeight + 1;
+        return top + height + 1;
+    }
+
+    /// <summary>A neutral or accent field with a chevron: the destination list collapsed into one control.</summary>
+    private static bool DestinationField(ImDrawListPtr draw, string id, Vector2 pos, Vector2 size, string label, bool accent)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##gc_" + id, size);
+        var hovered = ImGui.IsItemHovered();
+        var fill = accent ? Theme.Accent with { W = 0.14f } : Theme.Surface;
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(fill), GluttonyChrome.Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered || accent ? (accent && !hovered ? Theme.Accent with { W = 0.6f } : Theme.Accent) : Theme.SurfaceBorder),
+            GluttonyChrome.Radius);
+        var text = accent ? Theme.Accent : hovered ? Theme.TextPrimary : Theme.TextSecondary;
+        GluttonyChrome.DrawText(draw, pos + new Vector2(16, (size.Y - GluttonyChrome.LineHeight(Theme.SecondaryScale)) / 2f),
+            GluttonyChrome.FitText(label, size.X - 56, Theme.SecondaryScale), text, Theme.SecondaryScale);
+        GluttonyChrome.Chevron(draw, pos + new Vector2(size.X - 20, size.Y / 2f), text);
+        return clicked;
     }
 
     // ---- page header ----
@@ -319,12 +373,14 @@ internal static class GluttonyShellView
         return lines;
     }
 
-    private static float DrawPageHeader(ShellModel m, Vector2 winPos, float winW, float gutter, float top)
+    internal static float DrawPageHeader(ShellModel m, Vector2 winPos, float winW, float gutter, float top)
     {
         var draw = ImGui.GetWindowDrawList();
         const float tile = 44;
         const float titleScale = 1.35f;
         var wide = winW >= 760;
+        // The meta text stays on the title line down to the smallest window, so the header never grows a third line.
+        var metaRight = winW >= 560;
         var textX = gutter + 60;
         var origin = winPos + new Vector2(gutter, top + 20);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), 8f);
@@ -332,30 +388,29 @@ internal static class GluttonyShellView
 
         var titleLine = GluttonyChrome.LineHeight(titleScale);
         var smallLine = GluttonyChrome.LineHeight(Theme.SecondaryScale);
-        var metaWidth = wide && m.Meta.Length > 0
+        var metaWidth = metaRight && m.Meta.Length > 0
             ? MathF.Min(winW * 0.4f, m.Meta.Max(s => GluttonyChrome.TextWidth(s, Theme.SecondaryScale)))
             : 0;
-        var textWidth = wide ? winW - gutter - textX - metaWidth - 16 : winW - gutter - textX;
+        var textWidth = metaRight ? winW - gutter - textX - metaWidth - 16 : winW - gutter - textX;
         var textPos = new Vector2(winPos.X + textX, origin.Y);
 
-        var titleLines = wide ? [GluttonyChrome.FitText(m.Title, textWidth, titleScale)] : WrapLines(m.Title, textWidth, titleScale, 2);
+        var titleLines = metaRight ? [GluttonyChrome.FitText(m.Title, textWidth, titleScale)] : WrapLines(m.Title, textWidth, titleScale, 2);
         var y = origin.Y;
         foreach (var line in titleLines)
         {
             GluttonyChrome.DrawText(draw, new Vector2(textPos.X, y), line, Theme.TextPrimary, titleScale);
             y += titleLine;
         }
-        var titleBottom = y;
         y += 4;
         var descTop = y;
-        var descLines = WrapLines(m.Description, textWidth, Theme.SecondaryScale, wide ? 1 : 3);
+        var descLines = WrapLines(m.Description, textWidth, Theme.SecondaryScale, wide ? 1 : 2);
         foreach (var line in descLines)
         {
             GluttonyChrome.DrawText(draw, new Vector2(textPos.X, y), line, Theme.TextSecondary, Theme.SecondaryScale);
             y += smallLine;
         }
         var blockBottom = y;
-        if (wide)
+        if (metaRight)
         {
             var right = winPos.X + winW - gutter;
             for (var i = 0; i < m.Meta.Length && i < 2; i++)
@@ -377,10 +432,10 @@ internal static class GluttonyShellView
             }
             blockBottom = y;
         }
-        if ((titleLines.Count > 0 && titleLines[^1] != m.Title && wide || descLines.Count > 0 && wide && descLines[0] != m.Description)
-            && ImGui.IsMouseHoveringRect(textPos, new Vector2(textPos.X + textWidth, blockBottom)))
+        var elided = (metaRight && titleLines.Count > 0 && titleLines[^1] != m.Title)
+                     || (wide && descLines.Count > 0 && descLines[^1] != m.Description);
+        if (elided && ImGui.IsMouseHoveringRect(textPos, new Vector2(textPos.X + textWidth, blockBottom)))
             ImGui.SetTooltip(m.Title + "\n" + m.Description);
-        _ = titleBottom;
         return top + 20 + MathF.Max(tile, blockBottom - origin.Y) + 8;
     }
 
@@ -409,34 +464,33 @@ internal static class GluttonyShellView
         var f = m.Footer;
         var top = winPos.Y + winSize.Y - height;
         var draw = ImGui.GetWindowDrawList();
-        draw.PushClipRect(new Vector2(winPos.X, top), winPos + winSize, false);
-        draw.AddRectFilled(new Vector2(winPos.X, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
-        draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + winSize.X, top), Theme.Pack(Theme.SurfaceBorder));
-        draw.PopClipRect();
+        GluttonyChrome.DrawFooterBand(draw, winPos, winSize, height);
 
         var narrow = winSize.X < 620;
-        var hasAction = f.StopLabel is not null;
+        var hasStop = f.StopLabel is not null;
+        var hasReport = m.ReportButton is not null;
         var block = GluttonyChrome.LineHeight() + 4 + GluttonyChrome.LineHeight(Theme.SecondaryScale);
-        var actionSize = new Vector2(
-            hasAction ? (narrow ? winSize.X - (2 * gutter) : GluttonyChrome.ActionWidth(72, f.StopLabel!)) : 0,
-            GluttonyChrome.Control);
+        var stopW = hasStop ? GluttonyChrome.ActionWidth(72, f.StopLabel!) : 0;
+        var reportW = hasReport ? GluttonyChrome.TextWidth(m.ReportLabel) + 32 : 0;
+        var actionsW = stopW + reportW + (hasStop && hasReport ? GluttonyChrome.Gap : 0);
         var textLeft = winPos.X + gutter + 16;
-        Vector2 actionPos;
-        float textTop, textRight;
-        if (narrow)
+        float actionY, textTop, textRight;
+        var actionsX = winPos.X + winSize.X - gutter - actionsW;
+        if (narrow && (hasStop || hasReport))
         {
             textTop = top + 12;
-            actionPos = new Vector2(winPos.X + gutter, textTop + block + 12);
+            actionY = textTop + block + 12;
+            actionsX = winPos.X + gutter;
             textRight = winPos.X + winSize.X - gutter;
         }
         else
         {
             textTop = top + ((height - block) / 2f);
-            actionPos = new Vector2(winPos.X + winSize.X - gutter - actionSize.X, top + ((height - actionSize.Y) / 2f));
-            textRight = hasAction ? actionPos.X - 16 : winPos.X + winSize.X - gutter;
+            actionY = top + ((height - GluttonyChrome.Control) / 2f);
+            textRight = actionsW > 0 ? actionsX - 16 : winPos.X + winSize.X - gutter;
         }
         draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textTop + (GluttonyChrome.LineHeight() / 2f)),
-            Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(f.State)));
+            Theme.DotRadius + 1, Theme.Pack(GluttonyChrome.StateColor(f.State)));
         var width = textRight - textLeft;
         var shown = GluttonyChrome.FitText(f.Primary, width);
         var shownSecondary = GluttonyChrome.FitText(f.Secondary, width, Theme.SecondaryScale);
@@ -446,7 +500,13 @@ internal static class GluttonyShellView
         if ((shown != f.Primary || shownSecondary != f.Secondary)
             && ImGui.IsMouseHoveringRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + block)))
             ImGui.SetTooltip(f.Primary + "\n" + f.Secondary);
-        if (hasAction && GluttonyChrome.StopButton(draw, actionPos, actionSize, f.StopLabel!))
+        var x = actionsX;
+        if (hasReport)
+        {
+            GluttonyChrome.StyledButtonCallback(new Vector2(x, actionY), m.ReportButton!);
+            x += reportW + GluttonyChrome.Gap;
+        }
+        if (hasStop && GluttonyChrome.StopButton(draw, new Vector2(x, actionY), new Vector2(stopW, GluttonyChrome.Control), f.StopLabel!))
             r.FooterStop = true;
     }
 }
