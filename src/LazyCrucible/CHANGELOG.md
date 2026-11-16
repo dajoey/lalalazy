@@ -1,4 +1,11 @@
-﻿## v0.1.9.22 (2026-11-15) [testing]
+﻿## v0.1.9.23 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders, in both windows.
+- The current battle in the advisor battles list is shown in the accent colour with a "current" label instead of a raw marker, and "Show in the loadout rail" is a rounded accent-tinted row like the other lists.
+- The close button is a drawn cross in a rounded box with an accent hover state and a "Close" tooltip that sits beneath the button.
+- The Idle, Empty and Needs setup pills read clearly on the dark pill, the Home page no longer shows a one-item navigation band, and stat cards without a real ratio no longer draw an empty progress track.
+- Both windows keep a minimum height so the header, body and footer always fit.
+
+## v0.1.9.22 (2026-11-15) [testing]
 - LazyCrucible now uses the approved custom shell with pink navigation and track toggles, responsive cards, aligned battle-plan and guide columns, and persistent footer actions.
 - Main and guide windows now open at 1280×840 on first use, without the native title bar and with a drawn close button.
 
