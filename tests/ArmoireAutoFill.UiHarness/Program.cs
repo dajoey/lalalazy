@@ -58,6 +58,7 @@ internal static class Program
     [
         // --- Collection ---
         new("collection-first-use", Surface.Collection, SizeKind.FirstUse, Sim.Typical),
+        new("collection-narrowest", Surface.Collection, SizeKind.Narrowest, Sim.Typical),
         new("collection-narrow-waiting-for-cabinet", Surface.Collection, SizeKind.Fixed, Sim.WaitingForCabinet) { Width = 520, Height = 1500 },
         new("collection-first-run-empty", Surface.Collection, SizeKind.Fixed, Sim.FirstRun) { Width = 1000, Height = 1150 },
         new("collection-wide-expanded-tooltip", Surface.Collection, SizeKind.Fixed, () =>
@@ -65,7 +66,7 @@ internal static class Program
                 Sim.Typical();
                 Plugin.Configuration.ShowOwnedItems = true;
             })
-            { Width = 1360, Height = 1150, Click = [1], HoverFirstPiece = true },
+            { Width = 1360, Height = 1150, Click = [0], HoverFirstPiece = true },
         new("collection-gear-database-missing", Surface.Collection, SizeKind.Fixed, Sim.GearDatabaseMissing) { Width = 760, Height = 900 },
         new("collection-all-complete-auto-store-off", Surface.Collection, SizeKind.Fixed, () =>
             {
@@ -76,9 +77,10 @@ internal static class Program
 
         // --- Shopping ---
         new("shopping-first-use", Surface.Shopping, SizeKind.FirstUse, () => { Sim.Typical(); Sim.CatalogBuilt(true); }),
+        new("shopping-narrowest", Surface.Shopping, SizeKind.Narrowest, () => { Sim.Typical(); Sim.CatalogBuilt(true); }),
         new("shopping-narrow-typical", Surface.Shopping, SizeKind.Fixed, () => { Sim.Typical(); Sim.CatalogBuilt(true); }) { Width = 520, Height = 1300 },
         new("shopping-full-expanded-knightshopper-missing", Surface.Shopping, SizeKind.Fixed, () => { Sim.Typical(); Sim.CatalogBuilt(false); })
-            { Width = 1280, Height = 2250, Click = [2, 5, 8], ImportStatus = true },
+            { Width = 1280, Height = 3600, Click = [2, 4, 6], ImportStatus = true },
         new("shopping-catalog-building", Surface.Shopping, SizeKind.Fixed, () => { Sim.Typical(); Sim.CatalogBuilding(); }) { Width = 1000, Height = 560 },
         new("shopping-game-data-unavailable-narrow", Surface.Shopping, SizeKind.Fixed, () => { Sim.Typical(); Sim.CatalogSheetsUnavailable(); }) { Width = 520, Height = 640 },
         new("shopping-catalog-failed", Surface.Shopping, SizeKind.Fixed, () => { Sim.Typical(); Sim.CatalogBuildFailed(); }) { Width = 1000, Height = 560 },
@@ -87,6 +89,7 @@ internal static class Program
 
         // --- Auto-store ---
         new("store-first-use", Surface.Store, SizeKind.FirstUse, Sim.Typical),
+        new("store-narrowest", Surface.Store, SizeKind.Narrowest, Sim.Typical),
         new("store-narrow-finished-armoire-closed", Surface.Store, SizeKind.Fixed, Sim.StoreFinished) { Width = 520, Height = 900 },
         new("store-wide-running-scan-cooldown", Surface.Store, SizeKind.Fixed, Sim.StoreRunning) { Width = 1000, Height = 640 },
 
@@ -96,7 +99,7 @@ internal static class Program
 
         // Evidence only: the same typical page at 150 percent global scale.
         new("scale150-collection-typical", Surface.Collection, SizeKind.Fixed, Sim.Typical)
-            { Width = 1000, Height = 1400, Click = [1], Scale = 1.5f, GameOnly = true },
+            { Width = 1000, Height = 1400, Click = [0], Scale = 1.5f, GameOnly = true },
     ];
 
     public static int Main(string[] args)
@@ -218,10 +221,12 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ApplyConstraints(target.Window);
                 var open = true;
+                target.Window.PreDraw();
                 ImGui.Begin(target.Window.WindowName, ref open, target.Window.Flags | ImGuiWindowFlags.NoSavedSettings);
                 target.Draw();
                 size = ImGui.GetWindowSize();
                 ImGui.End();
+                target.Window.PostDraw();
                 ImGui.Render();
             }
             return new Vector2(MathF.Round(size.X), MathF.Round(size.Y));
@@ -255,10 +260,13 @@ internal static class Program
         ImGui.SetNextWindowSize(size);
         ApplyConstraints(target.Window);
         var open = true;
+        // Dalamud's window system pushes the window's own style (zero padding) around Begin and End.
+        target.Window.PreDraw();
         ImGui.Begin(target.Window.WindowName, ref open, target.Window.Flags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
         target.Draw();
         ImGui.End();
+        target.Window.PostDraw();
         ulong hovered = ImGui.GetCurrentContext().HoveredId;
         if (render)
             ImGui.Render();
@@ -398,7 +406,7 @@ internal static class Program
         Sim.Typical();
         var scenario = new Scenario("toggle-probe", Surface.Settings, SizeKind.FirstUse, Sim.Typical);
         var target = CreateTarget(scenario);
-        var size = new Vector2(600, 360);
+        var size = new Vector2(600, 460);
         var context = ImGui.CreateContext();
         try
         {
