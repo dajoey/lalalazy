@@ -211,7 +211,7 @@ internal static class ArmoireChrome
     private static float PillWidth()
     {
         var words = Enum.GetValues<UiState>().Select(Copy.Word);
-        return (3 * Theme.Unit) + (2 * Theme.DotRadius) + (2 * Theme.Unit) + words.Max(w => TextWidth(w)) + (4 * Theme.Unit);
+        return MathF.Max(104, (4 * Theme.Unit) + (2 * Theme.DotRadius) + (2 * Theme.Unit) + words.Max(w => TextWidth(w)) + (4 * Theme.Unit));
     }
 
     /// <summary>
@@ -427,7 +427,7 @@ internal static class ArmoireChrome
 
         if (wide)
         {
-            var right = origin.X + width;
+            var right = ImGui.GetWindowPos().X + windowWidth - Gutter(windowWidth);
             var firstLine = LineHeight(PageTitleScale);
             if (count.Length > 0)
                 DrawFittedRight(draw, right, origin.Y + ((firstLine - LineHeight(Theme.SecondaryScale)) / 2f), count, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
@@ -448,7 +448,7 @@ internal static class ArmoireChrome
         var height = MathF.Max(tile, textBottom - origin.Y);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), Radius);
         Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
-        Advance(origin - new Vector2(0, Theme.Unit), width, height + Theme.Unit, Gap + Theme.Unit);
+        Advance(origin - new Vector2(0, Theme.Unit), width, height + Theme.Unit, Gap + (2 * Theme.Unit));
     }
 
     // ---- stat cards ----
