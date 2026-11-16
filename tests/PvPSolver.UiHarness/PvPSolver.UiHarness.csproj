@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>PvPSolver.UiHarness</RootNamespace>
+    <AssemblyName>PvPSolver.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <!-- The real plugin sources carry XML docs and a few nullable annotations the harness does not need to police. -->
+    <NoWarn>$(NoWarn);CA1416;CS0436;CS1574;CS1591;CS8618;CS0649;CS0169;CS0414;CS8600;CS8601;CS8602;CS8603;CS8604;CS8625</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+    <PvpSrc>$(LalaSourceRoot)\src\PvPSolver\PvPSolver</PvpSrc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <!-- Compile-time only: ImRaii.PushColor overloads in Dalamud.dll mention the ImPlot enums. -->
+    <Reference Include="Dalamud.Bindings.ImPlot" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImPlot.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The same global usings the plugin project declares (only namespaces that exist in this compile). -->
+    <Using Include="System.Numerics" />
+    <Using Include="System.Reflection" />
+    <Using Include="System.ComponentModel" />
+    <Using Include="Dalamud.Interface" />
+    <Using Include="Dalamud.Bindings.ImGui" />
+    <Using Include="Newtonsoft.Json" />
+    <Using Include="RotationSolver.Basic" />
+    <Using Include="RotationSolver.Basic.Data" />
+    <Using Include="RotationSolver.Basic.Attributes" />
+    <Using Include="RotationSolver.Basic.Configuration.RotationConfig" />
+    <Using Include="RotationSolver.Basic.Rotations" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real settings window, shell, chrome, tabs and helpers; only the game/runtime boundary is stubbed in Stubs.cs. -->
+  <ItemGroup>
+    <Compile Include="$(PvpSrc)\UI\Pvp\*.cs" Link="Real\UI\Pvp\%(Filename)%(Extension)" />
+    <Compile Include="$(PvpSrc)\UI\ImguiTooltips.cs" Link="Real\UI\ImguiTooltips.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Real pure data and decision cores, the fork's settings partial, and the small enums and interfaces the window reads. -->
+  <ItemGroup>
+    <Compile Include="$(PvpSrc)\Basic\Decisions\*.cs" Link="Real\Decisions\%(Filename)%(Extension)" />
+    <Compile Include="$(PvpSrc)\Basic\Configuration\Configs.PvpSettings.cs" Link="Real\Configuration\Configs.PvpSettings.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Configuration\ConfigTypes.cs" Link="Real\Configuration\ConfigTypes.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Configuration\RotationConfig\IRotationConfig.cs" Link="Real\Configuration\IRotationConfig.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Configuration\RotationConfig\IRotationConfigSet.cs" Link="Real\Configuration\IRotationConfigSet.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Data\TargetType.cs" Link="Real\Data\TargetType.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Data\CombatType.cs" Link="Real\Data\CombatType.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Data\DTRType.cs" Link="Real\Data\DTRType.cs" />
+    <Compile Include="$(PvpSrc)\Basic\Attributes\RangeAttribute.cs" Link="Real\Attributes\RangeAttribute.cs" />
+  </ItemGroup>
+</Project>
