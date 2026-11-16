@@ -41,18 +41,42 @@ set "LALA_UI_SCALE=1.02"
 dotnet run --project LazyCrucible.UiHarness.csproj -c Release -- --game
 ```
 
-(`run.cmd` forwards the environment, so `set LALA_UI_FIDELITY=game` before `run.cmd` also works.) Game mode writes the eight scenarios at their existing sizes plus every main and guide scenario at the windows' first-use size 1280x840 and at a narrow 920x640, named `<scenario>-1280x840` and `<scenario>-920x640`; 22 images in all. It also prints a glyph audit (every non-ASCII character in the guide data and in the string literals of the compiled window sources must exist in the game font; `--strict-glyphs` turns a miss into a failure). In game mode two scenarios that render identically are reported as a warning instead of failing, because a size variant can legitimately hide the state it sets up.
+(`run.cmd` forwards the environment, so `set LALA_UI_FIDELITY=game` before `run.cmd` also works.) Game mode writes 22 scenarios (below). It also prints a glyph audit: every non-ASCII character in the guide data, in the familiar, item, board, battle and enemy name tables, and in the string literals of the compiled window sources must exist in the game font (`--strict-glyphs` turns a miss into a failure). Any two scenarios that render byte-identical fail the run, in both modes.
 
-## Captures
+## Scenarios
 
-- Main: empty/ready, AutoDuty standby, older-GluttonyCombo conflict, and expanded beast-pick advisor.
-- Guide: real Strix Piece entry, real Atomic Ray incoming warning, and missing-entry branch.
-- Suggestion overlay: real foreground text and frame drawing with deterministic addon geometry.
+Built-in mode keeps the original eight hermetic captures (`main-empty-ready`, `main-autoduty-standby`, `main-gluttony-conflict`, `main-advisor-expanded`, `guide-strix-piece`, `guide-incoming-warning`, `guide-missing-entry`, `suggestion-overlay`). Game mode renders each window at its first-use size (1280x840) and, for the layouts that break first, at 920x640 and at the narrowest width the size constraints allow (420 main, 380 guide; height stays 840 so wrapping below the header is visible). `scale150-*` is evidence only.
 
-The real guide must load with zero validation problems. Image differences are expected when layout, styling, text, or state branches change.
+| Image | Shows |
+| --- | --- |
+| `main-first-run-1280x840` | Run > Roster & horns, nothing loaded: Bestiary missing, no fight, no selection |
+| `main-roster-horns-1280x840` / `-920x640` / `-420x840` | the same page with a live horn plan and a full run roster (the approved mock-up page) |
+| `scale150-main-roster-horns-1280x840` | the same at UI scale 1.5 |
+| `main-home-1280x840` | Home, populated |
+| `main-home-conflict-1280x840` | Home, failed state (older plugin writing), empty, with a search open |
+| `main-board-overview-standby-1280x840` | Run > Board overview with AutoDuty standby (blocked) |
+| `main-feed-shop-1280x840`, `main-campsite-1280x840`, `main-display-logging-1280x840` | the other Run pages |
+| `main-spoils-1280x840`, `main-treasure-1280x840` | Rewards pages |
+| `main-advisor-expanded-1280x840` | Guide > Beast picks by battle with two battles expanded |
+| `main-advisor-missing-bestiary-920x640` | the same page without the Bestiary list, narrow |
+| `guide-upcoming-incoming-1280x840` | guide window, incoming cast plus low-HP entry advisory (running) |
+| `guide-upcoming-380x840` | guide window at its narrowest, longest real fight title |
+| `guide-idle-1280x840`, `guide-missing-entry-920x640` | idle (no fight in focus) and empty (no guide entry) |
+| `guide-browse-1280x840`, `guide-recent-1280x840` | Browse boards, Recent choices |
+| `suggestion-overlay` | the overlay over a game addon |
+
+## Adding a scenario or faking state
+
+`BuildScenarios` in `Program.cs` is the table: `MainWin(name, w, h, page, state, shell, expand, scale)` or `GuideWin(...)`. `state` is a lambda over the faked runtime state in `Stubs.cs` (`RunTracker.Focus/Roster/RosterHp/Board/PlayerHpPercent`, `CrucibleGame.RosterLoaded/CapturePredicate/CurrentBattleValue/WarnedCastValue`, `PetSelect.YieldReason/LastSummary`, `SelectionScreens.Status/Recent`, `Svc.ClientState.TerritoryType`, `Plugin.Config`); `Populated()` is the typical mid-run state (First Master's Board, Strix Piece in focus, 12 real familiars with partial HP and captures, real item and duty names). `shell` sets the shell's own fields (`SearchText`, `GuideBoard`, `GuideFollow`, ...). `expand` opens advisor tree nodes (their state is window storage a click would write, so a pre-pass frame writes it). The popup of an open combo and the shared telemetry popup are not drawn.
 
 ## Fidelity limits
 
 Built-in mode uses a CPU rasterizer and only ImGui's built-in font; it never reads host font files. Its glyph coverage and text metrics differ from Dalamud's live font atlas, so some production symbols render as fallback glyphs and line widths differ. Use it as the hermetic regression capture.
 
 Game mode reproduces the stock default font, scale and style (the exact members are listed in `../HarnessShared/UiRender/README.md`) and keeps the rest of this harness unchanged. It still does not reproduce the GPU renderer (blending is a CPU approximation), a custom font or style chosen by a player, the game's own glyphs (the private-use game symbols are absent), the Dalamud window chrome and title bar, input interaction, custom textures, draw callbacks, multiple viewports or DPI scaling. The real game also runs a different Dalamud build than the supplied runtime directory, so small drift is possible. It captures source compilation, rendered content/layout and state branches for human inspection; it does not compare golden images or assert scenario-specific pixels. In-game visual and interaction checks remain separate release gates.
+
+## Window padding
+
+Both windows set their window padding to zero in `PreDraw` (the shell lays out its own gutters), so the harness calls
+`PreDraw` before `ImGui.Begin` and `PostDraw` after `ImGui.End`, as Dalamud's window system does. The advisor tree prepass
+opens nodes in the single body child (`##crucibleBody`).

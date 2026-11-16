@@ -16,13 +16,18 @@ internal sealed class GuideWindow : Window
         _shell = shell;
         _shell.CloseRequested = () => IsOpen = false;
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(380, 260), MaximumSize = new Vector2(1400, 1600) };
+        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(380, 600), MaximumSize = new Vector2(1400, 1600) };
         Size = new Vector2(1280, 840);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
     /// <summary> Follow the real focused fight and warned casts without inventing a focus.</summary>
     public void FollowFocus() => _shell.FollowFocus(this);
+
+    // The shell lays out its own gutters from the window edge, so the window itself carries no padding.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
 
     public override void Draw() => _shell.Draw(_plugin);
 }

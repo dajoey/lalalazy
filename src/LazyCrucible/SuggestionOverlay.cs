@@ -30,13 +30,16 @@ internal static unsafe class SuggestionOverlay
             var bodyHeight = ImGui.CalcTextSize(text, false, textWidth).Y;
             var detailHeight = ImGui.CalcTextSize(detail, false, textWidth).Y * Theme.SecondaryScale;
             var boxHeight = titleHeight + bodyHeight + detailHeight + (8 * Theme.Unit);
-            var boxMin = new Vector2(pos.X - 2, pos.Y - boxHeight);
-            var boxMax = new Vector2(pos.X + wrap, pos.Y - 2);
+            var boxMin = new Vector2(pos.X - 2, pos.Y - (2 * Theme.Unit) - boxHeight);
+            var boxMax = new Vector2(pos.X + wrap, pos.Y - (2 * Theme.Unit));
             var accent = Theme.Pack(Theme.Accent);
 
-            draw.AddRectFilled(boxMin, boxMax, Theme.Pack(Theme.Surface with { W = 0.96f }), 4f);
-            draw.AddRect(boxMin, boxMax, Theme.Pack(Theme.SurfaceBorder), 4f);
-            draw.AddRectFilled(boxMin, boxMin + new Vector2(3, boxHeight), accent, 2f);
+            // The accent edge is clipped to the box's own rounded corners instead of sitting outside them.
+            draw.AddRectFilled(boxMin, boxMax, Theme.Pack(Theme.Surface with { W = 0.96f }), 2 * Theme.Unit);
+            draw.PushClipRect(boxMin, boxMin + new Vector2(3, boxHeight), true);
+            draw.AddRectFilled(boxMin, boxMax, accent, 2 * Theme.Unit);
+            draw.PopClipRect();
+            draw.AddRect(boxMin, boxMax, Theme.Pack(Theme.SurfaceBorder), 2 * Theme.Unit);
             var iconCenter = boxMin + new Vector2(24, 8 + (titleHeight / 2));
             var radius = 7f;
             draw.AddTriangleFilled(iconCenter + new Vector2(0, -radius), iconCenter + new Vector2(radius, 0), iconCenter + new Vector2(0, radius), accent);
