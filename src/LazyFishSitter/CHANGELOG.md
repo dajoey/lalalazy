@@ -1,4 +1,9 @@
-﻿## v0.1.5.6 (2026-11-15) [testing]
+﻿## v0.1.5.7 (2026-11-15) [testing]
+- The window can be dragged from its stat cards and empty areas again.
+- The first-use window height fits smaller screens.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.1.5.6 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The settings window opens larger so the whole page, both cards and the footer fit without being cut off; windows already saved at another size keep it.
 - The Sit sends card shows the plain number of sends this trip with no false cap or bar, and turns amber with "Retry limit reached" only when the retry limit is actually hit.
