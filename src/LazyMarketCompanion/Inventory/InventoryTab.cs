@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using Lalalazy.Telemetry;
 using LalaUiKit;
 using LazyMarketCompanion.AutoMarket;
+using LazyMarketCompanion.Windows;
 
 namespace LazyMarketCompanion.Inventory;
 
@@ -45,26 +46,39 @@ internal sealed class InventoryTab
 
   private void DrawInner()
   {
-    Layout.PageHeader(null, "\u25a4", "Inventory", "Space at a glance, venture loot and the gear mover", $"{_s.RetainerNames().Count()} retainers seen");
     if (_s.BatchRunning)
     {
-      Widgets.StateText("Running: " + _s.BatchStatus, UiState.Running);
-      ImGui.SameLine();
+      Widgets.InfoBox("Running · " + _s.BatchStatus, UiState.Running);
       if (Widgets.StopButton("Stop##invstop"))
         _s.Cancel();
       ImGui.Separator();
     }
 
-    if (ImGui.CollapsingHeader("Who handles this stack", ImGuiTreeNodeFlags.DefaultOpen))
+    MarketChrome.Card("inventory_owners", () =>
+    {
+      MarketChrome.Section("Who handles this stack", "Ownership and the existing AutoRetainer read-only status.");
       DrawOwners();
-    if (ImGui.CollapsingHeader("Space at a glance", ImGuiTreeNodeFlags.DefaultOpen))
+    });
+    MarketChrome.Card("inventory_space", () =>
+    {
+      MarketChrome.Section("Space at a glance", "Live and last-seen capacity with configurable low-space warnings.");
       DrawSpace();
-    if (ImGui.CollapsingHeader("Venture loot", ImGuiTreeNodeFlags.DefaultOpen))
+    });
+    MarketChrome.Card("inventory_venture", () =>
+    {
+      MarketChrome.Section("Venture loot", "Preview the existing buckets; only the established vendor action can run.");
       DrawVentureLoot();
-    if (ImGui.CollapsingHeader("Gear to the Armoury Chest"))
+    });
+    MarketChrome.Card("inventory_gear", () =>
+    {
+      MarketChrome.Section("Gear to the Armoury Chest", "Manual batches, undo, and the off-by-default idle setting.");
       DrawGearMover();
-    if (ImGui.CollapsingHeader("Actions log"))
+    });
+    MarketChrome.Card("inventory_log", () =>
+    {
+      MarketChrome.Section("Actions log", "Recent inventory actions from the existing append-only audit.", $"{_s.RecentLines.Count} lines");
       DrawLog();
+    });
   }
 
   // =====================================================================================
@@ -73,7 +87,7 @@ internal sealed class InventoryTab
   {
     var c = Plugin.Configuration;
     var tip = c.InventoryOwnerTooltip;
-    if (Widgets.Checkbox("Show who handles a stack under the game's item tooltip", ref tip)) { c.InventoryOwnerTooltip = tip; c.Save(); }
+    if (MarketChrome.Toggle("Show who handles a stack under the game's item tooltip", ref tip)) { c.InventoryOwnerTooltip = tip; c.Save(); }
     Tip("Hovering a stack in the bags, a retainer's inventory or the Armoury Chest adds a box listing every plugin that\r\n" +
         "moves, sells, discards or protects that item: LMC Auto-Market and category routing, AutoRetainer entrust plans,\r\n" +
         "vendor / discard / desynth / protect lists, and gearsets. \"Nothing handles this stack\" when none acts on it.");
@@ -90,7 +104,7 @@ internal sealed class InventoryTab
     {
       Widgets.StateText($"AutoRetainer: {ar.Status}. Its lists are not shown, and venture loot is not sorted while this lasts.", UiState.Blocked);
     }
-    ImGui.SameLine();
+    ImGui.NewLine();
     if (ImGui.SmallButton("Re-read##arreread"))
       _s.RequestArRefresh();
   }
@@ -181,7 +195,7 @@ internal sealed class InventoryTab
       return;
     }
     var free = SpaceMath.Free(size, used);
-    if (SpaceMath.Low(free, threshold)) Widgets.StateText(free.ToString(), free == 0 ? UiState.Failed : UiState.Blocked);
+    if (SpaceMath.Low(free, threshold)) Widgets.StateText(free.ToString(), UiState.Blocked);
     else ImGui.TextUnformatted(free.ToString());
     ImGui.TableNextColumn(); ImGui.TextUnformatted($"{used} / {size}");
     ImGui.TableNextColumn(); Widgets.Secondary(seen);
@@ -216,15 +230,14 @@ internal sealed class InventoryTab
     ImGui.SetNextItemWidth(90);
     var days = c.VentureLootLookbackDays;
     if (ImGui.InputInt("Look-back (days)##vllook", ref days)) { c.VentureLootLookbackDays = Math.Clamp(days, 1, 365); c.Save(); }
-    ImGui.SameLine(0, 24);
     var hq = c.VentureLootAllowHq;
-    if (Widgets.Checkbox("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
+    if (MarketChrome.Toggle("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
     Tip("Off (default): HQ venture loot is always kept.");
 
     var names = _s.RetainerNames();
     if (names.Count == 0)
     {
-      Widgets.Secondary("No retainers seen yet - visit a summoning bell.");
+      Widgets.InfoBox("Empty · no retainers seen yet. Visit a summoning bell to populate inventory history.", UiState.Empty);
       return;
     }
     if (!names.Contains(_retainer))
@@ -286,24 +299,24 @@ internal sealed class InventoryTab
         "Sold stacks can be bought back from the retainer until the retainer is dismissed."
       : "Not now: " + blocker + ".\r\nMarketable (grey-marker) stock is never vendored, and unmarketable stock cannot be priced, so this bucket stays empty.");
 
-    ImGui.SameLine();
+    ImGui.NewLine();
     ImGui.BeginDisabled();
     ImGui.Button($"GC delivery: {plan.Count(LootBucket.GcDelivery)} (hand off)##vlgc");
     ImGui.EndDisabled();
     TipAlways("Preview only. Green gear goes to Grand Company expert delivery: move it to the bags and let AutoDuty's or\r\n" +
               "AutoRetainer's GC delivery turn it in. LMC does not deliver (that would need new, untested machinery).");
-    ImGui.SameLine();
+    ImGui.NewLine();
     ImGui.BeginDisabled();
     ImGui.Button($"Desynth: {plan.Count(LootBucket.Desynth)} (hand off)##vldesynth");
     ImGui.EndDisabled();
     TipAlways("Preview only. PandorasBox (Desynth All) or AutoRetainer desynthesis handle these from the bags.\r\n" +
               "LMC does not desynthesize (that would need new, untested machinery).");
-    ImGui.SameLine();
+    ImGui.NewLine();
     Widgets.Secondary($"Keep: {plan.Count(LootBucket.Keep)}");
 
     if (plan.Rows.Count == 0)
     {
-      Widgets.Secondary("No venture loot in this retainer.");
+      Widgets.InfoBox("Empty · no venture loot in this retainer during the selected look-back window.", UiState.Empty);
       return;
     }
 
@@ -341,7 +354,7 @@ internal sealed class InventoryTab
       if (row.OptInRail != null || opted)
       {
         var v = opted;
-        if (Widgets.Checkbox("##optin", ref v))
+        if (MarketChrome.Toggle("##optin", ref v))
           _s.SetOptIn(row.Stack.ItemId, v, row.OptInRail ?? "opted");
         Tip("Allow this item past the unique / untradable / rare rail. Every other rail still applies.");
       }
@@ -360,13 +373,12 @@ internal sealed class InventoryTab
       "Every move is logged and the last batch can be undone.");
 
     var idle = c.GearMoverWhenIdle;
-    if (Widgets.Checkbox("Move gear on its own when everything is idle##gmidle", ref idle)) { c.GearMoverWhenIdle = idle; c.Save(); }
+    if (MarketChrome.Toggle("Move gear on its own when everything is idle##gmidle", ref idle)) { c.GearMoverWhenIdle = idle; c.Save(); }
     Tip("Off by default. Idle = not in combat, a duty, crafting, gathering, a cutscene or an in-game window/event, and\r\n" +
         "AutoRetainer, AutoDuty, Artisan, GatherBuddy Reborn and LMC's own automation all idle, continuously for 20 s.\r\n" +
         $"At most {InventoryService.IdleMoveCap} pieces per pass, one pass a minute.");
     var verdict = _s.LastIdle;
-    ImGui.SameLine();
-    Widgets.StateText(verdict.Idle ? "idle now" : "not idle: " + string.Join("; ", verdict.Why), verdict.Idle ? UiState.Ready : UiState.Idle);
+    Widgets.StateText(verdict.Idle ? "Ready · idle conditions met" : "Idle · " + string.Join("; ", verdict.Why), verdict.Idle ? UiState.Ready : UiState.Idle);
     if (_s.IdleBackoffMinutesLeft > 0)
       Widgets.StateText($"The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).", UiState.Blocked);
 
@@ -379,7 +391,7 @@ internal sealed class InventoryTab
     if (blocker != null) ImGui.EndDisabled();
     TipAlways(blocker == null ? $"Moves up to {InventoryService.ManualMoveCap} pieces, re-checking each one first." : "Not now: " + blocker);
 
-    ImGui.SameLine();
+    ImGui.NewLine();
     var last = _s.LastGearBatch;
     var undoBlocker = last.Count == 0 ? "nothing to undo" : _s.MoveBlocker();
     if (undoBlocker != null) ImGui.BeginDisabled();
@@ -411,7 +423,7 @@ internal sealed class InventoryTab
     var lines = _s.RecentLines;
     if (lines.Count == 0)
     {
-      Widgets.Secondary("Nothing this session.");
+      Widgets.InfoBox("Empty · no inventory actions this session.", UiState.Empty);
       return;
     }
     if (ImGui.BeginChild("##invlog", new Vector2(-1, 160), true))

@@ -46,6 +46,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 {
   private readonly Inventory.InventoryService _inventory;
   private readonly Func<bool> _runInProgress;
+  private readonly Action<string>? _cancelAutomation;
   private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("panel.automarket", "Auto-Market panel");
 
   // ---- panel UI state ----
@@ -74,11 +75,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
   private readonly Dictionary<uint, bool> _marketableCache = [];
 
-  public AutoMarketPanelWindow(Inventory.InventoryService inventory, Func<bool> runInProgress)
+  public AutoMarketPanelWindow(Inventory.InventoryService inventory, Func<bool> runInProgress, Action<string>? cancelAutomation)
     : base("Lazy Market Companion Auto-Market##lmcPanel")
   {
     _inventory = inventory;
     _runInProgress = runInProgress;
+    _cancelAutomation = cancelAutomation;
     SizeConstraints = new WindowSizeConstraints
     {
       MinimumSize = new Vector2(360, 420),
@@ -177,14 +179,14 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
     try
     {
-      Theme.PushFrame();
+      MarketChrome.PushFrame();
       try
       {
         DrawFrame();
       }
       finally
       {
-        Theme.PopFrame();
+        MarketChrome.PopFrame();
       }
     }
     catch (Exception ex)
@@ -239,65 +241,83 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       }
 
       DrawPanelBar(c, counts);
-      DrawHeader(c, counts);
-      ImGui.Separator();
-      DrawFilters(all, counts);
-      DrawBulkButtons(bulk);
-      DrawTable(c, visible);
+      MarketChrome.PageHeader("Auto-Market bags", "Live bag groups, list membership, per-item limits, and bulk actions.", $"{visible.Count} shown · {counts.OnList} on list");
+      var busy = _runInProgress();
+      var footerHeight = MarketChrome.FooterHeight(ImGui.GetContentRegionAvail().X, busy);
+      if (ImGui.BeginChild("##lmcPanelBody", new Vector2(0, MathF.Max(80, ImGui.GetContentRegionAvail().Y - footerHeight)), false))
+      {
+        MarketChrome.StatCards(
+          new MarketChrome.Stat("On list", counts.OnList.ToString(), "Bag groups with an Auto-Market entry"),
+          new MarketChrome.Stat("Not listed", counts.NotListed.ToString(), "Marketable groups available to add"),
+          new MarketChrome.Stat("Excluded", counts.Excluded.ToString(), "Entries skipped by category routing"));
+        DrawHeader(c, counts);
+        DrawFilters(all, counts);
+        DrawBulkButtons(bulk);
+        DrawTable(c, visible);
+        ImGui.Separator();
+        DrawKnobs(c);
+      }
+      ImGui.EndChild();
       DrawBulkModals(c, bulk);
-      ImGui.Separator();
-      DrawKnobs(c);
+      DrawFooter(c, visible.Count);
   }
 
-  // R1/R3: shell top bar - panel title left, live Auto-Market pill right.
   private void DrawPanelBar(Configuration c, AutoMarketPanelModel.Counts counts)
   {
-    var p = ImGui.GetCursorScreenPos();
-    var w = ImGui.GetContentRegionAvail().X;
-    var barH = Theme.PillHeight;
-    var dl = ImGui.GetWindowDrawList();
-    dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
-    dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
-    ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
-    ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-    ImGui.TextUnformatted("Auto-Market");
-    ImGui.PopStyleColor();
-    ImGui.SameLine();
-    ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
+    var width = ImGui.GetContentRegionAvail().X;
+    var origin = ImGui.GetCursorScreenPos();
+    var draw = ImGui.GetWindowDrawList();
+    var gap = 2 * Theme.Unit;
     var busy = _runInProgress();
-    var state = busy ? UiState.Running : c.AutoMarketEnabled ? UiState.Ready : UiState.Idle;
-    Widgets.StatusPill(state, "Auto-Market", busy ? null : $"{counts.OnList} on list", alignRight: true);
-    ImGui.Dummy(new Vector2(0, Theme.Unit));
+    var state = busy ? UiState.Running : !c.AutoMarketEnabled ? UiState.Idle : c.AutoMarketItems.Count == 0 ? UiState.Empty : UiState.Ready;
+    var statusLabel = busy ? Copy.Word(state) : $"{Copy.Word(state)} · {counts.OnList} on list";
+    var brandSize = new Vector2(MathF.Max(158, (ImGui.CalcTextSize("Auto-Market").X * Theme.TitleScale) + 68), 42);
+    var statusSize = new Vector2(MathF.Max(104, ImGui.CalcTextSize(statusLabel).X + 43), 34);
+    var singleRow = width >= brandSize.X + statusSize.X + (3 * gap);
+    var barHeight = singleRow ? 66 : 116;
+    draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+    draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+    if (MarketChrome.BrandButton(draw, origin + new Vector2(0, 12), brandSize, "Auto-Market"))
+      ImGui.SetScrollHereY(0);
+    var statusPos = singleRow ? new Vector2(width - statusSize.X, 16) : new Vector2(0, 66);
+    MarketChrome.StatusPill(draw, origin + statusPos, statusSize, statusLabel, state);
+    ImGui.SetCursorScreenPos(origin);
+    ImGui.Dummy(new Vector2(width, barHeight));
   }
-
-  // =====================================================================================
-  // header: dock toggle, pin, mode
-  // =====================================================================================
 
   private void DrawHeader(Configuration c, AutoMarketPanelModel.Counts counts)
   {
-    var dock = c.AutoMarketPanelDock;
-    if (Widgets.Checkbox("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
-    Tip("Place the panel beside the inventory window (right when there is room, else left). Off = the panel floats wherever you dragged it, and opening your bags does not open or close it.");
-
-    if (dock)
+    MarketChrome.Card("panel_dock", () =>
     {
-      ImGui.SameLine(0, 20);
-      var pinned = c.AutoMarketPanelPinned;
-      if (Widgets.Checkbox("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
-      Tip("Off (the default): the panel opens and closes with your inventory.\r\nOn: the panel stays up after the inventory closes - close it by hand or with /lmc panel.");
-    }
+      MarketChrome.Section("Panel placement", $"{counts.OnList} on list · {counts.NotListed} not listed");
+      var dock = c.AutoMarketPanelDock;
+      if (MarketChrome.Toggle("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
+      Tip("Place the panel beside the inventory window (right when there is room, else left). Off = the panel floats wherever you dragged it, and opening your bags does not open or close it.");
 
-    ImGui.SameLine(0, 20);
-    var where = _lastMode switch
-    {
-      PanelDock.DockMode.Right => "docked right of the inventory",
-      PanelDock.DockMode.Left => "docked left of the inventory",
-      _ => _invOpen ? "floating (no room beside the inventory)" : "floating (inventory not readable or closed)",
-    };
-    ImGui.TextDisabled(where);
-    ImGui.SameLine(0, 20);
-    ImGui.TextDisabled($"{counts.OnList} on list, {counts.NotListed} not");
+      if (dock)
+      {
+        var pinned = c.AutoMarketPanelPinned;
+        if (MarketChrome.Toggle("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
+        Tip("Off (the default): the panel opens and closes with your inventory.\r\nOn: the panel stays up after the inventory closes - close it by hand or with /lmc panel.");
+      }
+
+      var where = _lastMode switch
+      {
+        PanelDock.DockMode.Right => "Docked right of the inventory",
+        PanelDock.DockMode.Left => "Docked left of the inventory",
+        _ => _invOpen ? "Floating · no room beside the inventory" : "Floating · inventory not readable or closed",
+      };
+      Widgets.SecondaryWrapped(where);
+    });
+  }
+
+  private void DrawFooter(Configuration c, int visibleCount)
+  {
+    var busy = _runInProgress();
+    var state = busy ? UiState.Running : !c.AutoMarketEnabled ? UiState.Idle : c.AutoMarketItems.Count == 0 ? UiState.Empty : UiState.Ready;
+    var action = busy ? "the current market action" : !c.AutoMarketEnabled ? "Auto-Market is off" : c.AutoMarketItems.Count == 0 ? "no Auto-Market entries" : "Auto-Market list ready";
+    var detail = busy ? "Stop requests cancellation of the current action." : c.AutoMarketEnabled && c.AutoMarketItems.Count == 0 ? "Add an item from the main window or inventory context menu." : $"{visibleCount} visible groups · {c.AutoMarketItems.Count} configured entries";
+    MarketChrome.Footer(state, action, detail, busy ? "Stop" : null, busy ? () => _cancelAutomation?.Invoke("cancelled from the Auto-Market panel") : null);
   }
 
   // =====================================================================================
@@ -306,8 +326,9 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
   private void DrawFilters(List<AutoMarketPanelModel.Row> all, AutoMarketPanelModel.Counts counts)
   {
+    MarketChrome.Section("Filters", "Narrow the live bag groups without changing the underlying list.");
     var statusIdx = (int)_status;
-    ImGui.SetNextItemWidth(120);
+    ImGui.SetNextItemWidth(MathF.Min(280, ImGui.GetContentRegionAvail().X));
     if (ImGui.Combo("##lmcPanelStatus", ref statusIdx, ["All", "On list", "Not on list", "Excluded"], 4))
     {
       _status = (AutoMarketPanelModel.StatusFilter)statusIdx;
@@ -316,8 +337,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     }
     Tip("Show every marketable stack, only the ones on the Auto-Market list, only the ones missing from it, or only the ones quick-excluded from category routing. This setting is remembered between sessions.");
 
-    ImGui.SameLine(0, 12);
-    ImGui.SetNextItemWidth(150);
+    ImGui.SetNextItemWidth(MathF.Min(280, ImGui.GetContentRegionAvail().X));
     if (ImGui.BeginCombo("##lmcPanelCategory", _categoryFilter == 0 ? "Every category" : ItemNameResolver.GetSearchCategoryName(_categoryFilter)))
     {
       if (ImGui.Selectable("Every category", _categoryFilter == 0))
@@ -340,13 +360,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     }
     Tip("Only stacks in this market-board category. This setting is remembered between sessions; a category the current bags do not have shows as every category until it is picked again.");
 
-    ImGui.SameLine(0, 12);
     var show = _showUnmarketable;
-    if (Widgets.Checkbox($"Show unmarketable ({counts.NotMarketable})", ref show))
+    if (MarketChrome.Toggle($"Show unmarketable ({counts.NotMarketable})", ref show))
       _showUnmarketable = show;
     Tip("Quest items, gear the sheet calls untradable, anything with no market category: they get no dot and no Auto-Market listing, so they are hidden. This shows and counts them.");
 
-    ImGui.SetNextItemWidth(-30);
+    ImGui.SetNextItemWidth(-1);
     ImGui.InputTextWithHint("##lmcPanelSearch", "search by item name", ref _search, 64);
   }
 
@@ -356,14 +375,17 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
   private void DrawBulkButtons(AutoMarketPanelModel.BulkPlan bulk)
   {
-    if (ImGui.Button($"Add all visible ({bulk.Adds.Count})"))
-      ImGui.OpenPopup("Add all visible items?"); // the modal's exact id string: ImGui matches the two by hash
-    Tip("Adds every currently visible 'not listed' row to the Auto-Market list (default settings, enabled) - the same entries the inventory context menu's 'Add to Auto-Market' creates. You confirm first.");
+    MarketChrome.Card("bulk_actions", () =>
+    {
+      MarketChrome.Section("Bulk actions", "Counts come from the rows visible under the current filters.");
+      if (MarketChrome.Button($"Add all visible ({bulk.Adds.Count})"))
+        ImGui.OpenPopup("Add all visible items?"); // the modal's exact id string: ImGui matches the two by hash
+      Tip("Adds every currently visible 'not listed' row to the Auto-Market list (default settings, enabled) - the same entries the inventory context menu's 'Add to Auto-Market' creates. You confirm first.");
 
-    ImGui.SameLine(0, 12);
-    if (ImGui.Button($"Remove all visible ({bulk.Removes.Count})"))
-      ImGui.OpenPopup("Remove all visible items?"); // the modal's exact id string: ImGui matches the two by hash
-    Tip("Removes every currently visible on-list row from the Auto-Market list. You confirm first - and the filters above decide what 'visible' means.");
+      if (MarketChrome.Button($"Remove all visible ({bulk.Removes.Count})"))
+        ImGui.OpenPopup("Remove all visible items?"); // the modal's exact id string: ImGui matches the two by hash
+      Tip("Removes every currently visible on-list row from the Auto-Market list. You confirm first - and the filters above decide what 'visible' means.");
+    });
   }
 
   private void DrawBulkModals(Configuration c, AutoMarketPanelModel.BulkPlan bulk)
@@ -372,7 +394,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     if (ImGui.BeginPopupModal("Add all visible items?", ref _unusedAdd, ImGuiWindowFlags.AlwaysAutoResize))
     {
       ImGui.TextUnformatted($"Add {bulk.Adds.Count} item(s) to the Auto-Market list now?");
-      ImGui.TextDisabled("New entries use the default settings (enabled, stack = the market maximum).");
+      Widgets.SecondaryWrapped("New entries use the default settings (enabled, stack = the market maximum).");
       ImGui.Separator();
       if (ImGui.Button("Add", new Vector2(120, 0)))
       {
@@ -381,7 +403,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         c.Save();
         ImGui.CloseCurrentPopup();
       }
-      ImGui.SameLine();
+      ImGui.NewLine();
       if (ImGui.Button("Cancel", new Vector2(120, 0)))
         ImGui.CloseCurrentPopup();
       ImGui.EndPopup();
@@ -391,7 +413,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     if (ImGui.BeginPopupModal("Remove all visible items?", ref _unusedRemove, ImGuiWindowFlags.AlwaysAutoResize))
     {
       ImGui.TextUnformatted($"Remove {bulk.Removes.Count} item(s) from the Auto-Market list now?");
-      ImGui.TextDisabled("Auto-Market will stop touching these items entirely. This does not cancel listings already on the retainers.");
+      Widgets.SecondaryWrapped("Auto-Market will stop touching these items entirely. This does not cancel listings already on the retainers.");
       ImGui.Separator();
       if (ImGui.Button("Remove", new Vector2(120, 0)))
       {
@@ -404,7 +426,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         c.Save();
         ImGui.CloseCurrentPopup();
       }
-      ImGui.SameLine();
+      ImGui.NewLine();
       if (ImGui.Button("Cancel", new Vector2(120, 0)))
         ImGui.CloseCurrentPopup();
       ImGui.EndPopup();
@@ -419,26 +441,28 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   {
     if (visible.Count == 0)
     {
-      Widgets.Secondary(_search.Length > 0 || _categoryFilter != 0 || _status != AutoMarketPanelModel.StatusFilter.All
-        ? "Nothing matches the filters above."
-        : "Nothing marketable in your bags right now.");
+      Widgets.InfoBox(_search.Length > 0 || _categoryFilter != 0 || _status != AutoMarketPanelModel.StatusFilter.All
+        ? "Empty · no bag groups match the current filters. Clear the search or choose another filter."
+        : "Empty · nothing marketable is in the bags right now.", UiState.Empty);
       return;
     }
 
+    MarketChrome.Section("Bag groups", "Live quantities and the same per-item edits as the main window.", $"{visible.Count} groups");
     var flags = ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.NoSavedSettings
-      | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY;
-    if (!ImGui.BeginTable("##lmcPanelTable", 8, flags, new Vector2(-1, -1)))
+      | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX;
+    var tableHeight = MathF.Max(220, MathF.Min(380, ImGui.GetContentRegionAvail().Y));
+    if (!ImGui.BeginTable("##lmcPanelTable", 8, flags, new Vector2(-1, tableHeight)))
       return;
 
     ImGui.TableSetupScrollFreeze(0, 1);
-    ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 26f);
+    ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 46f);
     ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
-    ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 46f);
-    ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 88f);
-    ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 58f);
-    ImGui.TableSetupColumn("Keep", ImGuiTableColumnFlags.WidthFixed, 58f);
-    ImGui.TableSetupColumn("Route", ImGuiTableColumnFlags.WidthFixed, 46f);
-    ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 56f);
+    ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 50f);
+    ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 100f);
+    ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 70f);
+    ImGui.TableSetupColumn("Keep", ImGuiTableColumnFlags.WidthFixed, 70f);
+    ImGui.TableSetupColumn("Route", ImGuiTableColumnFlags.WidthFixed, 54f);
+    ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 76f);
     ImGui.TableHeadersRow();
 
     foreach (var row in visible)
@@ -454,7 +478,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         if (entry != null)
         {
           var on = entry.Enabled;
-          if (Widgets.Checkbox("##on", ref on)) { entry.Enabled = on; c.Save(); }
+          if (MarketChrome.Toggle("##on", ref on)) { entry.Enabled = on; c.Save(); }
           Tip("Ticks and unticks this item on the Auto-Market list - the same switch the main window's table has. Unticked = on the list but not listed.");
         }
       }
@@ -471,16 +495,16 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       switch (row.Kind)
       {
         case AutoMarketPanelModel.RowKind.OnList when row.EntryEnabled:
-          Widgets.StateText(row.Excluded ? "on list" : "on list", UiState.Ready);
+          Widgets.StateText("Ready", UiState.Ready);
           break;
         case AutoMarketPanelModel.RowKind.OnList:
-          Widgets.StateText("on list (off)", UiState.Blocked);
+          Widgets.StateText("Idle", UiState.Idle);
           break;
         case AutoMarketPanelModel.RowKind.NotListed:
-          Widgets.Secondary("not listed");
+          Widgets.StateText("Empty", UiState.Empty);
           break;
         default:
-          ImGui.TextDisabled("unmarketable");
+          Widgets.SecondaryWrapped("unmarketable");
           break;
       }
 
@@ -511,7 +535,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       if (row.Kind == AutoMarketPanelModel.RowKind.OnList && c.GetAutoMarketItem(row.ItemId, row.Hq) is { } routeEntry)
       {
         var skip = routeEntry.ExcludeFromCategoryRouting;
-        if (Widgets.Checkbox("##skiprouting", ref skip)) { routeEntry.ExcludeFromCategoryRouting = skip; c.Save(); }
+        if (MarketChrome.Toggle("##skiprouting", ref skip)) { routeEntry.ExcludeFromCategoryRouting = skip; c.Save(); }
         Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer.");
       }
 
@@ -549,13 +573,14 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 
   private void DrawKnobs(Configuration c)
   {
-    if (!ImGui.CollapsingHeader("Auto-Market settings"))
-      return;
+    MarketChrome.Card("panel_settings", () =>
+    {
+    MarketChrome.Section("Auto-Market settings", "The same saved controls as the main window; no additional selling surface.");
 
     var enabled = c.AutoMarketEnabled;
     var busy = _runInProgress();
     if (busy) ImGui.BeginDisabled();
-    if (Widgets.Checkbox("Enable Auto-Market", ref enabled))
+    if (MarketChrome.Toggle("Enable Auto-Market", ref enabled))
     {
       if (enabled)
         ImGui.OpenPopup("Turn Auto-Market on?"); // the modal's exact id string: ImGui matches the two by hash
@@ -567,7 +592,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     }
     if (busy) ImGui.EndDisabled();
     Tip(busy
-      ? "A run is in progress. Cancel it first."
+      ? "Running. Stop the current action first."
       : "Master switch. When off, the Auto Market buttons and the AutoRetainer hook do nothing.");
     var _unusedMaster = true;
     if (ImGui.BeginPopupModal("Turn Auto-Market on?", ref _unusedMaster, ImGuiWindowFlags.AlwaysAutoResize))
@@ -575,71 +600,65 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       ImGui.TextUnformatted("Turning Auto-Market on lets it run the next time it is triggered, including during AutoRetainer cycles if that is set up in its settings.");
       ImGui.Separator();
       if (ImGui.Button("Turn on", new Vector2(120, 0))) { c.AutoMarketEnabled = true; c.Save(); ImGui.CloseCurrentPopup(); }
-      ImGui.SameLine();
+      ImGui.NewLine();
       if (ImGui.Button("Keep it off", new Vector2(120, 0)))
         ImGui.CloseCurrentPopup();
       ImGui.EndPopup();
     }
 
     var markers = c.AutoMarketMarkersEnabled;
-    if (Widgets.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
+    if (MarketChrome.Toggle("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
     Tip("Draws a small green dot on every bag stack that is on the Auto-Market list and enabled.\r\nAn item on the list with its tick unticked gets no dot - it would not be listed.\r\nThis panel lists the same state as a table, even when the dots do not draw.");
 
-    ImGui.SameLine(0, 30);
     var duringAr = c.AutoMarketDuringAutoRetainer;
     if (!AutoRetainerIPC.Installed) ImGui.BeginDisabled();
-    if (Widgets.Checkbox("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
+    if (MarketChrome.Toggle("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
     if (!AutoRetainerIPC.Installed) ImGui.EndDisabled();
     Tip(AutoRetainerIPC.Installed
       ? "When AutoRetainer cycles a retainer (multi-mode / ventures), claim it after AR's own work, list your items, match prices, hand it back.\r\nOnly enabled retainers (Retainers tab) are claimed."
       : "AutoRetainer is not installed / loaded.");
 
-    ImGui.SameLine(0, 30);
     var inSweep = c.AutoMarketInPinchAllSweep;
-    if (Widgets.Checkbox("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
+    if (MarketChrome.Toggle("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
     Tip("The 'Auto Market' button on the retainer list lists items on every enabled retainer before pinching. Off = that button only pinches.");
 
-    ImGui.TextUnformatted("Stock source:"); ImGui.SameLine();
+    ImGui.TextUnformatted("Stock source:"); ImGui.NewLine();
     ImGui.SetNextItemWidth(180);
     var src = (int)c.AutoMarketSource;
     if (ImGui.Combo("##lmcPanelSource", ref src, ["Bags only", "Retainer inventory only", "Bags + retainer inventory"], 3)) { c.AutoMarketSource = (StockSource)src; c.Save(); }
     Tip("Where items may be taken from. Per-item override available in the main window's table. This panel always lists your bags.");
 
-    ImGui.SameLine(0, 20);
     var retFirst = c.AutoMarketPreferRetainerStockFirst;
-    if (Widgets.Checkbox("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
+    if (MarketChrome.Toggle("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
     Tip("Sell the retainer's own inventory (venture loot) before touching your bags.");
 
-    ImGui.SameLine(0, 20);
     var partial = c.AutoMarketListPartialStacks;
-    if (Widgets.Checkbox("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
+    if (MarketChrome.Toggle("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
     Tip("If there isn't a full listing's worth left, list what's there anyway. Off = only full-size listings.");
 
-    ImGui.TextUnformatted("New listing price:"); ImGui.SameLine();
+    ImGui.TextUnformatted("New listing price:"); ImGui.NewLine();
     ImGui.SetNextItemWidth(260);
     var pm = (int)c.AutoMarketPriceMode;
     if (ImGui.Combo("##lmcPanelPriceMode", ref pm, ["Placeholder, then match on the board", "Universalis first (fallback: placeholder)"], 2)) { c.AutoMarketPriceMode = (NewListingPriceMode)pm; c.Save(); }
     Tip("Placeholder: list at an absurd price, then immediately run the normal price match on that slot (Compare Prices).\r\n" +
         "Universalis first: ask Universalis for the data-center low before listing, so the item goes up already priced. Falls back to placeholder when Universalis has nothing.");
 
-    ImGui.SameLine(0, 20);
-    ImGui.TextUnformatted("Reserve slots:"); ImGui.SameLine();
+    ImGui.TextUnformatted("Reserve slots:"); ImGui.NewLine();
     ImGui.SetNextItemWidth(80);
     var reserve = c.AutoMarketReserveSlots;
     if (ImGui.InputInt("##lmcPanelReserve", ref reserve)) { c.AutoMarketReserveSlots = Math.Clamp(reserve, 0, 19); c.Save(); }
     Tip("Leave this many of the retainer's 20 market slots empty for manual listings.");
 
     var pinchAll = c.AutoMarketPinchAllAfter;
-    if (Widgets.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
+    if (MarketChrome.Toggle("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
     Tip("Off (the default): after listing, only the new listings are priced - much faster.\nOn: re-price ALL of this retainer's listings as well (same as Auto Pinch), which costs a few seconds per existing listing.");
 
-    ImGui.SameLine(0, 20);
     var msgs = c.ShowAutoMarketMessages;
-    if (Widgets.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
+    if (MarketChrome.Toggle("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
 
     if (!c.AutoMarketPinchAllAfter)
     {
-      ImGui.TextUnformatted("If a new listing can't be found:"); ImGui.SameLine();
+      ImGui.TextUnformatted("If a new listing can't be found:"); ImGui.NewLine();
       ImGui.SetNextItemWidth(280);
       var fb = (int)c.AutoMarketPinchFallback;
       if (ImGui.Combo("##lmcPanelPinchFallback", ref fb,
@@ -652,7 +671,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
           "Only my Auto-Market items: re-price just the listings whose item is on the list in the main window, so a listing you made by hand is never touched.");
     }
 
-    ImGui.TextUnformatted("Listing order:"); ImGui.SameLine();
+    ImGui.TextUnformatted("Listing order:"); ImGui.NewLine();
     ImGui.SetNextItemWidth(220);
     var sortIdx = (int)c.AutoMarketSortMode;
     if (ImGui.Combo("##lmcPanelSortMode", ref sortIdx, ["List order", "Cheapest first", "Fastest selling first", "Most expensive first"], 4))
@@ -664,12 +683,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
         + "Items Universalis has no fresh data for keep their list position and sort last, and a failed lookup changes nothing.");
 
     var gate = c.AutoMarketValueGateEnabled;
-    if (Widgets.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
-    ImGui.SameLine();
+    if (MarketChrome.Toggle("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
+    ImGui.NewLine();
     ImGui.SetNextItemWidth(140);
     var threshold = (int)Math.Min(c.AutoMarketValueGateThresholdGil, int.MaxValue);
     if (ImGui.InputInt("##lmcPanelGateThreshold", ref threshold, 0, 0)) { c.AutoMarketValueGateThresholdGil = Math.Max(threshold, 0); c.Save(); }
-    ImGui.SameLine();
+    ImGui.NewLine();
     ImGui.TextUnformatted("gil, net of fees");
     Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices. Items whose total sellable value "
         + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number take the vendor leg instead of a market slot - only NQ non-gear items the Item sheet prices as vendorable; the retainer sells them to a vendor in the same session.\r\n"
@@ -680,22 +699,23 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       int gateFresh = c.AutoMarketGateFreshnessHours;
       ImGui.BeginGroup();
       ImGui.Text("Only trust gate prices newer than");
-      ImGui.SameLine();
+      ImGui.NewLine();
       ImGui.SetNextItemWidth(120);
       if (ImGui.SliderInt("##lmcPanelGateFreshness", ref gateFresh, 1, 168)) { c.AutoMarketGateFreshnessHours = Math.Clamp(gateFresh, 1, 168); c.Save(); }
-      ImGui.SameLine();
+      ImGui.NewLine();
       ImGui.Text("hours");
       ImGui.EndGroup();
       Tip("Universalis is crowd-sourced and lags. Prices older than this never hold an item back - the item is listed normally. Same idea as the Auto Pinch pre-flight freshness window.");
     }
 
     var autoAssign = c.AutoAssignUnroutedCategories;
-    if (Widgets.Checkbox("Auto-assign uncovered categories", ref autoAssign))
+    if (MarketChrome.Toggle("Auto-assign uncovered categories", ref autoAssign))
     {
       c.AutoAssignUnroutedCategories = autoAssign;
       c.Save();
     }
     Tip("When a sweep finds marked Auto-Market stock in the bags whose market-board category has no rule, it assigns that category to the sweep-enabled retainer carrying the fewest routed categories and moves the stock there in the same pass. Manage the rules themselves in the main window's Category Routing section.");
+    });
   }
 
   // =====================================================================================

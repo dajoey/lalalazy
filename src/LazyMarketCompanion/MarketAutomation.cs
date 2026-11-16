@@ -14,6 +14,8 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LazyMarketCompanion.AutoMarket;
+using LazyMarketCompanion.Windows;
+using LalaUiKit;
 using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
@@ -470,7 +472,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     var oldSize = ImGui.GetFont().Scale;
     ImGui.GetFont().Scale *= scale.X;
     ImGui.PushFont(ImGui.GetFont());
-    ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 0f.Scale());
+    ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8f.Scale());
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3f.Scale(), 3f.Scale()));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0f.Scale(), 0f.Scale()));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f.Scale());
@@ -492,27 +494,41 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void DrawButtons(params (string Label, string Tooltip, Action Run)[] buttons)
   {
-    if (_taskManager.IsBusy)
+    MarketChrome.PushFrame();
+    try
     {
-      var label = _arRetainer != null ? "Cancel (AutoRetainer)" : "Cancel";
-      if (ImGui.Button(label))
-        CancelEverything("cancelled by user");
-      if (ImGui.IsItemHovered())
-        ImGui.SetTooltip("Stops the running automation");
-      return;
-    }
+      if (_taskManager.IsBusy)
+      {
+        var pos = ImGui.GetCursorScreenPos();
+        var label = "Running";
+        var size = new Vector2(ImGui.CalcTextSize(label).X + 43, 28);
+        MarketChrome.StatusPill(ImGui.GetWindowDrawList(), pos, size, label, UiState.Running);
+        ImGui.Dummy(size);
+        ImGui.SameLine();
+        var stopLabel = _arRetainer != null ? "Stop (AutoRetainer)" : "Stop";
+        if (Widgets.StopButton(stopLabel))
+          CancelEverything("cancelled by user");
+        if (ImGui.IsItemHovered())
+          ImGui.SetTooltip("Stops the running automation");
+        return;
+      }
 
-    for (var i = 0; i < buttons.Length; i++)
+      for (var i = 0; i < buttons.Length; i++)
+      {
+        var (label, tooltip, run) = buttons[i];
+        if (i > 0) ImGui.SameLine();
+        var disabled = label == "Auto Market" && !Plugin.Configuration.AutoMarketEnabled;
+        if (disabled) ImGui.BeginDisabled();
+        if (MarketChrome.Button(label))
+          run();
+        if (disabled) ImGui.EndDisabled();
+        if (ImGui.IsItemHovered())
+          ImGui.SetTooltip(tooltip + "\r\nPlease do not interact with the game while this runs." + (disabled ? "\r\n(Auto-Market is disabled in settings.)" : string.Empty));
+      }
+    }
+    finally
     {
-      var (label, tooltip, run) = buttons[i];
-      if (i > 0) ImGui.SameLine();
-      var disabled = label == "Auto Market" && !Plugin.Configuration.AutoMarketEnabled;
-      if (disabled) ImGui.BeginDisabled();
-      if (ImGui.Button(label))
-        run();
-      if (disabled) ImGui.EndDisabled();
-      if (ImGui.IsItemHovered())
-        ImGui.SetTooltip(tooltip + "\r\nPlease do not interact with the game while this runs." + (disabled ? "\r\n(Auto-Market is disabled in settings.)" : string.Empty));
+      MarketChrome.PopFrame();
     }
   }
 

@@ -10,6 +10,7 @@ using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lalalazy.Telemetry;
+using LazyMarketCompanion.Windows;
 
 namespace LazyMarketCompanion.Inventory;
 
@@ -93,15 +94,32 @@ internal sealed class OwnerTooltip : Window
     using var tip = LalaUiKit.Layout.Overlay.Begin("###LMCOwnerTip", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar
       | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing,
       transparentBackground: false);
-    Widgets.Title("Who handles this stack");
-    foreach (var line in _lines)
+    MarketChrome.PushFrame();
+    try
     {
-      var warn = line.Contains("DISCARDS", StringComparison.Ordinal);
-      if (warn) Widgets.StateText(line, UiState.Failed);
-      else Widgets.Body(line);
+      MarketChrome.Card("owner_tooltip", () =>
+      {
+        var titlePos = ImGui.GetCursorScreenPos();
+        MarketChrome.Diamond(ImGui.GetWindowDrawList(), titlePos + new Vector2(7, 9), 6, Theme.Pack(Theme.Accent));
+        ImGui.SetCursorScreenPos(titlePos + new Vector2(22, 0));
+        Widgets.Title("Who handles this stack");
+        ImGui.SetCursorScreenPos(new Vector2(titlePos.X, ImGui.GetCursorScreenPos().Y));
+        foreach (var line in _lines)
+        {
+          var warn = line.Contains("DISCARDS", StringComparison.Ordinal);
+          if (warn) Widgets.StateText(line, UiState.Blocked);
+          else ImGui.TextWrapped(line);
+        }
+        if (_lines.Count == 0)
+          Widgets.InfoBox("Empty · nothing handles this stack.", UiState.Empty);
+        if (!_service.Ar.Available)
+          Widgets.SecondaryWrapped($"AutoRetainer: {_service.Ar.Status}");
+      });
     }
-    if (!_service.Ar.Available)
-      Widgets.Secondary($"AutoRetainer: {_service.Ar.Status}");
+    finally
+    {
+      MarketChrome.PopFrame();
+    }
   }
 
   private static unsafe bool MouseOverInventory(Vector2 mouse)

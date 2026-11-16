@@ -28,9 +28,9 @@ internal static class HubAdapter
             v => { Plugin.Configuration.AutoMarketEnabled = v; Plugin.Configuration.Save(); },
             group: run, master: true,
             state: () => runInProgress()
-                ? new ControlState(Enabled: false, Why: "A run is in progress. Cancel it first.")
+                ? new ControlState(Enabled: false, Why: "Running. Stop the current action first.")
                 : new ControlState(),
-            tip: "Master switch. Locked while a run is in progress.",
+            tip: "Master switch. Locked until the Running action stops.",
             confirm: "Turning Auto-Market on lets it run the next time it is triggered, including during AutoRetainer cycles if that is set up in its settings.");
 
         ep.Toggle("bag_markers", "Bag markers", () => Plugin.Configuration.AutoMarketMarkersEnabled,
