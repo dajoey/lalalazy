@@ -10,14 +10,16 @@
 .PARAMETER Channel
   The target release channel: "production" or "testing". Default is "production".
 .PARAMETER VersionOverride
-  Optional version string to override the version specified in the project/manifest.
+  Optional dotted numeric version (two to four parts) to override the version specified in the project/manifest.
 .EXAMPLE
   .\Package-Plugin.ps1 -PluginName LazyFATEAutomator
 #>
+[CmdletBinding(PositionalBinding=$false)]
 param(
   [Parameter(Mandatory=$true)][string]$PluginName,
   [ValidateSet('production', 'testing')][string]$Channel = 'production',
-  [string]$VersionOverride,
+  # Dotted numeric version, two to four parts (1.2.3, 0.1.9.23). Anything else is refused at binding.
+  [ValidatePattern('^[0-9]+(\.[0-9]+){1,3}\z')][string]$VersionOverride,
   # Re-package the SAME version already registered for this channel. Safe only while that
   # version's zip is unpushed - new bytes under a version Dalamud may have cached is the
   # stale-zip failure mode (see the v1.0.4.130 entry in GluttonyCombo's CHANGELOG).
