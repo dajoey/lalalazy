@@ -1,4 +1,7 @@
-﻿## v0.0.3.7 (2026-11-15) [testing]
+﻿## v0.0.3.8 (2026-11-16) [testing]
+- The tracker window now says when progress tracking is offline instead of showing empty bars.
+
+## v0.0.3.7 (2026-11-15) [testing]
 - The completed-jobs count stays visible in short windows.
 - Progress bars of finished jobs are visibly different from ones still in progress.
 - The inventory projection tooltip is reachable in the narrow layout.
