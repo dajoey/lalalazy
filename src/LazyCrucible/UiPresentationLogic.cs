@@ -1,3 +1,4 @@
+using System.Numerics;
 using Lalalazy.Crucible;
 
 namespace LazyCrucible;
@@ -20,5 +21,24 @@ internal static class UiPresentationLogic
     {
         var location = CrucibleBoards.Where(board, battle);
         return location.Length == 0 ? "" : $" · {location}";
+    }
+
+    /// <summary>
+    /// Top-left corner of the suggestion note. It sits above the game screen it describes when it fits
+    /// inside the work area, otherwise below it, and is clamped horizontally into the work area so it
+    /// never leaves the screen at the edges.
+    /// </summary>
+    public static Vector2 SuggestionBoxMin(Vector2 addonPos, float addonHeight, Vector2 boxSize, Vector2 workPos, Vector2 workSize, float gap)
+    {
+        var x = addonPos.X - 2;
+        var maxX = workPos.X + workSize.X - boxSize.X;
+        x = MathF.Max(workPos.X, MathF.Min(x, maxX));
+
+        var y = addonPos.Y - gap - boxSize.Y;
+        if (y < workPos.Y)
+            y = addonPos.Y + addonHeight + gap;
+        var maxY = workPos.Y + workSize.Y - boxSize.Y;
+        y = MathF.Max(workPos.Y, MathF.Min(y, maxY));
+        return new Vector2(x, y);
     }
 }
