@@ -221,6 +221,7 @@ internal static class Program
         CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
         try
         {
+            VerifyPlanning();
             Options = RenderOptions.Resolve(args);
             _strictGlyphs = args.Contains("--strict-glyphs");
             if (Options.OutputSubdirectory.Length > 0)
@@ -253,6 +254,85 @@ internal static class Program
             return 1;
         }
     }
+
+    /// <summary>The plan cache computes once per key and lifetime, the per-role summary equals a fresh plan, and names resolve once per id.</summary>
+    private static void VerifyPlanning()
+    {
+        var failures = new List<string>();
+        void Check(string name, bool ok)
+        {
+            Console.WriteLine($"{(ok ? "PASS" : "FAIL")} {name}");
+            if (!ok) failures.Add(name);
+        }
+
+        var plugin = new Plugin();
+        var collection = Data.Build(plugin.Shops);
+        var now = new DateTime(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
+        var computes = 0;
+        (List<PiecePlan> Plans, Dictionary<uint, long> Total, int Done) Compute(GearCollection c, int target)
+        {
+            computes++;
+            return plugin.Planner.PlanMany(c.Pieces, target);
+        }
+
+        var cache = new PlanCache();
+        var first = cache.Get(collection, 3, true, now, () => Compute(collection, 3));
+        cache.Get(collection, 3, true, now.AddMilliseconds(500), () => Compute(collection, 3));
+        var third = cache.Get(collection, 3, true, now.AddMilliseconds(1900), () => Compute(collection, 3));
+        Check("three reads inside the cache lifetime compute once", computes == 1 && ReferenceEquals(first.Plans, third.Plans));
+
+        cache.Get(collection, 2, true, now.AddMilliseconds(1950), () => Compute(collection, 2));
+        cache.Get(collection, 2, true, now.AddMilliseconds(1960), () => Compute(collection, 2));
+        Check("a changed target tier recomputes once", computes == 2);
+
+        cache.Get(collection, 2, false, now.AddMilliseconds(1970), () => Compute(collection, 2));
+        Check("a changed include-cached flag recomputes", computes == 3);
+
+        var other = Data.Build(plugin.Shops);
+        cache.Get(other, 2, false, now.AddMilliseconds(1980), () => Compute(other, 2));
+        Check("a different collection reference recomputes", computes == 4);
+
+        cache.Get(other, 2, false, now.AddMilliseconds(1990 + 2000), () => Compute(other, 2));
+        cache.Get(other, 2, false, now.AddMilliseconds(2000 + 2000), () => Compute(other, 2));
+        Check("an expired entry recomputes once", computes == 5);
+
+        var (plans, totals, done) = plugin.Planner.PlanMany(collection.Pieces, 3);
+        var summary = Planner.Summarize(plans);
+        Check("Summarize equals the PlanMany totals", summary.Done == done && SameTotals(summary.Total, totals));
+
+        var rolesMatch = true;
+        foreach (var role in collection.Roles)
+        {
+            var fresh = plugin.Planner.PlanMany(collection.ForRole(role).ToList(), 3);
+            var filtered = Planner.Summarize(plans.Where(p => p.Piece.Role == role));
+            rolesMatch &= filtered.Done == fresh.Done && SameTotals(filtered.Total, fresh.Total);
+        }
+
+        Check("per-role summaries of the one plan equal a fresh plan per role", rolesMatch);
+
+        var resolved = new Dictionary<uint, int>();
+        var memo = new NameMemo(id =>
+        {
+            resolved[id] = resolved.GetValueOrDefault(id) + 1;
+            return id == 99 ? null : $"Item {id}";
+        });
+        for (var i = 0; i < 3; i++)
+        {
+            memo.Get(5);
+            memo.Get(6);
+        }
+
+        memo.Get(99);
+        memo.Get(99);
+        Check("the resolver runs once per id", resolved[5] == 1 && resolved[6] == 1);
+        Check("an unresolved id is not remembered", resolved[99] == 2 && memo.Get(5) == "Item 5");
+
+        if (failures.Count > 0)
+            throw new InvalidOperationException($"plan cache checks failed: {string.Join("; ", failures)}");
+    }
+
+    private static bool SameTotals(Dictionary<uint, long> a, Dictionary<uint, long> b)
+        => a.Count == b.Count && a.All(entry => b.TryGetValue(entry.Key, out var other) && other == entry.Value);
 
     private static (string Path, int Triangles) Render(Scenario scenario)
     {

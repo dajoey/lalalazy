@@ -25,9 +25,12 @@ public sealed class ShopGraph
 
     public int OfferCount { get; private set; }
 
+    private readonly NameMemo _names;
+
     public ShopGraph(IDataManager data)
     {
         _data = data;
+        _names = new NameMemo(ResolveName);
         Build();
     }
 
@@ -87,8 +90,15 @@ public sealed class ShopGraph
     public string ItemName(uint itemId)
     {
         if (itemId == 0) return "";
+        // Item names are static sheet data and the window asks for the same ids every frame: resolve each once.
+        return _names.Get(itemId) ?? $"Item#{itemId}";
+    }
+
+    private string? ResolveName(uint itemId)
+    {
         var sheet = _data.GetExcelSheet<Item>();
-        if (sheet == null || !sheet.TryGetRow(itemId, out var item)) return $"Item#{itemId}";
+        if (sheet == null) return null; // sheet not available yet: not remembered
+        if (!sheet.TryGetRow(itemId, out var item)) return $"Item#{itemId}";
         var n = item.Name.ExtractText();
         return string.IsNullOrWhiteSpace(n) ? $"Item#{itemId}" : n;
     }
