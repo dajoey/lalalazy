@@ -60,7 +60,7 @@ var cacheDir = Path.Combine(Path.GetTempPath(), "lazycrafter-probe");
 if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, true);
 Directory.CreateDirectory(cacheDir);
 var probeIds = new uint[] { 5111, 5333, 2320, 30970, 999999 };
-using (var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine) { Scope = "Aether" })
+using (var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine, _ => { }) { Scope = "Aether" })
 {
     var marketable = await uni.MarketableAsync();
     var tax = await uni.TaxRatesAsync("Zalera");
@@ -75,7 +75,7 @@ using (var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine) { S
     var again = await uni.PrimeAsync(probeIds);
     Console.WriteLine($"  re-prime within TTL fetched {again} (expect 0)");
 }
-using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine))
+using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine, _ => { }))
 {
     Console.WriteLine($"  disk cache reload: scope={uni2.Scope} size={uni2.CacheSize} 5111={(uni2.Get(5111)?.MinListingNq)}");
 }
@@ -96,7 +96,7 @@ using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine))
     var logDone = new HashSet<uint>();
     Console.WriteLine($"catalog: {allItems.Count} distinct item ids touched by all recipes");
 
-    using var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine) { Scope = "Aether" };
+    using var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine, _ => { }) { Scope = "Aether" };
     await uni.MarketableAsync();
     await uni.TaxRatesAsync("Zalera");
     gd.UseMarketableOverride(uni.IsMarketable);
