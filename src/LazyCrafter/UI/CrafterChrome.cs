@@ -308,6 +308,38 @@ internal static class CrafterChrome
     }
 
     /// <summary>
+    ///     A header cell that keeps the table's built-in header behaviour (sort click, resize and reorder drag, the
+    ///     right-click menu that shows and hides columns). The built-in label and arrow are made invisible and drawn by
+    ///     hand instead, so numeric columns can be right-aligned over their values.
+    /// </summary>
+    internal static void NativeHeaderCell(int column, string label, bool right, int sortDirection)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = MathF.Max(1, ImGui.GetContentRegionAvail().X);
+        ImGui.PushID(column);
+        ImGui.PushStyleColor(ImGuiCol.Text, 0u);
+        ImGui.TableHeader("");
+        ImGui.PopStyleColor();
+        ImGui.PopID();
+        var hovered = ImGui.IsItemHovered();
+        var fitted = Fit(label, MathF.Max(8, width - SortArrowReserve));
+        var textWidth = TextWidth(fitted);
+        var color = hovered || sortDirection != 0 ? Theme.TextPrimary : Theme.TextSecondary;
+        var textX = right ? pos.X + width - textWidth : pos.X;
+        DrawText(draw, new Vector2(textX, pos.Y), fitted, color);
+        if (sortDirection == 0)
+            return;
+        var arrowX = right ? textX - 8f : textX + textWidth + 8f;
+        var centre = new Vector2(arrowX, pos.Y + (ImGui.GetTextLineHeight() / 2f));
+        var up = sortDirection > 0;
+        var a = centre + new Vector2(-4f, up ? 2.5f : -2.5f);
+        var b = centre + new Vector2(4f, up ? 2.5f : -2.5f);
+        var c = centre + new Vector2(0f, up ? -2.5f : 2.5f);
+        draw.AddTriangleFilled(a, b, c, Theme.Pack(Theme.Accent));
+    }
+
+    /// <summary>
     ///     A non-sortable header row: every label aligned like its column's values (right for the listed columns). A
     ///     label that starts with "##" is a column without a header text.
     /// </summary>

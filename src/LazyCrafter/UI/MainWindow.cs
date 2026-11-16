@@ -146,6 +146,11 @@ public sealed class MainWindow : Window
         ImGui.BeginChild("##crafter_body", size, true);
         // The child has applied its own padding; popups and tooltips opened from page content keep the theme padding.
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
+        // Content ends at the same right edge as the header controls whether or not a scrollbar is showing; the
+        // scrollbar sits in the margin beside it, so the draw clip is widened to the whole child.
+        var childPos = ImGui.GetWindowPos();
+        ImGui.PushClipRect(childPos, childPos + ImGui.GetWindowSize(), false);
+        CrafterChrome.PushRight(childPos.X + ImGui.GetWindowWidth() - gutter);
         DrawStatusAnnouncements(snap);
         switch (_section)
         {
@@ -162,6 +167,8 @@ public sealed class MainWindow : Window
                 _settings.Draw();
                 break;
         }
+        CrafterChrome.PopRight();
+        ImGui.PopClipRect();
         ImGui.PopStyleVar();
         // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
         if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
@@ -636,14 +643,17 @@ public sealed class MainWindow : Window
         var railHeight = height - TrailingGap;
         var populated = _selectedRecipe != 0 && snap.ByRecipe.ContainsKey(_selectedRecipe);
         // The empty card never scrolls; a populated rail scrolls as one column and ends level with the table card.
-        ImGui.BeginChild("##crafter_rail", new Vector2(railWidth, railHeight), false,
+        // The child reaches into the page margin by the scrollbar width, so a scrollbar sits beside the card, not over it.
+        var lane = MathF.Min(2 * Theme.Unit + 2, MathF.Max(0, CrafterChrome.Gutter(ImGui.GetWindowWidth()) - 2));
+        ImGui.BeginChild("##crafter_rail", new Vector2(railWidth + lane, railHeight), false,
             populated ? ImGuiWindowFlags.None : ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
-        // One pixel keeps the card border inside the child clip; a scrollbar needs its own lane.
-        var reserve = _railScrolls ? (2 * Theme.Unit) + 2 + Theme.Unit : 1;
-        CrafterChrome.PushRight(railOrigin.X + railWidth - reserve);
+        // The scrollbar lane trims the child's clip; the card border at the card's edge is drawn inside the full child.
+        ImGui.PushClipRect(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize(), false);
+        CrafterChrome.PushRight(railOrigin.X + railWidth);
         Details(height);
         CrafterChrome.PopRight();
+        ImGui.PopClipRect();
         _railScrolls = populated && ImGui.GetScrollMaxY() > 0;
         if (_railScrolls && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
         {

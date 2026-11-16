@@ -37,6 +37,8 @@ internal static class Program
         /// <summary>Game mode only: the built-in set keeps one image per state at the default size.</summary>
         public bool GameOnly { get; init; }
         public float? Scale { get; init; }
+        /// <summary>Right-click here (after the layout has settled) and require that a popup is open in the last frame.</summary>
+        public Vector2? RightClickAt { get; init; }
     }
 
     /// <summary>Everything a scenario can reach: the stub plugin, the real window (by reflection for its private view state) and the fixtures.</summary>
@@ -78,6 +80,9 @@ internal static class Program
             x.P.Catalog.Status = "waiting for game data";
             x.P.Catalog.Busy = true;
         });
+
+        // Right-click on a catalog column header: the built-in column menu (show and hide columns) must open.
+        yield return new("catalog-column-menu", DefaultWidth, DefaultHeight, x => CatalogNow(x)) { GameOnly = true, RightClickAt = new Vector2(540, 343) };
 
         // Typical use: Craft now bucket, a recipe selected, a cart in progress, owned materials partly on a retainer.
         yield return new("catalog-now-typical", DefaultWidth, DefaultHeight, x => CatalogNow(x));
@@ -424,8 +429,20 @@ internal static class Program
             }
 
             // Three frames: window storage, table column widths and the child sizes settle before the one that is kept.
-            for (var frame = 0; frame < 3; frame++)
+            var frames = scenario.RightClickAt is null ? 3 : 8;
+            var popupOpen = false;
+            for (var frame = 0; frame < frames; frame++)
             {
+                if (scenario.RightClickAt is { } click)
+                {
+                    // Frame 3 moves the pointer over the header, 4 presses the right button, 5 releases it; the menu is up from 6.
+                    if (frame == 3)
+                        io.AddMousePosEvent(click.X, click.Y);
+                    if (frame == 4)
+                        io.AddMouseButtonEvent(1, true);
+                    if (frame == 5)
+                        io.AddMouseButtonEvent(1, false);
+                }
                 ImGui.NewFrame();
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
@@ -435,11 +452,14 @@ internal static class Program
                 ImGui.Begin(window.WindowName, ref open, window.Flags |
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
+                popupOpen = ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId | ImGuiPopupFlags.AnyPopupLevel);
                 ImGui.End();
                 window.PostDraw();
                 ImGui.Render();
             }
 
+            if (scenario.RightClickAt is not null && !popupOpen)
+                throw new InvalidOperationException($"{scenario.Name}: the right-click on the header did not open the column menu.");
             var pixels = new byte[scenario.Width * scenario.Height * 4];
             for (var i = 0; i < pixels.Length; i += 4)
             {

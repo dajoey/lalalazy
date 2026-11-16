@@ -94,12 +94,8 @@ public sealed class CatalogTable
             CrafterChrome.Advance(captionPos, captionWidth, CrafterChrome.LineHeight(Theme.SecondaryScale), 2 * Theme.Unit);
 
             var tableWidth = CrafterChrome.Avail();
-            var visible = VisibleColumns(rows, tab, extra, sort, tableWidth);
             var specs = BuildSpecs(tab, extra);
-            var mask = 0;
-            for (var i = 0; i < specs.Count; i++)
-                if (visible[i])
-                    mask |= 1 << i;
+            var visible = VisibleColumns(rows, tab, extra, sort, tableWidth);
 
             var rowsHeight = (rows.Count * RowHeight) + RowHeight + (2 * Theme.Unit);
             float height;
@@ -108,46 +104,57 @@ public sealed class CatalogTable
             else
                 height = MathF.Min(rowsHeight, 440);
 
-            var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.BordersInnerH
-                      | ImGuiTableFlags.SizingStretchProp;
-            if (!ImGui.BeginTable($"##crafter_catalog_{tab}_{mask}", specs.Count(spec => visible[specs.IndexOf(spec)]), flags, new Vector2(tableWidth, height)))
+            // The table keeps its id and its full column set (so saved column settings survive) and the built-in header
+            // behaviour: sorting, resizing, reordering and the right-click menu that shows and hides columns.
+            var flags = ImGuiTableFlags.Sortable | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY
+                      | ImGuiTableFlags.Resizable | ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable
+                      | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp;
+            // Resizable columns draw a divider between every column; keep those quieter than the row rules.
+            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.SurfaceBorder with { W = 0.4f });
+            if (!ImGui.BeginTable($"##crafter_catalog_{tab}", specs.Count, flags, new Vector2(tableWidth, height)))
+            {
+                ImGui.PopStyleColor();
                 return;
+            }
 
-            ImGui.TableSetupScrollFreeze(0, 1);
-            var visibleSpecs = new List<ColumnSpec>();
+            ImGui.TableSetupScrollFreeze(1, 1);
             for (var i = 0; i < specs.Count; i++)
             {
-                if (!visible[i])
-                    continue;
                 var spec = specs[i];
-                visibleSpecs.Add(spec);
-                var effectiveFlags = spec.Extra & ~ImGuiTableColumnFlags.PreferSortDescending;
+                var effectiveFlags = spec.Extra;
                 effectiveFlags |= spec.Stretch ? ImGuiTableColumnFlags.WidthStretch : ImGuiTableColumnFlags.WidthFixed;
+                if (spec.Id == Col.Item)
+                    effectiveFlags |= ImGuiTableColumnFlags.NoHide;
+                if (spec.Key == sort)
+                    effectiveFlags = (effectiveFlags & ~ImGuiTableColumnFlags.PreferSortDescending) | (descending ? ImGuiTableColumnFlags.PreferSortDescending : ImGuiTableColumnFlags.PreferSortAscending)
+                                      | ImGuiTableColumnFlags.DefaultSort;
+                // Columns that do not fit beside the item name start hidden; the column menu shows them again.
+                if (!visible[i])
+                    effectiveFlags |= ImGuiTableColumnFlags.DefaultHide;
                 var width = spec.Stretch ? (spec.Id == Col.Item ? 1f : 1.2f) : ColumnWidth(spec);
                 ImGui.TableSetupColumn(spec.Header, effectiveFlags, width, (uint)spec.Key + 1);
             }
 
-            // Headers are drawn by hand so numeric columns line up with their values and the sort arrow has its own slot.
+            // Built-in header cells (sort clicks, drag to resize or reorder, right-click column menu); the label and the
+            // sort arrow are drawn over them so numeric columns line up with their right-aligned values.
             ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-            for (var i = 0; i < visibleSpecs.Count; i++)
+            for (var i = 0; i < specs.Count; i++)
             {
-                var spec = visibleSpecs[i];
-                ImGui.TableSetColumnIndex(i);
-                var direction = spec.Key == sort ? (descending ? -1 : 1) : 0;
-                var pressed = CrafterChrome.HeaderCell("##head_" + spec.Id, spec.Header, spec.Right, direction, true);
-                if (pressed == 0)
-                {
-                    if (spec.Key == sort)
-                        descending = !descending;
-                    else
-                    {
-                        sort = spec.Key;
-                        descending = spec.Extra.HasFlag(ImGuiTableColumnFlags.PreferSortDescending);
-                    }
-                }
+                if (!ImGui.TableSetColumnIndex(i))
+                    continue;
+                var spec = specs[i];
+                CrafterChrome.NativeHeaderCell(i, spec.Header, spec.Right, spec.Key == sort ? (descending ? -1 : 1) : 0);
             }
 
-            var shown = visibleSpecs.Select(spec => spec.Id).ToHashSet();
+            var sortSpecs = ImGui.TableGetSortSpecs();
+            if (!sortSpecs.IsNull && sortSpecs.SpecsDirty && sortSpecs.SpecsCount > 0)
+            {
+                var sortSpec = sortSpecs.Specs;
+                sort = (SortKey)(sortSpec.ColumnUserID - 1);
+                descending = sortSpec.SortDirection == ImGuiSortDirection.Descending;
+                sortSpecs.SpecsDirty = false;
+            }
+
             var clipper = ImGui.ImGuiListClipper();
             clipper.Begin(rows.Count, RowHeight);
             while (clipper.Step())
@@ -157,7 +164,7 @@ public sealed class CatalogTable
                     var row = rows[i];
                     ImGui.TableNextRow();
                     ImGui.PushID((int)row.RecipeId);
-                    DrawRow(row, view, hq, tab, shown, ref selectedRecipe);
+                    DrawRow(row, view, hq, tab, ref selectedRecipe);
                     ImGui.PopID();
                 }
             }
@@ -167,6 +174,7 @@ public sealed class CatalogTable
             var fadeMin = ImGui.GetWindowPos();
             var fadeMax = fadeMin + ImGui.GetWindowSize() - new Vector2(ImGui.GetScrollMaxY() > 0 ? 2 * Theme.Unit + 2 : 0, 0);
             ImGui.EndTable();
+            ImGui.PopStyleColor();
             if (fade)
                 CrafterChrome.FadeBottom(ImGui.GetForegroundDrawList(), fadeMin, fadeMax, Theme.Pack(Theme.Surface));
         }, minHeight: minHeight);
@@ -222,17 +230,17 @@ public sealed class CatalogTable
         return visible;
     }
 
-    private void DrawRow(CatalogRow row, CatalogView view, bool hq, CatalogTab tab, HashSet<Col> shown, ref uint selected)
+    private void DrawRow(CatalogRow row, CatalogView view, bool hq, CatalogTab tab, ref uint selected)
     {
         var estimate = row.Est(hq);
         var isSelected = selected == row.RecipeId;
 
         bool Next(Col col)
         {
-            if (!shown.Contains(col))
+            // The bucket's own column only exists in the buckets that have one.
+            if (col == Col.Extra && tab is not (CatalogTab.Leveling or CatalogTab.LogCompletion or CatalogTab.Undersupplied))
                 return false;
-            ImGui.TableNextColumn();
-            return true;
+            return ImGui.TableNextColumn();
         }
 
         ImGui.TableNextColumn();

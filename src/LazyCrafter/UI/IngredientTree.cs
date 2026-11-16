@@ -60,7 +60,18 @@ public sealed class IngredientTree
     {
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
-        Widgets.Caption("Ingredient · source · unit price");
+        // The longest wording that fits whole; a narrow rail or a large UI scale falls back to shorter ones.
+        var room = ImGui.GetContentRegionAvail().X - 2;
+        var heading = new[] { "Ingredient · source · unit price", "Ingredient · source · price", "Ingredient · source", "Ingredient" }
+            .FirstOrDefault(text => CrafterChrome.TextWidth(text, Theme.CaptionScale) <= room)
+            ?? CrafterChrome.Fit("Ingredient", room, Theme.CaptionScale);
+        ImGui.SetWindowFontScale(Theme.CaptionScale);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
+        ImGui.PushTextWrapPos(-1f);
+        ImGui.TextUnformatted(heading);
+        ImGui.PopTextWrapPos();
+        ImGui.PopStyleColor();
+        ImGui.SetWindowFontScale(1f);
         ImGui.TableNextColumn();
         var text = "Have/Need";
         var avail = ImGui.GetContentRegionAvail().X;
@@ -153,7 +164,7 @@ public sealed class IngredientTree
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.PushID((int)leaf.ItemId + (depth * 1_000_000));
-        var flags = ImGuiTreeNodeFlags.DefaultOpen;
+        var flags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.DefaultOpen;
         if (node.Children.Count == 0)
             flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.Bullet;
         var color = leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Fmt.TierColor(leaf.Tier);
