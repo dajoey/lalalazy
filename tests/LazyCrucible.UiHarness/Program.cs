@@ -93,6 +93,8 @@ internal static class Program
             Console.WriteLine($"Rendered {Scenarios.Length} distinct real-source UI states. No window or game process was created.");
             VerifyToggleInteraction();
             Console.WriteLine("Interactive drawn toggle: press and release changed the setting through CrucibleShell.");
+            VerifyCloseCallbacks();
+            Console.WriteLine("Custom close controls: both window callbacks close the correct window.");
             return 0;
         }
         catch (Exception ex)
@@ -189,6 +191,21 @@ internal static class Program
             ImGui.DestroyContext(context);
             ScreenReader.Reset();
         }
+    }
+
+    private static void VerifyCloseCallbacks()
+    {
+        var plugin = new Plugin();
+        var mainShell = new CrucibleShell();
+        var main = new MainWindow(plugin, mainShell) { IsOpen = true };
+        mainShell.CloseRequested?.Invoke();
+        if (main.IsOpen)
+            throw new InvalidOperationException("The main-window custom close control did not close its window.");
+        var guideShell = new CrucibleShell();
+        var guide = new GuideWindow(plugin, guideShell) { IsOpen = true };
+        guideShell.CloseRequested?.Invoke();
+        if (guide.IsOpen)
+            throw new InvalidOperationException("The guide-window custom close control did not close its window.");
     }
 
     private static void VerifyToggleInteraction()

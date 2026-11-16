@@ -47,6 +47,7 @@ internal sealed class CrucibleShell
     public bool GuideFollow = true;
     public IncomingCast? Incoming { get; private set; }
     public CruciblePage Current => Pages.First(p => p.Id == CurrentPage);
+    public Action? CloseRequested { get; set; }
 
     private (int Board, int Battle) _lastFocus = (0, -1);
 
@@ -177,15 +178,17 @@ internal sealed class CrucibleShell
         var (state, _) = OverallState();
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(76, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
+        var closeSize = new Vector2(ControlHeight);
         var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
         const float minSearchWidth = 180;
         const float maxSearchWidth = 280;
-        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + (3 * gap);
+        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + closeSize.X + (4 * gap);
         var groupPositions = new Vector2[groups.Length];
         var brandPos = new Vector2(0, 12);
         float searchWidth;
         Vector2 searchPos;
         Vector2 statusPos;
+        Vector2 closePos;
         float barHeight;
 
         if (singleRow)
@@ -198,8 +201,9 @@ internal sealed class CrucibleShell
                 groupPositions[i] = new Vector2(x, y);
                 x += groupSizes[i].X + gap;
             }
-            searchWidth = MathF.Min(maxSearchWidth, width - leftWidth - statusSize.X - (3 * gap));
-            statusPos = new Vector2(width - statusSize.X, y);
+            searchWidth = MathF.Min(maxSearchWidth, width - leftWidth - statusSize.X - closeSize.X - (4 * gap));
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, y);
+            closePos = new Vector2(width - closeSize.X, y);
             searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
         }
         else
@@ -220,8 +224,9 @@ internal sealed class CrucibleShell
             }
             var navigationBottom = groupsBesideBrand ? brandPos.Y + brandSize.Y : y + ControlHeight;
             var searchY = navigationBottom + gap;
-            searchWidth = MathF.Min(maxSearchWidth, MathF.Max(120, width - statusSize.X - gap));
-            statusPos = new Vector2(width - statusSize.X, searchY);
+            searchWidth = MathF.Min(maxSearchWidth, MathF.Max(120, width - statusSize.X - closeSize.X - (2 * gap)));
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, searchY);
+            closePos = new Vector2(width - closeSize.X, searchY);
             searchPos = new Vector2(statusPos.X - gap - searchWidth, searchY);
             barHeight = searchY + ControlHeight + 12;
         }
@@ -238,6 +243,8 @@ internal sealed class CrucibleShell
         }
         DrawSearchInput(origin + searchPos, searchWidth);
         CrucibleChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (CrucibleChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+            CloseRequested?.Invoke();
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
