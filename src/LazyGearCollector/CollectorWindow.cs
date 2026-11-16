@@ -89,6 +89,9 @@ public sealed class CollectorWindow : Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
+    // Scrollbar track reserved at the right of the body child.
+    private const float ScrollTrack = 10f;
+
     private static float Gutter(float width) => width >= 760 ? 24 : width >= 560 ? 16 : 12;
 
     public override void Draw()
@@ -201,7 +204,7 @@ public sealed class CollectorWindow : Window
         const float gap = 8;
         const float wideGap = 16;
         const float brandHeight = 40;
-        const float minSearch = 180;
+        var minSearch = MathF.Max(180, CollectorChrome.TextWidth("Search roles and pages...") + 48);
         const float maxSearch = 320;
         var inner = width - (2 * gutter);
         var groups = Enum.GetValues<CollectorGroup>();
@@ -576,15 +579,18 @@ public sealed class CollectorWindow : Window
             var metaWidth = MathF.Min(
                 MathF.Max(CollectorChrome.TextWidth(info.Count, sm), CollectorChrome.TextWidth(info.Subtext, sm)),
                 width * 0.4f);
-            var textWidth = width - gutter - textX - metaWidth - 16;
+            // Content ends at the gutter minus the body's reserved scrollbar track; the meta aligns with the cards below.
+            var contentRight = width - gutter - ScrollTrack;
+            var textWidth = contentRight - textX - metaWidth - 16;
             var shownTitle = CollectorChrome.FitText(info.Title, textWidth, titleScale);
-            var shownDescription = CollectorChrome.FitText(info.Description, textWidth, sm);
+            var shownDescription = CollectorChrome.ClampLines(info.Description, textWidth, sm, 2);
+            var descriptionH = CollectorChrome.WrappedHeight(shownDescription, textWidth, sm);
             CollectorChrome.Text(draw, left, shownTitle, Theme.TextPrimary, titleScale);
-            CollectorChrome.Text(draw, left + new Vector2(0, titleH + 4), shownDescription, Theme.TextSecondary, sm);
-            block = titleH + 4 + smH;
+            CollectorChrome.Text(draw, left + new Vector2(0, titleH + 4), shownDescription, Theme.TextSecondary, sm, textWidth);
+            block = titleH + 4 + MathF.Max(smH, descriptionH);
 
             // Meta: first line centred on the title line, second on the description line.
-            var metaRight = winPos.X + width - gutter;
+            var metaRight = winPos.X + contentRight;
             var shownCount = CollectorChrome.FitText(info.Count, metaWidth, sm);
             var shownSubtext = CollectorChrome.FitText(info.Subtext, metaWidth, sm);
             CollectorChrome.TextRight(draw, metaRight, left.Y + ((titleH - smH) / 2f), shownCount, Theme.TextSecondary, sm);
@@ -642,7 +648,7 @@ public sealed class CollectorWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16));
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, ScrollTrack);
         ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
         ImGui.PushStyleColor(ImGuiCol.Border, 0u);
         ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
@@ -995,7 +1001,7 @@ public sealed class CollectorWindow : Window
             var cached = _plugin.Config.IncludeCachedContainers;
             CollectorChrome.StatusRow("Collection data", collection.Pieces.Count == 0 ? Copy.Missing("gear pieces") : $"{collection.Pieces.Count} pieces", collection.Pieces.Count == 0 ? UiState.Missing : UiState.Ready);
             CollectorChrome.StatusRow("Live ownership", loggedIn ? "Ready" : "Idle", loggedIn ? UiState.Ready : UiState.Idle);
-            CollectorChrome.StatusRow("Cached containers", cached ? $"{_plugin.Config.Snapshots.Count} included" : "Excluded", cached ? UiState.Ready : UiState.Idle);
+            CollectorChrome.StatusRow("Containers", cached ? $"{_plugin.Config.Snapshots.Count} included" : "Excluded", cached ? UiState.Ready : UiState.Idle);
             CollectorChrome.StatusRow("Target tier", TierLabel(Math.Clamp(_plugin.Config.TargetTier, 0, 3)), UiState.Ready);
             if (done != null && total != null)
                 CollectorChrome.StatusRow("At selected goal", $"{done} / {total}", done == total ? UiState.Ready : UiState.Running);
@@ -1140,7 +1146,8 @@ public sealed class CollectorWindow : Window
         var available = CollectorChrome.Avail();
         var wide = available >= (3 * 220) + (2 * gap);
         var width = wide ? (available - (2 * gap)) / 3 : available;
-        var height = CollectorChrome.StatCardHeight(!wide);
+        var noteLines = wide ? stats.Max(st => CollectorChrome.StatNoteLines(st.Note, width)) : 1;
+        var height = CollectorChrome.StatCardHeight(!wide, noteLines);
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
 
@@ -1148,7 +1155,7 @@ public sealed class CollectorWindow : Window
         {
             var pos = origin + (wide ? new Vector2(i * (width + gap), 0) : new Vector2(0, i * (height + gap)));
             var stat = stats[i];
-            CollectorChrome.StatCard(draw, pos, width, !wide, stat.Label, stat.Value, stat.Cap, stat.Note, stat.Fraction);
+            CollectorChrome.StatCard(draw, pos, width, !wide, stat.Label, stat.Value, stat.Cap, stat.Note, stat.Fraction, noteLines);
         }
 
         var total = wide ? height : (stats.Length * height) + ((stats.Length - 1) * gap);

@@ -443,10 +443,14 @@ internal static class CollectorChrome
 
     internal const float StatValueScale = 1.7f;
 
-    internal static float StatCardHeight(bool compact)
+    internal static float StatCardHeight(bool compact, int noteLines = 1)
         => compact
             ? 12 + LineHeight(Theme.SecondaryScale) + 4 + LineHeight(Theme.SecondaryScale) + 8 + Theme.BarHeight + 12
-            : 16 + LineHeight(Theme.SecondaryScale) + 8 + LineHeight(StatValueScale) + 8 + Theme.BarHeight + 8 + LineHeight(Theme.SecondaryScale) + 16;
+            : 16 + LineHeight(Theme.SecondaryScale) + 8 + LineHeight(StatValueScale) + 8 + Theme.BarHeight + 8 + (Math.Max(1, noteLines) * LineHeight(Theme.SecondaryScale)) + 16;
+
+    /// <summary>Lines (1 or 2) the wide card's caption needs at <paramref name="cardWidth"/>.</summary>
+    internal static int StatNoteLines(string note, float cardWidth)
+        => WrappedHeight(note, cardWidth - 32, Theme.SecondaryScale) > LineHeight(Theme.SecondaryScale) + 1 ? 2 : 1;
 
     private static string CapText(string cap)
     {
@@ -454,9 +458,9 @@ internal static class CollectorChrome
         return int.TryParse(trimmed, out _) ? "/ " + trimmed : trimmed;
     }
 
-    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, bool compact, string label, string value, string? cap, string note, float? fraction)
+    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, bool compact, string label, string value, string? cap, string note, float? fraction, int noteLines = 1)
     {
-        var height = StatCardHeight(compact);
+        var height = StatCardHeight(compact, noteLines);
         var size = new Vector2(width, height);
         const float pad = 16;
         var sm = Theme.SecondaryScale;
@@ -505,9 +509,9 @@ internal static class CollectorChrome
             y += valueH + 8;
             barY = y;
             y += Theme.BarHeight + 8;
-            var shownNote = FitText(note, width - (2 * pad), sm);
+            var shownNote = ClampLines(note, width - (2 * pad), sm, Math.Max(1, noteLines));
             elided = shownLabel != label || shownNote != note;
-            Text(draw, new Vector2(pos.X + pad, y), shownNote, noteColor, sm);
+            Text(draw, new Vector2(pos.X + pad, y), shownNote, noteColor, sm, width - (2 * pad));
         }
 
         if (elided)
@@ -622,14 +626,16 @@ internal static class CollectorChrome
         }
         else
         {
-            rowH = pad + lh + 2 + smH + pad;
-            nameRoom = width - dotSlot - TextWidth(stateText, sm) - 12;
+            // The name takes the full row (two lines at most); stock and state share the line below it.
+            nameRoom = width - dotSlot;
+            var shown = ClampLines(label, nameRoom, 1f, 2);
+            var nameH = WrappedHeight(shown, nameRoom);
+            rowH = pad + nameH + 2 + smH + pad;
             var y = origin.Y + pad;
             draw.AddCircleFilled(new Vector2(origin.X + 3, y + (lh / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
-            var shown = FitText(label, nameRoom);
-            Text(draw, new Vector2(origin.X + dotSlot, y), shown, Theme.TextPrimary);
-            TextRight(draw, origin.X + width, y + ((lh - smH) / 2f), stateText, stateColor, sm);
-            Text(draw, new Vector2(origin.X + dotSlot, y + lh + 2), haveText, Theme.TextSecondary, sm);
+            Text(draw, new Vector2(origin.X + dotSlot, y), shown, Theme.TextPrimary, 1f, nameRoom);
+            Text(draw, new Vector2(origin.X + dotSlot, y + nameH + 2), haveText, Theme.TextSecondary, sm);
+            TextRight(draw, origin.X + width, y + nameH + 2, stateText, stateColor, sm);
             if (shown != label)
                 HoverTip(origin, origin + new Vector2(width, rowH), label);
         }
