@@ -159,7 +159,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     // Fork: the shell draws full-bleed bands, so the window itself carries no padding; the body child adds its own.
     public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
 
-    public override void PostDraw() => ImGui.PopStyleVar();
+    public override void PostDraw() => ImGui.PopStyleVar();  // Fork: pairs with PreDraw.
 
     public override void Draw()
     {

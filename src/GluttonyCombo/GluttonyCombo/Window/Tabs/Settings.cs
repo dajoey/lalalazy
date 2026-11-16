@@ -298,7 +298,7 @@ internal class Settings : ConfigWindow
                         _groupValues[setting.GroupNameSpace!][setting.GroupName!] =
                             value;
 
-                    changed = GluttonyChrome.Toggle(label, ref value);
+                    changed = GluttonyChrome.Toggle(label, ref value);  // Fork: drawn switch in the approved shell style
                     if (changed)
                     {
                         setting.Value = value;

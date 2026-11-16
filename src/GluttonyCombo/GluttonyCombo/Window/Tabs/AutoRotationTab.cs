@@ -68,7 +68,7 @@ internal class AutoRotationTab : ConfigWindow
         if (inCombatOnly)
         {
             ImGuiExtensions.Prefix(false);
-            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);  // Fork: drawn switch in the approved shell style
             ImGuiComponents.HelpMarker(
                 Text.FormatAndCache(
                     AutoRotationUI.HelpText_BypassSelfUse,
@@ -108,8 +108,8 @@ internal class AutoRotationTab : ConfigWindow
 
         Widgets.Title(AutoRotationUI.AutomaticActivationHeader);
 
-        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
-        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);
+        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);  // Fork: drawn switch in the approved shell style
+        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);  // Fork: drawn switch in the approved shell style
 
         if (ImGui.CollapsingHeader(AutoRotationUI.Label_DamageSettings))
         {
@@ -158,14 +158,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSRotationMode is DPSRotationMode.Manual)
             {
                 ImGuiExtensions.Prefix(!cfg.DPSSettings.AoEIgnoreManual);
-                changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);
+                changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);  // Fork: drawn switch in the approved shell style
 
                 ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_EnforceBestAoETarget);
 
                 if (cfg.DPSSettings.AoEIgnoreManual)
                 {
                     ImGuiExtensions.Prefix(true);
-                    changed |= GluttonyChrome.Toggle(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);
+                    changed |= GluttonyChrome.Toggle(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);  // Fork: drawn switch in the approved shell style
 
                     ImGuiComponents.HelpMarker(AutoRotationUI.OnlyAoEManualTargetSetHelp);
                 }
@@ -202,9 +202,9 @@ internal class AutoRotationTab : ConfigWindow
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_QuestPriority, ref cfg.DPSSettings.QuestPriority, "QuestPriority");
-            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);  // Fork: drawn switch in the approved shell style
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_TreasureHuntPriority);
-            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);  // Fork: drawn switch in the approved shell style
 
             if (cfg.DPSSettings.PreferNonCombat && changed)
                 cfg.DPSSettings.OnlyAttackInCombat = false;
@@ -216,7 +216,7 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSSettings.OnlyAttackInCombat && changed)
                 cfg.DPSSettings.PreferNonCombat = false;
 
-            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);  // Fork: drawn switch in the approved shell style
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
@@ -356,29 +356,29 @@ internal class AutoRotationTab : ConfigWindow
                 );
 
                 ImGui.Indent();
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Text.FormatAndCache(AutoRotationUI.Checkbox_AutoRezRequireSwiftJob,
                         Job.WHM.Shorthand(), Job.CNJ.Shorthand()) + "##AutoRezRequireSwiftWHM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftWHM);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.SCH.Shorthand() + "##AutoRezRequireSwiftSCH",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSCH);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.AST.Shorthand() + "##AutoRezRequireSwiftAST",
                     ref cfg.HealerSettings.AutoRezRequireSwiftAST);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.SGE.Shorthand() + "##AutoRezRequireSwiftSGE",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSGE);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.SMN.Shorthand() + "##AutoRezRequireSwiftSMN",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSMN);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.BLU.Shorthand() + "##AutoRezRequireSwiftBLU",
                     ref cfg.HealerSettings.AutoRezRequireSwiftBLU);
 
                 // RDM is the one row whose OFF state does something new, so it is the one
                 // row that explains itself.
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Job.RDM.Shorthand() + "##AutoRezRequireSwiftRDM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftRDM);
                 ImGuiComponents.HelpMarker(
@@ -454,14 +454,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.HealerSettings.ManageKardia)
             {
                 ImGuiExtensions.Prefix(cfg.HealerSettings.ManageKardia);
-                changed |= GluttonyChrome.Toggle(
+                changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                     Text.FormatAndCache(
                         AutoRotationUI.Checkbox_KardiaTanksOnly,
                         SGE.Kardia.ActionName()),
                     ref cfg.HealerSettings.KardiaTanksOnly);
             }
 
-            changed |= GluttonyChrome.Toggle(
+            changed |= GluttonyChrome.Toggle(  // Fork: drawn switch in the approved shell style
                 Text.FormatAndCache(
                     AutoRotationUI.Checkbox_PreEmptiveHoT,
                     Job.WHM.Shorthand(),

@@ -50,7 +50,7 @@ namespace GluttonyCombo.Window.Tabs
             }
 
 
-            if (GluttonyChrome.Toggle("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))
+            if (GluttonyChrome.Toggle("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))  // Fork: drawn switch in the approved shell style
                 Service.Configuration.Save();
 
             ImGuiComponents.HelpMarker("This will hide all combo outputs on custom actions, leaving only these icons showing. This is not advised if you wish to see the real actions being output by the combos on your hotbar, and should only be used if you feel it's something you want.");
@@ -117,16 +117,16 @@ namespace GluttonyCombo.Window.Tabs
                     switch (type)
                     {
                         case CustomActionType.SingleTargetDPS:
-                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.AoEDPS:
-                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.SingleTargetHeals:
-                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.AoEHeals:
-                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);  // Fork: drawn switch in the approved shell style
                             break;
 
                     }

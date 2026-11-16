@@ -53,7 +53,7 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
                 AutoRotation.FightBrainHitKind.Downtime => "downtime",
                 _ => hit.Kind.ToString(),
             };
-            GluttonyChrome.ForecastRow(seconds, label, seconds <= entries[0].Seconds);
+            GluttonyChrome.ForecastRow(seconds, label, seconds <= entries[0].Seconds);  // Fork: aligned forecast row.
         }
         ImGuiHelpers.ScaledDummy(1);
     }

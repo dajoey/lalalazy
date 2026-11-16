@@ -66,9 +66,9 @@ internal static class GluttonyMajorChanges
         var y = GluttonyShellView.DrawPageHeader(Header(sections.Length), winPos, winSize.X, gutter, GluttonyChrome.TitleBandHeight);
         var footer = GluttonyChrome.FooterBandHeight;
         ImGui.SetCursorPos(new Vector2(0, y));
-        GluttonyChrome.BeginBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - y - footer)), gutter, bodyId);
         try
         {
+            GluttonyChrome.BeginBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - y - footer)), gutter, bodyId);
             foreach (var section in sections)
                 DrawSection(section, result);
         }

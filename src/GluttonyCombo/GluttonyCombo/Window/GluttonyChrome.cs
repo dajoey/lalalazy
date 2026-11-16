@@ -481,8 +481,10 @@ internal static class GluttonyChrome
         ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
         ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
         Tops.Push(ImGui.GetCursorScreenPos().Y);
+        _bodyOpen = true;
     }
 
+    private static bool _bodyOpen;
     private static readonly Dictionary<string, float> _columnHeights = [];
     private static string _columnId = "";
     private static bool _pageCard;
@@ -495,6 +497,10 @@ internal static class GluttonyChrome
     /// </summary>
     internal static void EndBody()
     {
+        // BeginBody failed before it finished: its pushes are incomplete, so no pops may run.
+        if (!_bodyOpen)
+            return;
+        _bodyOpen = false;
         var draw = ImGui.GetWindowDrawList();
         if (_boxSplit || _cardDepth > 0)
             draw.ChannelsMerge();

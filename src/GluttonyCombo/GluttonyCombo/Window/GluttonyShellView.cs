@@ -443,9 +443,9 @@ internal static class GluttonyShellView
 
     private static void DrawBody(Vector2 size, float gutter, Action? prefix, Action body, bool card)
     {
-        GluttonyChrome.BeginBody(size, gutter, "##gc_shell_body", card);
         try
         {
+            GluttonyChrome.BeginBody(size, gutter, "##gc_shell_body", card);
             prefix?.Invoke();
             body();
         }
