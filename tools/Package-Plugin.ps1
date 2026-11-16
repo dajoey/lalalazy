@@ -247,6 +247,20 @@ if ((Test-Path $privacyGate) -and (Test-Path $changelogPath)) {
     }
 }
 
+# 0b. Reported-bug regression gate: a newest changelog entry that cites a GitHub issue
+#     ("issue #12") needs a test under tests/<Plugin>* naming that issue, so the reported
+#     symptom is pinned and a later change that brings it back fails the harness instead of
+#     shipping. Added after issue #12 (overlay over the retainer window's close button) was
+#     closed with hide switches and no test, and a later UI polish brought the symptom back.
+$issueGate = Join-Path $PSScriptRoot 'check-changelog-issue-tests.py'
+if ((Test-Path $issueGate) -and (Test-Path $changelogPath)) {
+    Write-Host "Running reported-bug regression gate..."
+    & python $issueGate --changelog "$changelogPath" --plugin $PluginName --repo-root "$RepoRoot"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Reported-bug regression gate FAILED for $PluginName. Add a harness case named for each cited issue that reproduces the reported symptom. Nothing was built or published."
+    }
+}
+
 # 1. Clean old outputs
 Write-Host "Cleaning build folders..."
 $cleanPaths = @(
