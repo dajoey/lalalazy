@@ -70,6 +70,15 @@ namespace ECommons.DalamudServices
     internal static class Svc
     {
         public static HarnessPluginInterface PluginInterface { get; } = new();
+
+        public static HarnessToasts Toasts { get; } = new();
+    }
+
+    internal sealed class HarnessToasts
+    {
+        public List<string> Shown { get; } = [];
+
+        public void ShowNormal(string message) => Shown.Add(message);
     }
 
     internal sealed class HarnessPluginInterface

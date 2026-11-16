@@ -29,8 +29,11 @@ internal sealed class PvpSettingsWindow : Window
         (PvpSettingsCatalog.Advanced, PvpAdvancedTab.Draw),
     ];
 
+    private static PvpSettingsWindow? _current;
+
     private readonly PvpApprovedShell _shell = new();
     private string _switchMessage = string.Empty;
+    private string? _pendingPage;
 
     public PvpSettingsWindow()
         : base("PvP Solver Settings v" + (typeof(PvpSettingsWindow).Assembly.GetName().Version?.ToString() ?? "?") + WindowId,
@@ -47,6 +50,33 @@ internal sealed class PvpSettingsWindow : Window
             MaximumSize = new Vector2(5000f, 5000f),
         };
         RespectCloseHotkey = true;
+        _current = this;
+    }
+
+    /// <summary>
+    ///     Opens the settings window on the tab called <paramref name="page"/> (Match, Survival, Targeting, My Job,
+    ///     Display or Advanced), or shows that tab when the window is already open. Unlike the toggle of the settings
+    ///     command, it never closes the window.
+    /// </summary>
+    internal static void OpenOn(string page)
+    {
+        PvpSettingsWindow? window = _current;
+        if (window is null)
+        {
+            return;
+        }
+
+        if (window.IsOpen)
+        {
+            window._shell.Show(page);
+        }
+        else
+        {
+            window._pendingPage = page;
+            window.IsOpen = true;
+        }
+
+        window.BringToFront();
     }
 
     public override void OnOpen()
@@ -54,6 +84,12 @@ internal sealed class PvpSettingsWindow : Window
         PvpJobTab.OnOpen();
         PvpUi.ResetLog();
         _shell.Reset();
+        if (_pendingPage is not null)
+        {
+            _shell.Show(_pendingPage);
+            _pendingPage = null;
+        }
+
         _switchMessage = string.Empty;
         base.OnOpen();
     }

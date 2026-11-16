@@ -31,6 +31,15 @@ internal sealed class PvpApprovedShell
 
     internal void Reset() => _currentPage = PvpSettingsCatalog.Match;
 
+    /// <summary>Shows the page called <paramref name="name"/>; an unknown name leaves the current page.</summary>
+    internal void Show(string name)
+    {
+        if (Pages.Any(page => page.Name == name))
+        {
+            _currentPage = name;
+        }
+    }
+
     /// <summary>One outer gutter for every band, the page header, the body padding and the footer.</summary>
     internal static float Gutter(float windowWidth) => windowWidth >= 760 ? 24 : windowWidth >= 560 ? 16 : 12;
 

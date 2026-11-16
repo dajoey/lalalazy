@@ -48,6 +48,9 @@
   <ItemGroup>
     <Compile Include="$(PvpSrc)\UI\Pvp\*.cs" Link="Real\UI\Pvp\%(Filename)%(Extension)" />
     <Compile Include="$(PvpSrc)\UI\ImguiTooltips.cs" Link="Real\UI\ImguiTooltips.cs" />
+    <!-- The other windows of the plugin: the real HUD base and the real first-start tutorial. -->
+    <Compile Include="$(PvpSrc)\UI\CtrlWindow.cs" Link="Real\UI\CtrlWindow.cs" />
+    <Compile Include="$(PvpSrc)\UI\FirstStartTutorialWindow.cs" Link="Real\UI\FirstStartTutorialWindow.cs" />
     <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 

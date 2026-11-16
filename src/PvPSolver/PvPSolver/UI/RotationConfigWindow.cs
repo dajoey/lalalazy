@@ -159,6 +159,7 @@ public partial class RotationConfigWindow : Window
 			MaximumSize = new Vector2(5000, 5000),
 		};
 		RespectCloseHotkey = true;
+		Flags |= ImGuiWindowFlags.NoTitleBar; // Fork: the drawn header band (PvpLegacyHeader) replaces the native title bar.
 
 		TitleBarButtons.Add(new TitleBarButton()
 		{
@@ -256,6 +257,7 @@ public partial class RotationConfigWindow : Window
 
 	public override void Draw()
 	{
+		_ = Pvp.PvpLegacyHeader.Draw(this, ref _showResetPopup); // Fork: header band with brand chip, close and the reset control from the old title bar.
 		if (_showResetPopup)
 		{
 			ImGui.OpenPopup("Reset PvP Solver Plugin Settings");
