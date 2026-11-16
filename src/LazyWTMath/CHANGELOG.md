@@ -1,3 +1,7 @@
+## v3.2.3.7 (2026-11-15) [testing]
+### Changed
+- The Dalamud Open actions now show a responsive probability window with a custom header without the native title bar, a close control, a live sticker count and sticker map, line chances and the solver-supplied shuffle averages. What's new in the header reopens this changelog. The probability text beside the journal uses higher-contrast colours. Solver results, configuration and commands are unchanged.
+
 ## v3.2.3.6 (2026-11-14) [testing]
 - The bundled interface toolkit no longer carries an unused image-processing library, so the plugin installs fewer files and no longer ships a package with known security advisories. No behavior changes.
 
