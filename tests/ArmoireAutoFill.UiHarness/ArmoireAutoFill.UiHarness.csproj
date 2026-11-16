@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Real-source UI render harness for ArmoireAutoFill: compiles the REAL window, chrome, model and pure shopping
+       sources and the shared LalaUiKit, stubs only the game and runtime boundary (see Stubs.cs), and renders every
+       surface to PNG on the CPU. Built-in mode is hermetic; the game switch renders the live Dalamud look (see README.md). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ArmoireAutoFill.UiHarness</RootNamespace>
+    <AssemblyName>ArmoireAutoFill.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591;CA1416</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <!-- Lumina ships beside Dalamud; the real catalog core (CatalogSnapshot, CatalogBuildGate) is compiled as-is. -->
+    <Reference Include="Lumina" HintPath="$(DalamudLibPath)\Lumina.dll" />
+    <Reference Include="Lumina.Excel" HintPath="$(DalamudLibPath)\Lumina.Excel.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+    <EmbeddedResource Include="Fixtures\armoire-real-data.json" LogicalName="armoire-real-data.json" />
+  </ItemGroup>
+
+  <!-- The real window and kit sources under test. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Windows\*.cs" Link="Real\Windows\%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Models\*.cs" Link="Real\Models\%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Configuration.cs" Link="Real\Configuration.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Real pure shopping and catalog logic (also compiled by the behaviour harnesses). -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Data\KnightshopperCatalogCore.cs" Link="Real\Data\KnightshopperCatalogCore.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Data\Shopping\ShoppingModels.cs" Link="Real\Data\ShoppingModels.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Data\Shopping\ShoppingListBuilder.cs" Link="Real\Data\ShoppingListBuilder.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Data\Shopping\KnightshopperShare.cs" Link="Real\Data\KnightshopperShare.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\ArmoireAutoFill\Data\Shopping\KnightshopperInstructions.cs" Link="Real\Data\KnightshopperInstructions.cs" />
+  </ItemGroup>
+</Project>

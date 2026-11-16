@@ -33,6 +33,8 @@ public class MainWindow : Window
 
     private Section _section = Section.Collection;
     private string? _ksStatus;
+    private readonly HashSet<uint> _openDungeons = [];
+    private readonly HashSet<string> _openSections = [];
 
     public MainWindow(InventoryScanner scanner, CabinetObserver cabinet, ArmoireAutoStore autoStore)
         : base("Armoire Auto-Fill###ArmoireAutoFillMain")
@@ -41,6 +43,8 @@ public class MainWindow : Window
         _cabinet = cabinet;
         _autoStore = autoStore;
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        Size = new Vector2(820, 600);
+        SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(520, 380),
@@ -53,19 +57,29 @@ public class MainWindow : Window
         _scanner.Scan();
     }
 
+    // The shell lays out its own gutters, so the window itself has no padding.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     public override void Draw()
     {
         var c = Plugin.Configuration;
+        ArmoireChrome.ResetLayout();
         Theme.PushFrame();
         try
         {
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = ArmoireChrome.Gutter(winSize.X);
+            ImGui.SetCursorPos(Vector2.Zero);
             var (state, action) = OverallState();
-            ArmoireChrome.TopBar(Navigation, (int)_section, index => _section = (Section)index, state, () => IsOpen = false);
+            var y = ArmoireChrome.TopBar(winPos, winSize, gutter, Navigation, (int)_section, index => _section = (Section)index, state, () => IsOpen = false);
 
             var showStop = c.AutoStoreOnOpen;
-            var footerHeight = ArmoireChrome.FooterHeight(ImGui.GetContentRegionAvail().X, showStop);
-            var bodyHeight = MathF.Max(100, ImGui.GetContentRegionAvail().Y - footerHeight);
-            ImGui.BeginChild("##armoire_body", new Vector2(0, bodyHeight), false);
+            var footerHeight = ArmoireChrome.FooterHeight(winSize, showStop);
+            ImGui.SetCursorPos(new Vector2(0, y));
+            ArmoireChrome.BeginBody("##armoire_body", new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter);
             try
             {
                 var total = ArmoireGearDatabase.TotalItems;
@@ -90,10 +104,10 @@ public class MainWindow : Window
             }
             finally
             {
-                ImGui.EndChild();
+                ArmoireChrome.EndBody();
             }
 
-            ArmoireChrome.Footer(state, action, FooterDetail(), showStop, out var stop);
+            ArmoireChrome.Footer(winPos, winSize, gutter, state, action, FooterDetail(), showStop, out var stop);
             if (stop && c.AutoStoreOnOpen)
             {
                 c.AutoStoreOnOpen = false;
@@ -112,6 +126,14 @@ public class MainWindow : Window
             return (UiState.NeedsSetup, "gear database still loading — check /xllog if it persists");
         if (_autoStore.IsStoring)
             return (UiState.Running, "storing eligible items to the armoire");
+        if (_section == Section.Shopping && !KnightshopperCatalogBuilder.IsLoaded)
+        {
+            if (KnightshopperCatalogBuilder.SheetsUnavailable)
+                return (UiState.Blocked, "game data unavailable — the shop catalog cannot be built");
+            if (KnightshopperCatalogBuilder.BuildFailed)
+                return (UiState.Failed, "the shop catalog build failed — see /xllog");
+            return (UiState.Running, "building the shop catalog");
+        }
         if (_scanner.LastScan == DateTime.MinValue)
             return (UiState.Empty, "inventory not yet scanned");
         if (!_cabinet.CabinetDataAvailable && _cabinet.CachedArmoireItemIds.Count == 0)
@@ -136,38 +158,50 @@ public class MainWindow : Window
 
     private UiState ShoppingNavState()
     {
-        if (!KnightshopperCatalogBuilder.IsLoaded)
-            return UiState.Idle;
         if (KnightshopperCatalogBuilder.SheetsUnavailable)
             return UiState.Blocked;
         if (KnightshopperCatalogBuilder.BuildFailed)
             return UiState.Failed;
-        return UiState.Ready;
+        return KnightshopperCatalogBuilder.IsLoaded ? UiState.Ready : UiState.Running;
     }
+
+    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
+    // ---- Collection ------------------------------------------------------------------------------------------------
 
     private void DrawCollection(int total, int inInv, int inArm, int owned, int missing, float progress)
     {
+        var loaded = ArmoireGearDatabase.IsLoaded;
         ArmoireChrome.PageHeader("Collection",
             "Every armoire-eligible dungeon drop (level 31+) and whether it is owned.",
-            $"{owned} of {total} owned", CabinetLine());
+            loaded ? $"{owned} of {total} owned" : "Gear database not loaded", loaded ? CabinetLine() : string.Empty);
 
+        if (!loaded)
+            ArmoireChrome.Notice("Needs setup — the gear database is not available. Check /xllog, then reopen the plugin window.", UiState.NeedsSetup);
+
+        const string unavailable = "Unavailable until the gear database loads";
         ArmoireChrome.StatCards(
-            new ArmoireStat("Owned", owned.ToString(), total.ToString(), $"{progress * 100:F1}% of all dungeon pieces", progress),
-            new ArmoireStat("In inventory", inInv.ToString(), null, "Bags, equipment, and armoury chest", null),
-            new ArmoireStat("In armoire", inArm.ToString(), null, CabinetLine(), null),
-            new ArmoireStat("Missing", missing.ToString(), null, "Still to collect", null));
+            new ArmoireStat("Owned", loaded ? owned.ToString() : "—", loaded ? total.ToString() : null,
+                loaded ? $"{progress * 100:F1}% of all dungeon pieces" : unavailable, loaded ? progress : null),
+            new ArmoireStat("In inventory", loaded ? inInv.ToString() : "—", null,
+                loaded ? "Bags, equipment, and armoury chest" : unavailable, null),
+            new ArmoireStat("In armoire", loaded ? inArm.ToString() : "—", null,
+                loaded ? "Items stored in the armoire" : unavailable, null),
+            new ArmoireStat("Missing", loaded ? missing.ToString() : "—", null,
+                loaded ? "Still to collect" : unavailable, null));
 
-        ArmoireChrome.Card("collection_snapshot", 0, () =>
-        {
-            Widgets.Title("Live snapshot");
-            Widgets.SecondaryWrapped(ScanLine());
-        });
+        if (loaded)
+            ArmoireChrome.Card("collection_snapshot", 0, () =>
+            {
+                ArmoireChrome.CardHeader("Live snapshot");
+                ArmoireChrome.Paragraph(ScanLine(), gap: 0);
+            });
 
         var showOwned = Plugin.Configuration.ShowOwnedItems;
         var hideComplete = Plugin.Configuration.HideCompleteDungeons;
         ArmoireChrome.Card("collection_filters", 0, () =>
         {
-            Widgets.Title("Collection filters");
+            ArmoireChrome.CardHeader("Collection filters");
             if (ArmoireChrome.Toggle("Show owned items", ref showOwned,
                     "Includes pieces already found in inventory or the armoire in each expanded dungeon."))
             {
@@ -175,21 +209,18 @@ public class MainWindow : Window
                 Plugin.Configuration.Save();
             }
             if (ArmoireChrome.Toggle("Hide completed dungeons", ref hideComplete,
-                    "Removes dungeons with no missing pieces from the checklist."))
+                    "Removes dungeons with no missing pieces from the checklist.", separator: true))
             {
                 Plugin.Configuration.HideCompleteDungeons = hideComplete;
                 Plugin.Configuration.Save();
             }
         });
 
-        if (!ArmoireGearDatabase.IsLoaded)
-        {
-            Widgets.InfoBox("Needs setup — the gear database is not available. Check /xllog, then reopen the plugin window.", UiState.NeedsSetup);
+        if (!loaded)
             return;
-        }
         if (ArmoireGearDatabase.DungeonSets.Count == 0)
         {
-            Widgets.InfoBox("Empty — no armoire-eligible dungeon drops were loaded. Check /xllog for data-load errors.", UiState.Empty);
+            ArmoireChrome.Notice("Empty — no armoire-eligible dungeon drops were loaded. Check /xllog for data-load errors.", UiState.Empty);
             return;
         }
 
@@ -233,93 +264,184 @@ public class MainWindow : Window
             .ToList();
         if (ordered.Count == 0)
         {
-            Widgets.InfoBox("Empty — every loaded dungeon is complete. Turn off Hide completed dungeons to review the full collection.", UiState.Empty);
+            ArmoireChrome.Notice("Empty — every loaded dungeon is complete. Turn off Hide completed dungeons to review the full collection.", UiState.Empty);
             return;
         }
 
-        var tableHeight = MathF.Max(220, ImGui.GetContentRegionAvail().Y - Theme.Unit);
-        if (!ImGui.BeginTable("dungeon_table", 5,
-                ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY,
-                new Vector2(0, tableHeight)))
-            return;
-
-        ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.ShellBar);
-        ImGui.PushStyleColor(ImGuiCol.TableRowBg, Theme.Surface with { W = 0.32f });
-        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, Theme.ShellBar with { W = 0.45f });
-        ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.SurfaceBorder);
-        ImGui.TableSetupColumn("Dungeon", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Level", ImGuiTableColumnFlags.WidthFixed, 50);
-        ImGui.TableSetupColumn("Items", ImGuiTableColumnFlags.WidthFixed, 50);
-        ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, 60);
-        ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 100);
-        ImGui.TableHeadersRow();
-
-        foreach (var dungeon in ordered)
+        ArmoireChrome.Card("dungeon_table", 0, () =>
         {
-            ImGui.TableNextRow();
+            var draw = ImGui.GetWindowDrawList();
+            var inner = ArmoireChrome.Avail();
+            var compact = inner < 520;
+            const float rowPad = ArmoireChrome.Gap;
+            const float colGap = ArmoireChrome.Gap;
+            var lineHeight = ArmoireChrome.LineHeight();
+            var secondaryHeight = ArmoireChrome.LineHeight(Theme.SecondaryScale);
+            var captionHeight = ArmoireChrome.LineHeight(Theme.CaptionScale);
+            string LevelText(DungeonInfo d) => d.Level > 0 ? $"Lv {d.Level}" : "—";
+            string StateText(DungeonInfo d) => d.IsComplete ? Copy.Word(UiState.Ready) : $"{d.MissingCount} left";
 
-            ImGui.TableSetColumnIndex(0);
-            var open = ImGui.TreeNodeEx($"{dungeon.Name}###cfc{dungeon.ContentFinderConditionId}", ImGuiTreeNodeFlags.SpanFullWidth);
+            var levelWidth = MathF.Max(ArmoireChrome.TextWidth("Level", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(LevelText(d))));
+            var itemsWidth = MathF.Max(ArmoireChrome.TextWidth("Items", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.Items.Count.ToString())));
+            var missingWidth = MathF.Max(ArmoireChrome.TextWidth("Missing", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.MissingCount.ToString())));
+            var stateWidth = (2 * Theme.DotRadius) + (2 * Theme.Unit)
+                + MathF.Max(ArmoireChrome.TextWidth("Status", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(StateText(d))));
+            var nameLeft = rowPad + 20;
+            var nameWidth = inner - nameLeft - rowPad - levelWidth - itemsWidth - missingWidth - stateWidth - (4 * colGap);
+            var levelX = nameLeft + nameWidth + colGap;
+            var itemsRight = levelX + levelWidth + colGap + itemsWidth;
+            var missingRight = itemsRight + colGap + missingWidth;
+            var stateX = missingRight + colGap;
 
-            ImGui.TableSetColumnIndex(1);
-            ImGui.Text(dungeon.Level > 0 ? $"Lv {dungeon.Level}" : "—");
-
-            ImGui.TableSetColumnIndex(2);
-            ImGui.Text(dungeon.Items.Count.ToString());
-
-            ImGui.TableSetColumnIndex(3);
-            if (dungeon.MissingCount > 0)
-                ImGui.TextColored(Copy.MarkColor(UiState.Missing), dungeon.MissingCount.ToString());
-            else
-                ImGui.Text("0");
-
-            ImGui.TableSetColumnIndex(4);
-            if (dungeon.IsComplete)
-                ImGui.TextColored(Copy.MarkColor(UiState.Ready), Copy.Word(UiState.Ready));
-            else
-                ImGui.TextColored(Copy.MarkColor(UiState.Missing), $"{dungeon.MissingCount} left");
-
-            if (open)
+            if (!compact)
             {
-                var itemsToShow = showOwned
-                    ? dungeon.Items
-                    : dungeon.Items.Where(i => i.Owned == OwnershipStatus.NotOwned);
-                var shown = 0;
-                foreach (var item in itemsToShow.OrderBy(i => i.Slot).ThenBy(i => i.Name))
+                var headerPos = ImGui.GetCursorScreenPos();
+                var captionY = headerPos.Y;
+                ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + nameLeft, captionY), "Dungeon", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + levelX, captionY), "Level", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.DrawTextRight(draw, headerPos.X + itemsRight, captionY, "Items", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.DrawTextRight(draw, headerPos.X + missingRight, captionY, "Missing", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.DrawTextRight(draw, headerPos.X + stateX + stateWidth, captionY, "Status", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.Advance(headerPos, inner, captionHeight, 2 * Theme.Unit);
+            }
+
+            foreach (var dungeon in ordered)
+            {
+                var pos = ImGui.GetCursorScreenPos();
+                var open = _openDungeons.Contains(dungeon.ContentFinderConditionId);
+                var rowHeight = compact
+                    ? (2 * 3 * Theme.Unit) + lineHeight + (Theme.Unit / 2f) + secondaryHeight
+                    : (2 * 3 * Theme.Unit) + lineHeight;
+                if (ImGui.InvisibleButton($"##dungeon_{dungeon.ContentFinderConditionId}", new Vector2(inner, rowHeight)))
                 {
-                    shown++;
-                    ImGui.Bullet();
-                    ImGui.SameLine();
-
-                    var (state, badge) = item.Owned switch
-                    {
-                        OwnershipStatus.InInventory => (UiState.Ready, "Inventory"),
-                        OwnershipStatus.InArmoire => (UiState.Ready, "Armoire"),
-                        _ => (UiState.Missing, "Missing"),
-                    };
-
-                    var slotLabel = item.Slot == GearSlot.Unknown ? "" : $"[{item.Slot}] ";
-                    ImGui.TextColored(Copy.MarkColor(state), $"{slotLabel}{item.Name} — {badge}");
-
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.BeginTooltip();
-                        ImGui.Text($"Item ID: {item.ItemId}");
-                        ImGui.Text($"Slot: {item.Slot}");
-                        ImGui.Text($"Source: {item.DungeonName ?? "Unknown"}");
-                        ImGui.Text($"Status: {badge}");
-                        ImGui.EndTooltip();
-                    }
+                    if (open)
+                        _openDungeons.Remove(dungeon.ContentFinderConditionId);
+                    else
+                        _openDungeons.Add(dungeon.ContentFinderConditionId);
+                    open = !open;
                 }
-                if (shown == 0)
-                    Widgets.Caption("No missing pieces. Enable Show owned items to review this dungeon.");
-                ImGui.TreePop();
+                var hovered = ImGui.IsItemHovered();
+                draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(Theme.ShellBar), ArmoireChrome.Radius);
+                if (hovered)
+                    draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), ArmoireChrome.Radius);
+
+                var stateColor = dungeon.IsComplete ? Copy.MarkColor(UiState.Ready) : Copy.MarkColor(UiState.Missing);
+                var padY = 3 * Theme.Unit;
+                ArmoireChrome.Chevron(draw, pos + new Vector2(rowPad + 4, padY + (lineHeight / 2f)), open || hovered ? Theme.Accent : Theme.TextSecondary, right: !open);
+                if (!compact)
+                {
+                    var textY = pos.Y + padY;
+                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, textY), dungeon.Name, nameWidth, Theme.TextPrimary);
+                    ArmoireChrome.DrawText(draw, new Vector2(pos.X + levelX, textY), LevelText(dungeon), Theme.TextSecondary);
+                    ArmoireChrome.DrawTextRight(draw, pos.X + itemsRight, textY, dungeon.Items.Count.ToString(), Theme.TextSecondary);
+                    ArmoireChrome.DrawTextRight(draw, pos.X + missingRight, textY, dungeon.MissingCount.ToString(),
+                        dungeon.MissingCount > 0 ? Copy.MarkColor(UiState.Missing) : Theme.TextSecondary);
+                    var stateRight = pos.X + stateX + stateWidth;
+                    var stateLeft = MathF.Round(stateRight - ArmoireChrome.TextWidth(StateText(dungeon)));
+                    draw.AddCircleFilled(new Vector2(stateLeft - (2 * Theme.Unit) - Theme.DotRadius, textY + (lineHeight / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
+                    ArmoireChrome.DrawTextRight(draw, stateRight, textY, StateText(dungeon), stateColor);
+                }
+                else
+                {
+                    var stateTextWidth = ArmoireChrome.TextWidth(StateText(dungeon));
+                    var stateRight = pos.X + inner - rowPad;
+                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY), dungeon.Name,
+                        inner - nameLeft - rowPad - stateTextWidth - (2 * Theme.DotRadius) - colGap, Theme.TextPrimary);
+                    ArmoireChrome.DrawTextRight(draw, stateRight, pos.Y + padY, StateText(dungeon), stateColor);
+                    draw.AddCircleFilled(new Vector2(stateRight - stateTextWidth - (2 * Theme.Unit) - Theme.DotRadius, pos.Y + padY + (lineHeight / 2f)),
+                        Theme.DotRadius, Theme.Pack(stateColor));
+                    var detail = $"{LevelText(dungeon)} · {Plural(dungeon.Items.Count, "item")} · {dungeon.MissingCount} missing";
+                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY + lineHeight + (Theme.Unit / 2f)), detail,
+                        inner - nameLeft - rowPad, Theme.TextSecondary, Theme.SecondaryScale);
+                }
+                ArmoireChrome.Advance(pos, inner, rowHeight, 2 * Theme.Unit);
+
+                if (open)
+                    DrawDungeonPieces(dungeon, showOwned, inner);
+            }
+        });
+    }
+
+    /// <summary>The pieces of one expanded dungeon, laid out in a full-width panel under its row.</summary>
+    private static void DrawDungeonPieces(DungeonInfo dungeon, bool showOwned, float width)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        const float pad = 3 * Theme.Unit;
+        var itemsToShow = (showOwned ? dungeon.Items : dungeon.Items.Where(i => i.Owned == OwnershipStatus.NotOwned))
+            .OrderBy(i => i.Slot).ThenBy(i => i.Name).ToList();
+        var lineHeight = ArmoireChrome.LineHeight();
+        var panelWidth = width;
+        var innerWidth = panelWidth - (2 * pad);
+
+        if (itemsToShow.Count == 0)
+        {
+            const string none = "No missing pieces. Enable Show owned items to review this dungeon.";
+            var textHeight = ArmoireChrome.WrappedHeight(none, innerWidth, Theme.SecondaryScale);
+            var emptyHeight = (2 * pad) + textHeight;
+            draw.AddRectFilled(pos, pos + new Vector2(panelWidth, emptyHeight), Theme.Pack(Theme.ShellBar with { W = 0.6f }), ArmoireChrome.Radius);
+            ArmoireChrome.DrawWrapped(draw, pos + new Vector2(pad, pad), none, innerWidth, Theme.TextSecondary, Theme.SecondaryScale);
+            ArmoireChrome.Advance(pos, panelWidth, emptyHeight, 2 * Theme.Unit);
+            return;
+        }
+
+        var badges = new[] { "Inventory", "Armoire", "Missing" };
+        var badgeWidth = badges.Max(b => ArmoireChrome.TextWidth(b, Theme.SecondaryScale));
+        var slotWidth = itemsToShow.Max(i => i.Slot == GearSlot.Unknown ? 0 : ArmoireChrome.TextWidth(i.Slot.ToString(), Theme.SecondaryScale));
+        var slotGap = 3 * Theme.Unit;
+        var nameNeed = itemsToShow.Max(i => ArmoireChrome.TextWidth(i.Name));
+        var cellNeed = (5 * Theme.Unit) + slotWidth + slotGap + nameNeed + (3 * Theme.Unit) + badgeWidth + Theme.Unit;
+        var columns = Math.Clamp((int)((innerWidth + pad) / (cellNeed + pad)), 1, 3);
+        var cellWidth = (innerWidth - ((columns - 1) * pad)) / columns;
+        var pitch = lineHeight + (2 * Theme.Unit);
+        var rows = (itemsToShow.Count + columns - 1) / columns;
+        var panelHeight = (2 * pad) + (rows * pitch);
+        draw.AddRectFilled(pos, pos + new Vector2(panelWidth, panelHeight), Theme.Pack(Theme.ShellBar with { W = 0.6f }), ArmoireChrome.Radius);
+
+        for (var i = 0; i < itemsToShow.Count; i++)
+        {
+            var item = itemsToShow[i];
+            var cellMin = pos + new Vector2(pad + ((i % columns) * (cellWidth + pad)), pad + ((i / columns) * pitch));
+            var cellMax = cellMin + new Vector2(cellWidth, pitch);
+            var (state, badge) = item.Owned switch
+            {
+                OwnershipStatus.InInventory => (UiState.Ready, "Inventory"),
+                OwnershipStatus.InArmoire => (UiState.Ready, "Armoire"),
+                _ => (UiState.Missing, "Missing"),
+            };
+            var hovered = ImGui.IsMouseHoveringRect(cellMin, cellMax);
+            if (hovered)
+                draw.AddRectFilled(cellMin, cellMax, Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), Theme.Unit);
+            var textY = cellMin.Y + Theme.Unit;
+            var color = Copy.MarkColor(state);
+            draw.AddCircleFilled(new Vector2(cellMin.X + (2 * Theme.Unit), textY + (lineHeight / 2f)), 2.5f, Theme.Pack(color));
+            var slotX = cellMin.X + (5 * Theme.Unit);
+            if (item.Slot != GearSlot.Unknown)
+                ArmoireChrome.DrawText(draw, new Vector2(slotX, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f)),
+                    item.Slot.ToString(), Theme.TextSecondary, Theme.SecondaryScale);
+            var nameX = slotX + slotWidth + slotGap;
+            var nameWidth = cellMax.X - nameX - badgeWidth - (3 * Theme.Unit);
+            ArmoireChrome.DrawFitted(draw, new Vector2(nameX, textY), item.Name, nameWidth, Theme.TextPrimary);
+            ArmoireChrome.DrawTextRight(draw, cellMax.X - Theme.Unit, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f),
+                badge, color, Theme.SecondaryScale);
+
+            if (hovered)
+            {
+                var tipHeight = (4 * lineHeight) + (4 * Theme.Unit) + 8;
+                var below = cellMax.Y + Theme.Unit + tipHeight <= ImGui.GetIO().DisplaySize.Y;
+                ArmoireChrome.BeginTooltip(new Vector2(cellMin.X + (5 * Theme.Unit), below ? cellMax.Y + Theme.Unit : cellMin.Y - Theme.Unit),
+                    below ? Vector2.Zero : new Vector2(0f, 1f));
+                ImGui.Text($"Item ID: {item.ItemId}");
+                ImGui.Text($"Slot: {item.Slot}");
+                ImGui.Text($"Source: {item.DungeonName ?? "Unknown"}");
+                ImGui.Text($"Status: {badge}");
+                ArmoireChrome.EndTooltip();
             }
         }
-
-        ImGui.EndTable();
-        ImGui.PopStyleColor(4);
+        ArmoireChrome.Advance(pos, panelWidth, panelHeight, 2 * Theme.Unit);
     }
+
+    // ---- Shopping --------------------------------------------------------------------------------------------------
 
     private void DrawShopping()
     {
@@ -332,25 +454,24 @@ public class MainWindow : Window
             KnightshopperCatalogBuilder.RequestBuild();
             if (KnightshopperCatalogBuilder.SheetsUnavailable)
             {
-                Widgets.InfoBox(
+                ArmoireChrome.Notice(
                     "Game data is not available right now, so the shop catalog cannot be built. "
                     + "Reopen this window after the game has fully loaded, or press Refresh.",
                     UiState.Blocked);
-                if (ArmoireChrome.Button("Refresh", "Refresh"))
+                if (ArmoireChrome.Button("Refresh", "Refresh", true))
                     KnightshopperCatalogBuilder.RequestRefresh();
             }
             else if (KnightshopperCatalogBuilder.BuildFailed)
             {
-                Widgets.InfoBox(
-                    $"The shop catalog build failed ({KnightshopperCatalogBuilder.BuildFailureDetail}). "
-                    + "It is not retried automatically — see /xllog for details, or press Refresh.",
-                    UiState.Failed);
-                if (ArmoireChrome.Button("Refresh", "Refresh"))
+                ArmoireChrome.Notice(
+                    "The shop catalog build failed. It is not retried automatically — see /xllog for details, or press Refresh.",
+                    UiState.Failed, KnightshopperCatalogBuilder.BuildFailureDetail);
+                if (ArmoireChrome.Button("Refresh", "Refresh", true))
                     KnightshopperCatalogBuilder.RequestRefresh();
             }
             else
             {
-                Widgets.InfoBox("Running — building the shop catalog. Shopping lists will appear when the real vendor data is ready.", UiState.Running);
+                ArmoireChrome.Notice("Running — building the shop catalog. Shopping lists will appear when the real vendor data is ready.", UiState.Running);
             }
 
             return;
@@ -366,7 +487,7 @@ public class MainWindow : Window
             ArmoireChrome.PageHeader("Knightshopper shopping list",
                 "Turns missing armoire pieces into shopping lists Knightshopper can import.",
                 "Scan needed", Copy.Word(UiState.Empty));
-            Widgets.InfoBox("Empty — no inventory scan is available. Open Collection to scan automatically, then return to Shopping.", UiState.Empty);
+            ArmoireChrome.Notice("Empty — no inventory scan is available. Open Collection to scan automatically, then return to Shopping.", UiState.Empty);
             return;
         }
 
@@ -382,7 +503,7 @@ public class MainWindow : Window
 
         ArmoireChrome.PageHeader("Knightshopper shopping list",
             "Turns missing armoire pieces into shopping lists Knightshopper can import.",
-            headerCount, $"{result.Currencies.Count} currency lists");
+            headerCount, Plural(result.Currencies.Count, "currency list"));
 
         ArmoireChrome.StatCards(
             new ArmoireStat("Vendor-buyable", buyable.ToString(), totalMissing.ToString(),
@@ -394,8 +515,8 @@ public class MainWindow : Window
 
         if (totalMissing == 0)
         {
-            Widgets.InfoBox(
-                "Nothing missing: every armoire-eligible piece is either already in the armoire "
+            ArmoireChrome.Notice(
+                "Nothing missing — every armoire-eligible piece is either already in the armoire "
                 + "or in the inventory/armoury chest. Nothing to shop for.",
                 UiState.Ready);
             return;
@@ -403,66 +524,74 @@ public class MainWindow : Window
 
         if (buyable == 0)
         {
-            Widgets.InfoBox(
-                $"None of the {totalMissing} missing piece(s) is sold by a vendor Knightshopper can reach "
+            ArmoireChrome.Notice(
+                $"None of the {Plural(totalMissing, "missing piece")} is sold by a vendor Knightshopper can reach "
                 + "(dropped, crafted, or handler-linked shop). Nothing to add to the shopping list.",
                 UiState.Empty);
         }
 
+        var snapshot = KnightshopperCatalogBuilder.Snapshot;
+        var notes = new List<string>();
+        if (excluded > 0)
+            notes.Add($"{Plural(inBags, "missing piece")} {(inBags == 1 ? "is" : "are")} already in the inventory/armoury chest — Auto-store handles those, no purchase needed.");
+        if (progressLocked > 0)
+            notes.Add($"{Plural(progressLocked, "missing piece")} {(progressLocked == 1 ? "needs" : "need")} quest or achievement progress not yet unlocked — left out of the "
+                + "import because Knightshopper aborts the whole buy on the first item it cannot unlock.");
+        if (result.MissingNotBuyable > 0)
+            notes.Add($"{Plural(result.MissingNotBuyable, "missing piece")} {(result.MissingNotBuyable == 1 ? "is" : "are")} not sold by any vendor Knightshopper can reach (dropped, crafted, or handler-linked shop).");
+        if (snapshot.UnderlistedItemCount > 0)
+            notes.Add($"Not counted: {Plural(snapshot.UnderlistedItemCount, "more armoire piece")} sold only in shops this list "
+                + "cannot safely name (scripted vendors and gil-priced SpecialShop entries) — the real buyable total is higher.");
+        if (snapshot.LeftOutItemCount > 0)
+            notes.Add($"{Plural(snapshot.LeftOutItemCount, "item")} left out: Knightshopper cannot buy {(snapshot.LeftOutItemCount == 1 ? "it" : "them")}.");
+
         ArmoireChrome.Card("shopping_coverage", 0, () =>
         {
-            Widgets.Title("Coverage and exclusions");
-            if (excluded > 0)
-                Widgets.SecondaryWrapped(
-                    $"{inBags} missing piece(s) are already in the inventory/armoury chest — Auto-store handles those, no purchase needed.");
-            if (progressLocked > 0)
-                Widgets.SecondaryWrapped(
-                    $"{progressLocked} missing piece(s) need quest or achievement progress not yet unlocked — left out of the "
-                    + "import because Knightshopper aborts the whole buy on the first item it cannot unlock.");
-            if (result.MissingNotBuyable > 0)
-                Widgets.SecondaryWrapped(
-                    $"{result.MissingNotBuyable} missing piece(s) are not sold by any vendor Knightshopper can reach (dropped, crafted, or handler-linked shop).");
-            if (KnightshopperCatalogBuilder.Snapshot.UnderlistedItemCount > 0)
-                Widgets.SecondaryWrapped(
-                    $"Not counted: {KnightshopperCatalogBuilder.Snapshot.UnderlistedItemCount} more armoire piece(s) sold only in shops this list "
-                    + "cannot safely name (scripted vendors and gil-priced SpecialShop entries) — the real buyable total is higher.");
-            if (KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount > 0)
-                Widgets.SecondaryWrapped(
-                    $"{KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount} items left out: Knightshopper cannot buy them.");
-            var leftOutPieces = KnightshopperCatalogBuilder.Snapshot.LeftOutPieces;
-            if (leftOutPieces.Count > 0 && ImGui.TreeNode($"Pieces no code can name ({leftOutPieces.Count})"))
+            ArmoireChrome.CardHeader("Coverage and exclusions");
+            DrawNotes(notes);
+            var leftOutPieces = snapshot.LeftOutPieces;
+            if (leftOutPieces.Count > 0)
             {
-                foreach (var piece in leftOutPieces)
-                    ImGui.TextWrapped($"{input.ItemNames.GetValueOrDefault(piece.ItemId, $"item {piece.ItemId}")} — {piece.Reason}");
-                ImGui.TreePop();
+                var open = _openSections.Contains("leftout");
+                if (ArmoireChrome.Disclosure("leftout", $"Pieces no code can name ({leftOutPieces.Count})", open))
+                    Toggle(_openSections, "leftout");
+                if (open)
+                    foreach (var piece in leftOutPieces)
+                        ArmoireChrome.Paragraph($"{input.ItemNames.GetValueOrDefault(piece.ItemId, $"item {piece.ItemId}")} — {piece.Reason}", gap: Theme.Unit);
             }
-            Widgets.SecondaryWrapped(KnightshopperInstructions.CatalogCheckNote());
+            ArmoireChrome.Paragraph(KnightshopperInstructions.CatalogCheckNote(), gap: 0);
         });
 
         if (!IsKnightshopperLoaded())
-            Widgets.InfoBox(KnightshopperInstructions.NotLoadedMessage(), UiState.NeedsSetup);
+            ArmoireChrome.Notice(KnightshopperInstructions.NotLoadedMessage(), UiState.NeedsSetup);
 
+        // One price column width for every table so the columns line up from card to card.
+        var priceWidth = MathF.Max(ArmoireChrome.TextWidth("Price", Theme.CaptionScale),
+            result.Currencies.SelectMany(g => g.Items).Select(PriceText).DefaultIfEmpty("n/a").Max(t => ArmoireChrome.TextWidth(t)));
         foreach (var group in result.Currencies)
         {
             ArmoireChrome.Card($"currency_{group.CurrencyId}", 0, () =>
             {
                 var priceLabel = group.TotalPrice > 0 ? $" · {group.TotalPrice:N0} total" : string.Empty;
-                Widgets.Title($"{group.CurrencyName} · {group.Items.Count} item(s)");
-                Widgets.Secondary($"Quantity 1 per piece{priceLabel}");
+                ArmoireChrome.CardHeader($"{group.CurrencyName} · {Plural(group.Items.Count, "item")}", $"Quantity 1 per piece{priceLabel}");
                 if (ArmoireChrome.Button($"Copy import code##ks{group.CurrencyId}", "Copy import code", true))
                     CopyImportCode(group);
 
                 if (group.Truncated)
-                    Widgets.SecondaryWrapped(
+                    ArmoireChrome.Paragraph(
                         $"Blocked — only the first {KnightshopperShare.MaxItems} items fit in one Knightshopper list; the rest are skipped this time.");
                 if (group.CurrencyId == 2)
-                    Widgets.SecondaryWrapped(
+                    ArmoireChrome.Paragraph(
                         "Gil prices are the standard vendor price; some vendors charge less with reputation.");
 
-                if (group.Items.Count > 0 && ImGui.TreeNode($"Pieces##ksItems{group.CurrencyId}"))
+                if (group.Items.Count > 0)
                 {
-                    DrawShoppingItemsTable(group);
-                    ImGui.TreePop();
+                    var key = $"pieces{group.CurrencyId}";
+                    var open = _openSections.Contains(key);
+                    if (ArmoireChrome.Disclosure(key, "Pieces", open))
+                        Toggle(_openSections, key);
+                    if (open)
+                        DrawShoppingItemsTable(group, priceWidth);
                 }
             });
         }
@@ -471,10 +600,62 @@ public class MainWindow : Window
         {
             ArmoireChrome.Card("shopping_import_status", 0, () =>
             {
-                Widgets.Title("Import instructions");
-                Widgets.SecondaryWrapped(_ksStatus);
+                ArmoireChrome.CardHeader("Import instructions");
+                var lines = _ksStatus.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                for (var i = 0; i < lines.Length; i++)
+                    ArmoireChrome.Paragraph(CurlyQuotes(lines[i]), color: i == 0 ? Theme.TextPrimary : null,
+                        scale: i == 0 ? 1f : Theme.SecondaryScale, gap: i == lines.Length - 1 ? 0 : 2 * Theme.Unit);
             });
         }
+    }
+
+    private static void Toggle(HashSet<string> set, string key)
+    {
+        if (!set.Remove(key))
+            set.Add(key);
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex QuotePair =
+        new(@"(?<!\p{L})'([^']+?)'(?!\p{L})", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex LeadingCount =
+        new(@"^(\d+) (.*)$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+    /// <summary>Quoted control names read as typographic quotes instead of raw single quotes.</summary>
+    private static string CurlyQuotes(string text) => QuotePair.Replace(text, "“$1”");
+
+    /// <summary>
+    ///     Separated notes: a count column (the leading number in the primary colour, or a dot) and the wrapped
+    ///     sentence beside it, with a hairline between notes.
+    /// </summary>
+    private static void DrawNotes(IReadOnlyList<string> notes)
+    {
+        if (notes.Count == 0)
+            return;
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ArmoireChrome.Avail();
+        var parsed = notes.Select(n => LeadingCount.Match(n) is { Success: true } m ? (Count: m.Groups[1].Value, Text: m.Groups[2].Value) : (Count: string.Empty, Text: n)).ToArray();
+        var countWidth = MathF.Max(3 * Theme.Unit, parsed.Max(p => ArmoireChrome.TextWidth(p.Count)));
+        var textLeft = countWidth + (3 * Theme.Unit);
+        var textWidth = MathF.Max(40, width - textLeft);
+        var lineHeight = ArmoireChrome.LineHeight();
+        var secondaryHeight = ArmoireChrome.LineHeight(Theme.SecondaryScale);
+        var y = 0f;
+        for (var i = 0; i < parsed.Length; i++)
+        {
+            var (count, text) = parsed[i];
+            if (i > 0)
+            {
+                draw.AddLine(origin + new Vector2(0, y - (1.5f * Theme.Unit)), origin + new Vector2(width, y - (1.5f * Theme.Unit)), Theme.Pack(Theme.SurfaceBorder));
+            }
+            if (count.Length > 0)
+                ArmoireChrome.DrawText(draw, origin + new Vector2(0, y + ((secondaryHeight - lineHeight) / 2f)), count, Theme.TextPrimary);
+            else
+                draw.AddCircleFilled(origin + new Vector2(Theme.Unit, y + (secondaryHeight / 2f)), 2f, Theme.Pack(Theme.TextSecondary));
+            y += ArmoireChrome.DrawWrapped(draw, origin + new Vector2(textLeft, y), text, textWidth, Theme.TextSecondary, Theme.SecondaryScale) + (3 * Theme.Unit);
+        }
+        ArmoireChrome.Advance(origin, width, y - (3 * Theme.Unit), 3 * Theme.Unit);
     }
 
     private void CopyImportCode(CurrencyCandidates group)
@@ -495,35 +676,63 @@ public class MainWindow : Window
         }
     }
 
-    private static void DrawShoppingItemsTable(CurrencyCandidates group)
-    {
-        if (!ImGui.BeginTable($"ksTable{group.CurrencyId}", 4,
-                ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY,
-                new Vector2(0, 280)))
-            return;
+    private static string PriceText(ShoppingCandidate cand) => cand.Entry.Price is { } price ? price.ToString("N0") : "n/a";
 
-        ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.ShellBar);
-        ImGui.PushStyleColor(ImGuiCol.TableRowBg, Theme.ShellBar with { W = 0.35f });
-        ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.SurfaceBorder);
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 3f);
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-        ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthStretch, 1.6f);
-        ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthStretch, 0.5f);
-        ImGui.TableHeadersRow();
+    /// <summary>One row per piece in the same four columns for every currency; numbers are right aligned.</summary>
+    private static void DrawShoppingItemsTable(CurrencyCandidates group, float priceWidth)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var inner = ArmoireChrome.Avail();
+        var compact = inner < 520;
+        const float rowPad = 3 * Theme.Unit;
+        const float colGap = ArmoireChrome.Gap;
+        var lineHeight = ArmoireChrome.LineHeight();
+        var secondaryHeight = ArmoireChrome.LineHeight(Theme.SecondaryScale);
+        var captionHeight = ArmoireChrome.LineHeight(Theme.CaptionScale);
+        var qtyWidth = MathF.Max(ArmoireChrome.TextWidth("Qty", Theme.CaptionScale), ArmoireChrome.TextWidth("1"));
+        var vendorWidth = Math.Clamp(0.30f * inner, 140, 260);
+        var itemWidth = inner - (2 * rowPad) - priceWidth - vendorWidth - qtyWidth - (3 * colGap);
+        var vendorX = rowPad + itemWidth + colGap;
+        var priceRight = vendorX + vendorWidth + colGap + priceWidth;
+        var qtyRight = priceRight + colGap + qtyWidth;
+
+        var top = ImGui.GetCursorScreenPos();
+        if (!compact)
+        {
+            ArmoireChrome.DrawText(draw, top + new Vector2(rowPad, 0), "Item", Theme.TextSecondary, Theme.CaptionScale);
+            ArmoireChrome.DrawText(draw, top + new Vector2(vendorX, 0), "Vendor", Theme.TextSecondary, Theme.CaptionScale);
+            ArmoireChrome.DrawTextRight(draw, top.X + priceRight, top.Y, "Price", Theme.TextSecondary, Theme.CaptionScale);
+            ArmoireChrome.DrawTextRight(draw, top.X + qtyRight, top.Y, "Qty", Theme.TextSecondary, Theme.CaptionScale);
+            ArmoireChrome.Advance(top, inner, captionHeight, 2 * Theme.Unit);
+        }
+
         foreach (var cand in group.Items)
         {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted(cand.Name);
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted(cand.Entry.Price is { } price ? price.ToString("N0") : "n/a");
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted(VendorName(cand.Entry.VendorId));
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted("1");
+            var pos = ImGui.GetCursorScreenPos();
+            var rowHeight = compact
+                ? (2 * 2.5f * Theme.Unit) + lineHeight + (Theme.Unit / 2f) + secondaryHeight
+                : (2 * 2.5f * Theme.Unit) + lineHeight;
+            draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(Theme.ShellBar), ArmoireChrome.Radius);
+            var textY = pos.Y + (2.5f * Theme.Unit);
+            if (!compact)
+            {
+                ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + rowPad, textY), cand.Name, itemWidth, Theme.TextPrimary);
+                ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + vendorX, textY), VendorName(cand.Entry.VendorId), vendorWidth, Theme.TextSecondary);
+                ArmoireChrome.DrawTextRight(draw, pos.X + priceRight, textY, PriceText(cand), Theme.TextPrimary);
+                ArmoireChrome.DrawTextRight(draw, pos.X + qtyRight, textY, "1", Theme.TextSecondary);
+            }
+            else
+            {
+                var price = PriceText(cand);
+                var priceTextWidth = ArmoireChrome.TextWidth(price);
+                ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + rowPad, textY), cand.Name, inner - (2 * rowPad) - priceTextWidth - colGap, Theme.TextPrimary);
+                ArmoireChrome.DrawTextRight(draw, pos.X + inner - rowPad, textY, price, Theme.TextPrimary);
+                var sub = textY + lineHeight + (Theme.Unit / 2f);
+                ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + rowPad, sub), VendorName(cand.Entry.VendorId), inner - (2 * rowPad) - ArmoireChrome.TextWidth("Qty 1", Theme.SecondaryScale) - colGap, Theme.TextSecondary, Theme.SecondaryScale);
+                ArmoireChrome.DrawTextRight(draw, pos.X + inner - rowPad, sub, "Qty 1", Theme.TextSecondary, Theme.SecondaryScale);
+            }
+            ArmoireChrome.Advance(pos, inner, rowHeight, Theme.Unit);
         }
-        ImGui.EndTable();
-        ImGui.PopStyleColor(3);
     }
 
     private static string VendorName(uint vendorId)
@@ -546,6 +755,8 @@ public class MainWindow : Window
         }
     }
 
+    // ---- Auto-store ------------------------------------------------------------------------------------------------
+
     private void DrawStore()
     {
         var c = Plugin.Configuration;
@@ -553,47 +764,52 @@ public class MainWindow : Window
             "Moves eligible dungeon gear from bags into the armoire — automatically on open, or on demand.",
             c.AutoStoreOnOpen ? "Auto-store on" : "Auto-store off", CabinetLine());
 
-        ArmoireChrome.TwoColumns(
+        ArmoireChrome.Columns("store",
             () =>
             {
                 ArmoireChrome.Card("store_action", 0, () =>
                 {
-                    Widgets.Title("Store eligible gear");
-                    Widgets.SecondaryWrapped("The armoire UI must be open at an inn room. Eligibility, gearset protection, and inventory scope use the existing automation rules.");
+                    ArmoireChrome.CardHeader("Store eligible gear");
+                    ArmoireChrome.Paragraph("The armoire UI must be open at an inn room. Eligibility, gearset protection, and inventory scope use the existing automation rules.",
+                        gap: 3 * Theme.Unit);
                     if (_autoStore.IsStoring)
                     {
-                        Widgets.StateText("● Running", UiState.Running);
-                        Widgets.SecondaryWrapped("Storing eligible items to the armoire.");
+                        ArmoireChrome.StateLine(UiState.Running, "Running");
+                        ArmoireChrome.Paragraph("Storing eligible items to the armoire.", gap: 3 * Theme.Unit);
                     }
                     if (ArmoireChrome.Button("Store all to armoire", "Store all to armoire", true, !_autoStore.IsStoring))
                         _autoStore.StoreAll();
 
                     if (!string.IsNullOrEmpty(_autoStore.LastResultMessage))
                     {
-                        Widgets.StateText(_autoStore.LastStoredCount > 0 ? "● Ready" : "● Idle",
-                            _autoStore.LastStoredCount > 0 ? UiState.Ready : UiState.Idle);
-                        Widgets.SecondaryWrapped(_autoStore.LastResultMessage);
+                        ArmoireChrome.StateLine(_autoStore.LastStoredCount > 0 ? UiState.Ready : UiState.Idle,
+                            _autoStore.LastStoredCount > 0 ? "Ready" : "Idle");
+                        ArmoireChrome.Paragraph(_autoStore.LastResultMessage, gap: 0);
                     }
                 });
 
                 ArmoireChrome.Card("store_requirements", 0, () =>
                 {
-                    Widgets.Title("Requirements");
-                    ArmoireChrome.Requirement("Armoire UI", _cabinet.CabinetDataAvailable ? "Live" : "Open at an inn", _cabinet.CabinetDataAvailable);
-                    ArmoireChrome.Requirement("Inventory scan", _scanner.LastScan == DateTime.MinValue ? "Needs setup" : "Ready", _scanner.LastScan != DateTime.MinValue);
-                    ArmoireChrome.Requirement("Armoury chest", c.AutoStoreIncludeArmory ? "Included" : "Optional", c.AutoStoreIncludeArmory);
+                    ArmoireChrome.CardHeader("Requirements");
+                    ArmoireChrome.Requirement("Armoire UI", _cabinet.CabinetDataAvailable ? "Live" : "Open at an inn",
+                        _cabinet.CabinetDataAvailable ? UiState.Ready : UiState.Missing, _cabinet.CabinetDataAvailable);
+                    var scanned = _scanner.LastScan != DateTime.MinValue;
+                    ArmoireChrome.Requirement("Inventory scan", scanned ? "Ready" : "Needs setup",
+                        scanned ? UiState.Ready : UiState.Missing, scanned);
+                    ArmoireChrome.Requirement("Armoury chest", c.AutoStoreIncludeArmory ? "Included" : "Optional",
+                        c.AutoStoreIncludeArmory ? UiState.Ready : UiState.Idle, c.AutoStoreIncludeArmory);
                     var sinceScan = DateTime.UtcNow - _scanner.LastScan;
-                    if (_scanner.LastScan != DateTime.MinValue && sinceScan < ScanCooldown)
-                        Widgets.SecondaryWrapped($"Scan cooldown: {ScanCooldown.TotalSeconds - sinceScan.TotalSeconds:F0}s left.");
-                    else
-                        Widgets.SecondaryWrapped("Scanner idle.");
-                });
+                    ArmoireChrome.Advance(ImGui.GetCursorScreenPos(), 1, 0, 3 * Theme.Unit);
+                    ArmoireChrome.Paragraph(_scanner.LastScan != DateTime.MinValue && sinceScan < ScanCooldown
+                        ? $"Scan cooldown: {ScanCooldown.TotalSeconds - sinceScan.TotalSeconds:F0}s left."
+                        : "Scanner idle.", gap: 0);
+                }, fill: true);
             },
             () =>
             {
                 ArmoireChrome.Card("store_settings", 0, () =>
                 {
-                    Widgets.Title("Settings");
+                    ArmoireChrome.CardHeader("Settings");
                     var autoStore = c.AutoStoreOnOpen;
                     if (ArmoireChrome.Toggle("Auto-store when armoire opens", ref autoStore,
                             "When enabled, eligible items are automatically stored to the armoire the moment the armoire UI opens at an inn room."))
@@ -604,7 +820,8 @@ public class MainWindow : Window
 
                     var includeArmory = c.AutoStoreIncludeArmory;
                     if (ArmoireChrome.Toggle("Also store from armoury chest", ref includeArmory,
-                            "When enabled, storing also pulls eligible gear from the armoury chest. Off by default: only the regular inventory (bags) is scanned."))
+                            "When enabled, storing also pulls eligible gear from the armoury chest. Off by default: only the regular inventory (bags) is scanned.",
+                            separator: true))
                     {
                         c.AutoStoreIncludeArmory = includeArmory;
                         c.Save();
@@ -612,13 +829,15 @@ public class MainWindow : Window
 
                     var skipGearset = c.SkipGearsetItems;
                     if (ArmoireChrome.Toggle("Skip gear that is in a gearset", ref skipGearset,
-                            "When enabled, any item that belongs to a saved gearset is left alone and never stored to the armoire."))
+                            "When enabled, any item that belongs to a saved gearset is left alone and never stored to the armoire.",
+                            separator: true))
                     {
                         c.SkipGearsetItems = skipGearset;
                         c.Save();
                     }
-                });
-            });
+                }, fill: true);
+            },
+            fillPage: true);
     }
 
     private static string Ago(DateTime utc)

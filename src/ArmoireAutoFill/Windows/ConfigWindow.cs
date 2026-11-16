@@ -16,7 +16,7 @@ public class ConfigWindow : Window
         : base("Armoire Auto-Fill Settings###ArmoireAutoFillConfig")
     {
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        Size = new Vector2(600, 360);
+        Size = new Vector2(600, 460);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
@@ -25,22 +25,33 @@ public class ConfigWindow : Window
         };
     }
 
+    // The shell lays out its own gutters, so the window itself has no padding.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     public override void Draw()
     {
+        ArmoireChrome.ResetLayout();
         Theme.PushFrame();
         try
         {
-            ArmoireChrome.TopBar(Navigation, 0, _ => { }, UiState.Ready, () => IsOpen = false);
-            ImGui.BeginChild("##armoire_config_body", Vector2.Zero, false);
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = ArmoireChrome.Gutter(winSize.X);
+            ImGui.SetCursorPos(Vector2.Zero);
+            var y = ArmoireChrome.TopBar(winPos, winSize, gutter, Navigation, 0, _ => { }, UiState.Ready, () => IsOpen = false);
+            ImGui.SetCursorPos(new Vector2(0, y));
+            ArmoireChrome.BeginBody("##armoire_config_body", new Vector2(winSize.X, MathF.Max(40, winSize.Y - y)), gutter);
             try
             {
                 ArmoireChrome.PageHeader("Settings",
                     "Controls when the inventory scanner runs and how collection data stays current.",
-                    "1 option", "Scanner behavior");
+                    string.Empty);
 
                 ArmoireChrome.Card("config_scan_settings", 0, () =>
                 {
-                    Widgets.Title("Inventory scanning");
+                    ArmoireChrome.CardHeader("Inventory scanning");
                     var scanOnLoad = Plugin.Configuration.ScanOnLoad;
                     if (ArmoireChrome.Toggle("Auto-scan on login", ref scanOnLoad,
                             "Automatically scans inventory at login so Collection is current without a manual rescan."))
@@ -52,17 +63,17 @@ public class ConfigWindow : Window
 
                 ArmoireChrome.Card("config_about", 0, () =>
                 {
-                    Widgets.Title("About Armoire Auto-Fill");
-                    Widgets.SecondaryWrapped(
+                    ArmoireChrome.CardHeader("About Armoire Auto-Fill");
+                    ArmoireChrome.Paragraph(
                         "Armoire Auto-Fill helps collect armoire-compatible dungeon gear (level 31+). "
                         + "It scans inventory and shows which pieces are missing from each dungeon. "
                         + "Open the armoire UI at an inn once per session to populate the in-armoire state; "
-                        + "in-inventory and equipped state is detected automatically.");
+                        + "in-inventory and equipped state is detected automatically.", gap: 0);
                 });
             }
             finally
             {
-                ImGui.EndChild();
+                ArmoireChrome.EndBody();
             }
         }
         finally
