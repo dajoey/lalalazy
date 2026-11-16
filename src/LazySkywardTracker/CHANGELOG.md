@@ -1,4 +1,7 @@
-﻿## v0.0.3.4 (2026-11-15) [testing]
+﻿## v0.0.3.5 (2026-11-15) [testing]
+- The tracker window now has a close button in its header, placed beside the status pill, and the redundant outer scrollbar is gone. The job list keeps its own scrolling for narrow windows. Tracking, settings, commands and refresh behaviour are unchanged.
+
+## v0.0.3.4 (2026-11-15) [testing]
 - The tracker window shows job progress, inventory projections and completion state in a responsive card-based layout: a custom header without the native title bar, summary and job-progress cards, job rows that adapt to the window width, and a persistent footer with the live state. Tracking, settings, commands and refresh behaviour are unchanged.
 
 ## v0.0.3.3 (2026-11-14) [testing]
