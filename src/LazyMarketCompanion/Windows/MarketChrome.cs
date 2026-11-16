@@ -1136,6 +1136,18 @@ internal static class MarketChrome
     return ImGui.BeginTable(id, columns, flags, outer);
   }
 
+  /// <summary>
+  /// Height for a long table that keeps its own header row frozen while the rows scroll, sized to the visible body.
+  /// Returns 0 when every row fits in that space, so short tables stay in the page flow with no inner scroll.
+  /// </summary>
+  internal static float FrozenTableHeight(int rows, float rowHeight = 0f)
+  {
+    if (rowHeight <= 0f)
+      rowHeight = ImGui.GetFrameHeight() + (ImGui.GetStyle().CellPadding.Y * 2f) + 1f;
+    var cap = Math.Clamp(ImGui.GetWindowHeight() - 140f, 260f, 520f);
+    return (rows + 1) * rowHeight <= cap ? 0f : cap;
+  }
+
   /// <summary>Header row on a subtle band; numeric columns right-aligned.</summary>
   internal static void TableHeader(params (string Label, bool Right)[] columns)
   {

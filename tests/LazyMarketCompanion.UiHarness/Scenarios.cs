@@ -38,6 +38,7 @@ internal static class Scenarios
       Config("cfg-automarket-typical-1100x760", Wide, 760, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-typical-tall-1100x2900", Wide, 2900, new ConfigSetup { Page = "AutoMarket", Search = "Titanium", Ledger = true }),
       Config("cfg-automarket-entries-1100x3800", Wide, 3800, new ConfigSetup { Page = "AutoMarket", Search = "Titanium", Ledger = true }),
+      Config("cfg-automarket-entries-mid-880x3500", 880, 3500, new ConfigSetup { Page = "AutoMarket", Search = "Titanium" }),
       Config("cfg-automarket-entries-narrow-620x4600", 620, 4600, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-typical-620x420", 620, 420, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-busy-narrow-620x640", 620, 640, new ConfigSetup { Page = "AutoMarket", Busy = true }),

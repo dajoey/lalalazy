@@ -362,8 +362,11 @@ internal sealed class InventoryTab
       return;
     }
 
-    if (!MarketChrome.BeginTable("##vlrows", 5, ImGuiTableFlags.None, new Vector2(MarketChrome.Avail(), 0)))
+    var rowsHeight = MarketChrome.FrozenTableHeight(plan.Rows.Count, 56f);
+    if (!MarketChrome.BeginTable("##vlrows", 5, rowsHeight > 0 ? ImGuiTableFlags.ScrollY : ImGuiTableFlags.None, new Vector2(MarketChrome.Avail(), rowsHeight)))
       return;
+    if (rowsHeight > 0)
+      ImGui.TableSetupScrollFreeze(0, 1);
     ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2);
     ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 56);
     ImGui.TableSetupColumn("Bucket", ImGuiTableColumnFlags.WidthFixed, 100);

@@ -355,10 +355,10 @@ public sealed class ConfigWindow : Window
     var shown = Math.Min(6, _searchResults.Count);
     ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.ShellBar);
     ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
-    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(4, 4));
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12, 8));
     ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
     ImGui.PushStyleVar(ImGuiStyleVar.SelectableTextAlign, new Vector2(0, 0.5f));
-    var open = ImGui.BeginChild("##searchResults", new Vector2(MarketChrome.Avail(), (shown * rowH) + 12), true);
+    var open = ImGui.BeginChild("##searchResults", new Vector2(MarketChrome.Avail(), (shown * rowH) + 24), true);
     ImGui.PopStyleVar(3);
     ImGui.PopStyleColor(2);
     if (open)
@@ -386,14 +386,19 @@ public sealed class ConfigWindow : Window
     MarketChrome.CardHeader("Auto-Market entries", "Per-item toggles and limits retain their existing save behavior.", $"{c.AutoMarketItems.Count} entries");
     AutoMarketItem? remove = null;
     var avail = MarketChrome.Avail();
-    if (avail < 760)
+    if (avail < 960)
     {
       DrawEntryCards(c, avail);
       return;
     }
-    var flags = avail < 940 ? ImGuiTableFlags.ScrollX : ImGuiTableFlags.None;
-    if (MarketChrome.BeginTable("##autoMarketTable", 10, flags, new Vector2(avail, 0)))
+    var flags = ImGuiTableFlags.None;
+    var frozenHeight = MarketChrome.FrozenTableHeight(c.AutoMarketItems.Count);
+    if (frozenHeight > 0)
+      flags |= ImGuiTableFlags.ScrollY;
+    if (MarketChrome.BeginTable("##autoMarketTable", 10, flags, new Vector2(avail, frozenHeight)))
     {
+      if (frozenHeight > 0)
+        ImGui.TableSetupScrollFreeze(0, 1);
       ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 44f);
       ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
       ImGui.TableSetupColumn("Skip routing", ImGuiTableColumnFlags.WidthFixed, 84f);
