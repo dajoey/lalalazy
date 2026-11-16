@@ -8,8 +8,6 @@ namespace LazyCrucible;
 
 internal static class CruciblePages
 {
-    private const float RunRosterSlots = 12;
-
     public static string LiveCount(CrucibleShell shell, string page)
     {
         if (page.StartsWith("guide."))
@@ -161,9 +159,9 @@ internal static class CruciblePages
         var focus = FocusedFight();
         var roster = RunTracker.Roster.Count;
         DrawStatCards(
-            new Stat("Run roster", roster > 0 ? roster.ToString() : "—", roster > 0 ? RunRosterSlots.ToString("0") : null,
+            new Stat("Run roster", roster > 0 ? roster.ToString() : "—", null,
                 roster > 0 ? "Live run roster" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"),
-                roster > 0 ? Math.Min(1f, roster / RunRosterSlots) : null),
+                null),
             new Stat("Ranked horn plan", focus is null ? "—" : Selection(focus.Board, focus.Battle).Picks.Count.ToString(), focus is null ? null : "3",
                 focus is null ? "No fight in focus" : "Ranked from the live fight", focus is null ? null : Selection(focus.Board, focus.Battle).Picks.Count / 3f),
             new Stat("Guide coverage", Plugin.Guide.File.Fights.Count.ToString(), "fights", "Guide entries loaded", null));
@@ -228,7 +226,7 @@ internal static class CruciblePages
         var active = ActiveBoard();
         DrawStatCards(
             new Stat("Boards", BST_CrucibleData.Boards.Length.ToString(), "total", "Board data loaded", null),
-            new Stat("Active board", active == 0 ? "—" : active.ToString(), "5", active == 0 ? "No active board" : "Read from live state", active == 0 ? null : active / 5f),
+            new Stat("Active board", active == 0 ? "—" : active.ToString(), "5", active == 0 ? "No active board" : "Read from live state", null),
             new Stat("Guide entries", Plugin.Guide.File.Fights.Count.ToString(), "fights", "Guide coverage", null));
         Columns("boards",
             () =>
@@ -280,9 +278,9 @@ internal static class CruciblePages
             () =>
             {
                 DrawStatCards(
-                    new Stat("Run roster", rosterCount > 0 ? rosterCount.ToString() : "—", rosterCount > 0 ? RunRosterSlots.ToString("0") : null,
+                    new Stat("Run roster", rosterCount > 0 ? rosterCount.ToString() : "—", null,
                         rosterCount > 0 ? "Filled on the next entry menu" : CrucibleGame.RosterLoaded ? "No run roster captured" : Copy.Missing("Bestiary"),
-                        rosterCount > 0 ? Math.Min(1f, rosterCount / RunRosterSlots) : null),
+                        null),
                     new Stat("Battlehorns", selection is null ? "—" : selection.Picks.Count.ToString(), selection is null ? null : "3",
                         selection is null ? "No fight in focus" : "Ready for the next formation", selection is null ? null : selection.Picks.Count / 3f),
                     new Stat("Required calls", selection is null ? "—" : required.Covered.ToString(), selection is null ? null : required.Total.ToString(),
@@ -589,7 +587,7 @@ internal static class CruciblePages
                 CrucibleCard.Draw("unchanged", 0, () =>
                 {
                     Section("Unchanged");
-                    Paragraph("Slash commands and Lazy Hub quick controls work as before.", gap: 0);
+                    Paragraph("Slash commands, IPC and Lazy Hub quick controls are unchanged.", gap: 0);
                 }, fill: true);
             }, railFraction: 0.36f);
     }
@@ -603,7 +601,7 @@ internal static class CruciblePages
             {
                 Section("Treasure suggestion");
                 shell.Setting("Suggest the best choice", () => cfg.AutoTreasure, value => cfg.AutoTreasure = value,
-                    "Marks the choice that helps most and says why. It only suggests; no coffer choice is clicked.");
+                    "Marks the choice that helps most and says why. It does not click yet: which button belongs to which choice has not been recorded.");
                 CrucibleChrome.Notice("Suggestion only — no coffer choice is clicked.", UiState.Idle);
             }
             else
