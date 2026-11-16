@@ -1,4 +1,7 @@
-﻿## v0.0.2.5 (2026-11-15) [testing]
+﻿## v0.0.2.6 (2026-11-16) [testing]
+- The collector window no longer re-plans every frame.
+
+## v0.0.2.5 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The window uses a branded top bar with Overview, Roles and Settings, a status pill and a close button, plus a page header and a two-line status footer.
 - Overview shows progress cards, a role progress list and a requirements card beside the settings.
