@@ -84,6 +84,10 @@ public sealed class MainWindow : Window
     private Destination CurrentDestination => Destinations.First(d =>
         d.Section == _section && (_section != Section.Catalog || d.Tab == _tab));
 
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     public override void Draw()
     {
         var svc = _plugin.Catalog;
@@ -104,46 +108,80 @@ public sealed class MainWindow : Window
         CrafterChrome.PushFrame();
         try
         {
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = CrafterChrome.Gutter(winSize.X);
             var (state, action, reason) = OverallState(snap);
-            DrawTopBar(state);
+            ImGui.SetCursorPos(Vector2.Zero);
+            var y = DrawTopBar(winPos, winSize.X, gutter, state);
             if (_section == Section.Catalog)
             {
-                DrawFeatureRow(snap);
+                y = DrawBucketBar(winPos, winSize.X, gutter, y, snap);
                 PushRequest(svc);
             }
 
             var destination = CurrentDestination;
-            CrafterChrome.PageHeader(destination.Title, destination.Description, LiveCount(snap, snapRun), LiveSubtext(snap, snapRun));
+            y = DrawPageHeader(winPos, winSize.X, gutter, y, destination, LiveCount(snap, snapRun), LiveSubtext(snap, snapRun));
 
-            var footerHeight = ImGui.GetContentRegionAvail().X < 620
-                ? CrafterChrome.NarrowFooterHeight
-                : CrafterChrome.WideFooterHeight;
-            var bodyHeight = MathF.Max(1, ImGui.GetContentRegionAvail().Y - footerHeight);
-            ImGui.BeginChild("##crafter_body", new Vector2(0, bodyHeight), false);
-            DrawPageSearchResults();
-            DrawStatusAnnouncements(snap);
-            switch (_section)
-            {
-                case Section.Catalog:
-                    DrawCatalogSection(svc, snap);
-                    break;
-                case Section.Cart:
-                    _cart.Draw(snap);
-                    break;
-                case Section.Run:
-                    _run.Draw();
-                    break;
-                case Section.Settings:
-                    _settings.Draw();
-                    break;
-            }
-            ImGui.EndChild();
-            DrawFooter(snap, snapRun, state, action, reason);
+            var footerHeight = FooterHeight(winSize.X);
+            ImGui.SetCursorPos(new Vector2(0, y));
+            DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter, svc, snap);
+            DrawFooter(winPos, winSize, gutter, footerHeight, snap, snapRun, state, action, reason);
         }
         finally
         {
             CrafterChrome.PopFrame();
         }
+    }
+
+    private void DrawBody(Vector2 size, float gutter, CatalogService svc, CatalogSnapshot snap)
+    {
+        // A one pixel transparent border makes the child honour its window padding, which gives every page the same
+        // left and right gutter and a bottom margin; the scrollbar then sits on the window edge.
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, CrafterChrome.Gap));
+        ImGui.PushStyleColor(ImGuiCol.Border, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+        ImGui.BeginChild("##crafter_body", size, true);
+        // The child has applied its own padding; popups and tooltips opened from page content keep the theme padding.
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
+        // Content ends at the same right edge as the header controls whether or not a scrollbar is showing; the
+        // scrollbar sits in the margin beside it, so the draw clip is widened to the whole child.
+        var childPos = ImGui.GetWindowPos();
+        ImGui.PushClipRect(childPos, childPos + ImGui.GetWindowSize(), false);
+        CrafterChrome.PushRight(childPos.X + ImGui.GetWindowWidth() - gutter);
+        DrawStatusAnnouncements(snap);
+        switch (_section)
+        {
+            case Section.Catalog:
+                DrawCatalogSection(svc, snap);
+                break;
+            case Section.Cart:
+                _cart.Draw(snap);
+                break;
+            case Section.Run:
+                _run.Draw();
+                break;
+            case Section.Settings:
+                _settings.Draw();
+                break;
+        }
+        CrafterChrome.PopRight();
+        ImGui.PopClipRect();
+        ImGui.PopStyleVar();
+        // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
+        if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+        {
+            var draw = ImGui.GetWindowDrawList();
+            var bg = ImGui.GetColorU32(ImGuiCol.WindowBg);
+            var min = ImGui.GetWindowPos() + new Vector2(1, ImGui.GetWindowHeight() - (7 * Theme.Unit));
+            draw.AddRectFilledMultiColor(min, ImGui.GetWindowPos() + new Vector2(ImGui.GetWindowWidth() - 1, ImGui.GetWindowHeight() - 1),
+                bg & 0x00FFFFFFu, bg & 0x00FFFFFFu, bg, bg);
+        }
+        ImGui.EndChild();
+        ImGui.PopStyleColor(2);
+        ImGui.PopStyleVar(3);
     }
 
     /// <summary>Selects Run on the next draw, preserving the cart panel's existing navigation action.</summary>
@@ -193,7 +231,7 @@ public sealed class MainWindow : Window
         if (run.State == RunState.Done)
             return (UiState.Ready, "run finished", null);
         if (snap.InventoryDegraded)
-            return (UiState.Missing, "inventory counts are limited", Copy.Missing("AllaganTools"));
+            return (UiState.Missing, "inventory counts are limited", "counting this character's bags only");
         if (!snap.LoggedIn)
             return (UiState.Idle, "waiting for a character", "showing every recipe");
         if (_plugin.Catalog.Busy)
@@ -241,106 +279,125 @@ public sealed class MainWindow : Window
         var scope = _plugin.Prices.Scope.Length == 0 ? "no market scope" : _plugin.Prices.Scope;
         return _section switch
         {
-            Section.Catalog => _plugin.Catalog.Busy ? Copy.Word(UiState.Running) : scope,
+            Section.Catalog => _plugin.Catalog.Busy ? "Computing" : scope,
             Section.Cart => snap.Cart.Count == 0 ? "add from the Catalog" : $"worst tier {Fmt.TierName(snap.CartTotals.Tier)}",
-            Section.Run => run.State == RunState.Idle ? "Idle" : run.PhaseLabel,
+            Section.Run => run.State == RunState.Idle ? "" : scope,
             Section.Settings => scope,
             _ => "",
         };
     }
 
-    private void DrawTopBar(UiState state)
+    private float DrawTopBar(Vector2 winPos, float winWidth, float gutter, UiState state)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
         const float gap = 2 * Theme.Unit;
-        var brandSize = new Vector2(188, 42);
+        const float wideGap = 4 * Theme.Unit;
+        const float pad = 14f;
+        const float row = 40f;
+        const float minSearch = 180f;
+        const float maxSearch = 320f;
+        var control = CrafterChrome.ControlHeight;
+        var inner = winWidth - (2 * gutter);
         var groups = Enum.GetValues<Section>();
-        var groupSizes = groups.Select(group => new Vector2(MathF.Max(76, ImGui.CalcTextSize(group.ToString()).X + 30), CrafterChrome.ControlHeight)).ToArray();
+        var brandSize = new Vector2(CrafterChrome.BrandWidth(), row);
+        var groupSizes = groups.Select(group => new Vector2(MathF.Max(72, CrafterChrome.TextWidth(group.ToString()) + 32), control)).ToArray();
         var stateLabel = Copy.Word(state);
-        var statusSize = new Vector2(MathF.Max(80, ImGui.CalcTextSize(stateLabel).X + 43), CrafterChrome.ControlHeight);
-        var closeSize = new Vector2(CrafterChrome.ControlHeight);
-        var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-        const float minSearchWidth = 180;
-        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + closeSize.X + (4 * gap);
+        var pillSize = new Vector2(CrafterChrome.PillWidth(), control);
+        var closeSize = new Vector2(control);
+        var groupsWidth = groupSizes.Sum(size => size.X) + ((groups.Length - 1) * gap);
+        var rightWidth = pillSize.X + gap + closeSize.X;
+        var navWidth = brandSize.X + wideGap + groupsWidth;
+        var oneRow = inner >= navWidth + wideGap + minSearch + wideGap + rightWidth;
+        var twoRows = !oneRow && inner >= navWidth + wideGap + rightWidth;
+        var controlY = pad + ((row - control) / 2f);
+        var brandPos = new Vector2(gutter, pad);
+        var closePos = new Vector2(winWidth - gutter - closeSize.X, controlY);
+        var pillPos = new Vector2(closePos.X - gap - pillSize.X, controlY);
         var groupPositions = new Vector2[groups.Length];
-        var brandPos = new Vector2(0, 12);
-        var closePos = new Vector2(width - closeSize.X, 16);
+        var groupSizesUsed = (Vector2[])groupSizes.Clone();
         Vector2 searchPos;
-        Vector2 statusPos;
         float searchWidth;
         float barHeight;
-
-        if (singleRow)
+        var secondRowY = pad + row + gap;
+        if (oneRow || twoRows)
         {
-            barHeight = 66;
-            var x = brandSize.X + gap;
-            var y = (barHeight - CrafterChrome.ControlHeight) / 2f;
+            var x = gutter + brandSize.X + wideGap;
             for (var i = 0; i < groups.Length; i++)
             {
-                groupPositions[i] = new Vector2(x, y);
+                groupPositions[i] = new Vector2(x, controlY);
                 x += groupSizes[i].X + gap;
             }
-            searchWidth = MathF.Min(280, width - leftWidth - statusSize.X - closeSize.X - (4 * gap));
-            statusPos = new Vector2(closePos.X - gap - statusSize.X, y);
-            searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
+            if (oneRow)
+            {
+                var room = pillPos.X - wideGap - (gutter + navWidth + wideGap);
+                searchWidth = MathF.Min(maxSearch, room);
+                searchPos = new Vector2(pillPos.X - wideGap - searchWidth, controlY);
+                barHeight = pad + row + pad;
+            }
+            else
+            {
+                searchPos = new Vector2(gutter, secondRowY);
+                searchWidth = inner;
+                barHeight = searchPos.Y + control + pad;
+            }
+        }
+        else if (groupsWidth + wideGap + minSearch <= inner)
+        {
+            // Compact: brand and status on the first row; the groups and the search share the second.
+            var x = gutter;
+            for (var i = 0; i < groups.Length; i++)
+            {
+                groupPositions[i] = new Vector2(x, secondRowY);
+                x += groupSizes[i].X + gap;
+            }
+            searchPos = new Vector2(gutter + groupsWidth + wideGap, secondRowY);
+            searchWidth = inner - groupsWidth - wideGap;
+            barHeight = secondRowY + control + pad;
         }
         else
         {
-            statusPos = new Vector2(closePos.X - gap - statusSize.X, 16);
-            var x = 0f;
-            var y = 62f;
+            var each = (inner - ((groups.Length - 1) * gap)) / groups.Length;
             for (var i = 0; i < groups.Length; i++)
             {
-                var buttonWidth = MathF.Min(groupSizes[i].X, width);
-                if (x > 0 && x + buttonWidth > width)
-                {
-                    x = 0;
-                    y += CrafterChrome.ControlHeight + gap;
-                }
-                groupPositions[i] = new Vector2(x, y);
-                x += buttonWidth + gap;
+                groupSizesUsed[i] = new Vector2(each, control);
+                groupPositions[i] = new Vector2(gutter + (i * (each + gap)), secondRowY);
             }
-            var searchY = y + CrafterChrome.ControlHeight + gap;
-            searchWidth = width;
-            searchPos = new Vector2(0, searchY);
-            barHeight = searchY + CrafterChrome.ControlHeight + 12;
+            searchPos = new Vector2(gutter, secondRowY + control + gap);
+            searchWidth = inner;
+            barHeight = searchPos.Y + control + pad;
         }
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        if (CrafterChrome.BrandButton(draw, origin + brandPos, brandSize))
+        draw.PushClipRect(winPos, winPos + new Vector2(winWidth, barHeight + 1), false);
+        draw.AddRectFilled(winPos, winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, barHeight), winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+        if (CrafterChrome.BrandButton(draw, winPos + brandPos, brandSize))
             Navigate(Destinations[0]);
         for (var i = 0; i < groups.Length; i++)
         {
             var group = groups[i];
-            if (CrafterChrome.OutlineButton(draw, "group_" + group, group.ToString(), origin + groupPositions[i], groupSizes[i], _section == group))
+            if (CrafterChrome.OutlineButton(draw, "group_" + group, group.ToString(), winPos + groupPositions[i], groupSizesUsed[i], _section == group))
                 _section = group;
         }
-        DrawSearchInput(origin + searchPos, searchWidth);
-        CrafterChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
-        if (CrafterChrome.OutlineButton(draw, "close", "×", origin + closePos, closeSize))
+        DrawSearchInput(winPos + searchPos, searchWidth);
+        CrafterChrome.StatusPill(draw, winPos + pillPos, pillSize, stateLabel, state);
+        if (CrafterChrome.CloseButton(draw, winPos + closePos, closeSize))
             IsOpen = false;
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Close LazyCrafter");
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        DrawSearchResults(winPos + searchPos, searchWidth);
+        return barHeight + 1;
     }
 
     private void DrawSearchInput(Vector2 pos, float width)
     {
         ImGui.SetCursorScreenPos(pos);
         ImGui.SetNextItemWidth(width);
-        var padding = Theme.FramePadding;
-        padding.Y = MathF.Max(padding.Y, (CrafterChrome.ControlHeight - ImGui.GetTextLineHeight()) / 2f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, padding);
         ImGui.InputTextWithHint("##crafter_page_search", "Search pages and settings...", ref _pageSearch, 128);
-        ImGui.PopStyleVar();
     }
 
-    private void DrawPageSearchResults()
+    /// <summary>Results float under the search box as a popup; opening it never moves the page.</summary>
+    private void DrawSearchResults(Vector2 searchPos, float searchWidth)
     {
+        const string popupId = "##crafterSearchResults";
         var query = _pageSearch.Trim();
         if (query.Length == 0)
             return;
@@ -349,50 +406,166 @@ public sealed class MainWindow : Window
                 .Contains(query, StringComparison.OrdinalIgnoreCase))
             .Take(6)
             .ToArray();
-        CrafterChrome.Card("page_search_results", () =>
+        ImGui.SetNextWindowPos(searchPos + new Vector2(0, CrafterChrome.ControlHeight + Theme.Unit));
+        ImGui.SetNextWindowSize(new Vector2(MathF.Max(searchWidth, 300), 0));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(3 * Theme.Unit, 3 * Theme.Unit));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2 * Theme.Unit, 2 * Theme.Unit));
+        if (!ImGui.IsPopupOpen(popupId))
+            ImGui.OpenPopup(popupId);
+        if (ImGui.BeginPopup(popupId, ImGuiWindowFlags.NoFocusOnAppearing))
         {
-            Widgets.Caption($"{matches.Length} destinations for ‘{query}’");
+            Widgets.Caption(matches.Length == 1 ? $"1 destination for ‘{query}’" : $"{matches.Length} destinations for ‘{query}’");
             if (matches.Length == 0)
-            {
                 Widgets.SecondaryWrapped("No page or setting matches this search. Recipe-name search remains inside the Catalog.");
-                return;
-            }
             foreach (var match in matches)
-                if (ImGui.Selectable($"{match.Section} · {match.Title}##destination_{match.Id}"))
+                if (ImGui.Selectable($"{DestinationLabel(match)}##destination_{match.Id}"))
                     Navigate(match);
-        });
+            ImGui.EndPopup();
+        }
+        ImGui.PopStyleVar(2);
     }
 
-    private void DrawFeatureRow(CatalogSnapshot snap)
+    private static string DestinationLabel(Destination destination)
+        => destination.Title.StartsWith(destination.Section.ToString(), StringComparison.OrdinalIgnoreCase)
+            ? destination.Title
+            : $"{destination.Section} · {destination.Title}";
+
+    private static void DrawBar(ImDrawListPtr draw, Vector2 winPos, float winWidth, float top, float height)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
+        draw.PushClipRect(winPos + new Vector2(0, top), winPos + new Vector2(winWidth, top + height + 1), false);
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + new Vector2(winWidth, top + height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top + height), winPos + new Vector2(winWidth, top + height), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+    }
+
+    /// <summary>Effort-bucket row: radio pills, or one full-width field with a menu when they do not fit.</summary>
+    private float DrawBucketBar(Vector2 winPos, float winWidth, float gutter, float top, CatalogSnapshot snap)
+    {
         var draw = ImGui.GetWindowDrawList();
+        var inner = winWidth - (2 * gutter);
         const float gap = 3 * Theme.Unit;
+        const float padY = 3 * Theme.Unit;
+        const float pillHeight = 8 * Theme.Unit;
         var tabs = Enum.GetValues<CatalogTab>();
         var labels = tabs.Select(tab => BucketLabel(tab, snap)).ToArray();
-        var sizes = labels.Select(label => new Vector2(MathF.Min(width, MathF.Max(116, ImGui.CalcTextSize(label).X + 50)), CrafterChrome.ControlHeight)).ToArray();
-        var positions = new Vector2[tabs.Length];
-        var x = 0f;
-        var y = 8f;
-        for (var i = 0; i < tabs.Length; i++)
+        var sizes = labels.Select(label => new Vector2(CrafterChrome.FeatureWidth(label), pillHeight)).ToArray();
+        var total = sizes.Sum(size => size.X) + ((tabs.Length - 1) * gap);
+        float barHeight;
+        if (total > inner)
         {
-            if (x > 0 && x + sizes[i].X > width)
+            barHeight = padY + CrafterChrome.ControlHeight + padY;
+            DrawBar(draw, winPos, winWidth, top, barHeight);
+            var fieldPos = winPos + new Vector2(gutter, top + padY);
+            var fieldSize = new Vector2(inner, CrafterChrome.ControlHeight);
+            ImGui.SetCursorScreenPos(fieldPos);
+            var open = ImGui.InvisibleButton("##crafter_bucket_menu", fieldSize);
+            var hovered = ImGui.IsItemHovered();
+            draw.AddRectFilled(fieldPos, fieldPos + fieldSize, Theme.Pack(Theme.Accent with { W = 0.14f }), CrafterChrome.Radius);
+            draw.AddRect(fieldPos, fieldPos + fieldSize, Theme.Pack(hovered ? Theme.Accent : Theme.Accent with { W = 0.6f }), CrafterChrome.Radius);
+            var current = Array.IndexOf(tabs, _tab);
+            CrafterChrome.DrawFitted(draw, fieldPos + new Vector2(CrafterChrome.Gap, (fieldSize.Y - CrafterChrome.LineHeight()) / 2f),
+                "Bucket · " + labels[Math.Max(0, current)], inner - (4 * CrafterChrome.Gap), Theme.Accent);
+            CrafterChrome.Chevron(draw, fieldPos + new Vector2(inner - CrafterChrome.Gap - 4, fieldSize.Y / 2f), Theme.Accent);
+            if (open)
+                ImGui.OpenPopup("##crafterBucketMenu");
+            ImGui.SetNextWindowPos(fieldPos + new Vector2(0, fieldSize.Y + Theme.Unit));
+            ImGui.SetNextWindowSize(new Vector2(inner, 0));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(2 * Theme.Unit, 2 * Theme.Unit));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2 * Theme.Unit, Theme.Unit));
+            if (ImGui.BeginPopup("##crafterBucketMenu"))
             {
-                x = 0;
-                y += CrafterChrome.ControlHeight + (2 * Theme.Unit);
+                for (var i = 0; i < tabs.Length; i++)
+                    if (ImGui.Selectable(labels[i] + "##bucket_" + tabs[i], _tab == tabs[i], ImGuiSelectableFlags.None, new Vector2(0, CrafterChrome.ControlHeight - 8)))
+                        OnTabChanged(tabs[i]);
+                ImGui.EndPopup();
             }
-            positions[i] = new Vector2(x, y);
-            x += sizes[i].X + gap;
+            ImGui.PopStyleVar(2);
         }
-        var barHeight = y + CrafterChrome.ControlHeight + 8;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        for (var i = 0; i < tabs.Length; i++)
-            if (CrafterChrome.FeatureButton(draw, tabs[i].ToString(), labels[i], origin + positions[i], sizes[i], _tab == tabs[i]))
-                OnTabChanged(tabs[i]);
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        else
+        {
+            barHeight = padY + pillHeight + padY;
+            DrawBar(draw, winPos, winWidth, top, barHeight);
+            var x = gutter;
+            for (var i = 0; i < tabs.Length; i++)
+            {
+                if (CrafterChrome.FeatureButton(draw, tabs[i].ToString(), labels[i], winPos + new Vector2(x, top + padY), sizes[i], _tab == tabs[i]))
+                    OnTabChanged(tabs[i]);
+                x += sizes[i].X + gap;
+            }
+        }
+        return top + barHeight + 1;
+    }
+
+    private float DrawPageHeader(Vector2 winPos, float winWidth, float gutter, float top, Destination destination, string count, string subtext)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        const float tile = 44f;
+        const float padTop = 20f;
+        var wide = winWidth >= 760;
+        // A short window keeps the body: the header shrinks to the title and its meta on one line.
+        if (ImGui.GetWindowHeight() < 640)
+            return DrawCompactPageHeader(draw, winPos, winWidth, gutter, top, destination, count, subtext);
+        var textX = gutter + tile + (4 * Theme.Unit);
+        var metaWidth = wide
+            ? MathF.Min(winWidth * 0.40f, MathF.Max(CrafterChrome.TextWidth(count, Theme.SecondaryScale), CrafterChrome.TextWidth(subtext, Theme.SecondaryScale)))
+            : 0;
+        var textWidth = winWidth - textX - gutter - (wide ? metaWidth + CrafterChrome.Gap : 0);
+        var origin = winPos + new Vector2(gutter, top + padTop);
+        draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), CrafterChrome.Radius);
+        CrafterChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
+
+        var title = destination.Title;
+        var description = destination.Description;
+        var shownTitle = CrafterChrome.ClampLines(title, textWidth, CrafterChrome.PageTitleScale, wide ? 1 : 2);
+        var titleHeight = CrafterChrome.WrappedHeight(shownTitle, textWidth, CrafterChrome.PageTitleScale);
+        var textOrigin = new Vector2(winPos.X + textX, origin.Y);
+        CrafterChrome.DrawWrapped(draw, textOrigin, shownTitle, textWidth, Theme.TextPrimary, CrafterChrome.PageTitleScale);
+        var shownDescription = CrafterChrome.ClampLines(description, textWidth, Theme.SecondaryScale, wide ? 1 : 3);
+        var descriptionTop = textOrigin.Y + titleHeight + Theme.Unit;
+        var descriptionHeight = CrafterChrome.DrawWrapped(draw, new Vector2(textOrigin.X, descriptionTop), shownDescription, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        var blockBottom = descriptionTop + descriptionHeight;
+        if ((shownTitle != title || shownDescription != description)
+            && ImGui.IsMouseHoveringRect(textOrigin, new Vector2(textOrigin.X + textWidth, blockBottom)))
+            ImGui.SetTooltip(shownTitle != title ? title : description);
+
+        if (wide)
+        {
+            var right = winPos.X + winWidth - gutter;
+            var line1 = textOrigin.Y + ((titleHeight - CrafterChrome.LineHeight(Theme.SecondaryScale)) / 2f);
+            CrafterChrome.DrawFittedRight(draw, right, line1, count, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
+            CrafterChrome.DrawFittedRight(draw, right, descriptionTop, subtext, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        }
+        else
+        {
+            var y = blockBottom + Theme.Unit;
+            foreach (var meta in new[] { count, subtext })
+            {
+                if (meta.Length == 0)
+                    continue;
+                CrafterChrome.DrawFitted(draw, new Vector2(textOrigin.X, y), meta, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+                y += CrafterChrome.LineHeight(Theme.SecondaryScale) + (Theme.Unit / 2f);
+            }
+            blockBottom = y;
+        }
+        var height = MathF.Max(tile, blockBottom - origin.Y);
+        return top + padTop + height + (2 * Theme.Unit);
+    }
+
+    private static float DrawCompactPageHeader(ImDrawListPtr draw, Vector2 winPos, float winWidth, float gutter, float top, Destination destination, string count, string subtext)
+    {
+        const float padTop = 14f;
+        var meta = subtext.Length > 0 ? count + " · " + subtext : count;
+        var titleHeight = CrafterChrome.LineHeight(CrafterChrome.PageTitleScale);
+        var inner = winWidth - (2 * gutter);
+        var metaWidth = MathF.Min(inner * 0.5f, CrafterChrome.TextWidth(meta, Theme.SecondaryScale));
+        var titleWidth = inner - metaWidth - CrafterChrome.Gap;
+        var origin = winPos + new Vector2(gutter, top + padTop);
+        var title = CrafterChrome.Fit(destination.Title, titleWidth, CrafterChrome.PageTitleScale);
+        CrafterChrome.DrawText(draw, origin, title, Theme.TextPrimary, CrafterChrome.PageTitleScale);
+        if (title != destination.Title && ImGui.IsMouseHoveringRect(origin, origin + new Vector2(titleWidth, titleHeight)))
+            ImGui.SetTooltip(destination.Title);
+        CrafterChrome.DrawFittedRight(draw, winPos.X + winWidth - gutter, origin.Y + ((titleHeight - CrafterChrome.LineHeight(Theme.SecondaryScale)) / 2f), meta, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        return top + padTop + titleHeight + (2 * Theme.Unit);
     }
 
     private void DrawStatusAnnouncements(CatalogSnapshot snap)
@@ -400,53 +573,126 @@ public sealed class MainWindow : Window
         if (_plugin.GameData is null)
         {
             if (_plugin.GameDataLoad.IsCompleted)
-                Widgets.InfoBox("Failed — game data could not load. See /xllog for the loader error.", UiState.Failed);
+                CrafterChrome.Notice("Game data could not load", "See /xllog for the loader error.", UiState.Failed);
             else
-                Widgets.InfoBox("Running — loading game data. Catalog rows appear when indexing finishes.", UiState.Running);
+                CrafterChrome.Notice("Loading game data", "Catalog rows appear when indexing finishes.", UiState.Running);
         }
         if (!snap.LoggedIn)
-            Widgets.InfoBox("Idle — showing every recipe. Log in to include job levels, inventory and market prices.", UiState.Idle);
+            CrafterChrome.Notice("No character yet", "Showing every recipe. Log in to include job levels, inventory and market prices.", UiState.Idle);
         if (snap.InventoryDegraded)
-            Widgets.InfoBox(Copy.Missing("AllaganTools") + " — counting the current character's bags only. Enable it to include retainers, saddlebags, armoury chests and other characters.", UiState.Missing);
+            CrafterChrome.Notice(Copy.Missing("AllaganTools"), "Counting the current character's bags only. Enable it to include retainers, saddlebags, armoury chests and other characters.", UiState.Missing);
         if (_plugin.Catalog.LastError is { } error)
-            Widgets.InfoBox("Catalog error: " + error, UiState.Failed);
+            CrafterChrome.Notice("Catalog error", error, UiState.Failed);
     }
+
+    private const float TrailingGap = CrafterChrome.Gap - 8f;
+
+    private bool _railScrolls;
 
     private void DrawCatalogSection(CatalogService svc, CatalogSnapshot snap)
     {
         DrawFilterBar(snap);
         var view = svc.View;
-        CrafterChrome.TwoColumns("catalog", 0.68f,
-            () =>
+        var width = CrafterChrome.Avail();
+        void ApplySort((SortKey Sort, bool Descending) result)
+        {
+            if (result.Sort == _sort && result.Descending == _descending)
+                return;
+            _sort = result.Sort;
+            _descending = result.Descending;
+        }
+
+        void Details(float minHeight)
+        {
+            if (_selectedRecipe != 0 && snap.ByRecipe.TryGetValue(_selectedRecipe, out var row))
             {
-                var (sort, descending) = _table.Draw(view, snap, _tab, _hqOnly, ref _selectedRecipe, _sort, _descending);
-                if (sort == _sort && descending == _descending)
-                    return;
-                _sort = sort;
-                _descending = descending;
-            },
-            () =>
+                svc.Pin(_selectedRecipe);
+                _tree.Draw(row, snap, view, _hqOnly);
+            }
+            else
             {
-                if (_selectedRecipe != 0 && snap.ByRecipe.TryGetValue(_selectedRecipe, out var row))
+                CrafterChrome.Card("recipe_empty", () =>
                 {
-                    svc.Pin(_selectedRecipe);
-                    _tree.Draw(row, snap, view, _hqOnly);
-                }
-                else
-                {
-                    CrafterChrome.Card("recipe_empty", () =>
-                    {
-                        CrafterChrome.Section("Recipe details");
-                        Widgets.InfoBox("Empty — select a recipe to inspect its ingredients, costs and fulfil actions.", UiState.Empty);
-                    });
-                }
-            });
+                    CrafterChrome.Section("Recipe details");
+                    CrafterChrome.EmptyState("Select a recipe", "Choose a row to inspect its ingredients, costs and fulfil actions.");
+                }, minHeight: minHeight > 0 ? minHeight - TrailingGap : 0);
+            }
+        }
+
+        if (width < 860)
+        {
+            ApplySort(_table.Draw(view, snap, _tab, _hqOnly, ref _selectedRecipe, _sort, _descending, 0));
+            Details(0);
+            return;
+        }
+
+        // Wide: the table card fills the page height and scrolls on its own; the detail rail scrolls as one column.
+        var origin = ImGui.GetCursorScreenPos();
+        var height = MathF.Max(260, ImGui.GetContentRegionAvail().Y);
+        var railWidth = Math.Clamp(width * 0.28f, 300, 360);
+        var mainWidth = width - CrafterChrome.Gap - railWidth;
+        CrafterChrome.PushRight(origin.X + mainWidth);
+        ApplySort(_table.Draw(view, snap, _tab, _hqOnly, ref _selectedRecipe, _sort, _descending, height - TrailingGap));
+        CrafterChrome.PopRight();
+
+        var railOrigin = origin + new Vector2(mainWidth + CrafterChrome.Gap, 0);
+        ImGui.SetCursorScreenPos(railOrigin);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0f);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+        var railHeight = height - TrailingGap;
+        var populated = _selectedRecipe != 0 && snap.ByRecipe.ContainsKey(_selectedRecipe);
+        // The empty card never scrolls; a populated rail scrolls as one column and ends level with the table card.
+        // The child reaches into the page margin by the scrollbar width, so a scrollbar sits beside the card, not over it.
+        var lane = MathF.Min(2 * Theme.Unit + 2, MathF.Max(0, CrafterChrome.Gutter(ImGui.GetWindowWidth()) - 2));
+        ImGui.BeginChild("##crafter_rail", new Vector2(railWidth + lane, railHeight), false,
+            populated ? ImGuiWindowFlags.None : ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
+        // The scrollbar lane trims the child's clip; the card border at the card's edge is drawn inside the full child.
+        ImGui.PushClipRect(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize(), false);
+        CrafterChrome.PushRight(railOrigin.X + railWidth);
+        Details(height);
+        CrafterChrome.PopRight();
+        ImGui.PopClipRect();
+        _railScrolls = populated && ImGui.GetScrollMaxY() > 0;
+        if (_railScrolls && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+        {
+            var railPos = ImGui.GetWindowPos();
+            CrafterChrome.FadeBottom(ImGui.GetWindowDrawList(), railPos, railPos + new Vector2(railWidth, railHeight), ImGui.GetColorU32(ImGuiCol.WindowBg));
+        }
+        ImGui.PopStyleVar();
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+        ImGui.PopStyleVar(2);
+        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
+        ImGui.Dummy(new Vector2(width, 0));
     }
 
     private void DrawFilterBar(CatalogSnapshot snap)
     {
         var svc = _plugin.Catalog;
-        ImGui.SetNextItemWidth(MathF.Min(240, ImGui.GetContentRegionAvail().X));
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = CrafterChrome.Avail();
+        const float gap = 3 * Theme.Unit;
+        const float rowGap = 2 * Theme.Unit;
+        var h = CrafterChrome.ControlHeight;
+        float x = 0, y = 0;
+
+        void Place(float itemWidth)
+        {
+            if (x > 0 && x + itemWidth > width + 0.5f)
+            {
+                x = 0;
+                y += h + rowGap;
+            }
+            ImGui.SetCursorScreenPos(origin + new Vector2(x, y));
+            x += itemWidth + gap;
+        }
+
+        var searchWidth = MathF.Min(240, width);
+        Place(searchWidth);
+        ImGui.SetNextItemWidth(searchWidth);
         ImGui.InputTextWithHint("##crafter_recipe_search", "Search recipe names...", ref _search, 64);
 
         var jobs = PlayerState.CrafterJobs;
@@ -457,10 +703,11 @@ public sealed class MainWindow : Window
             current = snap.Jobs.Where(kv => jobs.Contains(kv.Key)).OrderBy(kv => kv.Value).Select(kv => kv.Key).FirstOrDefault(jobs[0]);
             _levelingJob = current;
         }
-        CrafterChrome.SameLineWrapped(isLeveling ? 150 : 124);
-        ImGui.SetNextItemWidth(isLeveling ? 150 : 124);
+        const float jobWidth = 150;
+        Place(jobWidth);
         var preview = current == 0 ? "All jobs" : JobLabel(current, snap);
-        if (ImGui.BeginCombo("##crafter_job", preview))
+        var comboOpen = CrafterChrome.BeginCombo("##crafter_job", preview, jobWidth);
+        if (comboOpen)
         {
             if (!isLeveling && ImGui.Selectable("All jobs", current == 0))
                 _jobFilter = 0;
@@ -473,57 +720,101 @@ public sealed class MainWindow : Window
                 else
                     _jobFilter = job;
             }
-            ImGui.EndCombo();
         }
+        CrafterChrome.EndCombo(comboOpen);
 
-        CrafterChrome.SameLineWrapped(54);
-        Widgets.Checkbox("HQ", ref _hqOnly);
+        Place(CrafterChrome.CheckWidth("HQ"));
+        CrafterChrome.Check("hq", "HQ", ref _hqOnly);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Price and rank by the HQ row; hide recipes whose result cannot be HQ.");
-        CrafterChrome.SameLineWrapped(126);
-        Widgets.Checkbox("Hide untradeable", ref _hideUntradeable);
-        CrafterChrome.SameLineWrapped(90);
-        ImGui.SetNextItemWidth(90);
-        ImGui.InputFloat("min /day##crafter_velocity", ref _minVelocity, 0, 0, "%.1f");
+        Place(CrafterChrome.CheckWidth("Hide untradeable"));
+        CrafterChrome.Check("untradeable", "Hide untradeable", ref _hideUntradeable);
+
+        const float velocityField = 88;
+        const string velocityLabel = "min /day";
+        Place(velocityField + 8 + CrafterChrome.TextWidth(velocityLabel));
+        var fieldPos = ImGui.GetCursorScreenPos();
+        ImGui.SetNextItemWidth(velocityField);
+        ImGui.InputFloat("##crafter_velocity", ref _minVelocity, 0, 0, "%.1f");
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Hide results that sell fewer than this many units per day at the current scope.");
         if (_minVelocity < 0)
             _minVelocity = 0;
-        CrafterChrome.SameLineWrapped(100);
+        CrafterChrome.DrawText(draw, fieldPos + new Vector2(velocityField + 8, (h - CrafterChrome.LineHeight()) / 2f), velocityLabel, Theme.TextSecondary);
+
+        Place(CrafterChrome.CheckWidth("Above level"));
         var showAbove = _plugin.Config.ShowAboveLevel;
-        if (Widgets.Checkbox("Above level", ref showAbove))
+        if (CrafterChrome.Check("above", "Above level", ref showAbove))
         {
             _plugin.Config.ShowAboveLevel = showAbove;
             _plugin.SaveConfig();
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Also show recipes above the current job level and for jobs not unlocked.");
-        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Refresh"));
-        if (ImGui.Button("Refresh"))
+
+        Place(CrafterChrome.ButtonWidth("Refresh"));
+        if (CrafterChrome.Button("refresh", "Refresh"))
         {
             _plugin.Inventory.Invalidate();
             svc.RefreshPrices();
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Recount inventory and re-fetch stale prices for the visible catalog.");
-        CrafterChrome.SameLineWrapped(14);
-        Widgets.StatusDot(svc.Busy ? UiState.Running : UiState.Idle);
-        ImGui.SameLine();
-        Widgets.SecondaryWrapped(svc.Busy ? $"{Copy.Word(UiState.Running)} — {svc.Status}" : svc.Status);
-        if (ImGui.IsItemHovered() && snap.ComputedAt != DateTime.MinValue)
-            ImGui.SetTooltip($"Computed {snap.ComputedAt:HH:mm:ss}; scope {_plugin.Prices.Scope}; {_plugin.Prices.CacheSize} quotes cached; {_plugin.Prices.RequestsMade} Universalis requests ({_plugin.Prices.Failures} failed).");
-        ImGui.Dummy(new Vector2(0, Theme.Unit));
+
+        // The status line takes what is left of the row, or a row of its own when it does not fit whole.
+        var status = svc.Status;
+        var lastRowHeight = h;
+        if (status.Length > 0)
+        {
+            var statusScale = Theme.SecondaryScale;
+            const float dot = 14f;
+            var statusWidth = dot + CrafterChrome.TextWidth(status, statusScale);
+            var statusHeight = h;
+            if (x > 0 && x + MathF.Min(statusWidth, 240) > width)
+            {
+                x = 0;
+                y += h + 4;
+                statusHeight = CrafterChrome.LineHeight(statusScale) + (2 * Theme.Unit);
+                y += 0;
+            }
+            lastRowHeight = statusHeight;
+            var room = width - x;
+            var pos = origin + new Vector2(x, y);
+            var markColor = Copy.MarkColor(svc.Busy ? UiState.Running : UiState.Idle);
+            draw.AddCircleFilled(pos + new Vector2(Theme.DotRadius, statusHeight / 2f), Theme.DotRadius, Theme.Pack(markColor));
+            var textPos = pos + new Vector2(dot, (statusHeight - CrafterChrome.LineHeight(statusScale)) / 2f);
+            var shown = CrafterChrome.Fit(status, room - dot, statusScale);
+            CrafterChrome.DrawText(draw, textPos, shown, Theme.TextSecondary, statusScale);
+            if (ImGui.IsMouseHoveringRect(pos, pos + new Vector2(room, statusHeight)))
+            {
+                if (snap.ComputedAt != DateTime.MinValue)
+                    ImGui.SetTooltip($"{status}\nComputed {snap.ComputedAt:HH:mm:ss}; scope {_plugin.Prices.Scope}; {_plugin.Prices.CacheSize} quotes cached; {_plugin.Prices.RequestsMade} Universalis requests ({_plugin.Prices.Failures} failed).");
+                else if (shown != status)
+                    ImGui.SetTooltip(status);
+            }
+        }
+        CrafterChrome.Advance(origin, width, y + lastRowHeight, 3 * Theme.Unit);
     }
 
-    private void DrawFooter(CatalogSnapshot snap, RunSnapshot run, UiState state, string action, string? reason)
+    private static float FooterHeight(float width)
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = width < 620 ? CrafterChrome.NarrowFooterHeight : CrafterChrome.WideFooterHeight;
-        var narrow = width < 620;
+        var textBlock = CrafterChrome.LineHeight() + Theme.Unit + CrafterChrome.LineHeight(Theme.SecondaryScale);
+        const float pad = 3 * Theme.Unit;
+        return width < 620
+            ? pad + textBlock + pad + CrafterChrome.ControlHeight + pad
+            : pad + MathF.Max(textBlock, CrafterChrome.ControlHeight) + pad;
+    }
+
+    private static string Capitalize(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
+    private void DrawFooter(Vector2 winPos, Vector2 winSize, float gutter, float height, CatalogSnapshot snap, RunSnapshot run, UiState state, string action, string? reason)
+    {
+        var top = winPos.Y + winSize.Y - height;
         var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
+        draw.PushClipRect(new Vector2(winPos.X, top), winPos + winSize, false);
+        draw.AddRectFilled(new Vector2(winPos.X, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
+        draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + winSize.X, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
 
         var running = _plugin.Dispatch.Running;
         var actionLabel = running
@@ -533,21 +824,46 @@ public sealed class MainWindow : Window
                 : _section == Section.Cart
                     ? snap.Cart.Count > 0 ? "Dispatch cart" : "Browse catalog"
                     : "Open cart";
-        var actionWidth = MathF.Min(width, MathF.Max(96, ImGui.CalcTextSize(actionLabel).X + 40));
-        var actionPos = origin + new Vector2(width - actionWidth, narrow ? 52 : 14);
-        var textRight = narrow ? origin.X + width : actionPos.X - 16;
-        var textPos = origin + new Vector2(24, 8);
-        draw.AddCircleFilled(origin + new Vector2(10, 17), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        draw.AddText(textPos, Theme.Pack(Theme.TextPrimary), CrafterChrome.FitText($"{Copy.Word(state)} · {action}", textRight - textPos.X));
-        draw.AddText(textPos + new Vector2(0, 25), Theme.Pack(Theme.TextSecondary),
-            CrafterChrome.FitText(reason ?? LiveSubtext(snap, run), textRight - textPos.X));
+        var narrow = winSize.X < 620;
+        var inner = winSize.X - (2 * gutter);
+        var actionSize = new Vector2(narrow ? inner : CrafterChrome.ActionWidth(running ? 72 : 96, actionLabel), CrafterChrome.ControlHeight);
+        var textBlock = CrafterChrome.LineHeight() + Theme.Unit + CrafterChrome.LineHeight(Theme.SecondaryScale);
+        const float pad = 3 * Theme.Unit;
+        var textLeft = winPos.X + gutter + (4 * Theme.Unit);
+        Vector2 actionPos;
+        float textTop;
+        float textRight;
+        if (narrow)
+        {
+            textTop = top + pad;
+            actionPos = new Vector2(winPos.X + gutter, textTop + textBlock + pad);
+            textRight = winPos.X + winSize.X - gutter;
+        }
+        else
+        {
+            textTop = top + ((height - textBlock) / 2f);
+            actionPos = new Vector2(winPos.X + winSize.X - gutter - actionSize.X, top + ((height - actionSize.Y) / 2f));
+            textRight = actionPos.X - (4 * Theme.Unit);
+        }
+
+        var primary = Capitalize(action);
+        var secondary = reason ?? FooterSecondary(snap, run);
+        draw.AddCircleFilled(new Vector2(winPos.X + gutter + Theme.Unit, textTop + (CrafterChrome.LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        var textWidth = textRight - textLeft;
+        var shown = CrafterChrome.Fit(primary, textWidth);
+        CrafterChrome.DrawText(draw, new Vector2(textLeft, textTop), shown, Theme.TextPrimary);
+        var shownSecondary = CrafterChrome.Fit(secondary, textWidth, Theme.SecondaryScale);
+        CrafterChrome.DrawText(draw, new Vector2(textLeft, textTop + CrafterChrome.LineHeight() + Theme.Unit), shownSecondary, Theme.TextSecondary, Theme.SecondaryScale);
+        if ((shown != primary || shownSecondary != secondary)
+            && ImGui.IsMouseHoveringRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + textBlock)))
+            ImGui.SetTooltip(primary + "\n" + secondary);
 
         if (running)
         {
-            if (CrafterChrome.StopButton(draw, actionPos, new Vector2(actionWidth, 36)))
+            if (CrafterChrome.StopButton(draw, actionPos, actionSize))
                 _plugin.Dispatch.Stop();
         }
-        else if (CrafterChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, new Vector2(actionWidth, 36)))
+        else if (CrafterChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, actionSize))
         {
             if (_section == Section.Run && run.CanResume)
                 _plugin.Dispatch.Resume();
@@ -558,7 +874,13 @@ public sealed class MainWindow : Window
             else
                 OpenCart();
         }
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
+    }
+
+    private string FooterSecondary(CatalogSnapshot snap, RunSnapshot run)
+    {
+        if (_section == Section.Run)
+            return run.State == RunState.Idle ? "No run has started" : run.PhaseLabel;
+        return _plugin.Prices.Scope.Length == 0 ? "No market scope yet" : "Market scope " + _plugin.Prices.Scope;
     }
 
     private string JobLabel(uint jobId, CatalogSnapshot snap)

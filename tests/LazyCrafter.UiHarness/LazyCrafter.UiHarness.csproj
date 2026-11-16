@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyCrafter.UiHarness</RootNamespace>
+    <AssemblyName>LazyCrafter.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>1591;CS0618</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(DalamudLibPath)\Newtonsoft.Json.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Using Include="System.Numerics" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real window, chrome and panel sources, plus the real shared UI kit. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\UI\*.cs" Link="Real\UI\%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Real pure sources: the plugin core, the catalog row/view records, the configuration and the inventory source list.
+       Only the game/runtime boundary (services, sheets, dispatch hand-offs, price client) is stubbed in Stubs.cs. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\Core\**\*.cs" Link="Real\Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\Catalog\CatalogRow.cs" Link="Real\Catalog\CatalogRow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\Catalog\CatalogView.cs" Link="Real\Catalog\CatalogView.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\Configuration.cs" Link="Real\Configuration.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCrafter\Adapters\InventorySource.cs" Link="Real\Adapters\InventorySource.cs" />
+  </ItemGroup>
+</Project>
