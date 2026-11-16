@@ -1,4 +1,7 @@
-﻿## v0.1.2.15 (2026-11-14) [testing]
+﻿## v0.1.2.16 (2026-11-15) [testing]
+- The settings window has been rebuilt as a responsive card-based shell with custom two-level navigation, toggle tracks, styled sliders and choices, a custom close button in place of the native title bar, and a persistent Stop footer. Rotation, targeting, presets and saved settings are unchanged.
+
+## v0.1.2.15 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.2.14 (2026-11-10) [testing]
