@@ -309,7 +309,22 @@ namespace Lalalazy.Telemetry
   {
     private readonly ReportPopup _popup;
 
-    public DalamudTelemetry() => _popup = new ReportPopup(this);
+    public TelemetryHub Hub { get; }
+
+    public DalamudTelemetry()
+    {
+      Hub = new TelemetryHub(
+        new TelemetryIdentity { Plugin = "LazyMarketCompanion", DisplayName = "Lazy Market Companion", Version = "0.0.0.0" },
+        new NullSink());
+      _popup = new ReportPopup(this);
+    }
+
+    private sealed class NullSink : ITelemetrySink
+    {
+      public void Write(TelemetryLevel level, string text) { }
+
+      public void Notice(string text) { }
+    }
 
     public string? FileReport(string text) => "RP-0001";
 
