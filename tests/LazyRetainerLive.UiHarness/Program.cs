@@ -210,14 +210,14 @@ internal static class Program
             // Two frames settle window storage (child sizes, hover state); scrolling needs extra frames of wheel input.
             if (scenario.ScrollToBottom)
                 io.MousePos = new Vector2(size.X * 0.2f, size.Y * 0.5f);
-            var frames = scenario.ScrollToBottom ? 14 : scenario.HoverClose ? 5 : 2; // a tooltip needs a frame to size itself
+            var frames = scenario.ScrollToBottom ? 14 : scenario.HoverClose ? 5 : 4; // a tooltip needs a frame to size itself
             for (var frame = 0; frame < frames; frame++)
             {
                 io.MouseWheel = scenario.ScrollToBottom && frame >= 2 && frame < frames - 2 ? -20f : 0f;
                 ImGui.NewFrame();
                 BeginRealWindow(window, size);
                 window.Draw();
-                ImGui.End();
+                EndRealWindow(window);
                 ImGui.Render();
             }
 
@@ -248,15 +248,25 @@ internal static class Program
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
+        window.PreDraw();
         ImGui.Begin(window.WindowName, ref open, window.Flags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
     }
 
+    // Mirrors the Window base: PostDraw runs after End.
+    private static void EndRealWindow(ConfigWindow window)
+    {
+        ImGui.End();
+        window.PostDraw();
+    }
+
     /// <summary>Screen position of the middle of the close control for a window of this size (right edge, top bar).</summary>
     private static Vector2 ClosePosition(Vector2 size, RenderOptions options)
-        // Window padding 12 (Theme.PushFrame), close control 34 square at the right of the 66 px top bar.
-        => new(size.X - 12 - 17, 12 + 33);
+        // Close control: 36 square, right gutter, centred on the 68 px top bar (14 px band padding, 40 px brand row).
+        => new(size.X - Gutter(size.X) - 18, 34);
+
+    private static float Gutter(float width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
 
     // ---- behaviour checks -------------------------------------------------------------------------------------
 
@@ -281,7 +291,7 @@ internal static class Program
                 ImGui.NewFrame();
                 BeginRealWindow(window, size);
                 window.Draw();
-                ImGui.End();
+                EndRealWindow(window);
                 ImGui.Render();
             }
         }
@@ -297,9 +307,9 @@ internal static class Program
     private static void VerifyStopButton()
     {
         var size = new Vector2(DefaultW, DefaultH);
-        // Stop button: bottom-right of the footer. Footer is 72 px high, the button 132x36 at (right-132, +18).
+        // Stop button: 132x36, right gutter, vertically centred in the wide footer (about 64 px high).
         var stop = NewPlugin(p => Live(p, Typical()));
-        Click(stop, size, new Vector2(size.X - 12 - 66, size.Y - 12 - 72 + 18 + 18));
+        Click(stop, size, new Vector2(size.X - Gutter(size.X) - 66, size.Y - 32));
         if (stop.Config.Enabled || stop.SaveCount == 0)
             throw new InvalidOperationException("The stop button did not disable the listener and save.");
     }
@@ -322,7 +332,7 @@ internal static class Program
                 ImGui.NewFrame();
                 BeginRealWindow(window, size);
                 window.Draw();
-                ImGui.End();
+                EndRealWindow(window);
                 ImGui.Render();
             }
         }
