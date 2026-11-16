@@ -34,6 +34,7 @@
     <Compile Include="$(LalaSourceRoot)\src\LazyGearCollector\CollectorChrome.cs" Link="Real\CollectorChrome.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyGearCollector\CollectionModels.cs" Link="Real\CollectionModels.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyGearCollector\Planner.cs" Link="Real\Planner.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyGearCollector\PlanCache.cs" Link="Real\PlanCache.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyGearCollector\Configuration.cs" Link="Real\Configuration.cs" />
     <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

@@ -109,6 +109,8 @@ public sealed class CollectorWindow : Window
         }
     }
 
+    private readonly PlanCache _planCache = new();
+
     private void DrawFrame()
     {
         var collection = Current;
@@ -120,11 +122,14 @@ public sealed class CollectorWindow : Window
 
         if (collection != null)
         {
-            (allPlans, grandTotal, donePieces) = _plugin.Planner.PlanMany(collection.Pieces, target);
+            // One cached plan of the whole collection; the role rows filter it instead of planning each role again.
+            (allPlans, grandTotal, donePieces) = _planCache.Get(collection, target, _plugin.Config.IncludeCachedContainers, DateTime.UtcNow,
+                () => _plugin.Planner.PlanMany(collection.Pieces, target));
             foreach (var role in collection.Roles)
             {
                 var chains = collection.ForRole(role).ToList();
-                var (plans, remaining, done) = _plugin.Planner.PlanMany(chains, target);
+                var plans = allPlans.Where(p => p.Piece.Role == role).ToList();
+                var (remaining, done) = Planner.Summarize(plans);
                 roles.Add(new RoleProgress(role, JobsFor(role), chains, plans, remaining, done));
             }
         }
