@@ -17,7 +17,7 @@ internal class ConfigWindow : Window
     {
         _plugin = plugin;
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        Size = new Vector2(900, 640);
+        Size = new Vector2(900, 780);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
@@ -230,9 +230,10 @@ internal class ConfigWindow : Window
             ? "Never"
             : service.LastSitSentUtc.ToLocalTime().ToString("HH:mm:ss");
         var sends = service.SendsThisTrip;
+        var capReached = status.State == UiState.Blocked && service.LastSkipReason.StartsWith("cap reached", StringComparison.OrdinalIgnoreCase);
         FishSitterChrome.StatCards(
-            new FishSitterStat("Sit sends", sends.ToString(), FishSitService.MaxSends.ToString(),
-                Math.Min(1f, sends / (float)FishSitService.MaxSends), "Total this hole visit", sends >= FishSitService.MaxSends),
+            new FishSitterStat("Sit sends", sends.ToString(), null, capReached ? 1f : 0f,
+                capReached ? "Retry limit reached" : "Total this hole visit", capReached),
             new FishSitterStat("Fishing hole", service.TripActive ? "Active" : "None", null,
                 service.TripActive ? 1f : 0f,
                 service.TripActive ? "Trip counters are live" : "Start fishing to begin a trip"),

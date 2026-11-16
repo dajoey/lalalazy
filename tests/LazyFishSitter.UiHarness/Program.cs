@@ -126,10 +126,44 @@ internal static class Program
             Width = 420, Height = 1420,
             Shows = "narrowest width, tall enough to show everything the scrolling body hides at 420x480",
         },
-        new("seated-full", SizeKind.Custom, r => r.StandbyWithOneSend().GameSeatsCharacter())
+        new("seated-resits", SizeKind.FirstUse, r =>
         {
-            Width = 900, Height = 780,
-            Shows = "wide layout tall enough to show the whole page: both cards end at the same bottom",
+            r.StandbyWithOneSend().GameSeatsCharacter();
+            for (var i = 0; i < 4; i++)
+            {
+                r.State = FishState.Hooking;
+                r.Hold(3);
+                r.State = FishState.PullingPoleIn;
+                r.Hold(1.5);
+                r.Seated = false;
+                r.Changing = true;
+                r.Hold(1);
+                r.Changing = false;
+                r.State = FishState.PoleReady;
+                r.Hold(0.5);
+                r.State = FishState.CastingOut;
+                r.Hold(1);
+                r.State = FishState.LineInWater;
+                r.Hold(12);
+                r.GameSeatsCharacter();
+            }
+        })
+        {
+            Shows = "healthy trip with several accepted re-sits: the send count passes 3 without any warning state",
+        },
+        new("seated-short", SizeKind.Custom, r => r.StandbyWithOneSend().GameSeatsCharacter())
+        {
+            Width = 900, Height = 640,
+            Shows = "regression: the old default height, where the page scrolls inside its body",
+        },
+        new("bad-command-short", SizeKind.Custom, r =>
+        {
+            r.Plugin.Config.SitCommand = "groundsit";
+            r.StandbyWithOneSend();
+        })
+        {
+            Width = 900, Height = 640,
+            Shows = "regression: invalid command at the old default height",
         },
         new("blocked-combat", SizeKind.FirstUse, r =>
         {
