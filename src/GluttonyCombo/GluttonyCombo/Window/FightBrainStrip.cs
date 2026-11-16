@@ -37,25 +37,24 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
         if (entries.Count == 0)
             return;
 
-        // Fork: rounded forecast card; entry source, ordering, and click-through behavior are unchanged.
-        GluttonyChrome.Card("fightbrain_forecast", () =>
+        // Fork: rounded forecast card (a disposable scope keeps the entry loop as it was); entry source, order and
+        // click-through behaviour are unchanged.
+        using var card = GluttonyChrome.BeginCard(0, GluttonyChrome.OverlayCardWidth * ImGuiHelpers.GlobalScale);
+        LalaUiKit.Widgets.Title("Fight Brain");
+        LalaUiKit.Widgets.Caption($"{entries.Count} code forecasts");
+        foreach (var (hit, seconds) in entries)
         {
-            LalaUiKit.Widgets.Title("Fight Brain");
-            LalaUiKit.Widgets.Caption($"{entries.Count} code forecasts");
-            foreach (var (hit, seconds) in entries)
+            var label = hit.Kind switch
             {
-                var label = hit.Kind switch
-                {
-                    AutoRotation.FightBrainHitKind.Raidwide => "raidwide",
-                    AutoRotation.FightBrainHitKind.Tankbuster => "tankbuster",
-                    AutoRotation.FightBrainHitKind.Knockback => "knockback",
-                    AutoRotation.FightBrainHitKind.CastHit => hit.Source,
-                    AutoRotation.FightBrainHitKind.Downtime => "downtime",
-                    _ => hit.Kind.ToString(),
-                };
-                ImGui.TextUnformatted($"{seconds,5:F1}s  {label}");
-            }
-        });
+                AutoRotation.FightBrainHitKind.Raidwide => "raidwide",
+                AutoRotation.FightBrainHitKind.Tankbuster => "tankbuster",
+                AutoRotation.FightBrainHitKind.Knockback => "knockback",
+                AutoRotation.FightBrainHitKind.CastHit => hit.Source,
+                AutoRotation.FightBrainHitKind.Downtime => "downtime",
+                _ => hit.Kind.ToString(),
+            };
+            ImGui.TextUnformatted($"{seconds,5:F1}s  {label}");
+        }
         ImGuiHelpers.ScaledDummy(1);
     }
 }

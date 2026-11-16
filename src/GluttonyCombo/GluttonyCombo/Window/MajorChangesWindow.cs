@@ -44,34 +44,55 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
         BringToFront();
 
         // Fork: custom title/close controls and a dedicated inner body replace native chrome and outer scrolling.
-        Flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar |
-                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        Size = new System.Numerics.Vector2(780, 620);
+        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeConstraints = new Dalamud.Interface.Windowing.WindowSizeConstraints
+        {
+            MinimumSize = new System.Numerics.Vector2(560, 360),
+        };
+    }
+
+    // Fork: the shell draws full-bleed bands, so the window carries no padding; the body child adds its own.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, System.Numerics.Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
+    // Fork: header band with a real close control, then the upstream body in its own scrolling child.
+    public override void Draw()
+    {
+        Theme.PushFrame();
+        GluttonyChrome.PushControlColors();
+        try
+        {
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = GluttonyChrome.Gutter(winSize.X);
+            var draw = ImGui.GetWindowDrawList();
+            ImGui.SetCursorPos(System.Numerics.Vector2.Zero);
+            var close = GluttonyChrome.DrawTitleBand(draw, winPos, winSize.X, gutter, "New changes");
+            ImGui.SetCursorPos(new System.Numerics.Vector2(0, GluttonyChrome.TitleBandHeight));
+            GluttonyChrome.BeginBody(new System.Numerics.Vector2(winSize.X, winSize.Y - GluttonyChrome.TitleBandHeight), gutter, "majorChangesBody");
+            DrawBody();
+            GluttonyChrome.EndBody();
+            if (close)
+                IsOpen = false;
+        }
+        finally
+        {
+            GluttonyChrome.PopControlColors();
+            Theme.PopFrame();
+        }
+
+        if (_centeredWindow < 5)
+            CenterWindow();
     }
 
     /// <summary>
     ///     Draw the settings change suggestion window.
     /// </summary>
-    public override void Draw()
+    private void DrawBody()
     {
-        // Fork: a real close button stays above the migration popup's only scroll region.
-        Theme.PushFrame();
-        GluttonyChrome.PushControlColors();
-        PadOutMinimumWidthFor("Gluttony Combo | New Changes");
-        ImGui.NewLine();
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        if (GluttonyChrome.CloseButton(ImGui.GetWindowDrawList(), "migration",
-                origin + new System.Numerics.Vector2(width - GluttonyChrome.CloseButtonSize, 0)))
-            IsOpen = false;
-        ImGui.SetCursorScreenPos(origin + new System.Numerics.Vector2(0, GluttonyChrome.CloseButtonSize + 8));
-        var bodyHeight = MathF.Min(560, MathF.Max(240, ImGui.GetMainViewport().Size.Y - 260));
-        using (ImRaii.Child("majorChangesBody", new System.Numerics.Vector2(0, bodyHeight), false))
-        {
-        // Fork: disposable card scope preserves the upstream body without lambda indentation churn.
-        using var card = GluttonyChrome.BeginCard();
-        Widgets.Title("Important changes");
-        Widgets.SecondaryWrapped("Two existing setup guides explain the moved mitigation options.");
-        PadOutMinimumWidthFor("Gluttony Combo | New Changes");
 
         #region Tanks
 
@@ -150,9 +171,6 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
         }
 
         #endregion
-
-        if (_centeredWindow < 5)
-            CenterWindow();
     }
 
     #region Minimum Width
