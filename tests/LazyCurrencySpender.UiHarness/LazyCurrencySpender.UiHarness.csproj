@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Real-source UI render harness for LazyCurrencySpender. Compiles the real window, chrome and drawing-helper
+       sources and the shared UI kit; stubs only the game/runtime boundary (see Stubs.cs). No PackageReference. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyCurrencySpender.UiHarness</RootNamespace>
+    <AssemblyName>LazyCurrencySpender.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS8618;CS8600;CS8601;CS8602;CS8603;CS8604;CS8625;CS0169;CS0649;CS0414;CS0067;CS1591;CS8632;CA1416</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Stubs.cs" />
+    <Compile Include="Fixtures.cs" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The real sources under test. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Global.cs" Link="Real\Global.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Configuration\Config.cs" Link="Real\Config.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Windows\*.cs" Link="Real\Windows\%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Helpers\UIHelper.cs" Link="Real\UIHelper.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Helpers\ShopHelper.cs" Link="Real\ShopHelper.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Helpers\StringHelper.cs" Link="Real\StringHelper.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyCurrencySpender\Helpers\MissingLocationLog.cs" Link="Real\MissingLocationLog.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
