@@ -72,8 +72,13 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
     }
     
     private void AddonRefresh(AddonWeeklyBingo* addon) {
+        // Fork: PlayerState is null while logging in or out with the journal open; reading through a null native pointer is a hard crash, so bail out.
+        var playerState = PlayerState.Instance();
+        if (playerState == null) return;
+
         foreach (var index in Enumerable.Range(0, 16)) {
-            System.PerfectTails.GameState[index] = PlayerState.Instance()->IsWeeklyBingoStickerPlaced(index);
+            // Fork: read through the null-checked pointer above instead of calling PlayerState.Instance() again.
+            System.PerfectTails.GameState[index] = playerState->IsWeeklyBingoStickerPlaced(index);
         }
 
         if (probabilityTextNode is not null) {
