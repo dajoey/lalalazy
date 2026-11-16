@@ -42,7 +42,7 @@ public static class IdleGate
     if (f.Crafting) why.Add("crafting");
     if (f.Gathering) why.Add("gathering or fishing");
     if (f.Cutscene) why.Add("in a cutscene");
-    if (f.Occupied) why.Add("busy with an in-game window, event or zone change");
+    if (f.Occupied) why.Add("an in-game window, event or zone change");
     if (f.LmcBusy) why.Add("LMC automation is running");
     Plugin(why, "AutoRetainer", f.AutoRetainer);
     Plugin(why, "AutoDuty", f.AutoDuty);
@@ -56,10 +56,10 @@ public static class IdleGate
     switch (state)
     {
       case PluginBusy.Busy:
-        why.Add($"{name} is busy");
+        why.Add($"{name} is Running");
         break;
       case PluginBusy.Unknown:
-        why.Add($"{name} is loaded but its busy state cannot be read");
+        why.Add($"{name} is loaded but its Running state cannot be read");
         break;
     }
   }

@@ -383,7 +383,7 @@ internal sealed class InventoryService : IDisposable
     if (_batch != null) return "another Inventory action is running";
     if (_automation.IsBusy || _automation.ActiveAutoRetainerSession != null) return "LMC's retainer automation is running";
     var ar = BusyOf("AutoRetainer", "AutoRetainer.PluginState.IsBusy", false);
-    if (ar is PluginBusy.Busy or PluginBusy.Unknown) return ar == PluginBusy.Busy ? "AutoRetainer is busy" : "AutoRetainer's busy state cannot be read";
+    if (ar is PluginBusy.Busy or PluginBusy.Unknown) return ar == PluginBusy.Busy ? "AutoRetainer is Running" : "AutoRetainer's Running state cannot be read";
     if (!AutoMarketService.IsRetainerInventoryOpen()) return "open this retainer's inventory at the bell first";
     if (!CategoryRouter.RetainerNamesEqual(SettledRetainer(), retainer)) return "this retainer's inventory is not the one open (or it is still loading)";
     if (_quotesFetchedMs <= 0 || NowMs - _quotesFetchedMs > QuoteMaxAgeMs) return "check prices first (at most 30 minutes old)";
@@ -430,7 +430,7 @@ internal sealed class InventoryService : IDisposable
       return;
     }
     var blocker = _automation.IsBusy || _automation.ActiveAutoRetainerSession != null ? "LMC's retainer automation started"
-      : BusyOf("AutoRetainer", "AutoRetainer.PluginState.IsBusy", false) is PluginBusy.Busy or PluginBusy.Unknown ? "AutoRetainer is busy or unreadable"
+      : BusyOf("AutoRetainer", "AutoRetainer.PluginState.IsBusy", false) is PluginBusy.Busy or PluginBusy.Unknown ? "AutoRetainer is Running or its state is unreadable"
       : !AutoMarketService.IsRetainerInventoryOpen() ? "the retainer inventory closed"
       : !CategoryRouter.RetainerNamesEqual(AutoMarketService.CurrentRetainerName(), b.Retainer) ? "a different retainer is open"
       : null;

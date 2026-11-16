@@ -211,7 +211,7 @@ public sealed class Plugin : IDalamudPlugin
     // 0.2.8.12: the Auto-Market panel - the list view of what the bag dots mark, docked beside the
     // inventory. Watch() runs before the window system every frame: it opens/closes with the
     // inventory and computes the dock position while the window itself is still closed.
-    _panel = new AutoMarketPanelWindow(_inventory, () => _automation.IsBusy);
+    _panel = new AutoMarketPanelWindow(_inventory, () => _automation.IsBusy, reason => _automation.CancelEverything(reason));
     WindowSystem.AddWindow(_panel);
 
     Log.Information($"[LMC] loaded {PluginInterface.Manifest.AssemblyVersion}; autoMarketItems={Configuration.AutoMarketItems.Count} arInstalled={AutoRetainerIPC.Installed} imported={Configuration.ImportedFromDagobert}");
