@@ -69,6 +69,7 @@ internal static class Scenarios
       Panel("panel-typical-tall-380x3000", 380, 3000, new PanelSetup()),
       Panel("panel-first-run-tall-380x1500", 380, 1500, new PanelSetup { Cfg = Fixtures.FirstRun, Inv = Fixtures.BlankInventory }),
       Panel("panel-busy-narrowest-360x420", 360, 420, new PanelSetup { Busy = true }),
+      Panel("panel-busy-narrow-360x640", 360, 640, new PanelSetup { Busy = true }),
       Panel("panel-modal-add-all-380x720", 380, 720, new PanelSetup { Modal = "Add all visible items?", Status = AutoMarket.AutoMarketPanelModel.StatusFilter.NotOnList }),
       // ---- owner tooltip (frameless overlay under the game's item tooltip) ----
       Tooltip("tooltip-owners-several-700x520", 700, 520, 5502, true, Fixtures.TypicalInventory),

@@ -437,10 +437,13 @@ internal static class MarketChrome
 
   internal static float FooterHeight(float width, bool hasAction)
   {
-    _ = width;
     var block = OneLineFooter(hasAction) ? LineHeight() : LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
-    return (Short ? 10 : 12) + MathF.Max(block, Control) + (Short ? 10 : 12);
+    var pad = Short ? 10f : 12f;
+    return Stacked(width, hasAction) ? pad + block + pad + Control + pad : pad + MathF.Max(block, Control) + pad;
   }
+
+  /// <summary>Narrow, tall-enough windows put the footer action on its own full-width row under the status text.</summary>
+  private static bool Stacked(float width, bool hasAction) => width < 620 && hasAction && !Short;
 
   /// <summary>Footer band, drawn from the window's bottom edge. The action button sits on the status row when it fits.</summary>
   internal static void Footer(UiState state, string action, string detail, string? stopLabel, Action? stop)
@@ -458,13 +461,14 @@ internal static class MarketChrome
     draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
     draw.PopClipRect();
 
-    var stopWidth = hasStop ? MathF.Max(72, TextWidth(stopLabel!) + 32) : 0;
+    var stacked = Stacked(width, hasStop);
+    var stopWidth = hasStop ? (stacked ? width - (2 * g) : MathF.Max(72, TextWidth(stopLabel!) + 32)) : 0;
     var buttonLeft = hasStop ? width - g - stopWidth : width - g;
     var textX = g + 16;
-    var textRoom = (hasStop ? buttonLeft - 16 : buttonLeft) - textX;
+    var textRoom = (hasStop && !stacked ? buttonLeft - 16 : width - g) - textX;
     var oneLine = OneLineFooter(hasStop);
     var block = oneLine ? LineHeight() : LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
-    var textTop = origin.Y + ((height - block) / 2f);
+    var textTop = stacked ? origin.Y + 12 : origin.Y + ((height - block) / 2f);
     var line1 = $"{Copy.Word(state)} · {action}";
     var shown1 = FitText(line1, textRoom);
     var shown2 = FitText(detail, textRoom, Theme.SecondaryScale);
@@ -478,7 +482,7 @@ internal static class MarketChrome
 
     if (hasStop)
     {
-      ImGui.SetCursorScreenPos(origin + new Vector2(width - g - stopWidth, (height - Control) / 2f));
+      ImGui.SetCursorScreenPos(origin + new Vector2(width - g - stopWidth, stacked ? height - 12 - Control : (height - Control) / 2f));
       if (StopButton(stopLabel!, new Vector2(stopWidth, Control)))
         stop!();
     }
@@ -509,6 +513,7 @@ internal static class MarketChrome
     var open = ImGui.BeginChild("##lmcBody", size, true, ImGuiWindowFlags.AlwaysVerticalScrollbar);
     ImGui.PopStyleColor(6);
     ImGui.PopStyleVar(4);
+    _bodyOpen = open;
     if (open)
     {
       Rights.Clear();
@@ -520,8 +525,15 @@ internal static class MarketChrome
     return open;
   }
 
+  private static bool _bodyOpen;
+
   internal static void EndBody()
   {
+    if (!_bodyOpen)
+    {
+      ImGui.EndChild();
+      return;
+    }
     PopRight();
     ImGui.Unindent(Gutter(ImGui.GetWindowWidth()) - 4f);
     var scrollMax = ImGui.GetScrollMaxY();
@@ -875,7 +887,7 @@ internal static class MarketChrome
       ImGui.TextUnformatted(label);
       var controlX = pos.X + avail - cw;
       ImGui.SetCursorScreenPos(new Vector2(controlX, y));
-      changed = control(cw - unitW);
+      changed = control(MathF.Max(40f, cw - unitW));
       if (unit is not null)
         DrawText(ImGui.GetWindowDrawList(), new Vector2(controlX + cw - unitW + 8, y + ((Control - LineHeight()) / 2f)), unit, Theme.TextSecondary);
     }
@@ -889,7 +901,7 @@ internal static class MarketChrome
       ImGui.PopTextWrapPos();
       var cy = y + labelH + 6;
       ImGui.SetCursorScreenPos(new Vector2(pos.X, cy));
-      changed = control(avail - unitW);
+      changed = control(MathF.Max(40f, avail - unitW));
       if (unit is not null)
         DrawText(ImGui.GetWindowDrawList(), new Vector2(pos.X + avail - unitW + 8, cy + ((Control - LineHeight()) / 2f)), unit, Theme.TextSecondary);
     }
