@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyFishSitter.UiHarness</RootNamespace>
+    <AssemblyName>LazyFishSitter.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CS0618;CA1416</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Using Include="System.Numerics" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real window, chrome, configuration, shared kit and Dalamud-free policy sources.
+       Only Plugin and FishSitService (the game/runtime boundary) are stubbed in Stubs.cs. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyFishSitter\ConfigWindow.cs" Link="Real\ConfigWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFishSitter\FishSitterChrome.cs" Link="Real\FishSitterChrome.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFishSitter\Configuration.cs" Link="Real\Configuration.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFishSitter\Core\*.cs" Link="Real\Core\%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
