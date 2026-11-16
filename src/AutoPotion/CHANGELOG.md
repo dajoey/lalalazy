@@ -1,3 +1,10 @@
+## v0.2.5.8 (2026-11-15) [testing]
+### Changed
+- The HP, MP and regen threshold sliders accept a typed value again (Ctrl+click).
+- The active job icon is back in the page header, and stat-card notes show at narrow widths.
+- The telemetry switch help text shows the exact command again.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
 ## v0.2.5.7 (2026-11-15) [testing]
 ### Changed
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
