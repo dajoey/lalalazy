@@ -326,8 +326,8 @@ internal static unsafe class Program
         {
             Widgets.Title("Source and credits");
             Widgets.SecondaryWrapped("GluttonyCombo preserves the upstream combo suite and its fork integrations.");
-            ImGui.Button("GitHub: dajoey/lalalazy");
-            ImGui.Button("Additional custom action icons by alexisoffline");
+            ImGui.Button("Project page");
+            ImGui.Button("Custom action icon credits");
         });
         GluttonyChrome.Card("about_support", () =>
         {
