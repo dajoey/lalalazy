@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LalaShared.UiHarness</RootNamespace>
+    <AssemblyName>LalaShared.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>CS0618;CA1416</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Using Include="System.Numerics" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real shared popups: the changelog window (with its Dalamud-free parser), the report popup (with the telemetry
+       core it draws from) and the shared kit. Only DalamudTelemetry, the game/runtime boundary, is stubbed in Stubs.cs. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaChangelog\ChangelogWindow.cs" Link="Real\ChangelogWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaChangelog\Core\**\*.cs" Link="Real\LalaChangelog\Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaTelemetry\ReportPopup.cs" Link="Real\ReportPopup.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaTelemetry\Core\**\*.cs" Link="Real\LalaTelemetry\Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
