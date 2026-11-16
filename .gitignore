@@ -6,3 +6,4 @@ lib/
 *.user
 packages.lock.json
 *.DotSettings.user
+__pycache__/
