@@ -3,8 +3,6 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using LalaUiKit;
 using System.Globalization;
-using System.Reflection;
-using System.Text;
 
 namespace LazyFateAutomation;
 
@@ -15,6 +13,7 @@ public class FateToolKitWindow : MinimisableWindow
     private const string CurrencyPage = "settings.currency";
     private const string ZonesPage = "settings.zones";
     private const string DisplayPage = "settings.display";
+    private const string BrandName = "LazyFateAutomation";
 
     private sealed record FatePage(string Id, string Group, string Title, string Purpose);
 
@@ -43,15 +42,7 @@ public class FateToolKitWindow : MinimisableWindow
     private string _currentPage = LivePage;
     private string _lastSettingsPage = SelectionPage;
     private string _zoneFilter = "";
-
-    private static readonly PropertyInfo[] TooltipProperties;
-
-    static FateToolKitWindow()
-    {
-        TooltipProperties = [.. typeof(PublicEvent)
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .OrderBy(p => p.Name)];
-    }
+    private readonly Dictionary<string, (Vector2 Pos, Vector2 Size)> _buttonRects = new();
 
     public FateToolKitWindow(FateToolKit tweak) : base($"Fate Tracker##{nameof(FateToolKitWindow)}", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
@@ -64,22 +55,28 @@ public class FateToolKitWindow : MinimisableWindow
 
     public override bool DrawConditions() => Player.Available;
 
+    /// <summary>The shell draws full-bleed bands, so the window itself carries no padding.</summary>
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     private FatePage Current => Pages.First(page => page.Id == _currentPage);
 
     protected override void DrawContent(bool minimised)
     {
         _tweak.SyncRunningState();
         Theme.PushFrame();
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8f);
-        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 8f);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.Surface);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(Theme.ItemSpacing.X, 0));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, FateChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, FateChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, FateChrome.Radius);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.ShellBar);
         ImGui.PushStyleColor(ImGuiCol.Header, Theme.Accent with { W = 0.14f });
         ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.Accent with { W = 0.24f });
         ImGui.PushStyleColor(ImGuiCol.HeaderActive, Theme.Accent with { W = 0.30f });
-        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
         ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
         try
         {
@@ -94,15 +91,45 @@ public class FateToolKitWindow : MinimisableWindow
                 ? _tweak.GetOrderedFates().ToList()
                 : null;
 
-            DrawTopBar(state);
-            if (Current.Group == "Settings")
-                DrawFeatureRow();
-            DrawPageHeader(fates);
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = FateChrome.Gutter(winSize.X);
 
-            var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
-            ImGui.BeginChild("##fate_body", new Vector2(0, MathF.Max(60, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
+            var y = DrawTopBar(state, winPos, winSize.X, gutter);
+            if (Current.Group == "Settings")
+                y += DrawFeatureBar(y, winPos, winSize.X, gutter);
+            y += DrawPageHeader(y, fates, winPos, winSize.X, gutter);
+
+            var footerHeight = FooterHeight(winSize.X);
+            DrawBody(y, winSize.X, MathF.Max(60, winSize.Y - footerHeight - y), gutter, fates);
+            DrawFooter(state, action, winPos, winSize, gutter);
+        }
+        finally
+        {
+            FateChrome.ResetFrame();
+            ImGui.PopStyleColor(8);
+            ImGui.PopStyleVar(4);
+            Theme.PopFrame();
+        }
+    }
+
+    private void DrawBody(float top, float width, float height, float gutter, List<(PublicEvent Fate, bool IsAvailable)>? fates)
+    {
+        ImGui.SetCursorPos(new Vector2(0, top));
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16));
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 8f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
+        ImGui.PushStyleColor(ImGuiCol.Border, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
+        try
+        {
+            ImGui.BeginChild("##fate_body", new Vector2(width, height), true);
             try
             {
+                FateChrome.PushRight(ImGui.GetWindowPos().X + width - gutter);
                 switch (_currentPage)
                 {
                     case LivePage:
@@ -121,18 +148,38 @@ public class FateToolKitWindow : MinimisableWindow
                         DrawDisplayPage();
                         break;
                 }
+                FateChrome.PopRight();
+
+                if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() > 1)
+                {
+                    var topDraw = ImGui.GetWindowDrawList();
+                    var topPos = ImGui.GetWindowPos();
+                    var topSolid = ImGui.GetColorU32(ImGuiCol.WindowBg);
+                    var topClear = topSolid & 0x00FFFFFFu;
+                    topDraw.AddRectFilledMultiColor(topPos, topPos + new Vector2(ImGui.GetWindowSize().X - 8, 16),
+                        topSolid, topSolid, topClear, topClear);
+                }
+
+                if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+                {
+                    var childDraw = ImGui.GetWindowDrawList();
+                    var childPos = ImGui.GetWindowPos();
+                    var childSize = ImGui.GetWindowSize();
+                    var solid = ImGui.GetColorU32(ImGuiCol.WindowBg);
+                    var clear = solid & 0x00FFFFFFu;
+                    childDraw.AddRectFilledMultiColor(childPos + new Vector2(0, childSize.Y - 28), childPos + childSize - new Vector2(8, 0),
+                        clear, clear, solid, solid);
+                }
             }
             finally
             {
                 ImGui.EndChild();
             }
-            DrawFooter(state, action);
         }
         finally
         {
-            ImGui.PopStyleColor(8);
-            ImGui.PopStyleVar(3);
-            Theme.PopFrame();
+            ImGui.PopStyleColor(4);
+            ImGui.PopStyleVar(4);
         }
     }
 
@@ -152,82 +199,64 @@ public class FateToolKitWindow : MinimisableWindow
             return (UiState.Running, "Stopping when the current FATE ends safely");
         return (UiState.Running, _tweak.CurrentState.Equals("Idle", StringComparison.OrdinalIgnoreCase)
             ? "Waiting for an eligible FATE"
-            : _tweak.CurrentState);
+            : FateChrome.Humanize(_tweak.CurrentState));
     }
 
-    private void DrawTopBar(UiState state)
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        var gap = 2 * Theme.Unit;
-        var groups = Pages.Select(page => page.Group).Distinct().ToArray();
-        var brandSize = new Vector2(MathF.Max(214, (ImGui.CalcTextSize("LazyFateAutomation").X * Theme.TitleScale) + 68), 42);
-        var groupSizes = groups.Select(group => new Vector2(MathF.Max(82, ImGui.CalcTextSize(group).X + 32), FateChrome.ControlHeight)).ToArray();
-        var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(Copy.Word(state)).X + 43), FateChrome.ControlHeight);
-        var settingsSize = new Vector2(92, FateChrome.ControlHeight);
-        var minimiseSize = new Vector2(96, FateChrome.ControlHeight);
-        var closeSize = new Vector2(FateChrome.ControlHeight);
-        var totalWidth = brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + closeSize.X
-            + groupSizes.Sum(size => size.X) + ((groups.Length + 4) * gap);
-        var singleRow = width >= totalWidth;
-        var brandWithControls = !singleRow && width >= brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + closeSize.X + (4 * gap);
-        float controlsY = singleRow || brandWithControls ? 16 : 62;
-        float groupY = singleRow ? 16 : brandWithControls ? 62 : 104;
-        var brandPos = new Vector2(0, 12);
-        var right = width;
-        var closePos = new Vector2(right - closeSize.X, controlsY);
-        right -= closeSize.X + gap;
-        var minimisePos = new Vector2(right - minimiseSize.X, controlsY);
-        right -= minimiseSize.X + gap;
-        var settingsPos = new Vector2(right - settingsSize.X, controlsY);
-        right -= settingsSize.X + gap;
-        var statusPos = new Vector2(right - statusSize.X, controlsY);
-        var groupPositions = new Vector2[groups.Length];
-        var x = singleRow ? brandSize.X + gap : 0;
-        var y = groupY;
-        for (var i = 0; i < groups.Length; i++)
-        {
-            var buttonWidth = MathF.Min(groupSizes[i].X, width);
-            if (x > 0 && x + buttonWidth > width)
-            {
-                x = 0;
-                y += FateChrome.ControlHeight + gap;
-            }
-            groupPositions[i] = new Vector2(x, y);
-            x += buttonWidth + gap;
-        }
-        var barHeight = singleRow ? 66 : y + FateChrome.ControlHeight + 12;
+    // ---- shell: header band, sub-navigation, page header, footer ---------------------------------------------------
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        if (FateChrome.BrandButton(draw, origin + brandPos, brandSize))
+    private float DrawTopBar(UiState state, Vector2 winPos, float width, float gutter)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        const float gap = 8;
+        var groups = Pages.Select(page => page.Group).Distinct().ToArray();
+        var navWidths = groups.Select(group => MathF.Max(72, FateChrome.TextWidth(group) + 32)).ToArray();
+        var navTotal = navWidths.Sum() + (gap * (groups.Length - 1));
+        var minimiseSize = new Vector2(FateChrome.ActionWidth(96, "Minimise"), FateChrome.Control);
+        var pillSize = new Vector2(FateChrome.PillWidth(), FateChrome.Control);
+        var closeSize = new Vector2(FateChrome.Control);
+        var rightWidth = minimiseSize.X + gap + pillSize.X + gap + closeSize.X;
+        var brandWidth = FateChrome.BrandWidth(BrandName);
+        var single = width >= gutter + brandWidth + 16 + navTotal + 16 + rightWidth + gutter;
+        brandWidth = MathF.Min(brandWidth, MathF.Max(120, width - (2 * gutter) - rightWidth - 16));
+        var bar = single ? 68f : 14 + 40 + 12 + FateChrome.Control + 14;
+
+        draw.AddRectFilled(winPos, winPos + new Vector2(width, bar), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, bar), winPos + new Vector2(width, bar), Theme.Pack(Theme.SurfaceBorder));
+
+        if (FateChrome.Brand(draw, winPos + new Vector2(gutter, 14), brandWidth, BrandName))
             _currentPage = LivePage;
+
+        var closePos = new Vector2(width - gutter - closeSize.X, 16);
+        var pillPos = new Vector2(closePos.X - gap - pillSize.X, 16);
+        var minimisePos = new Vector2(pillPos.X - gap - minimiseSize.X, 16);
+
+        var navX = gutter + brandWidth + 16;
+        var navY = 16f;
+        if (!single)
+        {
+            navY = 14 + 40 + 12;
+            navX = gutter;
+            var share = (width - (2 * gutter) - (gap * (groups.Length - 1))) / groups.Length;
+            navWidths = groups.Select(_ => share).ToArray();
+        }
+
         for (var i = 0; i < groups.Length; i++)
         {
             var group = groups[i];
             var destination = group == "FATEs" ? LivePage : _lastSettingsPage;
-            var size = new Vector2(MathF.Min(groupSizes[i].X, width), FateChrome.ControlHeight);
-            if (FateChrome.OutlineButton(draw, "group_" + group, group, origin + groupPositions[i], size, Current.Group == group))
+            if (FateChrome.NavPill(draw, group, group, winPos + new Vector2(navX, navY), new Vector2(navWidths[i], FateChrome.Control), Current.Group == group))
                 _currentPage = destination;
+            navX += navWidths[i] + gap;
         }
-        FateChrome.StatusPill(draw, origin + statusPos, statusSize, state);
-        DrawSettingsButton("header_settings", settingsPos + origin, settingsSize);
-        if (FateChrome.OutlineButton(draw, "header_minimise", "Minimise", origin + minimisePos, minimiseSize))
+
+        if (FateChrome.OutlineButton(draw, "header_minimise", "Minimise", winPos + minimisePos, minimiseSize))
             ToggleMinimised();
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(MinimiseTooltipText);
-        DrawCloseButton("header_close", origin + closePos, closeSize);
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
-    }
-
-    private void DrawCloseButton(string id, Vector2 pos, Vector2 size)
-    {
-        if (FateChrome.OutlineButton(ImGui.GetWindowDrawList(), id, "×", pos, size))
+        FateChrome.StatusPill(draw, winPos + pillPos, pillSize, state);
+        if (FateChrome.CloseButton(draw, winPos + closePos, closeSize))
             IsOpen = false;
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Close");
+        return bar + 1;
     }
 
     private bool DrawSettingsButton(string id, Vector2 pos, Vector2 size)
@@ -242,76 +271,101 @@ public class FateToolKitWindow : MinimisableWindow
         return clicked;
     }
 
-    private void DrawFeatureRow()
+    private float DrawFeatureBar(float top, Vector2 winPos, float width, float gutter)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
-        var gap = 3 * Theme.Unit;
         var features = Pages.Where(page => page.Group == "Settings").ToArray();
-        var sizes = features.Select(feature => new Vector2(
-            MathF.Min(width, MathF.Max(132, ImGui.CalcTextSize(feature.Title).X + 52)), FateChrome.ControlHeight)).ToArray();
-        var positions = new Vector2[features.Length];
-        float x = 0;
-        float y = 8;
-        for (var i = 0; i < features.Length; i++)
+        var widths = features.Select(feature => FateChrome.FeaturePillWidth(feature.Title)).ToArray();
+        var inner = width - (2 * gutter);
+        var fits = widths.Sum() + (12 * (features.Length - 1)) <= inner;
+        var band = fits ? 12 + 32 + 12 : 12 + FateChrome.Control + 12;
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + new Vector2(width, top + band), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top + band), winPos + new Vector2(width, top + band), Theme.Pack(Theme.SurfaceBorder));
+
+        if (fits)
         {
-            if (x > 0 && x + sizes[i].X > width)
+            var x = gutter;
+            for (var i = 0; i < features.Length; i++)
             {
-                x = 0;
-                y += FateChrome.ControlHeight + (2 * Theme.Unit);
+                var feature = features[i];
+                if (FateChrome.FeaturePill(draw, feature.Id, feature.Title, winPos + new Vector2(x, top + 12), new Vector2(widths[i], 32), _currentPage == feature.Id))
+                {
+                    _currentPage = feature.Id;
+                    _lastSettingsPage = feature.Id;
+                }
+                x += widths[i] + 12;
             }
-            positions[i] = new Vector2(x, y);
-            x += sizes[i].X + gap;
+            return band + 1;
         }
-        var barHeight = y + FateChrome.ControlHeight + 8;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        for (var i = 0; i < features.Length; i++)
+
+        var fieldPos = winPos + new Vector2(gutter, top + 12);
+        var fieldSize = new Vector2(inner, FateChrome.Control);
+        if (FateChrome.OutlineButton(draw, "feature_menu", Current.Title, fieldPos, fieldSize, true))
+            ImGui.OpenPopup("###FateFeatureMenu");
+        FateChrome.Chevron(draw, fieldPos + new Vector2(fieldSize.X - 20, fieldSize.Y / 2f));
+        ImGui.SetNextWindowPos(fieldPos + new Vector2(0, fieldSize.Y + 4), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(fieldSize.X, 0));
+        using var style = FateChrome.PopupStyle();
+        using var popup = ImRaii.Popup("###FateFeatureMenu");
+        if (popup)
         {
-            var feature = features[i];
-            if (FateChrome.FeatureButton(draw, feature.Id, feature.Title, origin + positions[i], sizes[i], _currentPage == feature.Id))
+            foreach (var feature in features)
             {
+                if (!FateChrome.PopupRow("feature_" + feature.Id, feature.Title, _currentPage == feature.Id))
+                    continue;
                 _currentPage = feature.Id;
                 _lastSettingsPage = feature.Id;
+                ImGui.CloseCurrentPopup();
             }
         }
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        return band + 1;
     }
 
-    private void DrawPageHeader(List<(PublicEvent Fate, bool IsAvailable)>? fates)
+    private float DrawPageHeader(float top, List<(PublicEvent Fate, bool IsAvailable)>? fates, Vector2 winPos, float width, float gutter)
     {
         var page = Current;
         var count = LiveCount(fates);
         var subtext = LiveSubtext();
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
-        var tileSize = new Vector2(42);
-        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 8f);
-        FateChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
+        const float tile = 44;
+        var wide = width >= 760;
+        var textX = gutter + 60;
+        var originY = top + 20;
+        var origin = winPos + new Vector2(gutter, originY);
+        draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), FateChrome.Radius);
+        FateChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
 
-        if (width >= 700)
+        var titleHeight = FateChrome.LineHeight(1.35f);
+        var descHeight = FateChrome.LineHeight(Theme.SecondaryScale);
+        var metaHeight = descHeight;
+        float block;
+        if (wide)
         {
-            var textX = origin.X + tileSize.X + 12;
-            var countWidth = ImGui.CalcTextSize(count).X;
-            var subtextWidth = ImGui.CalcTextSize(subtext).X;
-            FateChrome.DrawText(draw, new Vector2(textX, origin.Y), FateChrome.FitText(page.Title, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-            FateChrome.DrawText(draw, new Vector2(textX, origin.Y + 29), FateChrome.FitText(page.Purpose, width - tileSize.X - 12 - subtextWidth - 16), Theme.TextSecondary);
-            FateChrome.DrawTextRight(draw, origin.X + width, origin.Y + 4, count, Theme.TextSecondary);
-            FateChrome.DrawTextRight(draw, origin.X + width, origin.Y + 31, subtext, Theme.TextSecondary);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, 58));
-            ImGui.Separator();
-            return;
+            var metaMax = width * 0.4f;
+            var countText = FateChrome.Fit(count, metaMax, Theme.SecondaryScale);
+            var subText = FateChrome.Fit(subtext, metaMax, Theme.SecondaryScale);
+            var metaWidth = MathF.Max(FateChrome.TextWidth(countText, Theme.SecondaryScale), FateChrome.TextWidth(subText, Theme.SecondaryScale));
+            var textWidth = width - gutter - textX - metaWidth - 16;
+            FateChrome.TextWithTip(draw, "page_title", winPos + new Vector2(textX, originY), page.Title, textWidth, Theme.TextPrimary, 1.35f);
+            var descTop = originY + titleHeight + 4;
+            FateChrome.TextWithTip(draw, "page_purpose", winPos + new Vector2(textX, descTop), page.Purpose, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+            var right = winPos.X + width - gutter;
+            FateChrome.TextRight(draw, right, winPos.Y + originY + ((titleHeight - metaHeight) / 2f), countText, Theme.TextSecondary, Theme.SecondaryScale);
+            FateChrome.TextRight(draw, right, winPos.Y + descTop, subText, Theme.TextSecondary, Theme.SecondaryScale);
+            block = titleHeight + 4 + descHeight;
         }
-
-        FateChrome.DrawText(draw, origin + new Vector2(tileSize.X + 12, 4), FateChrome.FitText(page.Title, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 8));
-        Widgets.SecondaryWrapped(page.Purpose);
-        Widgets.Caption(count);
-        Widgets.Caption(subtext);
-        ImGui.Separator();
+        else
+        {
+            var textWidth = width - gutter - textX;
+            FateChrome.TextWithTip(draw, "page_title", winPos + new Vector2(textX, originY), page.Title, textWidth, Theme.TextPrimary, 1.35f);
+            var descTop = originY + titleHeight + 4;
+            FateChrome.Wrapped(draw, winPos + new Vector2(textX, descTop), page.Purpose, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+            var descBlock = FateChrome.WrappedHeight(page.Purpose, textWidth, Theme.SecondaryScale);
+            var metaTop = descTop + descBlock + 4;
+            FateChrome.TextWithTip(draw, "page_meta", winPos + new Vector2(textX, metaTop), $"{count} · {subtext}", textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+            block = titleHeight + 4 + descBlock + 4 + metaHeight;
+        }
+        return 20 + MathF.Max(tile, block) + 8;
     }
 
     private string LiveCount(List<(PublicEvent Fate, bool IsAvailable)>? fates)
@@ -333,7 +387,7 @@ public class FateToolKitWindow : MinimisableWindow
     private string LiveSubtext()
     {
         if (_currentPage == LivePage)
-            return $"{_tweak.GetCurrentMode().DisplayName} mode · {_tweak.CurrentState}";
+            return $"{_tweak.GetCurrentMode().DisplayName} mode · {FateChrome.Humanize(_tweak.CurrentState)}";
         if (_currentPage == SelectionPage)
             return $"Forlorn priority {(_tweak.Config.PrioritizeForlornMaidens ? "on" : "off")}";
         if (_currentPage == CurrencyPage)
@@ -343,26 +397,74 @@ public class FateToolKitWindow : MinimisableWindow
         return $"Server bar {(_tweak.Config.ShowServerBarEntry ? "on" : "off")}";
     }
 
+    private static float FooterTextBlock() => FateChrome.LineHeight() + 4 + FateChrome.LineHeight(Theme.SecondaryScale);
+
+    private static float FooterHeight(float width)
+    {
+        var block = FooterTextBlock();
+        return width < 620 ? 12 + block + 12 + FateChrome.Control + 12 : 12 + MathF.Max(block, FateChrome.Control) + 12;
+    }
+
+    private Vector2 RunButtonSize() => new(FateChrome.ActionWidth(96, "Start", "Stop", "Stopping"), FateChrome.Control);
+
+    private void DrawFooter(UiState state, string action, Vector2 winPos, Vector2 winSize, float gutter)
+    {
+        var width = winSize.X;
+        var height = FooterHeight(width);
+        var top = winSize.Y - height;
+        var draw = ImGui.GetWindowDrawList();
+        draw.PushClipRect(winPos + new Vector2(0, top), winPos + winSize, false);
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top), winPos + new Vector2(width, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+
+        var narrow = width < 620;
+        var buttonSize = RunButtonSize();
+        if (narrow)
+            buttonSize.X = width - (2 * gutter);
+        var block = FooterTextBlock();
+        var buttonPos = narrow
+            ? new Vector2(gutter, top + 12 + block + 12)
+            : new Vector2(width - gutter - buttonSize.X, top + ((height - FateChrome.Control) / 2f));
+        var textX = gutter + 16;
+        var textRight = narrow ? width - gutter : buttonPos.X - 16;
+        var textTop = narrow ? top + 12 : top + ((height - block) / 2f);
+        var lineHeight = FateChrome.LineHeight();
+        var primary = $"{Copy.Word(state)} · {action}";
+        var secondary = _tweak.Running
+            ? $"Mode: {_tweak.GetCurrentMode().DisplayName} · {_tweak.CompletedCount} completed"
+            : $"Mode: {_tweak.GetCurrentMode().DisplayName} · {_tweak.Config.SortOrder.Count} sort rules";
+        draw.AddCircleFilled(winPos + new Vector2(gutter + 4, textTop + (lineHeight / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        FateChrome.TextWithTip(draw, "footer_primary", winPos + new Vector2(textX, textTop), primary, textRight - textX, Theme.TextPrimary);
+        FateChrome.TextWithTip(draw, "footer_secondary", winPos + new Vector2(textX, textTop + lineHeight + 4), secondary, textRight - textX, Theme.TextSecondary, Theme.SecondaryScale);
+        DrawRunButton("footer_primary_button", winPos + buttonPos, buttonSize, false);
+    }
+
+    // ---- live page --------------------------------------------------------------------------------------------------
+
     private void DrawLivePage(List<(PublicEvent Fate, bool IsAvailable)> fates)
     {
         var eligible = fates.Count(row => row.IsAvailable);
+        var target = _tweak.RunUntilCompleted is { } runTarget && runTarget > 0 ? runTarget : (int?)null;
         FateChrome.StatCards(
             new FateChrome.Stat("Tracked FATEs", fates.Count.ToString(), fates.Count == 0 ? "No FATEs in this zone" : "All visible FATEs"),
-            new FateChrome.Stat("Eligible now", eligible.ToString(), eligible == 0 ? "None currently eligible" : "Pass every automation rule", fates.Count > 0 ? eligible / (float)fates.Count : null),
+            new FateChrome.Stat("Eligible now", eligible.ToString(), eligible == 0 ? "None currently eligible" : "Pass every automation rule",
+                eligible / (float)Math.Max(1, fates.Count), $"/ {fates.Count}"),
             new FateChrome.Stat("Completed this run", _tweak.CompletedCount.ToString(),
                 _tweak.RemainingUntilCompleted is { } remaining ? $"{remaining} remaining" : "No completion target",
-                _tweak.RunUntilCompleted is { } target && target > 0 ? _tweak.CompletedCount / (float)target : null));
+                target is { } t ? _tweak.CompletedCount / (float)t : null, target is { } cap ? $"/ {cap}" : null));
 
         DrawRunSetup();
 
         if (fates.Count == 0)
         {
-            Widgets.InfoBox("Empty — no FATEs are visible in this zone. Move to a zone with active FATEs or wait for one to spawn.", UiState.Empty);
+            FateChrome.Notice("No FATEs in this zone", "Move to a zone with active FATEs or wait for one to spawn.", UiState.Empty);
             return;
         }
 
-        Section("FATEs in this zone", $"{eligible} eligible of {fates.Count}");
-        Widgets.SecondaryWrapped("Click a FATE to pathfind there, or click again while navigation is active to stop. Right-click toggles its blacklist entry; hover for eligibility details.");
+        FateChrome.Section("FATEs in this zone", $"{eligible} eligible of {fates.Count}");
+        FateChrome.Paragraph("Click a FATE to pathfind there, or click again while navigation is active to stop. Right-click toggles its blacklist entry; hover for eligibility details.");
+        FateChrome.Space(12);
         foreach (var (fate, isAvailable) in fates)
             DrawFateCard(fate, isAvailable);
     }
@@ -371,9 +473,10 @@ public class FateToolKitWindow : MinimisableWindow
     {
         FateChrome.Card("run_setup", () =>
         {
-            Section("Run setup", _tweak.Running ? Service.Automation.Status : "Automation stopped");
-            Widgets.SecondaryWrapped($"Grind mode: {_tweak.GetCurrentMode().DisplayName}. Completed FATEs: {_tweak.CompletedCount}. {ModeProgressText()}");
-            DrawRunControls("run", false);
+            FateChrome.Section("Run setup", _tweak.Running ? Service.Automation.Status : "Automation stopped");
+            FateChrome.Paragraph($"{_tweak.CompletedCount} FATEs completed this run. {ModeProgressText()}");
+            FateChrome.Space(12);
+            DrawRunControls("run");
         });
     }
 
@@ -381,57 +484,58 @@ public class FateToolKitWindow : MinimisableWindow
     {
         var modeRemaining = _tweak.GetCurrentMode().GetRemainingDisplay(_tweak);
         if (!string.IsNullOrEmpty(modeRemaining))
-            return $"Mode progress: {modeRemaining}.";
+            return $"Mode progress: {modeRemaining.Replace("fates", "FATEs")}.";
         return _tweak.RemainingUntilCompleted is { } remaining
             ? $"Completion target remaining: {remaining}."
             : "No completion target is set.";
     }
 
-    private void DrawRunControls(string id, bool compact)
+    private float ModeButtonWidth()
+        => FateGrindModes.All.Max(mode => FateChrome.TextWidth($"Mode: {mode.DisplayName}")) + 32;
+
+    private void DrawRunControls(string id)
     {
-        var width = ImGui.GetContentRegionAvail().X;
+        var width = FateChrome.Avail();
         var origin = ImGui.GetCursorScreenPos();
-        var gap = 2 * Theme.Unit;
-        var runSize = new Vector2(compact ? 82 : 92, FateChrome.ControlHeight);
-        var modeLabel = compact ? _tweak.GetCurrentMode().DisplayName : $"Mode: {_tweak.GetCurrentMode().DisplayName}";
-        var modeSize = new Vector2(MathF.Min(compact ? 150 : 220, MathF.Max(compact ? 92 : 130, ImGui.CalcTextSize(modeLabel).X + 32)), FateChrome.ControlHeight);
-        var zoneSize = new Vector2(compact ? 100 : 124, FateChrome.ControlHeight);
-        var total = runSize.X + modeSize.X + zoneSize.X + (2 * gap);
-        var runPos = origin;
+        const float gap = 8;
+        var runSize = RunButtonSize();
+        var zoneSize = new Vector2(FateChrome.ActionWidth(96, "Swap zones"), FateChrome.Control);
+        var modeSize = new Vector2(MathF.Min(ModeButtonWidth(), width), FateChrome.Control);
+        var modeLabel = $"Mode: {_tweak.GetCurrentMode().DisplayName}";
         Vector2 modePos;
         Vector2 zonePos;
         float height;
-        if (total <= width)
+        if (runSize.X + modeSize.X + zoneSize.X + (2 * gap) <= width)
         {
             modePos = origin + new Vector2(runSize.X + gap, 0);
-            zonePos = origin + new Vector2(runSize.X + modeSize.X + (2 * gap), 0);
-            height = FateChrome.ControlHeight;
+            zonePos = modePos + new Vector2(modeSize.X + gap, 0);
+            height = FateChrome.Control;
         }
         else
         {
-            modePos = origin + new Vector2(0, FateChrome.ControlHeight + gap);
+            modePos = origin + new Vector2(0, FateChrome.Control + gap);
             zonePos = modePos + new Vector2(modeSize.X + gap, 0);
-            height = (2 * FateChrome.ControlHeight) + gap;
+            height = (2 * FateChrome.Control) + gap;
             if (zonePos.X + zoneSize.X > origin.X + width)
             {
-                zonePos = origin + new Vector2(0, 2 * (FateChrome.ControlHeight + gap));
-                height = (3 * FateChrome.ControlHeight) + (2 * gap);
+                zonePos = origin + new Vector2(0, 2 * (FateChrome.Control + gap));
+                height = (3 * FateChrome.Control) + (2 * gap);
             }
         }
 
-        DrawRunButton(id + "_primary", runPos, runSize);
+        DrawRunButton(id + "_primary", origin, runSize, true);
         DrawModeButton(id + "_mode", modePos, modeSize, modeLabel);
         DrawZoneButton(id + "_zones", zonePos, zoneSize);
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, height));
     }
 
-    private void DrawRunButton(string id, Vector2 pos, Vector2 size)
+    private void DrawRunButton(string id, Vector2 pos, Vector2 size, bool accent)
     {
         var draw = ImGui.GetWindowDrawList();
         var clicked = _tweak.Running
-            ? FateChrome.DangerButton(draw, id, _tweak.PendingStopWhenSafe ? "Stopping" : "Stop", pos, size)
-            : FateChrome.OutlineButton(draw, id, "Start", pos, size, true);
+            ? FateChrome.StopButton(draw, id, _tweak.PendingStopWhenSafe ? "Stopping" : "Stop", pos, size, _tweak.PendingStopWhenSafe)
+            : FateChrome.OutlineButton(draw, id, "Start", pos, size, accent);
         var hovered = ImGui.IsItemHovered();
         if (!clicked)
         {
@@ -465,25 +569,26 @@ public class FateToolKitWindow : MinimisableWindow
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip($"Grind mode: {_tweak.GetCurrentMode().DisplayName}");
 
+        ImGui.SetNextWindowPos(new Vector2(pos.X, pos.Y + size.Y + 4), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(FateChrome.PopupWidth(FateGrindModes.All.Select(mode => mode.DisplayName), MathF.Max(size.X, 240)), 0));
+        using var style = FateChrome.PopupStyle();
         using var popup = ImRaii.Popup("###GrindModePopup");
         if (!popup)
             return;
-        Widgets.Title("Grind mode");
-        ImGui.Separator();
+        FateChrome.PopupTitle("Grind mode");
         foreach (var mode in FateGrindModes.All)
         {
-            if (ImGui.Selectable(mode.DisplayName, mode.DisplayName == _tweak.SelectedModeId))
-            {
-                _tweak.SelectedModeId = mode.DisplayName;
-                ImGui.CloseCurrentPopup();
-            }
+            if (!FateChrome.PopupRow("mode_" + mode.DisplayName, mode.DisplayName, mode.DisplayName == _tweak.SelectedModeId))
+                continue;
+            _tweak.SelectedModeId = mode.DisplayName;
+            ImGui.CloseCurrentPopup();
         }
     }
 
     private void DrawZoneButton(string id, Vector2 pos, Vector2 size)
     {
         using var disabled = ImRaii.Disabled(_tweak.ModeSuppliesSwapZones);
-        if (FateChrome.OutlineButton(ImGui.GetWindowDrawList(), id, "Swap zones", pos, size, _tweak.HasSelectedSwapZones))
+        if (FateChrome.OutlineButton(ImGui.GetWindowDrawList(), id, "Swap zones", pos, size, _tweak.HasSelectedSwapZones, _tweak.ModeSuppliesSwapZones))
             _tweak.OpenZoneSelector();
         if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             return;
@@ -498,52 +603,60 @@ public class FateToolKitWindow : MinimisableWindow
     private void DrawMinimised()
     {
         var (state, action) = OverallState();
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
+        var winPos = ImGui.GetWindowPos();
+        var width = ImGui.GetWindowWidth();
+        var gutter = FateChrome.Gutter(width);
         var draw = ImGui.GetWindowDrawList();
-        var gap = 2 * Theme.Unit;
-        var brandSize = new Vector2(214, 42);
-        var statusSize = new Vector2(82, FateChrome.ControlHeight);
-        var settingsSize = new Vector2(92, FateChrome.ControlHeight);
-        var restoreSize = new Vector2(84, FateChrome.ControlHeight);
-        var closeSize = new Vector2(FateChrome.ControlHeight);
-        draw.AddRectFilled(origin, origin + new Vector2(width, 50), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, 50), origin + new Vector2(width, 50), Theme.Pack(Theme.SurfaceBorder));
-        if (FateChrome.BrandButton(draw, origin + new Vector2(0, 4), brandSize))
+        const float gap = 8;
+        const float bar = 56;
+        var settingsSize = new Vector2(FateChrome.ActionWidth(96, "Settings"), FateChrome.Control);
+        var restoreSize = new Vector2(FateChrome.ActionWidth(96, "Restore"), FateChrome.Control);
+        var pillSize = new Vector2(FateChrome.PillWidth(), FateChrome.Control);
+        var closeSize = new Vector2(FateChrome.Control);
+        var rightWidth = settingsSize.X + gap + restoreSize.X + gap + pillSize.X + gap + closeSize.X;
+        var brandWidth = MathF.Min(FateChrome.BrandWidth(BrandName), MathF.Max(120, width - (2 * gutter) - rightWidth - 16));
+
+        draw.AddRectFilled(winPos, winPos + new Vector2(width, bar), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, bar), winPos + new Vector2(width, bar), Theme.Pack(Theme.SurfaceBorder));
+        if (FateChrome.Brand(draw, winPos + new Vector2(gutter, 8), brandWidth, BrandName))
             _currentPage = LivePage;
-        var right = width;
-        var closePos = new Vector2(right - closeSize.X, 8);
-        right -= closeSize.X + gap;
-        var restorePos = new Vector2(right - restoreSize.X, 8);
-        right -= restoreSize.X + gap;
-        var settingsPos = new Vector2(right - settingsSize.X, 8);
-        right -= settingsSize.X + gap;
-        var statusPos = new Vector2(right - statusSize.X, 8);
-        FateChrome.StatusPill(draw, origin + statusPos, statusSize, state);
-        if (DrawSettingsButton("compact_settings", origin + settingsPos, settingsSize) && Minimised)
+
+        var closePos = new Vector2(width - gutter - closeSize.X, 10);
+        var pillPos = new Vector2(closePos.X - gap - pillSize.X, 10);
+        var restorePos = new Vector2(pillPos.X - gap - restoreSize.X, 10);
+        var settingsPos = new Vector2(restorePos.X - gap - settingsSize.X, 10);
+        if (DrawSettingsButton("compact_settings", winPos + settingsPos, settingsSize) && Minimised)
             ToggleMinimised();
-        if (FateChrome.OutlineButton(draw, "compact_restore", "Restore", origin + restorePos, restoreSize))
+        if (FateChrome.OutlineButton(draw, "compact_restore", "Restore", winPos + restorePos, restoreSize))
             ToggleMinimised();
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(ExpandTooltipText);
-        DrawCloseButton("compact_close", origin + closePos, closeSize);
+        FateChrome.StatusPill(draw, winPos + pillPos, pillSize, state);
+        if (FateChrome.CloseButton(draw, winPos + closePos, closeSize))
+            IsOpen = false;
 
-        var runSize = new Vector2(82, FateChrome.ControlHeight);
-        var modeSize = new Vector2(132, FateChrome.ControlHeight);
-        var zoneSize = new Vector2(100, FateChrome.ControlHeight);
-        var runOrigin = origin + new Vector2(0, 58);
-        var x = 0f;
-        DrawRunButton("compact_primary", runOrigin, runSize);
-        x += runSize.X + gap;
+        var rowY = bar + 12;
+        var runSize = RunButtonSize();
+        var zoneSize = new Vector2(FateChrome.ActionWidth(96, "Swap zones"), FateChrome.Control);
         var completed = $"{_tweak.CompletedCount} completed";
-        FateChrome.DrawText(draw, runOrigin + new Vector2(x, 9), FateChrome.FitText(completed, 94), Theme.TextSecondary);
-        x += 102;
-        DrawModeButton("compact_mode", runOrigin + new Vector2(x, 0), modeSize, _tweak.GetCurrentMode().DisplayName);
-        x += modeSize.X + gap;
-        DrawZoneButton("compact_zones", runOrigin + new Vector2(x, 0), zoneSize);
-        FateChrome.DrawText(draw, origin + new Vector2(0, 100), FateChrome.FitText($"{Copy.Word(state)} · {action}", width), Theme.TextSecondary);
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, 116));
+        var completedWidth = FateChrome.TextWidth(completed) + 8;
+        var modeWidth = MathF.Max(120, MathF.Min(ModeButtonWidth(), width - (2 * gutter) - runSize.X - completedWidth - zoneSize.X - (3 * gap)));
+        var x = gutter;
+        DrawRunButton("compact_primary", winPos + new Vector2(x, rowY), runSize, true);
+        x += runSize.X + gap;
+        FateChrome.Text(draw, winPos + new Vector2(x + 4, rowY + ((FateChrome.Control - FateChrome.LineHeight()) / 2f)), completed, Theme.TextSecondary);
+        x += completedWidth + gap;
+        DrawModeButton("compact_mode", winPos + new Vector2(x, rowY), new Vector2(modeWidth, FateChrome.Control), $"Mode: {_tweak.GetCurrentMode().DisplayName}");
+        x += modeWidth + gap;
+        DrawZoneButton("compact_zones", winPos + new Vector2(x, rowY), zoneSize);
+
+        var statusY = rowY + FateChrome.Control + 10;
+        var statusHeight = FateChrome.LineHeight(Theme.SecondaryScale);
+        draw.AddCircleFilled(winPos + new Vector2(gutter + 4, statusY + (statusHeight / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        FateChrome.TextWithTip(draw, "compact_status", winPos + new Vector2(gutter + 16, statusY), $"{Copy.Word(state)} · {action}",
+            width - (2 * gutter) - 16, Theme.TextSecondary, Theme.SecondaryScale);
+        ImGui.SetCursorPos(Vector2.Zero);
+        ImGui.Dummy(new Vector2(width, statusY + statusHeight + 8));
     }
 
     private void DrawFateCard(PublicEvent fate, bool isAvailable)
@@ -551,13 +664,16 @@ public class FateToolKitWindow : MinimisableWindow
         FateChrome.Card($"fate_{fate.Id}", () =>
         {
             var origin = ImGui.GetCursorScreenPos();
-            var width = ImGui.GetContentRegionAvail().X;
+            var width = FateChrome.Avail();
             var draw = ImGui.GetWindowDrawList();
             var displayName = FormatDisplayName(fate);
             var isBlacklisted = _tweak.IsBlacklisted(fate);
-            var rowState = isAvailable && !isBlacklisted ? UiState.Ready : UiState.Blocked;
+            var automated = isAvailable && !isBlacklisted;
+            var rowState = automated ? UiState.Ready : UiState.Blocked;
             var stateLabel = Copy.Word(rowState);
-            const float rowHeight = 64;
+            var nameHeight = FateChrome.LineHeight();
+            var metaHeight = FateChrome.LineHeight(Theme.SecondaryScale);
+            var rowHeight = nameHeight + 4 + metaHeight + 8 + Theme.BarHeight;
 
             ImGui.SetCursorScreenPos(origin);
             ImGui.InvisibleButton("##fate_open", new Vector2(width, rowHeight));
@@ -572,43 +688,148 @@ public class FateToolKitWindow : MinimisableWindow
             if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                 _tweak.ToggleBlacklist(fate);
             if (hovered)
-                ImGui.SetTooltip(BuildFateTooltip(fate, displayName, isBlacklisted));
+                DrawFateTooltip(fate, displayName, isBlacklisted);
 
-            FateChrome.Diamond(draw, origin + new Vector2(11, 14), 6, Theme.Pack(rowState == UiState.Ready ? Theme.Accent : Theme.TextSecondary));
-            var stateWidth = ImGui.CalcTextSize(stateLabel).X;
-            FateChrome.DrawText(draw, origin + new Vector2(26, 3), FateChrome.FitText(displayName, width - 26 - stateWidth - 18), isAvailable && !isBlacklisted ? Theme.TextPrimary : Theme.TextSecondary);
-            FateChrome.DrawTextRight(draw, origin.X + width, origin.Y + 3, stateLabel, Copy.MarkColor(rowState));
+            var textLeft = origin.X + 26;
+            FateChrome.Diamond(draw, new Vector2(origin.X + 6, origin.Y + (nameHeight / 2f)), 5,
+                Theme.Pack(automated ? Theme.Accent : Theme.Accent with { W = 0.4f }));
+            var stateWidth = FateChrome.TextWidth(stateLabel);
+            FateChrome.Text(draw, new Vector2(textLeft, origin.Y),
+                FateChrome.Fit(displayName, width - 26 - stateWidth - 12), automated ? Theme.TextPrimary : Theme.TextSecondary);
+            FateChrome.TextRight(draw, origin.X + width, origin.Y, stateLabel, Copy.MarkColor(rowState));
 
             var time = FormatTimeRemaining(fate.TimeRemaining);
             var distance = Player.Available ? Player.DistanceTo(fate.Position).ToString("F1") + " y" : "?";
             var bonus = fate.HasBonus ? " · Bonus" : "";
             var metadata = $"{time} · {distance} · {fate.State}{bonus}";
             var progressLabel = $"{fate.Progress}%";
-            var progressLabelWidth = ImGui.CalcTextSize(progressLabel).X;
-            FateChrome.DrawText(draw, origin + new Vector2(26, 29), FateChrome.FitText(metadata, width - 26 - progressLabelWidth - 18), Theme.TextSecondary);
-            FateChrome.DrawTextRight(draw, origin.X + width, origin.Y + 29, progressLabel, Theme.TextSecondary);
+            var metaTop = origin.Y + nameHeight + 4;
+            FateChrome.Text(draw, new Vector2(textLeft, metaTop),
+                FateChrome.Fit(metadata, width - 26 - FateChrome.TextWidth(progressLabel, Theme.SecondaryScale) - 12, Theme.SecondaryScale),
+                Theme.TextSecondary, Theme.SecondaryScale);
+            FateChrome.TextRight(draw, origin.X + width, metaTop, progressLabel, Theme.TextSecondary, Theme.SecondaryScale);
 
             var fraction = Math.Clamp(fate.Progress / 100f, 0f, 1f);
-            var barMin = origin + new Vector2(26, 53);
-            var barMax = origin + new Vector2(width, 57);
+            var barMin = new Vector2(textLeft, metaTop + metaHeight + 8);
+            var barMax = new Vector2(origin.X + width, barMin.Y + Theme.BarHeight);
             draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
             if (fraction > 0)
-                draw.AddRectFilled(barMin, barMin + new Vector2((barMax.X - barMin.X) * fraction, 0), Theme.Pack(_tweak.Config.BarColour), 2f);
-        }, row: true);
+            {
+                var fill = automated ? _tweak.Config.BarColour : _tweak.Config.BarColour with { W = 0.45f };
+                draw.AddRectFilled(barMin, new Vector2(barMin.X + ((barMax.X - barMin.X) * fraction), barMax.Y), Theme.Pack(fill), 2f);
+            }
+        }, row: true, gap: 8);
     }
+
+    private void DrawFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted)
+    {
+        const float tipWidth = 320;
+        const float pad = 12;
+        var inner = tipWidth - (2 * pad);
+        var (isEligible, failedConditions) = _tweak.GetFateConditionDetails(fate);
+        var automated = isEligible && !isBlacklisted;
+
+        var details = new List<(string Label, string Value)>();
+        void Add(string label, Func<string> value)
+        {
+            try
+            {
+                details.Add((label, value()));
+            }
+            catch
+            {
+                // a property that cannot be read right now is left out of the tooltip
+            }
+        }
+
+        Add("Level", () => fate.Level.ToString(CultureInfo.InvariantCulture));
+        Add("Type", () => FateChrome.Humanize(fate.Rule.ToString()));
+        Add("State", () => FateChrome.Humanize(fate.State.ToString()));
+        Add("Progress", () => $"{fate.Progress}%");
+        Add("Time left", () => FormatTimeRemaining(fate.TimeRemaining));
+        Add("Duration", () => TimeSpan.FromSeconds(fate.Duration).ToString(@"mm\:ss"));
+        if (fate.HasBonus)
+            Add("Bonus", () => "Yes");
+        Add("Blacklisted", () => isBlacklisted ? "Yes" : "No");
+        if (fate.EventItem is { } item)
+            Add("Turn-in item", () => item.ToString() ?? "");
+
+        var line = FateChrome.LineHeight();
+        var small = FateChrome.LineHeight(Theme.SecondaryScale);
+        var nameHeight = FateChrome.WrappedHeight(displayName, inner);
+        var reasonHeights = failedConditions.Select(reason => FateChrome.WrappedHeight(reason, inner - 14, Theme.SecondaryScale)).ToList();
+        var total = nameHeight + 8 + line
+            + (reasonHeights.Count > 0 ? 4 + reasonHeights.Sum() + (4 * (reasonHeights.Count - 1)) : 0)
+            + 12 + 1 + 12 + (details.Count * small) + (4 * (details.Count - 1));
+
+        var mouse = ImGui.GetMousePos();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        var pos = mouse + new Vector2(18, 18);
+        var viewportRight = ImGui.GetMainViewport().Pos.X + ImGui.GetMainViewport().Size.X;
+        if (pos.X + tipWidth + 8 > viewportRight)
+            pos.X = mouse.X - tipWidth - 12;
+        var bottomLimit = windowPos.Y + windowSize.Y - 8;
+        if (pos.Y + total + (2 * pad) > bottomLimit)
+            pos.Y = MathF.Max(windowPos.Y + 8, bottomLimit - total - (2 * pad));
+
+        ImGui.SetNextWindowPos(pos, ImGuiCond.Always);
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.TextSecondary with { W = 0.4f });
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(pad, pad));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, FateChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+        ImGui.BeginTooltip();
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var y = origin.Y;
+        FateChrome.Wrapped(draw, new Vector2(origin.X, y), displayName, inner, Theme.TextPrimary);
+        y += nameHeight + 8;
+        var mark = automated ? Theme.StateGreen : Theme.StateAmber;
+        draw.AddCircleFilled(new Vector2(origin.X + Theme.DotRadius, y + (line / 2f)), Theme.DotRadius, Theme.Pack(mark));
+        FateChrome.Text(draw, new Vector2(origin.X + 14, y), automated ? "Will be automated" : "Blocked", mark);
+        y += line;
+        if (reasonHeights.Count > 0)
+        {
+            y += 4;
+            for (var i = 0; i < failedConditions.Count; i++)
+            {
+                FateChrome.Wrapped(draw, new Vector2(origin.X + 14, y), failedConditions[i], inner - 14, Theme.TextPrimary, Theme.SecondaryScale);
+                y += reasonHeights[i] + 4;
+            }
+            y -= 4;
+        }
+        y += 12;
+        draw.AddLine(new Vector2(origin.X, y), new Vector2(origin.X + inner, y), Theme.Pack(Theme.SurfaceBorder));
+        y += 13;
+        foreach (var (label, value) in details)
+        {
+            FateChrome.Text(draw, new Vector2(origin.X, y), label, Theme.TextSecondary, Theme.SecondaryScale);
+            FateChrome.TextRight(draw, origin.X + inner, y, FateChrome.Fit(value, inner * 0.6f, Theme.SecondaryScale), Theme.TextPrimary, Theme.SecondaryScale);
+            y += small + 4;
+        }
+        ImGui.Dummy(new Vector2(inner, total));
+        ImGui.EndTooltip();
+        ImGui.PopStyleVar(3);
+        ImGui.PopStyleColor(2);
+    }
+
+    // ---- settings pages -------------------------------------------------------------------------------------------
 
     private void DrawFateSelectionPage()
     {
-        FateChrome.TwoColumns(
+        FateChrome.Columns("selection",
             () => FateChrome.Card("allowed_fate_types", () =>
             {
-                Section("Allowed FATE types", $"{FateRuleLabels.Count(row => !_tweak.Config.ExcludedFateRules.Contains(row.Rule))}/{FateRuleLabels.Length} enabled");
-                Widgets.SecondaryWrapped("Disabled FATE types are never started. Boss and trash-kill FATEs share the game's kill & boss rule; Bozja, Occult Crescent skirmishes, and cosmic exploration events use it too.");
+                FateChrome.Section("Allowed FATE types", $"{FateRuleLabels.Count(row => !_tweak.Config.ExcludedFateRules.Contains(row.Rule))}/{FateRuleLabels.Length} enabled");
+                FateChrome.Paragraph("Disabled FATE types are never started. Boss and trash-kill FATEs share the game's kill & boss rule; Bozja, Occult Crescent skirmishes, and cosmic exploration events use it too.");
+                FateChrome.Space(12);
                 var excluded = _tweak.Config.ExcludedFateRules;
-                foreach (var (rule, label) in FateRuleLabels)
+                for (var i = 0; i < FateRuleLabels.Length; i++)
                 {
+                    var (rule, label) = FateRuleLabels[i];
                     var allowed = !excluded.Contains(rule);
-                    if (!FateChrome.Toggle($"rule_{rule}", label, ref allowed))
+                    if (!FateChrome.Toggle($"rule_{rule}", label, ref allowed, separator: i > 0))
                         continue;
                     if (allowed)
                         excluded.Remove(rule);
@@ -616,12 +837,12 @@ public class FateToolKitWindow : MinimisableWindow
                         excluded.Add(rule);
                     _tweak.Config.Save();
                 }
-            }),
+            }, fill: true),
             () =>
             {
                 FateChrome.Card("target_priority", () =>
                 {
-                    Section("Target priority");
+                    FateChrome.Section("Target priority");
                     Setting("prioritize_forlorn", "Prioritize Forlorn Maidens",
                         () => _tweak.Config.PrioritizeForlornMaidens,
                         value => _tweak.Config.PrioritizeForlornMaidens = value,
@@ -629,73 +850,86 @@ public class FateToolKitWindow : MinimisableWindow
                 });
                 FateChrome.Card("selection_behavior", () =>
                 {
-                    Section("Selection behavior");
-                    Widgets.SecondaryWrapped("Eligibility still uses duration, progress, time remaining, blacklist, pending state, and player level. This page changes only which eligible types may run.");
-                });
+                    FateChrome.Section("Selection behavior");
+                    FateChrome.Paragraph("Eligibility still uses duration, progress, time remaining, blacklist, pending state, and player level. This page changes only which eligible types may run.");
+                }, fill: true);
             });
+    }
+
+    private void ComboField<T>(string id, string preview, IEnumerable<T> options, Func<T, string> label, T current, Action<T> select, float height = FateChrome.Control)
+    {
+        using var style = FateChrome.FieldStyle(height);
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = FateChrome.Avail();
+        ImGui.SetNextItemWidth(width);
+        using var combo = ImRaii.Combo(id, FateChrome.Fit(preview, width - 32 - 24), ImGuiComboFlags.NoArrowButton);
+        FateChrome.Chevron(draw, pos + new Vector2(width - 20, height / 2f));
+        if (!combo)
+            return;
+        var index = 0;
+        foreach (var option in options)
+        {
+            if (FateChrome.PopupRow($"{id}_{index++}", label(option), EqualityComparer<T>.Default.Equals(option, current)))
+            {
+                select(option);
+                ImGui.CloseCurrentPopup();
+            }
+        }
     }
 
     private void DrawCurrencyFocusPage()
     {
-        FateChrome.TwoColumns(
+        FateChrome.Columns("currency",
             () => FateChrome.Card("currency_settings", () =>
             {
-                Section("Reward currency");
-                Widgets.SecondaryWrapped("Zone swaps prefer zones whose FATEs reward the focused currency. A grind mode with its own zone list still wins.");
-                Widgets.Body("Focus currency");
-                ImGui.SetNextItemWidth(MathF.Min(340, ImGui.GetContentRegionAvail().X));
+                FateChrome.Section("Reward currency");
+                FateChrome.Paragraph("Zone swaps prefer zones whose FATEs reward the focused currency. A grind mode with its own zone list still wins.");
+                FateChrome.Space(16);
+                FateChrome.Line("Focus currency");
+                FateChrome.Space(8);
                 var focus = _tweak.Config.CurrencyFocus;
-                using (var combo = ImRaii.Combo("###CurrencyFocus", FateToolKit.CurrencyName(focus)))
+                ComboField("###CurrencyFocus", FateToolKit.CurrencyName(focus), Enum.GetValues<FateCurrency>(), FateToolKit.CurrencyName, focus, currency =>
                 {
-                    if (combo)
-                    {
-                        foreach (var currency in Enum.GetValues<FateCurrency>())
-                        {
-                            if (ImGui.Selectable(FateToolKit.CurrencyName(currency), currency == focus) && focus != currency)
-                            {
-                                _tweak.Config.CurrencyFocus = currency;
-                                _tweak.Config.Save();
-                            }
-                        }
-                    }
-                }
-                Widgets.SecondaryWrapped("Company Seals: A Realm Reborn, Heavensward, and Stormblood zones. Bicolor Gemstones: Shadowbringers and later zones. Yo-kai Medals: event zones with the watch equipped and matching minion out.");
+                    if (focus == currency)
+                        return;
+                    _tweak.Config.CurrencyFocus = currency;
+                    _tweak.Config.Save();
+                });
+                FateChrome.Space(8);
+                FateChrome.Paragraph("Company Seals: A Realm Reborn, Heavensward, and Stormblood zones. Bicolor Gemstones: Shadowbringers and later zones. Yo-kai Medals: event zones with the watch equipped and matching minion out.");
 
                 focus = _tweak.Config.CurrencyFocus;
                 if (focus != FateCurrency.None)
                 {
-                    ImGui.Separator();
-                    Widgets.Body("When focused zones have nothing to run");
-                    ImGui.SetNextItemWidth(MathF.Min(340, ImGui.GetContentRegionAvail().X));
+                    FateChrome.Divider();
+                    FateChrome.Line("When focused zones have nothing to run");
+                    FateChrome.Space(8);
                     var fallback = _tweak.Config.CurrencyFocusFallback;
-                    using (var combo = ImRaii.Combo("###CurrencyFocusFallback", CurrencyFallbackLabel(fallback)))
+                    ComboField("###CurrencyFocusFallback", CurrencyFallbackLabel(fallback), Enum.GetValues<CurrencyFocusFallback>(), CurrencyFallbackLabel, fallback, option =>
                     {
-                        if (combo)
-                        {
-                            foreach (var option in Enum.GetValues<CurrencyFocusFallback>())
-                            {
-                                if (ImGui.Selectable(CurrencyFallbackLabel(option), option == fallback) && fallback != option)
-                                {
-                                    _tweak.Config.CurrencyFocusFallback = option;
-                                    _tweak.Config.Save();
-                                }
-                            }
-                        }
-                    }
-                    Widgets.SecondaryWrapped("Zone swaps first pass through every focused zone. Continue normally returns to the usual selection after a full pass; Idle in zone waits for focused-currency FATEs.");
+                        if (fallback == option)
+                            return;
+                        _tweak.Config.CurrencyFocusFallback = option;
+                        _tweak.Config.Save();
+                    });
+                    FateChrome.Space(8);
+                    FateChrome.Paragraph("Zone swaps first pass through every focused zone. Continue normally returns to the usual selection after a full pass; Idle in zone waits for focused-currency FATEs.");
                 }
-            }),
+            }, fill: true),
             () => FateChrome.Card("currency_state", () =>
             {
-                Section("Current rotation");
-                Widgets.Body(FateToolKit.CurrencyName(_tweak.Config.CurrencyFocus));
-                Widgets.SecondaryWrapped(_tweak.Config.CurrencyFocus == FateCurrency.None
+                FateChrome.Section("Current rotation");
+                FateChrome.Line(FateToolKit.CurrencyName(_tweak.Config.CurrencyFocus));
+                FateChrome.Space(4);
+                FateChrome.Paragraph(_tweak.Config.CurrencyFocus == FateCurrency.None
                     ? "Normal zone selection remains active."
                     : $"{CurrencyFallbackLabel(_tweak.Config.CurrencyFocusFallback)} after the focused pool is exhausted.");
-                ImGui.Separator();
-                Section("Zone source");
-                Widgets.SecondaryWrapped(ZoneSourceLabel());
-            }));
+                FateChrome.Divider();
+                FateChrome.Line("Zone source", Theme.TextSecondary, Theme.SecondaryScale);
+                FateChrome.Space(4);
+                FateChrome.Paragraph(ZoneSourceLabel(), Theme.TextPrimary, 1f);
+            }, fill: true));
     }
 
     private static string CurrencyFallbackLabel(CurrencyFocusFallback fallback) => fallback switch
@@ -708,10 +942,15 @@ public class FateToolKitWindow : MinimisableWindow
     {
         FateChrome.Card("zone_controls", () =>
         {
-            Section("Zone pool", ZoneSourceLabel());
-            Widgets.SecondaryWrapped(ZoneHelpText());
-            ImGui.SetNextItemWidth(MathF.Min(340, ImGui.GetContentRegionAvail().X));
-            ImGui.InputTextWithHint("###ZoneFilter", "Filter zones...", ref _zoneFilter, 64);
+            FateChrome.Section("Zone pool", ZoneSourceLabel());
+            FateChrome.Paragraph(ZoneHelpText());
+            FateChrome.Space(12);
+            using (FateChrome.FieldStyle(FateChrome.Control))
+            {
+                ImGui.SetNextItemWidth(FateChrome.Avail());
+                ImGui.InputTextWithHint("###ZoneFilter", "Filter zones...", ref _zoneFilter, 64);
+            }
+            FateChrome.Space(12);
 
             var rawPool = _tweak.GetRawSwapZones();
             var buttons = new List<ButtonAction>();
@@ -759,46 +998,56 @@ public class FateToolKitWindow : MinimisableWindow
             var allowedCount = zones.Count(zone => IsZoneChecked(zone.TerritoryId));
             FateChrome.Card($"expansion_{group.Key.Id}", () =>
             {
-                Section(group.Key.Name, $"{allowedCount}/{zones.Count} allowed");
+                FateChrome.Section(group.Key.Name, $"{allowedCount}/{zones.Count} allowed");
                 DrawButtonRow(
                     new ButtonAction($"exp_all_{group.Key.Id}", "All", () => SetZonesChecked(zones, true)),
                     new ButtonAction($"exp_none_{group.Key.Id}", "None", () => SetZonesChecked(zones, false)));
                 var noTeleport = zones.Count(zone => zone.ZoneClass != FateZoneLogic.ZoneClass.FateZone);
                 if (noTeleport > 0)
-                    Widgets.Caption($"{noTeleport} without a teleport aetheryte");
+                {
+                    FateChrome.Space(8);
+                    FateChrome.Paragraph($"{noTeleport} without a teleport aetheryte");
+                }
+                FateChrome.Space(8);
                 DrawZoneToggles(zones);
             });
         }
         if (!anyGroup)
-            Widgets.InfoBox($"Empty — no zones match ‘{_zoneFilter}’. Clear the filter to restore the full zone list.", UiState.Empty);
+            FateChrome.Notice("No matching zones", $"Nothing matches \"{_zoneFilter}\". Clear the filter to restore the full zone list.", UiState.Empty);
     }
 
     private void DrawZoneToggles(List<FateZone> zones)
     {
-        void DrawRange(IEnumerable<FateZone> source)
+        const float gap = 16;
+        var width = FateChrome.Avail();
+        var columns = Math.Max(1, (int)((width + gap) / (240 + gap)));
+        var cell = (width - ((columns - 1) * gap)) / columns;
+        var origin = ImGui.GetCursorScreenPos();
+        float y = 0;
+        for (var start = 0; start < zones.Count; start += columns)
         {
-            foreach (var zone in source)
+            var count = Math.Min(columns, zones.Count - start);
+            var rowHeight = 0f;
+            for (var c = 0; c < count; c++)
+                rowHeight = MathF.Max(rowHeight, FateChrome.ToggleHeight(zones[start + c].Name, null, cell, compact: true));
+            for (var c = 0; c < count; c++)
             {
+                var zone = zones[start + c];
+                var left = origin.X + (c * (cell + gap));
+                ImGui.SetCursorScreenPos(new Vector2(left, origin.Y + y));
+                FateChrome.PushRight(left + cell);
                 var isChecked = IsZoneChecked(zone.TerritoryId);
                 var tooltip = zone.ZoneClass == FateZoneLogic.ZoneClass.NoTeleportFateZone
                     ? "No aetheryte to teleport into this zone; it is never picked by automatic zone swaps."
                     : null;
-                if (FateChrome.Toggle($"zone_{zone.TerritoryId}", zone.Name, ref isChecked, tooltip: tooltip))
+                if (FateChrome.Toggle($"zone_{zone.TerritoryId}", zone.Name, ref isChecked, tooltip: tooltip, compact: true))
                     SetZonesChecked([zone], isChecked);
+                FateChrome.PopRight();
             }
+            y += rowHeight;
         }
-
-        if (ImGui.GetContentRegionAvail().X >= 720)
-        {
-            FateChrome.TwoColumns(
-                () => DrawRange(zones.Where((_, index) => index % 2 == 0)),
-                () => DrawRange(zones.Where((_, index) => index % 2 == 1)),
-                0.5f);
-        }
-        else
-        {
-            DrawRange(zones);
-        }
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, y));
     }
 
     private string ZoneSourceLabel()
@@ -895,11 +1144,12 @@ public class FateToolKitWindow : MinimisableWindow
 
     private void DrawDisplayPage()
     {
-        FateChrome.TwoColumns(
+        FateChrome.Columns("display",
             () =>
             {
-                Section("Priority order", $"{_tweak.Config.SortOrder.Count} rules");
-                Widgets.SecondaryWrapped("Available FATEs use these rules from top to bottom. Drag a row to reorder it, change its direction, or remove it.");
+                FateChrome.Section("Priority order", $"{_tweak.Config.SortOrder.Count} rules");
+                FateChrome.Paragraph("Available FATEs use these rules from top to bottom. Drag a row to reorder it, change its direction, or remove it.");
+                FateChrome.Space(12);
                 var sortOrder = _tweak.Config.SortOrder.ToList();
                 for (var i = 0; i < sortOrder.Count; i++)
                     if (DrawSortRow(sortOrder, i))
@@ -911,23 +1161,28 @@ public class FateToolKitWindow : MinimisableWindow
                         _tweak.Config.SortOrder = Configuration.DefaultSortOrder();
                         _tweak.Config.Save();
                     }));
+                FateChrome.Space(16);
                 DrawAddSortPopup(sortOrder);
             },
             () => FateChrome.Card("display_settings", () =>
             {
-                Section("Display");
+                FateChrome.Section("Display");
                 Setting("show_server_bar", "Show server info bar entry",
                     () => _tweak.Config.ShowServerBarEntry,
                     value => _tweak.Config.ShowServerBarEntry = value,
                     "The FATE bot's On/Off switch in the game's server info bar. Starting from it requires a confirming second click; the game and Umbra can also hide the entry independently.");
-                ImGui.Separator();
-                Section("Display name format");
-                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
-                if (ImGui.InputText("###DisplayNameFormat", ref _tweak.Config.DisplayNameFormat, 256))
-                    _tweak.Config.Save();
-                Widgets.SecondaryWrapped("Available tokens: {Level}, {Name}, {Id}, {Progress}, {TimeRemaining}, {Distance}, {State}. Changes save immediately and apply to every FATE row.");
-            }),
-            0.68f);
+                FateChrome.Divider();
+                FateChrome.Line("Display name format");
+                FateChrome.Space(8);
+                using (FateChrome.FieldStyle(FateChrome.Control))
+                {
+                    ImGui.SetNextItemWidth(FateChrome.Avail());
+                    if (ImGui.InputText("###DisplayNameFormat", ref _tweak.Config.DisplayNameFormat, 256))
+                        _tweak.Config.Save();
+                }
+                FateChrome.Space(8);
+                FateChrome.Paragraph("Available tokens: {Level}, {Name}, {Id}, {Progress}, {TimeRemaining}, {Distance}, {State}. Changes save immediately and apply to every FATE row.");
+            }, fill: true));
     }
 
     private bool DrawSortRow(List<FateSortOrder> sortOrder, int index)
@@ -938,17 +1193,18 @@ public class FateToolKitWindow : MinimisableWindow
             using var id = ImRaii.PushId($"sort_{index}");
             var item = sortOrder[index];
             var criteria = item.Criteria;
-            var width = ImGui.GetContentRegionAvail().X;
+            var width = FateChrome.Avail();
             var draw = ImGui.GetWindowDrawList();
             var wide = width >= 560;
             var origin = ImGui.GetCursorScreenPos();
-            var gap = 2 * Theme.Unit;
-            var dragSize = new Vector2(58, 32);
-            var directionSize = new Vector2(94, 32);
-            var removeSize = new Vector2(80, 32);
+            const float gap = 8;
+            const float control = 32;
+            var dragSize = new Vector2(FateChrome.ActionWidth(58, "Drag"), control);
+            var directionSize = new Vector2(FateChrome.ActionWidth(88, "High first", "Low first"), control);
+            var removeSize = new Vector2(FateChrome.ActionWidth(72, "Remove"), control);
 
             FateChrome.OutlineButton(draw, $"sort_drag_{index}", "Drag", origin, dragSize);
-            ImGui.DragDropSource(index, "FATE_SORT_ITEM"u8, criteria.ToString().Replace("_", " "));
+            ImGui.DragDropSource(index, "FATE_SORT_ITEM"u8, FateChrome.Humanize(criteria.ToString()));
             ImGui.DragDropTarget(index, "FATE_SORT_ITEM"u8, sortOrder.Count, (sourceIndex, insertIndex) =>
             {
                 var dragged = sortOrder[sourceIndex];
@@ -962,29 +1218,24 @@ public class FateToolKitWindow : MinimisableWindow
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Drag to change priority order");
 
-            var comboPos = wide ? origin + new Vector2(dragSize.X + gap, 0) : origin + new Vector2(0, 40);
+            var comboPos = origin + new Vector2(dragSize.X + gap, 0);
             var comboWidth = wide
-                ? MathF.Max(120, width - dragSize.X - directionSize.X - removeSize.X - (4 * gap))
-                : width;
+                ? MathF.Max(120, width - dragSize.X - directionSize.X - removeSize.X - (3 * gap))
+                : width - dragSize.X - gap;
             ImGui.SetCursorScreenPos(comboPos);
-            ImGui.SetNextItemWidth(comboWidth);
-            using (var combo = ImRaii.Combo($"###Criteria{index}", criteria.ToString().Replace("_", " ")))
-            {
-                if (combo)
+            FateChrome.PushRight(comboPos.X + comboWidth);
+            ComboField($"###Criteria{index}", FateChrome.Humanize(criteria.ToString()), Enum.GetValues<FateSortCriteria>(),
+                criterion => FateChrome.Humanize(criterion.ToString()), criteria, criterion =>
                 {
-                    foreach (var criterion in Enum.GetValues<FateSortCriteria>())
-                    {
-                        if (ImGui.Selectable(criterion.ToString().Replace("_", " "), criterion == criteria))
-                        {
-                            item.Criteria = criterion;
-                            _tweak.Config.SortOrder[index] = item;
-                            _tweak.Config.Save();
-                        }
-                    }
-                }
-            }
+                    if (criterion == criteria)
+                        return;
+                    item.Criteria = criterion;
+                    _tweak.Config.SortOrder[index] = item;
+                    _tweak.Config.Save();
+                }, control);
+            FateChrome.PopRight();
 
-            var actionY = wide ? 0 : 80;
+            var actionY = wide ? 0 : control + gap;
             var directionPos = wide
                 ? origin + new Vector2(width - directionSize.X - removeSize.X - gap, 0)
                 : origin + new Vector2(0, actionY);
@@ -1011,21 +1262,26 @@ public class FateToolKitWindow : MinimisableWindow
                 ImGui.SetTooltip("Remove this sort criterion");
 
             ImGui.SetCursorScreenPos(origin);
-            ImGui.Dummy(new Vector2(width, wide ? 32 : 112));
-        }, row: true);
+            ImGui.Dummy(new Vector2(width, wide ? control : (2 * control) + gap));
+        }, row: true, gap: 8);
         return removed;
     }
 
     private void DrawAddSortPopup(List<FateSortOrder> sortOrder)
     {
+        if (_buttonRects.TryGetValue("sort_add", out var anchor))
+        {
+            ImGui.SetNextWindowPos(new Vector2(anchor.Pos.X, anchor.Pos.Y + anchor.Size.Y + 4), ImGuiCond.Always);
+            ImGui.SetNextWindowSize(new Vector2(FateChrome.PopupWidth(Enum.GetValues<FateSortCriteria>().Select(c => FateChrome.Humanize(c.ToString())), 240), 0));
+        }
+        using var style = FateChrome.PopupStyle();
         using var popup = ImRaii.Popup("###AddSortCriteria");
         if (!popup)
             return;
-        Widgets.Title("Add sort criterion");
-        ImGui.Separator();
+        FateChrome.PopupTitle("Add sort criterion");
         foreach (var criterion in Enum.GetValues<FateSortCriteria>())
         {
-            if (!ImGui.Selectable(criterion.ToString().Replace("_", " ")))
+            if (!FateChrome.PopupRow("add_" + criterion, FateChrome.Humanize(criterion.ToString()), false))
                 continue;
             sortOrder.Add(new FateSortOrder { Criteria = criterion, Descending = true });
             _tweak.Config.SortOrder = sortOrder;
@@ -1043,104 +1299,35 @@ public class FateToolKitWindow : MinimisableWindow
         _tweak.Config.Save();
     }
 
-    private static void Section(string title, string? detail = null)
-    {
-        Widgets.Title(detail is null ? title : $"{title} · {detail}");
-    }
-
     private readonly record struct ButtonAction(string Id, string Label, Action Click);
 
-    private static void DrawButtonRow(params ButtonAction[] buttons)
+    private void DrawButtonRow(params ButtonAction[] buttons)
     {
         if (buttons.Length == 0)
             return;
         var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
+        var width = FateChrome.Avail();
         var draw = ImGui.GetWindowDrawList();
-        var gap = 2 * Theme.Unit;
+        const float gap = 8;
+        const float height = 32;
         float x = 0;
         float y = 0;
         foreach (var button in buttons)
         {
-            var size = new Vector2(MathF.Min(width, MathF.Max(72, ImGui.CalcTextSize(button.Label).X + 32)), 32);
+            var size = new Vector2(MathF.Min(width, FateChrome.ActionWidth(72, button.Label)), height);
             if (x > 0 && x + size.X > width)
             {
                 x = 0;
-                y += 32 + gap;
+                y += height + gap;
             }
-            if (FateChrome.OutlineButton(draw, button.Id, button.Label, origin + new Vector2(x, y), size))
+            var pos = origin + new Vector2(x, y);
+            _buttonRects[button.Id] = (pos, size);
+            if (FateChrome.OutlineButton(draw, button.Id, button.Label, pos, size))
                 button.Click();
             x += size.X + gap;
         }
         ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, y + 32 + gap));
-    }
-
-    private static float FooterHeight(float width) => width < 620 ? 100f : 68f;
-
-    private void DrawFooter(UiState state, string action)
-    {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = FooterHeight(width);
-        var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
-        var narrow = width < 620;
-        var actionSize = new Vector2(narrow ? MathF.Min(160, width) : 100, 36);
-        var actionPos = origin + new Vector2(width - actionSize.X, narrow ? 54 : 16);
-        var textRight = narrow ? origin.X + width : actionPos.X - 16;
-        var textPos = origin + new Vector2(24, 9);
-        var primary = $"{Copy.Word(state)} · {action}";
-        var secondary = _tweak.Running
-            ? $"Mode: {_tweak.GetCurrentMode().DisplayName} · {_tweak.CompletedCount} completed"
-            : $"Mode: {_tweak.GetCurrentMode().DisplayName} · {_tweak.Config.SortOrder.Count} sort rules";
-        draw.AddCircleFilled(origin + new Vector2(10, 19), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        FateChrome.DrawText(draw, textPos, FateChrome.FitText(primary, textRight - textPos.X), Theme.TextPrimary);
-        FateChrome.DrawText(draw, textPos + new Vector2(0, 27), FateChrome.FitText(secondary, textRight - textPos.X), Theme.TextSecondary);
-        DrawRunButton("footer_primary", actionPos, actionSize);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
-    }
-
-    private string BuildFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Display: {displayName}");
-
-        foreach (var prop in TooltipProperties)
-        {
-            object? raw;
-            try
-            {
-                raw = prop.GetValue(fate);
-            }
-            catch
-            {
-                continue;
-            }
-
-            var value = raw switch
-            {
-                null => "?",
-                float f when prop.Name == nameof(PublicEvent.TimeRemaining) => FormatTimeRemaining(f),
-                Vector3 v when prop.Name == nameof(PublicEvent.Position) => v.ToString(),
-                bool b => b ? "True" : "False",
-                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-                _ => raw.ToString() ?? "?",
-            };
-            sb.AppendLine($"{prop.Name}: {value}");
-        }
-
-        sb.AppendLine($"Blacklist: {(isBlacklisted ? "Yes" : "No")}");
-        var (isEligible, failedConditions) = _tweak.GetFateConditionDetails(fate);
-        sb.AppendLine($"Will be automated? {isEligible}");
-        if (failedConditions.Count > 0)
-        {
-            sb.AppendLine("Blocked by:");
-            foreach (var reason in failedConditions)
-                sb.AppendLine($" - {reason}");
-        }
-        return sb.ToString().TrimEnd();
+        ImGui.Dummy(new Vector2(width, y + height));
     }
 
     private static string FormatTimeRemaining(float seconds)

@@ -105,9 +105,9 @@ internal static class Program
                 c.Tweak.PendingStopWhenSafe = true;
             }),
         new("live-fate-tooltip", "Live page scrolled to the blocked FATEs, hovering the blacklisted over-long one: the tooltip lists every FATE property plus the 'Blocked by' reasons.",
-            FirstUseWidth, FirstUseHeight, c => { Populate(c); c.Page(LivePage); }) { Steps = [Scroll(500, 500, -30), Move(420, 512)] },
+            FirstUseWidth, FirstUseHeight, c => { Populate(c); c.Page(LivePage); }) { Steps = [Scroll(500, 500, -30), Move(420, 560)] },
         new("live-mode-popup", "Grind-mode popup open over the live page: every mode, the current one selected.",
-            FirstUseWidth, FirstUseHeight, c => { Populate(c); c.Page(LivePage); }) { Steps = [Click(185, 337), Move(900, 620)] },
+            FirstUseWidth, FirstUseHeight, c => { Populate(c); c.Page(LivePage); }) { Steps = [Click(255, 380), Move(900, 620)] },
 
         // ---- settings pages ---------------------------------------------------------------------------------
         new("settings-selection", "FATE selection page: allowed FATE types with three types switched off, target priority and behaviour cards in the right rail.",
@@ -159,7 +159,7 @@ internal static class Program
             {
                 c.Config.DisplayNameFormat = "[{Level}] {Name} ({Progress}%) - {TimeRemaining} - {Distance}y";
                 c.Page(DisplayPage);
-            }) { Steps = [Scroll(300, 500, -30), Click(71, 414), Move(560, 330)] },
+            }) { Steps = [Scroll(300, 500, -30), Click(80, 377), Move(560, 200)] },
 
         // ---- minimised form ---------------------------------------------------------------------------------
         new("minimised-stopped", "Minimised form, stopped: brand, status pill, Settings and Restore buttons, run controls, status line.",
@@ -282,11 +282,13 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags |
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
                     ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 
@@ -355,8 +357,8 @@ internal static class Program
             io.DisplayFramebufferScale = Vector2.One;
             io.DeltaTime = 1f / 60f;
             _ = UiLook.Apply(Options);
-            // Close button: the right-most 34 px square of the top bar, inside the window padding.
-            var click = new Vector2(FirstUseWidth - 12 - 17, 12 + 16 + 17);
+            // Close button: the right-most 36 px square of the header band, one gutter (24 px at this width) in from the edge.
+            var click = new Vector2(FirstUseWidth - 24 - 18, 16 + 18);
             for (var step = 0; step < 6; step++)
             {
                 io.MousePos = step < 3 ? new Vector2(-10000, -10000) : click;
@@ -365,9 +367,11 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
             if (window.IsOpen)
