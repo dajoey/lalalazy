@@ -186,7 +186,7 @@ internal static class Program
                 c.Typical();
                 c.Containers();
                 c.Page("Roles", role: "Casting");
-            }) { Mouse = new Vector2(80, 404) },
+            }) { Mouse = new Vector2(80, 397) },
             new("settings-containers", DefaultWidth, DefaultHeight, c =>
             {
                 c.Typical();
@@ -289,9 +289,10 @@ internal static class Program
                 if (frame is >= 1 and <= 3 && scenario.Wheel != 0)
                     io.AddMouseWheelEvent(0, scenario.Wheel / 3f);
                 ImGui.NewFrame();
-                Begin(window.WindowName, size, window.Flags);
+                Begin(window, size);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 
@@ -314,12 +315,14 @@ internal static class Program
         }
     }
 
-    private static void Begin(string name, Vector2 size, ImGuiWindowFlags flags)
+    // Mirrors the Window base: PreDraw runs before Begin, PostDraw after End.
+    private static void Begin(CollectorWindow window, Vector2 size)
     {
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
-        ImGui.Begin(name, ref open, flags | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
+        window.PreDraw();
+        ImGui.Begin(window.WindowName, ref open, window.Flags | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
                                     ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
     }
 
@@ -415,9 +418,10 @@ internal static class Program
                         io.MousePos = new Vector2(x, y);
                         io.MouseDown[0] = down;
                         ImGui.NewFrame();
-                        Begin(window.WindowName, size, window.Flags);
+                        Begin(window, size);
                         window.Draw();
                         ImGui.End();
+                        window.PostDraw();
                         ImGui.Render();
                     }
                     tierChanged |= plugin.Config.TargetTier != 3;
