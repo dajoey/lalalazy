@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
-using KamiToolKit.Classes.Controllers;
+using KamiToolKit.Controllers;
 
 namespace LazyWTMath.HookTeardownHarness;
 
@@ -49,7 +49,7 @@ internal static class Program
     {
         Console.WriteLine("-- case A: detours invoked with the hook null (post-teardown state) --");
 
-        var addonType = Type.GetType("KamiToolKit.NativeAddon, KamiToolKit")
+        var addonType = Type.GetType("KamiToolKit.BaseTypes.NativeAddon, KamiToolKit")
                         ?? throw new MissingMemberException("KamiToolKit.NativeAddon not found");
         var detour = addonType.GetMethod("OnFireCallback", BindingFlags.NonPublic | BindingFlags.Static)
                      ?? ThrowMissing<MethodInfo>(addonType, "OnFireCallback");
@@ -116,7 +116,7 @@ internal static class Program
     private static void CaseB()
     {
         Console.WriteLine("-- case B: teardown waits for an in-flight detour --");
-        var addonType = Type.GetType("KamiToolKit.NativeAddon, KamiToolKit")!;
+        var addonType = Type.GetType("KamiToolKit.BaseTypes.NativeAddon, KamiToolKit")!;
         RunStopsWaiting(addonType, null, "NativeAddon.CloseCallback", "DisposeCloseCallback", instance: false);
 
         var controller = NewController();
@@ -126,18 +126,18 @@ internal static class Program
     // The controller is constructible without the game; its handlers throw if the detour payload
     // ever runs with the hook gone (fail soft means: do nothing).
     private static unsafe object NewController()
-        => new NativeListController("HarnessAddon")
+        => new NativeListController
         {
-            ShouldModifyElement = static (unitBase, item, nodes) => throw new InvalidOperationException("payload must not run when the hook is gone"),
-            UpdateElement = static (unitBase, item, nodes) => { },
-            ResetElement = static (unitBase, item, nodes) => { },
+            AddonName = "HarnessAddon",
+            ShouldModifyElement = static (unitBase, item) => throw new InvalidOperationException("payload must not run when the hook is gone"),
+            UpdateElement = static (unitBase, item) => { },
+            ResetElement = static (unitBase, item) => { },
             GetPopulatorNode = static addon => throw new InvalidOperationException("not reached"),
         };
 
     private static void RunStopsWaiting(Type owner, object? target, string moduleName, string teardownName, bool instance)
     {
-        var field = owner.GetField("InFlight", BindingFlags.NonPublic | BindingFlags.Static)
-                  ?? owner.GetField("InFlight", BindingFlags.NonPublic | BindingFlags.Instance);
+        var field = FindField(owner, "InFlight");
         if (field == null)
         {
             Check($"{moduleName}: an in-flight counter exists for its detours", false);
@@ -150,7 +150,7 @@ internal static class Program
         var token = enter.Invoke(counter, null)!;
         var release = token.GetType().GetMethod("Dispose", Type.EmptyTypes)!;
 
-        var teardown = owner.GetMethod(teardownName,
+        var teardown = FindMethod(owner, teardownName,
             BindingFlags.NonPublic | BindingFlags.Public | (instance ? BindingFlags.Instance : BindingFlags.Static));
         if (teardown == null)
         {
@@ -181,8 +181,32 @@ internal static class Program
         Check($"{moduleName}.{teardownName}: returns cleanly once the detour leaves", onThread is null && !t.IsAlive);
     }
 
+    // NativeListController is now a thin non-generic subclass of NativeListController<T, TU>; reflection does
+    // not return a base class's private members from the derived type, so walk up to the declaring type.
+    private static MethodInfo? FindMethod(Type owner, string name, BindingFlags flags)
+    {
+        for (var t = owner; t != null; t = t.BaseType)
+        {
+            var m = t.GetMethod(name, flags | BindingFlags.DeclaredOnly);
+            if (m != null) return m;
+        }
+
+        return null;
+    }
+
+    private static FieldInfo? FindField(Type owner, string name)
+    {
+        for (var t = owner; t != null; t = t.BaseType)
+        {
+            var f = t.GetField(name, BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            if (f != null) return f;
+        }
+
+        return null;
+    }
+
     private static MethodInfo Private(Type owner, string name)
-        => owner.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance)
+        => FindMethod(owner, name, BindingFlags.NonPublic | BindingFlags.Instance)
            ?? ThrowMissing<MethodInfo>(owner, name);
 
     private static object? Invoke(MethodInfo mi, object? target, object?[] args)
