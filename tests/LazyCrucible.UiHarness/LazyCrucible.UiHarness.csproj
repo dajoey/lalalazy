@@ -18,6 +18,15 @@
     <Using Include="Lalalazy.Crucible" />
   </ItemGroup>
 
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!-- Compile the real window and kit sources; only the game/runtime boundaries are stubbed. -->
   <ItemGroup>
     <Compile Include="$(LalaSourceRoot)\src\LazyCrucible\MainWindow.cs" Link="Real\MainWindow.cs" />
