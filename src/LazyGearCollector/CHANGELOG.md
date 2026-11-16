@@ -1,4 +1,7 @@
-﻿## v0.0.2.3 (2026-11-14) [testing]
+﻿## v0.0.2.4 (2026-11-15) [testing]
+- The collector window now presents role progress, material requirements, ownership and collection settings in a responsive card-based layout with custom navigation, a close button and search across roles and pages. Collection planning, ownership scanning, shop and trade-up logic, saved settings and hub quick controls are unchanged.
+
+## v0.0.2.3 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.0.2.2 (2026-11-10) [testing]
