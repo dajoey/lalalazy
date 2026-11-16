@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using LalaUiKit;
@@ -42,7 +43,7 @@ internal static class CrucibleChrome
         ImGui.Dummy(new Vector2(MathF.Max(1, width), MathF.Max(0, height + gap - Theme.ItemSpacing.Y)));
     }
 
-    public static float Gutter(float windowWidth) => windowWidth >= 900 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
+    public static float Gutter(float windowWidth) => windowWidth >= 760 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
 
     // ---- text ----
 
@@ -213,6 +214,38 @@ internal static class CrucibleChrome
         return clicked;
     }
 
+    /// <summary>Close box with a drawn cross and a tooltip anchored under its right edge.</summary>
+    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##crucible_close", size);
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
+        var c = pos + (size / 2f);
+        var col = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        draw.AddLine(c + new Vector2(-6, -6), c + new Vector2(6, 6), col, 1.5f);
+        draw.AddLine(c + new Vector2(-6, 6), c + new Vector2(6, -6), col, 1.5f);
+        if (hovered)
+        {
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
+        return clicked;
+    }
+
+    internal static float ActionWidth(float minWidth, params string[] labels)
+        => MathF.Max(minWidth, labels.Max(l => TextWidth(l)) + 32f);
+
     /// <summary>Full-width navigation row: left-aligned label, chevron on the right.</summary>
     internal static bool NavRow(string id, string label, float width)
     {
@@ -262,7 +295,7 @@ internal static class CrucibleChrome
     internal static float PillWidth()
     {
         var words = Enum.GetValues<UiState>().Select(Copy.Word).Append("Needs setup");
-        return (3 * Theme.Unit) + 12 + (2 * Theme.Unit) + words.Max(w => TextWidth(w)) + (4 * Theme.Unit);
+        return MathF.Max(104, 16 + (2 * Theme.DotRadius) + 8 + words.Max(w => TextWidth(w)) + 16);
     }
 
     internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, string label, UiState state)

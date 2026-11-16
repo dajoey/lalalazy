@@ -291,7 +291,7 @@ internal sealed class CrucibleShell
         }
         DrawSearchInput(winPos + searchPos, searchWidth);
         CrucibleChrome.StatusPill(draw, winPos + pillPos, pillSize, stateLabel, state);
-        if (CrucibleChrome.OutlineButton(draw, "close_window", "×", winPos + closePos, closeSize))
+        if (CrucibleChrome.CloseButton(draw, winPos + closePos, closeSize))
             CloseRequested?.Invoke();
         DrawSearchResults(winPos + searchPos, searchWidth);
         return barHeight + 1;
@@ -303,6 +303,8 @@ internal sealed class CrucibleShell
         var inner = winWidth - (2 * gutter);
         var gap = 3 * Theme.Unit;
         var features = Pages.Where(p => p.Group == Current.Group).ToArray();
+        if (features.Length < 2)
+            return top;
         var titles = features.Select(FeatureTitle).ToArray();
         var heightEach = 8 * Theme.Unit;
         var padY = 3 * Theme.Unit;
@@ -446,13 +448,13 @@ internal sealed class CrucibleShell
         var draw = ImGui.GetWindowDrawList();
         var tile = 11 * Theme.Unit;
         var padTop = 5 * Theme.Unit;
-        var wide = winWidth >= 1000;
+        var wide = winWidth >= 760;
         var textX = gutter + tile + (4 * Theme.Unit);
         var metaWidth = wide ? MathF.Min(winWidth * 0.40f, MathF.Max(CrucibleChrome.TextWidth(count, Theme.SecondaryScale), CrucibleChrome.TextWidth(subtext, Theme.SecondaryScale))) : 0;
         var textWidth = winWidth - textX - gutter - (wide ? metaWidth + (6 * Theme.Unit) : 0);
         var origin = winPos + new Vector2(gutter, top + padTop);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), CrucibleChrome.Radius);
-        CrucibleChrome.Diamond(draw, origin + new Vector2(tile / 2f), 11, Theme.Pack(Theme.Accent));
+        CrucibleChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
 
         var shownTitle = CrucibleChrome.ClampLines(title, textWidth, CrucibleChrome.PageTitleScale, wide ? 1 : 2);
         var titleHeight = CrucibleChrome.WrappedHeight(shownTitle, textWidth, CrucibleChrome.PageTitleScale);
@@ -575,7 +577,7 @@ internal sealed class CrucibleShell
         var actionLabel = Current.Group == "Guide" ? "Return to run setup" : "Open the fight guide";
         var narrow = winSize.X < 620;
         var inner = winSize.X - (2 * gutter);
-        var actionSize = new Vector2(narrow ? inner : MathF.Max(180, CrucibleChrome.TextWidth(actionLabel) + (6 * CrucibleChrome.Gap / 2)), CrucibleChrome.ControlHeight);
+        var actionSize = new Vector2(narrow ? inner : CrucibleChrome.ActionWidth(96, actionLabel), CrucibleChrome.ControlHeight);
         var textBlock = CrucibleChrome.LineHeight() + Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale);
         var pad = 3 * Theme.Unit;
         var textLeft = winPos.X + gutter + (4 * Theme.Unit);

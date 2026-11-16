@@ -657,9 +657,12 @@ internal static class CruciblePages
 
             var min = new Vector2(pos.X + pad, y);
             var max = new Vector2(pos.X + width - pad, y + Theme.BarHeight);
-            draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
-            if (stat.Fraction is { } fraction && fraction > 0)
-                draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y), Theme.Pack(Theme.StateGreen), Theme.BarHeight / 2f);
+            if (stat.Fraction is { } fraction)
+            {
+                draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
+                if (fraction > 0)
+                    draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y), Theme.Pack(Theme.StateGreen), Theme.BarHeight / 2f);
+            }
             y += Theme.BarHeight + (2 * Theme.Unit);
 
             var noteColor = stat.Fraction is >= 1f ? Theme.StateGreen : Theme.TextSecondary;
