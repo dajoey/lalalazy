@@ -2,12 +2,15 @@ using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
 using LalaUiKit;
+using RotationSolver.UI.Pvp; // Fork: the tutorial is drawn by the fork's PvpTutorialView and opens PvpSettingsWindow.
 
 namespace RotationSolver.UI;
 
 internal sealed class FirstStartTutorialWindow : Window
 {
-	private const ImGuiWindowFlags BaseFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoResize;
+	// Fork: no native title bar (the drawn header of PvpTutorialView replaces it); the body scrolls in its own child, not the window.
+	private const ImGuiWindowFlags BaseFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoResize
+		| ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 	private int _stepIndex;
 
 	private static readonly string[] StarterMacros =
@@ -17,122 +20,99 @@ internal sealed class FirstStartTutorialWindow : Window
 		"/pvpsolver Off",
 	];
 
-	private static readonly TutorialStep[] Steps =
+	// Fork: the steps describe the PvP Solver settings window (its tabs and the on/off bar) instead of the legacy window.
+	private static readonly TutorialPage[] Steps =
 	[
 		new(
-			"Welcome!",
-			"This walkthrough explains how to set up PvP Solver and what each section controls and includes recommended macros.",
+			"Welcome",
+			"This walkthrough shows how to set up PvP Solver and where each setting lives.",
 			Bullets:
 			[
-				"Open the config with /pvpsolver or the plugin UI button.",
-				"Use Next/Back to move through sections and apply changes as you go.",
-				"Most settings are safe to change while logged in, but avoid in-combat tweaks until you’re comfortable.",
-				"Right-click any setting or action label to copy its macro command."
+				"Open the settings with /pvpsolver or the plugin's settings button.",
+				"The window has two groups. Play holds Match, Survival and Targeting. Setup holds My Job, Display and Advanced.",
+				"Changes apply and are saved as they are made. Settings can be edited anywhere, in or out of a PvP zone.",
+				"Use Next and Back to move through the steps. Closing the window ends the tutorial."
 			]),
 		new(
-			"Main Screen",
-			"Main is your overview hub: plugin info, compatibility info, links, and macro list live here.",
-			RotationConfigWindowTab.Main,
+			"Turning PvP Solver on",
+			"The on and off switch is the button in the bar at the bottom of the settings window.",
+			Bullets:
 			[
-				"Use this tab to verify incompatible plugins and open support links.",
-				"Read the macros section to learn quick chat commands.",
-				"If something breaks after an update, check this tab first."
+				"In a PvP zone with a character in the world the button reads Turn on. Elsewhere it is unavailable, and its tooltip says why.",
+				"While PvP Solver is on the button reads Stop, and the status at the top right reads Running.",
+				"PvP Solver can also turn itself on when a match starts, and the chat commands /pvpsolver Auto, Manual and Off do the same by hand."
 			]),
 		new(
-			"Job Settings",
-			"Job config controls rotation selection and job-specific options for your current class.",
-			RotationConfigWindowTab.Job,
+			"Match",
+			"Match controls when PvP Solver starts, stops and hands control back.",
+			"Match",
 			[
-				"Pick the rotation preset you want to run by clicking the rotation name (ie. Reborn).",
-				"Adjust job priorities (e.g., DNC partner, SGE Kardia) when applicable.",
-				"If a job feels off, start here before touching global settings."
+				"Choose whether it turns on when a match starts, and whether it turns off when a match ends, when the job changes or during cutscenes.",
+				"It can also turn off a set number of seconds after combat has ended.",
+				"The Commands card lists every chat command with a Copy button."
 			]),
 		new(
-			"Actions",
-			"Actions config decides what abilities PvP Solver can use and how they behave.",
-			RotationConfigWindowTab.Actions,
+			"Survival",
+			"Survival groups Guard, Purify, movement and the automatic defensive abilities.",
+			"Survival",
 			[
-				"Click an action icon in a category to see settings to enable/disable it or change its usage rules.",
-				"Use intercept if you want PvP Solver to fire actions you queue manually.",
-				"Toggle cooldown window inclusion so overlays show only what you want."
+				"Guard is used automatically at or below the HP percentage set here. One value applies to every job.",
+				"Pick which crowd control effects Purify removes: Stun, Silence, Deep Freeze, Miracle of Nature, Heavy and Bind.",
+				"The master switch for automatic defensive abilities is here. The list for each job is on the My Job tab."
 			]),
 		new(
-			"Auto",
-			"Auto controls global action usage, AoE logic, interrupts, tinctures, and healing behavior.",
-			RotationConfigWindowTab.Auto,
+			"Targeting",
+			"Targeting orders the target priorities and controls area attacks, burst and stickiness.",
+			"Targeting",
 			[
-				"Here you can adjust your AOE logic, (Off, Cleave, and Full).",
-				"Adjust healer thresholds and non-healer support options.",
-				"If you want a more conservative rotation, tighten these settings first."
+				"Area attacks can be Off, Cleave (single-target area attacks only) or Full.",
+				"The target list is used from the top. Move entries up or down, add types or reset the list to its default order.",
+				"Staying on a target while its own debuff ticks, attacking invulnerable enemies and the tomelith priorities for The Shatter are set here too."
 			]),
 		new(
-			"Basic",
-			"Basic contains core timing and automation behaviors that affect all jobs.",
-			RotationConfigWindowTab.Basic,
+			"My Job",
+			"My Job edits the options of one job: enablement, rotation options and defensive thresholds.",
+			"My Job",
 			[
-				"Action Ahead affects weave count and clipping—smaller values = more oGCDs. You typically don't need to change this.",
-				"Min Updating Time trades performance for responsiveness.",
-				"Auto Switch controls when PvP Solver turns on/off automatically (countdowns, deaths, duty events)."
+				"Pick any job. A job can be edited in any zone, and it follows the played job until another one is picked.",
+				"The switch at the top turns PvP Solver off for that job only.",
+				"The job's own options and its defensive abilities, with the HP percentage for each, are below the picker."
 			]),
 		new(
-			"UI",
-			"UI controls overlays, info windows, and Teaching Mode highlights.",
-			RotationConfigWindowTab.UI,
+			"Display",
+			"Display controls the overlays, the teaching highlights, messages and tooltips.",
+			"Display",
 			[
-				"Enable Control, Next Action, Cooldown, and Timeline windows here.",
-				"Use Teaching Mode to highlight hotbar buttons and learn rotations visually.",
-				"If you want windows to only show in duty/with enemies, toggle that option here."
+				"Show the current mode in the server info bar, choose what a click on it cycles through, and get a message when the mode changes.",
+				"Switch on the Control, Next Action, Cooldown and Timeline windows. They show only in a PvP zone, and the Control window can be locked in place.",
+				"Teaching mode highlights the next action on the hotbars so a rotation can be followed by hand."
 			]),
 		new(
-			"Target",
-			"Target controls what enemies or allies PvP Solver considers valid.",
-			RotationConfigWindowTab.Target,
+			"Advanced",
+			"Advanced holds backup, restore, reset, this tutorial and the debug switch.",
+			"Advanced",
 			[
-				"Tune vision cone and engage behavior to avoid unwanted pulls.",
-				"Configure target priority rules (FATE, quest mobs, markers).",
-				"If targeting feels wrong, adjust filters before changing rotations."
-			]),
-		new(
-			"List",
-			"List manages curated status lists: dispels, priority targets, knockbacks, and more.",
-			RotationConfigWindowTab.List,
-			[
-				"Use Reset and Update to restore curated lists when needed.",
-				"Add or remove statuses by ID or name using the + buttons.",
-				"These lists drive smart reactions across all jobs."
-			]),
-		new(
-			"Duty",
-			"Duty holds encounter‑specific toggles for special behavior.",
-			RotationConfigWindowTab.Duty,
-			[
-				"Most of these at the moment can be left enabled but there will be more granular controls in the future.",
-				"These settings override general targeting/rotation behavior in specific fights."
-			]),
-		new(
-			"Extra",
-			"Extra is for advanced or experimental tweaks.",
-			RotationConfigWindowTab.Extra,
-			[
-				"Animation lock and cooldown delay tweaks for those not using BMR.",
-				"Only change these if you understand the side effects.",
+				"Back up the settings to a file next to the settings file, and restore them later. A safety copy is kept before a restore.",
+				"Reset returns every setting to its default and asks first.",
+				"The first-start tutorial can be opened again from here at any time."
 			]),
 		new(
 			"Macros",
-			"Starter macros let you control PvP Solver quickly without opening the UI.",
-			RotationConfigWindowTab.Main,
+			"Starter macros control PvP Solver quickly without opening the settings.",
+			"Match",
 			[
-				"Use the macros below to toggle Auto/Manual/Off instantly.",
-				"Right-click any setting or action to copy its macro command.",
-				"Build a small macro bar for fast in combat control."
+				"Use the macros below to switch between Auto, Manual and Off instantly.",
+				"The Commands card on the Match tab lists every chat command with a Copy button.",
+				"Build a small macro bar for fast in-combat control."
 			],
-			StarterMacros),
+			StarterMacros,
+			"The full legacy settings are in the Advanced tab, under Full Rotation Solver settings, and open with /pvpsolver advanced."),
 	];
 
 	public FirstStartTutorialWindow()
 		: base("PvP Solver First Start Tutorial", BaseFlags)
 	{
-		Size = new Vector2(720, 530);
+		Size = new Vector2(760, 620); // Fork: room for the header band, page header, card and footer.
 		SizeCondition = ImGuiCond.FirstUseEver;
 		RespectCloseHotkey = true;
 	}
@@ -144,60 +124,22 @@ internal sealed class FirstStartTutorialWindow : Window
 
 	public override void Draw()
 	{
-		TutorialStep step = Steps[_stepIndex];
-
-		Theme.PushFrame();
-		try
+		// Fork: the dialog shell, step card and footer are drawn by PvpTutorialView; the actions below keep their old effects.
+		TutorialAction action = PvpTutorialView.Draw(Steps[_stepIndex], _stepIndex, Steps.Length, CopyMacro, OpenTab);
+		switch (action)
 		{
-		Widgets.Title(step.Title);
-
-		DrawWrappedText(step.Description);
-		ImGui.Spacing();
-
-		if (step.Bullets is { Length: > 0 })
-		{
-			foreach (string bullet in step.Bullets)
-			{
-				DrawWrappedBullet(bullet);
-			}
-			ImGui.Spacing();
-		}
-
-		if (step.RecommendedMacros is { Length: > 0 })
-		{
-			Widgets.Secondary("Recommended macros:");
-			for (int i = 0; i < step.RecommendedMacros.Length; i++)
-			{
-				string macro = step.RecommendedMacros[i];
-				DrawWrappedBullet(macro);
-
-				ImGui.SameLine();
-				string buttonId = $"Copy##TutorialMacro_{i}";
-				if (ImGui.SmallButton(buttonId))
-				{
-					ImGui.SetClipboardText(macro);
-					Svc.Toasts.ShowNormal("Macro copied to clipboard.");
-				}
-			}
-
-			ImGui.Spacing();
-		}
-
-		if (step.Tab != null)
-		{
-			if (ImGui.Button($"Open {step.Tab} tab"))
-			{
-				PvPSolverPlugin.ShowConfigWindow(step.Tab.Value);
-			}
-			ImGui.Spacing();
-		}
-
-		ImGui.Separator();
-		DrawNavigation();
-		}
-		finally
-		{
-			Theme.PopFrame();
+			case TutorialAction.Close:
+				IsOpen = false;
+				break;
+			case TutorialAction.Back:
+				_stepIndex = Math.Max(0, _stepIndex - 1);
+				break;
+			case TutorialAction.Next:
+				_stepIndex = Math.Min(Steps.Length - 1, _stepIndex + 1);
+				break;
+			case TutorialAction.Finish:
+				FinishTutorial();
+				break;
 		}
 	}
 
@@ -207,47 +149,13 @@ internal sealed class FirstStartTutorialWindow : Window
 		base.OnClose();
 	}
 
-	private static void DrawWrappedText(string text)
+	private static void CopyMacro(string macro) // Fork: the copy button's old effect, kept.
 	{
-		float wrapPos = ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X;
-		ImGui.PushTextWrapPos(wrapPos);
-		ImGui.TextWrapped(text);
-		ImGui.PopTextWrapPos();
+		ImGui.SetClipboardText(macro);
+		Svc.Toasts.ShowNormal("Macro copied to clipboard.");
 	}
 
-	private static void DrawWrappedBullet(string text)
-	{
-		ImGui.Bullet();
-		ImGui.SameLine();
-		DrawWrappedText(text);
-	}
-
-	private void DrawNavigation()
-	{
-		ImGui.BeginDisabled(_stepIndex == 0);
-		if (ImGui.Button("Back"))
-		{
-			_stepIndex = Math.Max(0, _stepIndex - 1);
-		}
-		ImGui.EndDisabled();
-
-		ImGui.SameLine();
-
-		if (_stepIndex < Steps.Length - 1)
-		{
-			if (ImGui.Button("Next"))
-			{
-				_stepIndex = Math.Min(Steps.Length - 1, _stepIndex + 1);
-			}
-		}
-		else
-		{
-			if (ImGui.Button("Finish"))
-			{
-				FinishTutorial();
-			}
-		}
-	}
+	private static void OpenTab(string tab) => PvpSettingsWindow.OpenOn(tab); // Fork: opens the PvP settings window on the tab (was the legacy window).
 
 	private void FinishTutorial()
 	{
@@ -260,11 +168,4 @@ internal sealed class FirstStartTutorialWindow : Window
 		Service.Config.TutorialDone = true;
 		Service.Config.Save();
 	}
-
-	private sealed record TutorialStep(
-		string Title,
-		string Description,
-		RotationConfigWindowTab? Tab = null,
-		string[]? Bullets = null,
-		string[]? RecommendedMacros = null);
 }

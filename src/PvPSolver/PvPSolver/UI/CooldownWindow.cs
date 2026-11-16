@@ -5,7 +5,7 @@ namespace RotationSolver.UI;
 
 internal class CooldownWindow() : CtrlWindow(nameof(CooldownWindow))
 {
-	public override void Draw()
+	protected override void DrawContent() // Fork: was Draw(); CtrlWindow.Draw adds the drag strip.
 	{
 		if (DataCenter.CurrentRotation == null)
 		{

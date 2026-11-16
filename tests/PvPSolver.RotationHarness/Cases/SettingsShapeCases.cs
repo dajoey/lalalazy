@@ -252,7 +252,7 @@ internal static class SettingsShapeCases
 
         string advanced = Read("PvPSolver", "UI", "Pvp", "PvpAdvancedTab.cs");
         Harness.Case("the Advanced tab opens the legacy window, backs up and restores with a confirmation, resets with a confirmation and keeps the debug switch",
-            advanced.Contains("OpenAdvancedWindow()") && advanced.Contains("OpenAdvancedWindow(tab)") && advanced.Contains("PopupModal(ResetPopup)") && advanced.Contains("PopupModal(RestorePopup)")
+            advanced.Contains("OpenAdvancedWindow()") && advanced.Contains("OpenAdvancedWindow(tab)") && advanced.Contains("PopupModal(ResetPopup, ImGuiWindowFlags.NoTitleBar)") && advanced.Contains("PopupModal(RestorePopup, ImGuiWindowFlags.NoTitleBar)")
             && advanced.Contains("Config.Backup()") && advanced.Contains("Config.Restore()") && advanced.Contains("new Configs()") && PvpSettingsCatalog.ForTab("Advanced").Any(s => s.Property == "InDebug"));
         var linkTabs = Regex.Matches(Read("PvPSolver", "UI", "Pvp", "PvpAdvancedTab.cs"), @"\(""[^""]+"", ""(?<tab>\w+)"", ""[^""]+""\)").Select(m => m.Groups["tab"].Value).ToList();
         Harness.Case("every Advanced quick link names a tab AdvancedTab accepts", linkTabs.Count == 9 && linkTabs.All(t => AdvancedTab.Resolve(t) == t), string.Join(",", linkTabs));

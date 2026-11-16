@@ -252,6 +252,7 @@ internal static class Program
             Console.WriteLine($"Rendered {scenarios.Length} real-source UI states ({hashes.Count} distinct). No window or game process was created.");
             if (_missingGlyphs && _strictGlyphs)
                 throw new InvalidOperationException("--strict-glyphs: text the window draws contains characters the game font lacks.");
+            Leftovers.Run(Options, OutputDirectory);
             VerifyCloseButton();
             Console.WriteLine("Custom close control: a press and release on the drawn close button closes the window.");
             return 0;

@@ -2,8 +2,8 @@
 
 Renders the real `PvpSettingsWindow.Draw` (the fork-only settings window: shell, chrome and its six pages) to PNG without
 FFXIV, a running Dalamud instance, a GPU or a visible window. It is a visual capture harness, not a replacement UI and
-not an in-game behaviour test. The plugin's older windows (rotation config, control, cooldown, timeline, tutorial) were
-not restyled and are not drawn here.
+not an in-game behaviour test. The plugin's other windows are drawn by `Leftovers.cs` (see the last section): the first-start tutorial, the two HUD windows
+and the legacy settings window shell.
 
 ## Prerequisite
 
@@ -23,7 +23,7 @@ dotnet run --project PvPSolver.UiHarness.csproj -c Release -p:DalamudLibPath=%Da
 | Mode | Select | Output | Look |
 | --- | --- | --- | --- |
 | built-in (default) | nothing | `output/*.png` (7 images) | ImGui's 13 px font and default style; hermetic and byte-stable |
-| game | `--game` or `LALA_UI_FIDELITY=game` | `output/game/*.png` (28 images) | Dalamud default font, global scale and style (see `../HarnessShared/UiRender/README.md`) |
+| game | `--game` or `LALA_UI_FIDELITY=game` | `output/game/*.png` (37 images) | Dalamud default font, global scale and style (see `../HarnessShared/UiRender/README.md`) |
 
 Game mode also prints a glyph audit (`--strict-glyphs` turns a miss into a failure) and, in both modes, the harness
 verifies that its `Configs` stand-in answers every `PvpSettingsCatalog` property with the catalog default, and that a
@@ -82,3 +82,14 @@ Same as the shared core (no GPU blending, no custom player font or style, no gam
 chrome; the window's native title bar is replaced by the approved header, `NoTitleBar` is set by the real window). The
 real window background, drop shadow and window rounding that Dalamud adds are not drawn. Popups (reset, restore) open
 centred in the display area; hover states other than the footer tooltip are not rendered.
+
+## The other windows (`Leftovers.cs`)
+
+- First-start tutorial: the real `FirstStartTutorialWindow` (first, a middle and the last step), with the real `PvpTutorialView`.
+  Interaction checks press the drawn close button, Back, Next, Finish, a macro's Copy and a step's tab button, and check
+  that the tutorial is marked done exactly where it was and that the settings window opens on the matching tab.
+- HUD windows: the real `CtrlWindow` base and `PvpHudChrome` with stand-in bodies (the real control and cooldown windows read
+  the live game), over a mid-grey canvas so the configured background alpha shows. Checks: the strip moves an unlocked window,
+  a locked window has no strip and does not move, the alpha and the 1 px border are sampled from the pixels.
+- Legacy settings window: the real `PvpLegacyHeader` over a stand-in body (the real class is about 4400 lines of plugin and game
+  calls). Checks: Reset reaches the old reset request, the window resizes by its corner, the close button follows the width.

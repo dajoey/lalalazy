@@ -38,7 +38,7 @@ internal class ControlWindow : CtrlWindow
 		base.OnClose();
 	}
 
-	public override unsafe void Draw()
+	protected override unsafe void DrawContent() // Fork: was Draw(); CtrlWindow.Draw adds the drag strip.
 	{
 		using var selectableAlign = ImRaii.PushStyle(ImGuiStyleVar.SelectableTextAlign, new Vector2(0.5f, 0.5f));
 		Theme.PushFrame();

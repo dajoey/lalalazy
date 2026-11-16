@@ -89,7 +89,7 @@ internal static class PvpAdvancedTab
             }
 
             PvpApprovedChrome.Tighten(4);
-            PvpUi.Help("The tutorial walks through the full Rotation Solver settings.", after: 0);
+            PvpUi.Help("The tutorial walks through this settings window, one tab at a time.", after: 0);
             if (_message.Length > 0)
             {
                 PvpUi.WarningText(_message);
@@ -145,7 +145,7 @@ internal static class PvpAdvancedTab
         }
 
         // A modal sized to its content and centred over the settings window; the shell darkens the window behind it.
-        // The 24 px padding, rounding, neutral title bar and hidden resize grip are pushed for both popups.
+        // The 24 px padding, rounding and hidden resize grip are pushed for both popups; neither has a title bar.
         Vector2 center = PvpApprovedChrome.WindowPos + (PvpApprovedChrome.WindowSize / 2f);
         float width = MathF.Min(460, PvpApprovedChrome.WindowSize.X - 48);
         using var vars = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(24, 20))
@@ -153,16 +153,13 @@ internal static class PvpAdvancedTab
             .Push(ImGuiStyleVar.WindowBorderSize, 1f);
         using var colors = ImRaii.PushColor(ImGuiCol.PopupBg, Theme.Surface)
             .Push(ImGuiCol.Border, Theme.SurfaceBorder)
-            .Push(ImGuiCol.TitleBg, Theme.ShellBar)
-            .Push(ImGuiCol.TitleBgActive, Theme.ShellBar)
-            .Push(ImGuiCol.TitleBgCollapsed, Theme.ShellBar)
             .Push(ImGuiCol.ResizeGrip, 0u)
             .Push(ImGuiCol.ResizeGripHovered, 0u)
             .Push(ImGuiCol.ResizeGripActive, 0u);
 
         ImGui.SetNextWindowPos(center, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(width, 0));
-        using (var reset = ImRaii.PopupModal(ResetPopup))
+        using (var reset = ImRaii.PopupModal(ResetPopup, ImGuiWindowFlags.NoTitleBar))
         {
             if (reset)
             {
@@ -178,7 +175,7 @@ internal static class PvpAdvancedTab
 
         ImGui.SetNextWindowPos(center, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(width, 0));
-        using (var restore = ImRaii.PopupModal(RestorePopup))
+        using (var restore = ImRaii.PopupModal(RestorePopup, ImGuiWindowFlags.NoTitleBar))
         {
             if (restore)
             {
