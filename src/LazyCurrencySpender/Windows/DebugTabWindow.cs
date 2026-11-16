@@ -1,26 +1,18 @@
 using System.Numerics;
+using CurrencySpender.Data;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using LalaUiKit;
 
 namespace CurrencySpender.Windows;
 
-// Converted to LalaUiKit per Projects/UI Refresh 2026-11/UI Brief (R1-R13). The Dalamud
-// Window base auto-begins/ends this window (Draw() draws content only), so the top bar is
-// drawn with the same kit primitives Layout.Shell uses, and the suite frame comes from
-// Theme.PushFrame/PopFrame. Diagnostic-only window: no footer (Brief R3).
 internal class DebugTabWindow : Window
 {
-    // Unique identity at AddWindow time (see MainTabWindow - its empty base name collided with
-    // the one here on the "" key, fingerprint fdb1567f5ff6); same string PreDraw draws below.
-    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow")
+    private readonly CurrencyChrome.ShellControls _controls;
+
+    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
-        SizeConstraints = new()
-        {
-            MinimumSize = new(250, 100),
-            MaximumSize = new(9999, 9999)
-        };
+        _controls = new(this, new Vector2(520, 320), new Vector2(9999, 9999));
         P.ws.AddWindow(this);
     }
 
@@ -31,39 +23,23 @@ internal class DebugTabWindow : Window
 
     public override void Draw()
     {
-        Theme.PushFrame();
+        var minimized = _controls.PrepareDraw();
+        CurrencyChrome.PushFrame();
         try
         {
-            DrawTopBar();
-
-            Layout.PageHeader(null, FontAwesomeIcon.Bug.ToIconString(), "Debug",
-                "Raw agent and rank data for diagnosis.",
-                P.Version);
+            CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle, controls: _controls);
+            if (minimized)
+                return;
+            ImGui.BeginChild("##currency_debug_body", Vector2.Zero, false);
+            CurrencyChrome.PageHeader("Debug data",
+                "Generated shop data and unlock states for diagnosis.",
+                $"{Generator.shops.Count} shops · {Generator.items.Count} items");
             DebugMainTab.Draw();
+            ImGui.EndChild();
         }
         finally
         {
-            Theme.PopFrame();
+            CurrencyChrome.PopFrame();
         }
-    }
-
-    private void DrawTopBar()
-    {
-        // Top bar: title left, live-state pill right (R3 place 1) - the same primitives
-        // Layout.Shell draws for self-beginning windows.
-        var p = ImGui.GetCursorScreenPos();
-        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
-        var barH = Theme.PillHeight;
-        var dl = ImGui.GetWindowDrawList();
-        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
-        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
-        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-        ImGui.TextUnformatted($"{P.Name} Debug");
-        ImGui.PopStyleColor();
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
-        Widgets.StatusPill(UiState.Idle, "Debug", null, alignRight: true);
-        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
     }
 }

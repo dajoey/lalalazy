@@ -1,5 +1,5 @@
 using CurrencySpender.Classes;
-using Dalamud.Interface;
+using Dalamud.Bindings.ImGui;
 using LalaUiKit;
 
 namespace CurrencySpender.Windows;
@@ -9,6 +9,8 @@ internal class ConfigWizardWindow : Window
     private static int Step = 0;
     private static int MaxSteps = 0;
     public static string Version = "0.0.0";
+    private bool _resetScroll;
+    private readonly CurrencyChrome.ShellControls _controls;
 
     private static readonly Dictionary<string, Action<int>> VersionSteps = new()
     {
@@ -17,16 +19,11 @@ internal class ConfigWizardWindow : Window
         { "1.2.2", DrawVersion1_2_2Steps },
         { "1.2.3", DrawVersion1_2_3Steps },
         { "1.2.4", DrawVersion1_2_4Steps },
-        //{ "1.2.0", DrawVersion120Steps }
     };
 
-    public ConfigWizardWindow() : base("ConfigWizardWindow")
+    public ConfigWizardWindow() : base("ConfigWizardWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
-        this.SizeConstraints = new()
-        {
-            MinimumSize = new Vector2(400, 400),
-            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
-        };
+        _controls = new(this, new Vector2(520, 420), new Vector2(float.MaxValue, float.MaxValue));
         CalculateSteps();
         P.ws.AddWindow(this);
     }
@@ -38,127 +35,108 @@ internal class ConfigWizardWindow : Window
 
     public override void Draw()
     {
-        LalaUiKit.Theme.PushFrame();
+        var minimized = _controls.PrepareDraw();
+        CurrencyChrome.PushFrame();
         try
         {
-        DrawTopBar();
-        Vector2 contentRegion = ImGui.GetContentRegionAvail();
-        float footerHeight = ImGui.GetTextLineHeight() + 20.0f; // Reserve space for footer
-        ImGui.BeginChild("StepContent", new Vector2(contentRegion.X, contentRegion.Y - footerHeight), false);
+            CurrencyChrome.TopBar("Configuration wizard", UiState.NeedsSetup, controls: _controls);
+            if (minimized)
+                return;
+            CurrencyChrome.PageHeader(Step == 0 ? "Welcome" : "Configuration updates",
+                "Review options introduced since the last configured version; every option remains available in settings.",
+                Step == 0 ? $"{MaxSteps} steps" : $"Step {Step} of {MaxSteps}");
+            Widgets.ProgressBar(MaxSteps == 0 ? 0 : Step / (float)MaxSteps);
 
-        DrawStep();
-
-        ImGui.EndChild();
-        DrawFooter();
+            var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
+            var available = ImGui.GetContentRegionAvail();
+            ImGui.BeginChild("##StepContent", new Vector2(available.X, MathF.Max(40, available.Y - footerHeight)), false);
+            if (_resetScroll)
+            {
+                ImGui.SetScrollY(0);
+                _resetScroll = false;
+            }
+            DrawStep();
+            ImGui.EndChild();
+            DrawFooter();
         }
         finally
         {
-            LalaUiKit.Theme.PopFrame();
+            CurrencyChrome.PopFrame();
         }
-    }
-
-    private void DrawTopBar()
-    {
-        // Top bar: title left, live-state pill right (R3 place 1) - the same primitives
-        // Layout.Shell draws for self-beginning windows.
-        var p = ImGui.GetCursorScreenPos();
-        var w = ImGui.GetWindowWidth() - (2 * Theme.Unit);
-        var barH = Theme.PillHeight;
-        var dl = ImGui.GetWindowDrawList();
-        dl.AddRectFilled(p, p + new Vector2(w, barH), Theme.Pack(Theme.ShellBar), 4f);
-        dl.AddRect(p, p + new Vector2(w, barH), Theme.Pack(Theme.SurfaceBorder), 4f);
-        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (barH - ImGui.GetTextLineHeight()) / 2f));
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextPrimary);
-        ImGui.TextUnformatted($"{P.Name} - Configuration Wizard");
-        ImGui.PopStyleColor();
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(p.X + w - (2 * Theme.Unit));
-        LalaUiKit.Widgets.StatusPill(LalaUiKit.UiState.NeedsSetup, "Setup", Version, alignRight: true);
-        ImGui.SetCursorPosY(p.Y + barH + Theme.ItemSpacing.Y);
     }
 
     private void DrawStep()
     {
         if (Step == 0)
         {
-            DrawWelcome();
-        }
-        else
-        {
-            int cumulativeSteps = 0;
-            foreach (var (version, drawSteps) in VersionSteps)
+            CurrencyChrome.Card("wizard_welcome", () =>
             {
-                if (VersionHelper.LowerVersionThan(version, Version))
-                {
-                    //DuoLog.Information($"Lower version: {version} {Version}");
-                    int versionStepCount = GetVersionStepCount(version);
-                    if (Step > cumulativeSteps && Step <= cumulativeSteps + versionStepCount)
-                    {
-                        LalaUiKit.Widgets.Title($"Changed in Version {version}:");
-                        drawSteps(Step - cumulativeSteps);
-                        break;
-                    }
-                    cumulativeSteps += versionStepCount;
-                }
-            }
+                CurrencyChrome.Section("Review configuration updates");
+                Widgets.SecondaryWrapped(
+                    "This wizard presents options added since the last configured version. Skip the setup to keep the current values, or review each step and change only what is needed.");
+                Widgets.SecondaryWrapped("Every option can also be changed later in Settings.");
+            });
+            return;
         }
-    }
 
-    private void DrawWelcome()
-    {
-        ImGui.TextWrapped("Welcome to the Configuration Wizard!");
-        ImGui.TextWrapped("This wizard will help you configure new options added since the latest patch. You can skip this setup and modify the settings later.");
-        ImGui.TextWrapped("Review the new options or skip ahead if you're ready.");
-        ImGui.Separator();
+        var cumulativeSteps = 0;
+        foreach (var (version, drawSteps) in VersionSteps)
+        {
+            if (!VersionHelper.LowerVersionThan(version, Version))
+                continue;
+            var versionStepCount = GetVersionStepCount(version);
+            if (Step > cumulativeSteps && Step <= cumulativeSteps + versionStepCount)
+            {
+                CurrencyChrome.Section($"Changed in Version {version}");
+                drawSteps(Step - cumulativeSteps);
+                break;
+            }
+            cumulativeSteps += versionStepCount;
+        }
     }
 
     private void DrawFooter()
     {
-        Vector2 windowSize = ImGui.GetWindowSize();
-        float padding = 15.0f;
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        var height = FooterHeight(width);
+        var draw = ImGui.GetWindowDrawList();
+        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
+
+        var buttons = new List<(string Id, string Label, bool Primary, Action Action)>
+        {
+            ("wizard_skip", "Skip", false, () => P.configWizard.IsOpen = false),
+        };
         if (Step > 0)
-        {
-            ImGui.SetCursorPos(new Vector2(padding, windowSize.Y - ImGui.GetTextLineHeight() - padding));
-            ImGui.Text($"Step {Step}/{MaxSteps}");
-        }
-        if(Step > 0)
-            ImGui.SetCursorPos(new Vector2(windowSize.X - 190 - padding, windowSize.Y - ImGui.GetTextLineHeight() - padding));
-        else
-            ImGui.SetCursorPos(new Vector2(windowSize.X - 130 - padding, windowSize.Y - ImGui.GetTextLineHeight() - padding));
-        if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.Times, "Skip"))
-        {
-            P.configWizard.IsOpen = false;
-        }
-        ImGui.SameLine();
-        if (Step > 0)
-        {
-            if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.ArrowLeft, "Back") && Step > 0)
-            {
-                Step--;
-                ImGui.BeginChild("StepContent");
-                ImGui.SetScrollY(0.0f);
-                ImGui.EndChild();
-            }
-            ImGui.SameLine();
-        }
+            buttons.Add(("wizard_back", "Back", false, () => { Step--; _resetScroll = true; }));
         if (Step == MaxSteps)
+            buttons.Add(("wizard_finish", "Finish", true, () => { P.configWizard.IsOpen = false; Step = 0; _resetScroll = true; }));
+        else
+            buttons.Add(("wizard_next", Step == 0 ? "Start" : "Next", true, () => { Step++; _resetScroll = true; }));
+
+        var gap = 2 * Theme.Unit;
+        var widths = buttons.Select(button => MathF.Max(82, ImGui.CalcTextSize(button.Label).X + 30)).ToArray();
+        var buttonsWidth = widths.Sum() + ((buttons.Count - 1) * gap);
+        var status = Step == 0 ? "Ready to review" : $"Step {Step}/{MaxSteps}";
+        var narrow = buttonsWidth + ImGui.CalcTextSize(status).X + 48 > width;
+        var buttonY = narrow ? 56 : 15;
+        var x = width - buttonsWidth;
+        for (var i = 0; i < buttons.Count; i++)
         {
-            if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.Magic, "Finish"))
-            {
-                P.configWizard.IsOpen = false;
-                Step = 0;
-            }
+            var button = buttons[i];
+            var pos = origin + new Vector2(x, buttonY);
+            if (CurrencyChrome.OutlineButton(draw, button.Id, button.Label, pos, new Vector2(widths[i], 34), button.Primary))
+                button.Action();
+            x += widths[i] + gap;
         }
-        else {
-            if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.ArrowRight, Step == 0 ? "Start" : "Next"))
-            {
-                Step++;
-                ImGui.BeginChild("StepContent");
-                ImGui.SetScrollY(0.0f);
-                ImGui.EndChild();
-            }
-        }
+        var textPos = origin + new Vector2(4, narrow ? 17 : 24);
+        draw.AddCircleFilled(textPos + new Vector2(0, -3), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(UiState.NeedsSetup)));
+        draw.AddText(textPos + new Vector2(12, -ImGui.GetTextLineHeight() / 2f), Theme.Pack(Theme.TextSecondary), status);
+        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
     }
+
+    private static float FooterHeight(float width) => width < 520 ? 104 : 64;
 
     private static void DrawVersion1_1_0Steps(int step)
     {
@@ -168,218 +146,119 @@ internal class ConfigWizardWindow : Window
                 ConfigCurrenciesTab.Draw();
                 break;
             case 2:
-                ImGui.TextWrapped("Shows you if you can buy collectables with it.");
-                LalaUiKit.Widgets.Checkbox("Show collectables", ref C.ShowCollectables);
-                if (C.ShowCollectables)
+                CurrencyChrome.Card("wizard_collectables", () =>
                 {
-                    ImGui.TextWrapped("You can have a little info in the main window when you are still missing collectables from that currency.");
-                    LalaUiKit.Widgets.Checkbox("Show missing collectables in the main window", ref C.ShowMissingCollectables);
-                    ImGui.TextWrapped("If you don't want to see specific item you can deselect them here and they won't show up.");
-                    ImGui.TextWrapped("Select which items you see as collectables:");
+                    CurrencyChrome.Toggle("Show collectables", ref C.ShowCollectables,
+                        "Show selected collectables that are not yet registered.");
+                    if (!C.ShowCollectables)
+                        return;
+                    CurrencyChrome.Toggle("Show missing collectables in the main window", ref C.ShowMissingCollectables,
+                        "Add a missing-collectable count to each currency row.");
+                    CurrencyChrome.Section("Collectable types", "Select the item types treated as collectables.");
                     foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
                     {
-                        if (type == CollectableType.None) continue; // Skip 'None'
-                        string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
-                        bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                        if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
-                        {
-                            if (isSelected)
-                            {
-                                C.SelectedCollectableTypes.Add(type);
-                            }
-                            else
-                            {
-                                C.SelectedCollectableTypes.Remove(type);
-                            }
-                            P.spendingWindow.UpdateData();
-                            MainTab.update(true);
-                        }
-                        ImGui.SameLine();
-                        ImGui.Text(label);
+                        if (type == CollectableType.None)
+                            continue;
+                        ConfigTab.DrawCollectableType(type);
                     }
-                }
+                });
                 break;
         }
     }
 
     private static void DrawVersion1_1_2Steps(int step)
     {
-        switch (step)
+        if (step != 1)
+            return;
+        CurrencyChrome.Card("wizard_market", () =>
         {
-            case 1:
-                ImGui.TextWrapped("Select if you want to see sellable items:");
-                LalaUiKit.Widgets.Checkbox("Show items eligible for sale", ref C.ShowSellables);
-                ImGui.Separator();
-                ImGui.TextWrapped("Select if you consider the following as collectable:");
-                foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
-                {
-                    if (type != CollectableType.Mahjong) continue;
-                    string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
-                    bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                    if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
-                    {
-                        if (isSelected)
-                        {
-                            C.SelectedCollectableTypes.Add(type);
-                        }
-                        else
-                        {
-                            C.SelectedCollectableTypes.Remove(type);
-                        }
-                        P.spendingWindow.UpdateData();
-                        MainTab.update(true);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(label);
-                }
-                ImGui.Separator();
-                ImGui.TextWrapped("Select if you want to see the following currencies:");
-                foreach (var cur in P.Currencies.Where(cur => cur.Child == false && cur.Enabled).ToList())
-                {
-                    if (cur.ItemId != 37549 && cur.ItemId != 37550) continue;
-                    bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
-                    {
-                        if (isSelected)
-                        {
-                            C.SelectedCurrencies.Add(cur.ItemId);
-                        }
-                        else
-                        {
-                            C.SelectedCurrencies.Remove(cur.ItemId);
-                        }
-                        P.spendingWindow.UpdateData();
-                        MainTab.update(true);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(cur.Name);
-                }
-                break;
-        }
+            CurrencyChrome.Toggle("Show items eligible for sale", ref C.ShowSellables,
+                "Show marketable items and their latest sales data.");
+        });
+        CurrencyChrome.Card("wizard_mahjong", () =>
+        {
+            CurrencyChrome.Section("Collectable type");
+            foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
+            {
+                if (type == CollectableType.Mahjong)
+                    ConfigTab.DrawCollectableType(type);
+            }
+        });
+        CurrencyChrome.Card("wizard_cowries", () =>
+        {
+            CurrencyChrome.Section("Currencies");
+            foreach (var cur in P.Currencies.Where(cur => !cur.Child && cur.Enabled && (cur.ItemId == 37549 || cur.ItemId == 37550)).ToList())
+                ConfigCurrenciesTab.DrawCurrencyToggle(cur);
+        });
     }
+
     private static void DrawVersion1_2_2Steps(int step)
     {
-        switch (step)
+        if (step != 1)
+            return;
+        CurrencyChrome.Card("wizard_cosmocredit", () =>
         {
-            case 1:
-                ImGui.TextWrapped("Select if you want to see the following currencies:");
-                foreach (var cur in P.Currencies.Where(cur => cur.Child == false && cur.Enabled).ToList())
-                {
-                    if (cur.ItemId != 45690) continue;
-                    bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
-                    {
-                        if (isSelected)
-                        {
-                            C.SelectedCurrencies.Add(cur.ItemId);
-                        }
-                        else
-                        {
-                            C.SelectedCurrencies.Remove(cur.ItemId);
-                        }
-                        P.spendingWindow.UpdateData();
-                        MainTab.update(true);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(cur.Name);
-                }
-                break;
-        }
+            CurrencyChrome.Section("Currency");
+            foreach (var cur in P.Currencies.Where(cur => !cur.Child && cur.Enabled && cur.ItemId == 45690).ToList())
+                ConfigCurrenciesTab.DrawCurrencyToggle(cur);
+        });
     }
 
     private static void DrawVersion1_2_3Steps(int step)
     {
-        switch (step)
-        {
-            case 1:
-                ImGui.TextWrapped("Open Currency Spender automatically when you open the ingame Currency window:");
-                LalaUiKit.Widgets.Checkbox("Open automatically with the Currency window", ref C.OpenAutomatically);
-                break;
-
-        }
+        if (step != 1)
+            return;
+        CurrencyChrome.Card("wizard_auto_open", () =>
+            CurrencyChrome.Toggle("Open automatically with the Currency window", ref C.OpenAutomatically,
+                "Open the main window whenever the game Currency window opens."));
     }
-    
+
     private static void DrawVersion1_2_4Steps(int step)
     {
-        switch (step)
+        if (step != 1)
+            return;
+        CurrencyChrome.Card("wizard_minimum_sales", () =>
         {
-            case 1:
-                ImGui.TextWrapped("Minimum sales for the sellable table (0 = disable)");
-                ImGui.InputInt("Minimum sales", ref C.MinSales);
-                ImGui.TextWrapped("Select if you want to see the following currencies:");
-                foreach (var cur in P.Currencies.Where(cur => cur.Child == false && cur.Enabled).ToList())
-                {
-                    if (cur.ItemId != 45691 && cur.ItemId != 48146) continue;
-                    bool isSelected = C.SelectedCurrencies.Contains(cur.ItemId);
-                    if (LalaUiKit.Widgets.Checkbox($"##{cur.ItemId}", ref isSelected))
-                    {
-                        if (isSelected)
-                        {
-                            C.SelectedCurrencies.Add(cur.ItemId);
-                        }
-                        else
-                        {
-                            C.SelectedCurrencies.Remove(cur.ItemId);
-                        }
-                        P.spendingWindow.UpdateData();
-                        MainTab.update(true);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(cur.Name);
-                    ImGui.Separator();
-                }
-                ImGui.Separator();
-                ImGui.TextWrapped("Select if you consider the following as collectable:");
-                foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
-                {
-                    if (type != CollectableType.MasterRecipes) continue;
-                    string label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
-                    bool isSelected = C.SelectedCollectableTypes.Contains(type);
-                    if (LalaUiKit.Widgets.Checkbox($"##{type}", ref isSelected))
-                    {
-                        if (isSelected)
-                        {
-                            C.SelectedCollectableTypes.Add(type);
-                        }
-                        else
-                        {
-                            C.SelectedCollectableTypes.Remove(type);
-                        }
-                        P.spendingWindow.UpdateData();
-                        MainTab.update(true);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(label);
-                }
-                break;
-
-        }
+            CurrencyChrome.Section("Market filter");
+            ImGui.SetNextItemWidth(MathF.Min(180, ImGui.GetContentRegionAvail().X));
+            ImGui.InputInt("Minimum sales", ref C.MinSales);
+            Widgets.Caption("Minimum weekly sales for the market table; 0 disables the filter.");
+        });
+        CurrencyChrome.Card("wizard_credits", () =>
+        {
+            CurrencyChrome.Section("Currencies");
+            foreach (var cur in P.Currencies.Where(cur => !cur.Child && cur.Enabled && (cur.ItemId == 45691 || cur.ItemId == 48146)).ToList())
+                ConfigCurrenciesTab.DrawCurrencyToggle(cur);
+        });
+        CurrencyChrome.Card("wizard_master_recipes", () =>
+        {
+            CurrencyChrome.Section("Collectable type");
+            foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
+            {
+                if (type == CollectableType.MasterRecipes)
+                    ConfigTab.DrawCollectableType(type);
+            }
+        });
     }
 
     private static void CalculateSteps()
     {
         MaxSteps = 0;
         foreach (var version in VersionSteps.Keys)
-        {
             if (VersionHelper.LowerVersionThan(version, Version))
-            {
                 MaxSteps += GetVersionStepCount(version);
-            }
-        }
     }
 
-    private static int GetVersionStepCount(string version)
+    private static int GetVersionStepCount(string version) => version switch
     {
-        return version switch
-        {
-            "1.1.0" => 2, // Number of steps for version 1.1.0
-            "1.1.2" => 1,
-            "1.2.2" => 1,
-            "1.2.3" => 1,
-            "1.2.4" => 1,
-            _ => 0
-        };
-    }
+        "1.1.0" => 2,
+        "1.1.2" => 1,
+        "1.2.2" => 1,
+        "1.2.3" => 1,
+        "1.2.4" => 1,
+        _ => 0,
+    };
+
     public void SetVersion(string version)
     {
         Version = version;

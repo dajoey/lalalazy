@@ -1,27 +1,37 @@
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using LalaUiKit;
 
 namespace CurrencySpender.Windows;
 
 internal class DebugTab
 {
-    internal unsafe static void Draw()
+    internal static unsafe void Draw()
     {
         var agent = AgentMap.Instance();
-        ImGui.Text("CurrentMapId: " + agent->CurrentMapId.ToString());
-        ImGui.Text("CurrentTerritoryId: " + agent->CurrentTerritoryId.ToString());
-        ImGui.Text("GCRankings:");
-        foreach(var rank in PlayerHelper.GCRanks)
+        CurrencyChrome.Card("debug_map", () =>
         {
-            ImGui.Text($"{rank.Key} - {rank.Value}");
-        }
-        ImGui.Text("Fate Rank:");
-        foreach (var rank in PlayerHelper.SharedFateRanks)
+            CurrencyChrome.Section("Map state");
+            Widgets.SecondaryWrapped($"CurrentMapId: {agent->CurrentMapId}\nCurrentTerritoryId: {agent->CurrentTerritoryId}");
+        });
+        CurrencyChrome.TwoColumns("debug_ranks",
+            () => CurrencyChrome.Card("debug_gc_ranks", () =>
+            {
+                CurrencyChrome.Section("GC rankings");
+                foreach (var rank in PlayerHelper.GCRanks)
+                    Widgets.Secondary($"{rank.Key} — {rank.Value}");
+            }),
+            () => CurrencyChrome.Card("debug_fate_ranks", () =>
+            {
+                CurrencyChrome.Section("FATE ranks");
+                foreach (var rank in PlayerHelper.SharedFateRanks)
+                    Widgets.Secondary($"{rank.Key} — {rank.Value}");
+            }));
+        CurrencyChrome.Card("debug_tools", () =>
         {
-            ImGui.Text($"{rank.Key} - {rank.Value}");
-        }
-        if (ImGuiEx.Button("Open Debug Window"))
-        {
-            P.debugTabWindow.IsOpen = true;
-        }
+            CurrencyChrome.Section("Generated data");
+            Widgets.SecondaryWrapped("Open the separate diagnostic window for generated collectable and shop rows.");
+            if (CurrencyChrome.Button("open_debug_window", "Open Debug Window"))
+                P.debugTabWindow.IsOpen = true;
+        });
     }
 }
