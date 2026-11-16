@@ -1,5 +1,8 @@
-﻿## v0.1.5.8 (2026-11-16) [testing]
-A sit command without a leading slash is no longer sent and no longer uses up the trip's sends.
+﻿## v0.1.5.9 (2026-11-16) [testing]
+- A sit command without a leading slash is no longer sent and no longer uses up the trip's sends; this repeats the note that was missing from the previous build.
+
+## v0.1.5.8 (2026-11-16) [testing]
+- A sit command without a leading slash is no longer sent and no longer uses up the trip's sends.
 
 ## v0.1.5.7 (2026-11-15) [testing]
 - The window can be dragged from its stat cards and empty areas again.
