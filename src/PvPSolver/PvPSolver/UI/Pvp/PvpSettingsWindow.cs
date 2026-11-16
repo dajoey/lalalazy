@@ -38,6 +38,7 @@ internal sealed class PvpSettingsWindow : Window
     {
         // Fork: the approved custom header replaces the native Dalamud title bar.
         Flags |= ImGuiWindowFlags.NoTitleBar;
+        _shell.CloseRequested = () => IsOpen = false;
         SizeCondition = ImGuiCond.FirstUseEver;
         Size = new Vector2(1080f, 760f);
         SizeConstraints = new WindowSizeConstraints()

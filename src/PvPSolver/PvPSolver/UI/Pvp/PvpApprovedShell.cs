@@ -25,6 +25,8 @@ internal sealed class PvpApprovedShell
 
     private string _currentPage = PvpSettingsCatalog.Match;
 
+    internal Action? CloseRequested { get; set; }
+
     private Page Current => Pages.First(page => page.Name == _currentPage);
 
     internal void Reset() => _currentPage = PvpSettingsCatalog.Match;
@@ -93,11 +95,13 @@ internal sealed class PvpApprovedShell
         UiState state = StateOf(view, switchMessage);
         string stateLabel = Copy.Word(state);
         Vector2 statusSize = new(MathF.Max(86, ImGui.CalcTextSize(stateLabel).X + 43), PvpApprovedChrome.ControlHeight);
-        float required = brandSize.X + groupSizes.Sum(size => size.X) + statusSize.X + (4 * gap);
+        Vector2 closeSize = new(PvpApprovedChrome.ControlHeight);
+        float required = brandSize.X + groupSizes.Sum(size => size.X) + statusSize.X + closeSize.X + (5 * gap);
         bool singleRow = width >= required;
         Vector2[] groupPositions = new Vector2[groups.Length];
         Vector2 brandPos = new(0, 12);
         Vector2 statusPos;
+        Vector2 closePos;
         float barHeight;
 
         if (singleRow)
@@ -111,11 +115,13 @@ internal sealed class PvpApprovedShell
                 x += groupSizes[i].X + gap;
             }
 
-            statusPos = new Vector2(width - statusSize.X, y);
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, y);
+            closePos = new Vector2(width - closeSize.X, y);
         }
         else
         {
-            statusPos = new Vector2(width - statusSize.X, 16);
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, 16);
+            closePos = new Vector2(width - closeSize.X, 16);
             float x = 0;
             float y = 62;
             for (int i = 0; i < groups.Length; i++)
@@ -150,6 +156,12 @@ internal sealed class PvpApprovedShell
         }
 
         PvpApprovedChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (PvpApprovedChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+        {
+            CloseRequested?.Invoke();
+        }
+
+        PvpUi.Tip("Close");
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
