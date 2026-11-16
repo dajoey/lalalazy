@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Real-source UI render harness for the LazyFateAutomation window. Compiles the real window, chrome, shell base class,
+       configuration and pure rule sources; only the game/runtime boundary is stubbed (Stubs.cs, Fixtures.cs).
+       No PackageReference: Dalamud, the ImGui bindings, FFXIVClientStructs (one enum) and Newtonsoft.Json (the real
+       Configuration.cs attribute) come from the existing runtime folder named by DalamudLibPath. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyFateAutomation.UiHarness</RootNamespace>
+    <AssemblyName>LazyFateAutomation.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS8618;CS0649;CS0169;CS0414;CS8981;CA1416</NoWarn>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <Reference Include="FFXIVClientStructs" HintPath="$(DalamudLibPath)\FFXIVClientStructs.dll" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(DalamudLibPath)\Newtonsoft.Json.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real window sources under test. -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\FateToolKitWindow.cs" Link="Real\FateToolKitWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\FateChrome.cs" Link="Real\FateChrome.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\Helpers\ImGuiHelpers\MinimisableWindow.cs" Link="Real\MinimisableWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\Configuration.cs" Link="Real\Configuration.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\FateZoneLogic.cs" Link="Real\FateZoneLogic.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyFateAutomation\Helpers\Utils\FateKinds.cs" Link="Real\FateKinds.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
