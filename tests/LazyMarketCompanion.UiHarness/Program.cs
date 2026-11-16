@@ -67,6 +67,8 @@ internal static class Program
       Console.WriteLine("Interactive drawn toggle: press and release changed the setting through MarketChrome.Toggle.");
       VerifyCloseButton();
       Console.WriteLine("Custom close control: a real press and release on the shell bar's close button closed the config window.");
+      VerifyOverlayClearsCloseButton();
+      Console.WriteLine("Retainer overlay (issue #12): on every frame of running/idle switches the overlay stayed left of the window's close button and never took the hover over it.");
       return 0;
     }
     catch (Exception ex)
@@ -239,6 +241,71 @@ internal static class Program
       }
       if (window.IsOpen)
         throw new InvalidOperationException("The config window's custom close button did not close the window.");
+    }
+    finally
+    {
+      ImGui.DestroyContext(context);
+    }
+  }
+
+  /// <summary>
+  /// Issue #12: the retainer overlay must never cover the game window's close button. Lays the sale list out at the
+  /// game's geometry (ui/uld/RetainerSellList.uld: 598-wide window, anchor node 2 at (408, 6) 158 x 36, WindowA close
+  /// button 33 px in from the right edge, 6 down, 28 square), places the overlay through the real OverlayPlacement,
+  /// rests the mouse on the close button and switches Running/idle across frames (the auto-resize lags a frame). On
+  /// every frame the overlay window must end left of the close button and must not be the hovered window.
+  /// </summary>
+  private static void VerifyOverlayClearsCloseButton()
+  {
+    var context = ImGui.CreateContext();
+    try
+    {
+      Plugin.Configuration = Fixtures.Typical();
+      Plugin.Configuration.AutoMarketEnabled = true;
+      var io = ImGui.GetIO();
+      io.DisplaySize = new Vector2(1100, 400);
+      io.DisplayFramebufferScale = Vector2.One;
+      io.DeltaTime = 1f / 60f;
+      _ = UiLook.Apply(Options);
+      foreach (var scale in new[] { 1f, 1.5f })
+      {
+        var window = new Vector2(120, 60);
+        var anchor = window + new Vector2(408, 6) * scale;
+        var anchorSize = new Vector2(158, 36) * scale;
+        var close = new LazyMarketCompanion.AutoMarket.OverlayPlacement.Box(window + new Vector2(598 - 33, 6) * scale, new Vector2(28, 28) * scale);
+        var right = LazyMarketCompanion.AutoMarket.OverlayPlacement.RightEdge(anchor, anchorSize, [close], scale);
+        var closeCenter = close.Pos + (close.Size / 2f);
+        (string Label, string Tooltip)[] idle = [("Auto Pinch", "t"), ("Auto Market", "t"), ("Sweep to Bags", "t")];
+
+        // Control: an overlay that does reach over the close button IS seen taking the hover, so the check below can fail.
+        var controlCaptured = false;
+        for (var frame = 0; frame < 3; frame++)
+        {
+          io.MousePos = closeCenter;
+          ImGui.NewFrame();
+          controlCaptured |= frame > 0 && io.WantCaptureMouse;
+          OverlayMirror.Draw($"###LMCOverlayControl{scale}", new Vector2(close.Right, anchor.Y), [], busy: true, arSession: false, anchorSize);
+          ImGui.Render();
+        }
+        if (!controlCaptured)
+          throw new InvalidOperationException($"Overlay x{scale} control: an overlay over the close button was not seen taking the hover; the check cannot fail.");
+        bool[] busy = [true, true, false, false, true, false, true, true, false, true, false, false];
+        for (var frame = 0; frame < busy.Length; frame++)
+        {
+          io.MousePos = closeCenter;
+          ImGui.NewFrame();
+          // NewFrame picks the hovered window from last frame's boxes: from frame 1 on, the close button must not be under the overlay.
+          if (frame > 0 && io.WantCaptureMouse)
+            throw new InvalidOperationException($"Overlay x{scale} frame {frame}: the mouse on the close button is captured by an ImGui window.");
+          var box = OverlayMirror.Draw($"###LMCOverlayPlacement{scale}", new Vector2(right, anchor.Y), busy[frame] ? [] : idle, busy[frame], arSession: frame % 3 == 0, anchorSize);
+          ImGui.Render();
+          var boxRight = box.Pos.X + box.Size.X;
+          if (boxRight > close.Left)
+            throw new InvalidOperationException($"Overlay x{scale} frame {frame} ({(busy[frame] ? "running" : "idle")}): its right edge {boxRight:0.0} reaches the close button at {close.Left:0.0}.");
+          if (box.Size.X > 0 && boxRight > right + 0.5f)
+            throw new InvalidOperationException($"Overlay x{scale} frame {frame}: its right edge {boxRight:0.0} is past the placed edge {right:0.0}.");
+        }
+      }
     }
     finally
     {

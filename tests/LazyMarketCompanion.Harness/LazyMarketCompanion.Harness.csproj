@@ -44,6 +44,7 @@
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\AutoMarketPanelModel.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PanelDock.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PanelKnobs.cs" />
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\OverlayPlacement.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerStability.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerTransitions.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
@@ -69,6 +70,7 @@
     <Compile Include="ConfigurationStubs.cs" />
     <Compile Include="PanelFilterCases.cs" />
     <Compile Include="PanelSettingsCases.cs" />
+    <Compile Include="OverlayPlacementCases.cs" />
     <Compile Include="PinchKeyCases.cs" />
     <Compile Include="MannequinCases.cs" />
     <Compile Include="Program.cs" />

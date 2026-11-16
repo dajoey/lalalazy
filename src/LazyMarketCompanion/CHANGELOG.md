@@ -1,4 +1,11 @@
-﻿## v0.2.8.25 (2026-11-15) [testing]
+﻿## v0.2.8.26 (2026-11-16) [testing]
+### Fixed
+- The buttons drawn on the retainer list and the retainer sale list (Auto Pinch, Auto Market, Sweep to Bags, and Running with Stop while a run goes) no longer cover the window's close button or the venture count beside it (issue #12). They are now laid out from the right and kept clear of the window's close, help and settings buttons and of the game's own text and icons in that corner, so wider buttons extend left over empty header space instead (MarketAutomation.cs, ImGuiSetup and KeepClear; AutoMarket/OverlayPlacement.cs).
+### Notes
+- Untried build: tested offline, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
+## v0.2.8.25 (2026-11-15) [testing]
 ### Changed
 - The Auto-Market panel docked beside the inventory window now lists only the marketable bag stacks, each with its existing per-row controls (list switch, Add/Remove, Stack, Keep, Skip category routing), under a title line with a close button. The statistics cards, the placement card, the filter and search card, the bulk buttons, the Auto-Market settings card and the state footer are gone from the panel (Windows/AutoMarketPanelWindow.cs, DrawFrame).
 - The main window's Auto-Market page has a new "Inventory panel" card with "Dock to inventory", "Stay open when the inventory closes", the Status and Category filters that narrow the panel's list, the On list / Not listed / Excluded counts, and the "Add all marketable stacks in bags" and "Remove all" actions, each still confirming first (Windows/ConfigWindow.cs, DrawInventoryPanelCard). The saved settings keep their names, so existing choices carry over.

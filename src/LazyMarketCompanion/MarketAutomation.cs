@@ -404,7 +404,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         if (node == null)
           return;
 
-        var oldSize = ImGuiSetup(node);
+        var oldSize = ImGuiSetup(addon, "RetainerList", node);
         DrawButtons(OverlayButtonsForRetainerList());
         ImGuiPostSetup(oldSize);
       }
@@ -424,7 +424,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         if (node == null)
           return;
 
-        var oldSize = ImGuiSetup(node);
+        var oldSize = ImGuiSetup(addon, "RetainerSellList", node);
         DrawButtons(OverlayButtonsForRetainerSellList());
         ImGuiPostSetup(oldSize);
       }
@@ -460,14 +460,21 @@ internal sealed class MarketAutomation : Window, IDisposable
     return buttons.ToArray();
   }
 
-  private unsafe float ImGuiSetup(AtkResNode* node)
+  private unsafe float ImGuiSetup(AtkUnitBase* addon, string addonName, AtkResNode* node)
   {
     var position = GetNodePosition(node);
     var scale = GetNodeScale(node);
     var size = new Vector2(node->Width, node->Height) * scale;
 
+    // The overlay is laid out from its right edge (pivot 1,0), kept left of the window's header
+    // buttons and of the game's own content in the anchor's slot (issue #12), so content wider
+    // than the anchor grows left over empty header space, never over the close button.
+    var keepClear = KeepClear(addon, node, scale.X);
+    var right = OverlayPlacement.RightEdge(position, size, [.. keepClear.Buttons, .. keepClear.Content], scale.X);
+    LogOverlayPlacement(addonName, position.X, position.X + size.X, right, scale.X, keepClear.Buttons, keepClear.Content, keepClear.CloseRead);
+
     ImGuiHelpers.ForceNextWindowMainViewport();
-    ImGuiHelpers.SetNextWindowPosRelativeMainViewport(position);
+    ImGuiHelpers.SetNextWindowPosRelativeMainViewport(new System.Numerics.Vector2(right, position.Y), ImGuiCond.None, new System.Numerics.Vector2(1f, 0f));
 
     var oldSize = ImGui.GetFont().Scale;
     ImGui.GetFont().Scale *= scale.X;
@@ -3231,6 +3238,105 @@ internal sealed class MarketAutomation : Window, IDisposable
       par = par->ParentNode;
     }
     return pos;
+  }
+
+  /// <summary>
+  /// What the overlay must keep clear of (issue #12): the window's visible header buttons (close,
+  /// config, help), read from the window component, and the game's own visible content in the
+  /// anchor's header slot (the anchor node, its children and its siblings: on the retainer list the
+  /// venture count and its icon). A header button read off-window (not laid out yet) is not trusted;
+  /// when the close button is not read, its box comes from the window's own geometry.
+  /// </summary>
+  private static unsafe (List<OverlayPlacement.Box> Buttons, List<OverlayPlacement.Box> Content, bool CloseRead) KeepClear(AtkUnitBase* addon, AtkResNode* anchor, float scale)
+  {
+    var buttons = new List<OverlayPlacement.Box>();
+    var content = new List<OverlayPlacement.Box>();
+
+    AddDrawnContent(content, anchor, scale);
+    for (var child = anchor->ChildNode; child != null; child = child->PrevSiblingNode)
+      AddDrawnContent(content, child, scale);
+    var parent = anchor->ParentNode;
+    if (parent != null && parent != addon->RootNode)
+      for (var sibling = parent->ChildNode; sibling != null; sibling = sibling->PrevSiblingNode)
+        if (sibling != anchor)
+          AddDrawnContent(content, sibling, scale);
+
+    var window = addon->WindowNode;
+    if (window == null)
+      return (buttons, content, false);
+
+    var frame = &window->AtkResNode;
+    var framePos = GetNodePosition(frame);
+    var frameBox = new OverlayPlacement.Box(
+      new System.Numerics.Vector2(framePos.X, framePos.Y),
+      new System.Numerics.Vector2(frame->Width * scale, frame->Height * scale));
+
+    var closeRead = false;
+    var component = window->Component;
+    if (component != null)
+    {
+      foreach (var id in OverlayPlacement.HeaderButtonNodeIds)
+      {
+        var button = component->GetNodeById(id);
+        if (button == null || !button->IsVisible())
+          continue;
+        var box = new OverlayPlacement.Box(
+          new System.Numerics.Vector2(button->ScreenX, button->ScreenY),
+          new System.Numerics.Vector2(button->Width * scale, button->Height * scale));
+        if (!OverlayPlacement.Inside(box, frameBox))
+          continue;
+        buttons.Add(box);
+        closeRead |= id == OverlayPlacement.HeaderButtonNodeIds[0];
+      }
+    }
+
+    if (!closeRead)
+      buttons.Add(OverlayPlacement.FallbackClose(frameBox, scale));
+    return (buttons, content, closeRead);
+  }
+
+  /// <summary>Adds a node's box when the game draws it with something in it: an image, a component, or non-empty text.</summary>
+  private static unsafe void AddDrawnContent(List<OverlayPlacement.Box> boxes, AtkResNode* node, float scale)
+  {
+    if (node == null || node->Width == 0 || node->Height == 0)
+      return;
+    for (var p = node; p != null; p = p->ParentNode)
+      if (!p->IsVisible())
+        return;
+    var isContent = node->Type == NodeType.Image
+      || (ushort)node->Type >= 1000
+      || (node->Type == NodeType.Text && ((AtkTextNode*)node)->NodeText.ToString().Trim().Length > 0);
+    if (!isContent)
+      return;
+    var pos = GetNodePosition(node);
+    boxes.Add(new OverlayPlacement.Box(
+      new System.Numerics.Vector2(pos.X, pos.Y),
+      new System.Numerics.Vector2(node->Width * scale, node->Height * scale)));
+  }
+
+  private readonly Dictionary<string, string> _overlayPlacementLogged = new();
+
+  /// <summary>One log line per change in what an overlay keeps clear of and by how much (in whole UI-scaled pixels).</summary>
+  private void LogOverlayPlacement(string addonName, float anchorLeft, float anchorRight, float right, float scale,
+    List<OverlayPlacement.Box> buttons, List<OverlayPlacement.Box> content, bool closeRead)
+  {
+    static float Clearance(List<OverlayPlacement.Box> boxes, float anchorLeft, float right)
+    {
+      var c = float.PositiveInfinity;
+      foreach (var b in boxes)
+        if (b.Right > anchorLeft)
+          c = MathF.Min(c, b.Left - right);
+      return c;
+    }
+    var buttonClear = Clearance(buttons, anchorLeft, right);
+    var contentClear = Clearance(content, anchorLeft, right);
+    var pulled = right < anchorRight - 0.5f;
+    var key = $"{buttons.Count}|{content.Count}|{closeRead}|{pulled}|{MathF.Round(buttonClear / scale)}|{MathF.Round(contentClear / scale)}";
+    if (_overlayPlacementLogged.TryGetValue(addonName, out var last) && last == key)
+      return;
+    _overlayPlacementLogged[addonName] = key;
+    static string Px(float v) => float.IsPositiveInfinity(v) ? "none to its right" : $"{v:0} px clear";
+    Svc.Log.Information($"[LMC] overlay {addonName}: right edge {anchorRight - right:0} px left of its anchor; header buttons {Px(buttonClear)} ({buttons.Count}, close button {(closeRead ? "read from the window" : "from window geometry")}); game content {Px(contentClear)} ({content.Count})");
   }
 
   private static unsafe Vector2 GetNodeScale(AtkResNode* node)

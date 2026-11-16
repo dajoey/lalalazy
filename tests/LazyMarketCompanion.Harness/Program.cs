@@ -5921,6 +5921,9 @@ MannequinCases.Run((name, ok, detail) => Check(name, ok, detail));
 // 176-180. The docked panel lists only marketable stacks; the rest lives in the main window (0.2.8.25): see PanelSettingsCases.cs.
 PanelSettingsCases.Run((name, ok, detail) => Check(name, ok, detail));
 
+// 181-182. The retainer-window overlay never covers the window's close button (0.2.8.26): see OverlayPlacementCases.cs.
+OverlayPlacementCases.Run((name, ok, detail) => Check(name, ok, detail));
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

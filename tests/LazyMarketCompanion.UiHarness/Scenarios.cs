@@ -296,13 +296,13 @@ internal sealed class OverlayState : IScenarioState
 
     // Row 1: the retainer list's three buttons. Row 2: the sell list's two, Auto Market disabled in settings. Row 3: a run in progress.
     Plugin.Configuration.AutoMarketEnabled = true;
-    OverlayMirror.Draw("###LMCOverlayList", new Vector2(36, 36),
+    OverlayMirror.Draw("###LMCOverlayList", new Vector2(size.X - 36, 36),
       [("Auto Pinch", "t"), ("Auto Market", "t"), ("Sweep to Bags", "t")], busy: false, arSession: false);
     Plugin.Configuration.AutoMarketEnabled = false;
-    OverlayMirror.Draw("###LMCOverlaySell", new Vector2(36, 146),
+    OverlayMirror.Draw("###LMCOverlaySell", new Vector2(size.X - 36, 146),
       [("Auto Pinch", "t"), ("Auto Market", "t")], busy: false, arSession: false);
     Plugin.Configuration.AutoMarketEnabled = true;
-    OverlayMirror.Draw("###LMCOverlayBusy", new Vector2(36, 256), [], busy: true, arSession: true);
+    OverlayMirror.Draw("###LMCOverlayBusy", new Vector2(size.X - 36, 256), [], busy: true, arSession: true);
   }
 }
 

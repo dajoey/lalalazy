@@ -12,24 +12,32 @@ namespace LazyMarketCompanion.UiHarness;
 
 internal static class OverlayMirror
 {
-  /// <summary>Draws one overlay window at a screen position: the buttons, or the Running pill and Stop while busy.</summary>
-  public static void Draw(string id, Vector2 position, (string Label, string Tooltip)[] buttons, bool busy, bool arSession)
+  /// <summary>
+  /// Draws one overlay window laid out from its top-right corner (issue #12: the source places it by its right
+  /// edge so wider content grows left, never over the game window's close button): the buttons, or the Running
+  /// pill and Stop while busy. <paramref name="minSize"/> stands in for the anchor node's size. Returns the
+  /// overlay window's screen box this frame.
+  /// </summary>
+  public static (Vector2 Pos, Vector2 Size) Draw(string id, Vector2 topRight, (string Label, string Tooltip)[] buttons, bool busy, bool arSession, Vector2? minSize = null)
   {
     // ---- ImGuiSetup ----
-    ImGui.SetNextWindowPos(position);
+    ImGui.SetNextWindowPos(topRight, ImGuiCond.None, new Vector2(1f, 0f));
     ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8f);
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3f, 3f));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0f, 0f));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
-    ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, new Vector2(300, 40));
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, minSize ?? new Vector2(300, 40));
+    (Vector2 Pos, Vector2 Size) box;
     using (var overlay = Layout.Overlay.Begin(id, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoNavFocus
              | ImGuiWindowFlags.AlwaysUseWindowPadding | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings))
     {
+      box = (ImGui.GetWindowPos(), ImGui.GetWindowSize());
       // ---- DrawButtons ----
       DrawButtons(buttons, busy, arSession);
     }
     // ---- ImGuiPostSetup ----
     ImGui.PopStyleVar(5);
+    return box;
   }
 
   private static void DrawButtons((string Label, string Tooltip)[] buttons, bool busy, bool arSession)
@@ -73,6 +81,7 @@ internal static class OverlayMirror
   /// <summary>The statements copied above, as they must still read in MarketAutomation.cs (whitespace-insensitive).</summary>
   private static readonly string[] Copied =
   [
+    "ImGuiCond.None, new System.Numerics.Vector2(1f, 0f));",
     "ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8f.Scale());",
     "ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3f.Scale(), 3f.Scale()));",
     "ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0f.Scale(), 0f.Scale()));",
