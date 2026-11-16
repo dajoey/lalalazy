@@ -1,4 +1,10 @@
-﻿## v1.3.1.6 (2026-11-15) [testing]
+﻿## v1.3.1.7 (2026-11-15) [testing]
+### Changed
+- The plugin windows now use responsive card-based layouts with custom close and minimize controls in place of the native title bars, clear currency state indicators, and scrollable settings, wizard and table content. Currency calculations, spending behavior and saved configuration are unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
+## v1.3.1.6 (2026-11-15) [testing]
 ### Fixed
 - The main and debug windows now register under their own window IDs (Windows/MainTabWindow.cs and Windows/DebugTabWindow.cs constructors): since 1.3.1.5 both were created with a blank internal window ID, so on every launch the second registration threw and the plugin's startup stopped before its interface, task manager and currency list were built - the plugin appeared to do nothing. Both windows now open normally every session.
 ### Notes
