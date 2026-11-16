@@ -69,6 +69,7 @@ public sealed class MainWindow : Window
         _cart = new CartPanel(plugin, this);
         _settings = new SettingsTab(plugin);
         _run = new RunTab(plugin, this);
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(1180, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -105,7 +106,6 @@ public sealed class MainWindow : Window
         {
             var (state, action, reason) = OverallState(snap);
             DrawTopBar(state);
-            DrawPageSearchResults();
             if (_section == Section.Catalog)
             {
                 DrawFeatureRow(snap);
@@ -120,6 +120,7 @@ public sealed class MainWindow : Window
                 : CrafterChrome.WideFooterHeight;
             var bodyHeight = MathF.Max(1, ImGui.GetContentRegionAvail().Y - footerHeight);
             ImGui.BeginChild("##crafter_body", new Vector2(0, bodyHeight), false);
+            DrawPageSearchResults();
             DrawStatusAnnouncements(snap);
             switch (_section)
             {
@@ -259,11 +260,13 @@ public sealed class MainWindow : Window
         var groupSizes = groups.Select(group => new Vector2(MathF.Max(76, ImGui.CalcTextSize(group.ToString()).X + 30), CrafterChrome.ControlHeight)).ToArray();
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(80, ImGui.CalcTextSize(stateLabel).X + 43), CrafterChrome.ControlHeight);
+        var closeSize = new Vector2(CrafterChrome.ControlHeight);
         var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
         const float minSearchWidth = 180;
-        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + (3 * gap);
+        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + closeSize.X + (4 * gap);
         var groupPositions = new Vector2[groups.Length];
         var brandPos = new Vector2(0, 12);
+        var closePos = new Vector2(width - closeSize.X, 16);
         Vector2 searchPos;
         Vector2 statusPos;
         float searchWidth;
@@ -279,13 +282,13 @@ public sealed class MainWindow : Window
                 groupPositions[i] = new Vector2(x, y);
                 x += groupSizes[i].X + gap;
             }
-            searchWidth = MathF.Min(280, width - leftWidth - statusSize.X - (3 * gap));
-            statusPos = new Vector2(width - statusSize.X, y);
+            searchWidth = MathF.Min(280, width - leftWidth - statusSize.X - closeSize.X - (4 * gap));
+            statusPos = new Vector2(closePos.X - gap - statusSize.X, y);
             searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
         }
         else
         {
-            statusPos = new Vector2(width - statusSize.X, 16);
+            statusPos = new Vector2(closePos.X - gap - statusSize.X, 16);
             var x = 0f;
             var y = 62f;
             for (var i = 0; i < groups.Length; i++)
@@ -317,6 +320,10 @@ public sealed class MainWindow : Window
         }
         DrawSearchInput(origin + searchPos, searchWidth);
         CrafterChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (CrafterChrome.OutlineButton(draw, "close", "×", origin + closePos, closeSize))
+            IsOpen = false;
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Close LazyCrafter");
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
