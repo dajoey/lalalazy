@@ -1,4 +1,7 @@
-﻿## v0.1.5.4 (2026-11-15) [testing]
+﻿## v0.1.5.5 (2026-11-15) [testing]
+- The plugin window now has a drawn close button in the top bar that closes the window, and the outer window no longer shows a redundant scrollbar; the inner body still scrolls when fishing details or a smaller window require it. Fishing policy, commands, configuration keys and saved settings are unchanged.
+
+## v0.1.5.4 (2026-11-15) [testing]
 - The plugin window now presents fishing status, trip details and settings in a responsive card-based layout with a persistent Stop/Enable footer. The native title bar is removed in favour of the drawn top bar. Fishing policy, commands, configuration keys and saved settings are unchanged.
 
 ## v0.1.5.3 (2026-11-14) [testing]
