@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- LazyWTMath offline harness. Plain console app, no Dalamud: compiles only the fork-only refresh gate
+       (src/LazyWTMath/LazyWTMath/RefreshGate.cs) that keeps the probability overlay from recomputing every frame.
+         dotnet run -c Release on the project tests/LazyWTMath.Harness
+       Prints PASS/FAIL per check, OK with a check count and exit 0 when every check passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyWTMath.Harness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\LazyWTMath\LazyWTMath\RefreshGate.cs" Link="RefreshGate.cs" />
+  </ItemGroup>
+</Project>

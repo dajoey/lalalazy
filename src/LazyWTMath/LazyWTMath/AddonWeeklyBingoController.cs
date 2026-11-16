@@ -21,6 +21,8 @@ namespace WondrousTailsSolver;
 /// </summary>
 public unsafe class AddonWeeklyBingoController : IDisposable {
     private TextNode? probabilityTextNode;
+    // Fork: remembers the inputs the overlay text was last rendered from (OnUpdate fires every frame; the prune and solve only need to run when they change).
+    private readonly RefreshGate refreshGate = new();
     private readonly AddonController<AddonWeeklyBingo> controller;
 
     public AddonWeeklyBingoController() {
@@ -44,6 +46,9 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
         => WondrousTailsSolverPlugin.Framework.RunOnFrameworkThread(controller.Dispose);
 
     private void AttachNodes(AddonWeeklyBingo* addon) {
+        // Fork: freshly attached nodes need one full refresh pass even when the cached inputs have not changed.
+        refreshGate.Reset();
+
         var existingTextNode = addon->GetTextNodeById(34);
         if (existingTextNode is null) return;
         
@@ -81,6 +86,15 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
             System.PerfectTails.GameState[index] = playerState->IsWeeklyBingoStickerPlaced(index);
         }
 
+        // Fork: skip the SeString prune and the probability solve while the board and the placed-sticker count are unchanged.
+        var boardMask = 0;
+        for (var index = 0; index < 16; index++) {
+            if (System.PerfectTails.GameState[index]) boardMask |= 1 << index;
+        }
+
+        int stickersPlaced = playerState->WeeklyBingoNumPlacedStickers;
+        if (!refreshGate.ShouldRefresh(boardMask, stickersPlaced)) return;
+
         if (probabilityTextNode is not null) {
             var existingTextNode = addon->GetTextNodeById(34);
             if (existingTextNode is null) return;
@@ -114,10 +128,15 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
             }
 
             probabilityTextNode.String = System.PerfectTails.SolveAndGetProbabilitySeString().TextValue;
+            // Fork: record the inputs only after the text was actually updated, so a pass that returned early for a missing text node never suppresses the next real refresh.
+            refreshGate.Commit(boardMask, stickersPlaced);
         }
     }
     
     private void DetachNodes(AddonWeeklyBingo* addon) {
+        // Fork: the overlay node is going away; the next attach starts with a full pass.
+        refreshGate.Reset();
+
         var existingTextNode = addon->GetTextNodeById(34);
         if (existingTextNode is not null) {
             existingTextNode->SetHeight((ushort)(existingTextNode->GetHeight() * 3.0f / 2.0f));
