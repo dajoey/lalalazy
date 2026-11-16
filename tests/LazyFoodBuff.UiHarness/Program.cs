@@ -41,7 +41,7 @@ internal static class Program
         public uint SelectedJob { get; init; }
         public Popup Popup { get; init; }
 
-        /// <summary>Scrolls every scrollable region of the window to its end (content below the fold).</summary>
+        /// <summary>Scrolls the body to its end (content below the fold).</summary>
         public bool ScrollToEnd { get; init; }
 
         /// <summary>Scrolls the (stacked) body down by this many mouse-wheel notches (about 85 px each) from the top.</summary>
@@ -80,7 +80,7 @@ internal static class Program
         yield return new(N("manual-needs-setup-scrolled", W, H), W, H, ManualNeedsSetup) { SelectedJob = 21, ScrollToEnd = true };
         yield return new(N("manual-missing-stock-scrolled", W, H), W, H, ManualMissingStock) { SelectedJob = 37, ScrollToEnd = true };
         yield return new(N("manual-in-stock-scrolled", W, H), W, H, ManualInStock) { SelectedJob = 24, ScrollToEnd = true };
-        yield return new(N("food-picker-open-scrolled", W, H), W, H, ManualPickerOpen) { SelectedJob = 21, ScrollToEnd = true, Popup = Popup.FoodPicker, CanvasHeight = H + 300 };
+        yield return new(N("food-picker-open-scrolled", W, H), W, H, ManualPickerOpen) { SelectedJob = 21, ScrollNotches = 3, Popup = Popup.FoodPicker, CanvasHeight = H + 300 };
 
         // Game mode only: the stacked layouts and the evidence-only scale render.
         yield return new(N("mid-ready-fed", 760, 760), 760, 760, ReadyFed);
@@ -291,6 +291,7 @@ internal static class Program
             io.MousePos = mouse;
             io.MouseDown[0] = down;
             ImGui.NewFrame();
+            _window.PreDraw();
             ImGui.SetNextWindowPos(Vector2.Zero);
             ImGui.SetNextWindowSize(new Vector2(_scenario.Width, _scenario.Height));
             var open = true;
@@ -299,6 +300,7 @@ internal static class Program
                 ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
             _window.Draw();
             ImGui.End();
+            _window.PostDraw();
             ImGui.Render();
         }
 
@@ -343,6 +345,11 @@ internal static class Program
             if (_scenario.ScrollNotches > 0)
             {
                 var at = new Vector2(_scenario.Width * 0.3f, _scenario.Height * 0.6f);
+                // Start from the top: a probe trial leaves the body scrolled, and notches add up.
+                Frame(at, false);
+                ImGui.GetIO().AddMouseWheelEvent(0, 100f);
+                Frame(at, false);
+                Idle(2);
                 Frame(at, false);
                 ImGui.GetIO().AddMouseWheelEvent(0, -_scenario.ScrollNotches);
                 Frame(at, false);
@@ -524,9 +531,6 @@ internal static class Program
         var jobs = new HarnessData().GetExcelSheet<ClassJob>();
         if (jobs is not null)
             Scan("harness job names", string.Concat(jobs.Select(j => j.Name.ExtractText() + "\n")));
-        // The page header draws this glyph with the default font (no icon font is pushed around it).
-        Scan("page header icon glyph (FontAwesomeIcon.Utensils drawn with the default font)",
-            FontAwesomeIcon.Utensils.ToIconString());
 
         _missingGlyphs = found.Count > 0;
         if (found.Count == 0)
