@@ -494,19 +494,19 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void DrawButtons(params (string Label, string Tooltip, Action Run)[] buttons)
   {
-    MarketChrome.PushFrame();
+    MarketChrome.PushFrame(compact: true);
     try
     {
       if (_taskManager.IsBusy)
       {
         var pos = ImGui.GetCursorScreenPos();
         var label = "Running";
-        var size = new Vector2(ImGui.CalcTextSize(label).X + 43, 28);
+        var size = new Vector2(ImGui.CalcTextSize(label).X + 43, ImGui.GetFrameHeight());
         MarketChrome.StatusPill(ImGui.GetWindowDrawList(), pos, size, label, UiState.Running);
         ImGui.Dummy(size);
         ImGui.SameLine();
         var stopLabel = _arRetainer != null ? "Stop (AutoRetainer)" : "Stop";
-        if (Widgets.StopButton(stopLabel))
+        if (MarketChrome.StopButton(stopLabel))
           CancelEverything("cancelled by user");
         if (ImGui.IsItemHovered())
           ImGui.SetTooltip("Stops the running automation");

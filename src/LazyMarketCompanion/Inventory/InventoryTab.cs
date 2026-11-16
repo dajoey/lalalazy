@@ -31,7 +31,7 @@ internal sealed class InventoryTab
   {
     if (!_guard.TryEnter())
     {
-      Widgets.StateText("The Inventory tab stopped after repeated errors and will retry on its own (details in the plugin log).", UiState.Failed);
+      MarketChrome.Notice("Failed · The Inventory tab stopped after repeated errors and will retry on its own (details in the plugin log).", UiState.Failed);
       return;
     }
     try
@@ -48,38 +48,49 @@ internal sealed class InventoryTab
   {
     if (_s.BatchRunning)
     {
-      Widgets.InfoBox("Running · " + _s.BatchStatus, UiState.Running);
-      if (Widgets.StopButton("Stop##invstop"))
+      MarketChrome.Notice("Running · " + _s.BatchStatus, UiState.Running);
+      ImGui.Dummy(new Vector2(0, 4));
+      if (MarketChrome.StopButton("Stop##invstop"))
         _s.Cancel();
-      ImGui.Separator();
+      ImGui.Dummy(new Vector2(0, 8));
     }
 
     MarketChrome.Card("inventory_owners", () =>
     {
-      MarketChrome.Section("Who handles this stack", "Ownership and the existing AutoRetainer read-only status.");
+      MarketChrome.CardHeader("Who handles this stack", "Ownership and the existing AutoRetainer read-only status.");
       DrawOwners();
     });
     MarketChrome.Card("inventory_space", () =>
     {
-      MarketChrome.Section("Space at a glance", "Live and last-seen capacity with configurable low-space warnings.");
+      MarketChrome.CardHeader("Space at a glance", "Live and last-seen capacity with configurable low-space warnings.");
       DrawSpace();
     });
     MarketChrome.Card("inventory_venture", () =>
     {
-      MarketChrome.Section("Venture loot", "Preview the existing buckets; only the established vendor action can run.");
+      MarketChrome.CardHeader("Venture loot", "Preview the existing buckets; only the established vendor action can run.");
       DrawVentureLoot();
     });
     MarketChrome.Card("inventory_gear", () =>
     {
-      MarketChrome.Section("Gear to the Armoury Chest", "Manual batches, undo, and the off-by-default idle setting.");
+      MarketChrome.CardHeader("Gear to the Armoury Chest", "Manual batches, undo, and the off-by-default idle setting.");
       DrawGearMover();
     });
     MarketChrome.Card("inventory_log", () =>
     {
-      MarketChrome.Section("Actions log", "Recent inventory actions from the existing append-only audit.", $"{_s.RecentLines.Count} lines");
+      MarketChrome.CardHeader("Actions log", "Recent inventory actions from the existing append-only audit.", $"{_s.RecentLines.Count} lines");
       DrawLog();
     });
   }
+
+  /// <summary>Places the next button on the current line when it fits, otherwise on the next one.</summary>
+  private static void FlowNext(ref bool first, float rightEdge, float width)
+  {
+    if (!first && ImGui.GetItemRectMax().X + 8 + width <= rightEdge)
+      ImGui.SameLine(0, 8);
+    first = false;
+  }
+
+  private static string Plural(int n, string one, string many) => n == 1 ? one : many;
 
   // =====================================================================================
 
@@ -92,20 +103,24 @@ internal sealed class InventoryTab
         "moves, sells, discards or protects that item: LMC Auto-Market and category routing, AutoRetainer entrust plans,\r\n" +
         "vendor / discard / desynth / protect lists, and gearsets. \"Nothing handles this stack\" when none acts on it.");
 
+    MarketChrome.RowsDone();
+    ImGui.Dummy(new Vector2(0, 8));
     var ar = _s.Ar;
     if (ar.Available)
     {
       var im = ar.Im;
-      Widgets.Secondary($"AutoRetainer (read from its config file): {ar.Plans.Count} entrust plan(s), {ar.PlanByRetainer.Count} assigned; " +
+      MarketChrome.Secondary($"AutoRetainer (read from its config file): {ar.Plans.Count} entrust plan(s), {ar.PlanByRetainer.Count} assigned; " +
         $"vendor list {im.VendorHard.Count} (+{im.VendorSoft.Count} soft, auto-vendor {(im.AutoVendorEnabled ? "on" : "off")}), " +
         $"discard {im.Discard.Count}, desynth {im.Desynth.Count}, protect {im.Protect.Count}; venture log {(ar.RecordStats ? "on" : "OFF")}.");
     }
     else
     {
-      Widgets.StateText($"AutoRetainer: {ar.Status}. Its lists are not shown, and venture loot is not sorted while this lasts.", UiState.Blocked);
+      var status = ar.Status.TrimEnd('.');
+      var subject = status.StartsWith("AutoRetainer", StringComparison.Ordinal) ? status : $"AutoRetainer: {status}";
+      MarketChrome.Notice($"Blocked · {subject}. Its lists are not shown, and venture loot is not sorted while this lasts.", UiState.Blocked);
     }
-    ImGui.NewLine();
-    if (ImGui.SmallButton("Re-read##arreread"))
+    ImGui.Dummy(new Vector2(0, 8));
+    if (ImGui.Button("Re-read##arreread"))
       _s.RequestArRefresh();
   }
 
@@ -114,21 +129,32 @@ internal sealed class InventoryTab
   private void DrawSpace()
   {
     var c = Plugin.Configuration;
-    ImGui.SetNextItemWidth(90);
     var low = c.InventoryLowSpaceSlots;
-    if (ImGui.InputInt("Warn at this many free bag / retainer slots##invlow", ref low)) { c.InventoryLowSpaceSlots = Math.Clamp(low, 0, 175); c.Save(); }
-    ImGui.SetNextItemWidth(90);
+    if (MarketChrome.Field("Warn at this many free bag / retainer slots", width => MarketChrome.IntInput("##invlow", ref low, width)))
+    { c.InventoryLowSpaceSlots = Math.Clamp(low, 0, 175); c.Save(); }
     var lowA = c.InventoryArmouryLowSlots;
-    if (ImGui.InputInt("Warn at this many free slots on an Armoury page##invlowa", ref lowA)) { c.InventoryArmouryLowSlots = Math.Clamp(lowA, 0, 50); c.Save(); }
+    if (MarketChrome.Field("Warn at this many free slots on an Armoury page", width => MarketChrome.IntInput("##invlowa", ref lowA, width)))
+    { c.InventoryArmouryLowSlots = Math.Clamp(lowA, 0, 50); c.Save(); }
+    MarketChrome.RowsDone();
+    ImGui.Dummy(new Vector2(0, 8));
 
-    if (!ImGui.BeginTable("##invspace", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
+    var retainers = _s.RetainerNames();
+    var withIntake = retainers.Count > 0;
+    var columns = withIntake ? 5 : 4;
+    var avail = MarketChrome.Avail();
+    var flags = avail < 760 ? ImGuiTableFlags.ScrollX : ImGuiTableFlags.None;
+    if (!MarketChrome.BeginTable("##invspace", columns, flags, new Vector2(avail, 0)))
       return;
     ImGui.TableSetupColumn("Where", ImGuiTableColumnFlags.WidthStretch, 2.2f);
-    ImGui.TableSetupColumn("Free", ImGuiTableColumnFlags.WidthFixed, 50);
-    ImGui.TableSetupColumn("Used / size", ImGuiTableColumnFlags.WidthFixed, 90);
-    ImGui.TableSetupColumn("Seen", ImGuiTableColumnFlags.WidthFixed, 110);
-    ImGui.TableSetupColumn("Venture intake", ImGuiTableColumnFlags.WidthStretch, 2.5f);
-    ImGui.TableHeadersRow();
+    ImGui.TableSetupColumn("Free", ImGuiTableColumnFlags.WidthFixed, 64);
+    ImGui.TableSetupColumn("Used / size", ImGuiTableColumnFlags.WidthFixed, 110);
+    ImGui.TableSetupColumn("Seen", ImGuiTableColumnFlags.WidthFixed, 190);
+    if (withIntake)
+      ImGui.TableSetupColumn("Venture intake", ImGuiTableColumnFlags.WidthStretch, 2.5f);
+    if (withIntake)
+      MarketChrome.TableHeader(("Where", false), ("Free", true), ("Used / size", true), ("Seen", false), ("Venture intake", false));
+    else
+      MarketChrome.TableHeader(("Where", false), ("Free", true), ("Used / size", true), ("Seen", false));
 
     var now = InventoryService.NowMs;
     var bagSize = 0;
@@ -139,19 +165,19 @@ internal sealed class InventoryTab
       bagSize += s;
       bagUsed += u;
     }
-    Row("Bags", bagSize, bagUsed, "live", c.InventoryLowSpaceSlots, null);
+    Row("Bags", bagSize, bagUsed, "live", c.InventoryLowSpaceSlots, null, withIntake);
     foreach (var (slot, type) in InventoryService.ArmouryPages)
     {
       var (s, u) = _s.Container(type);
-      Row("Armoury: " + ArmourySlots.Label(slot), s, u, "live", c.InventoryArmouryLowSlots, null);
+      Row("Armoury: " + ArmourySlots.Label(slot), s, u, "live", c.InventoryArmouryLowSlots, null, withIntake);
     }
 
     var ch = _s.Character;
-    RowSeen("Saddlebag", ch?.Saddlebag, now, c.InventoryLowSpaceSlots);
+    RowSeen("Saddlebag", ch?.Saddlebag, now, c.InventoryLowSpaceSlots, withIntake);
     if (ch?.PremiumSaddlebag != null)
-      RowSeen("Saddlebag (premium)", ch.PremiumSaddlebag, now, c.InventoryLowSpaceSlots);
+      RowSeen("Saddlebag (premium)", ch.PremiumSaddlebag, now, c.InventoryLowSpaceSlots, withIntake);
 
-    foreach (var name in _s.RetainerNames())
+    foreach (var name in retainers)
     {
       var seen = ch != null && ch.Retainers.TryGetValue(name, out var r) ? r : null;
       var best = seen == null ? null : InventoryState.BestSpace(seen);
@@ -165,56 +191,57 @@ internal sealed class InventoryTab
         var days = SpaceMath.DaysUntilFull(free, intake.PerDay7d);
         if (days is { } d)
           intakeText += $" - full in ~{d:0.#} d";
-        Row("Retainer " + name, b.Capacity, b.Used, SpaceMath.Age(b.SeenUnixMs, now) + (b.Source == "bell" ? " (bell)" : string.Empty), c.InventoryLowSpaceSlots, intakeText);
+        Row("Retainer " + name, b.Capacity, b.Used, SpaceMath.Age(b.SeenUnixMs, now) + (b.Source == "bell" ? " (bell)" : string.Empty), c.InventoryLowSpaceSlots, intakeText, withIntake);
       }
       else
       {
         ImGui.TableNextRow();
-        ImGui.TableNextColumn(); ImGui.TextUnformatted("Retainer " + name);
-        ImGui.TableNextColumn(); Widgets.Secondary("?");
-        ImGui.TableNextColumn(); Widgets.Secondary("-");
-        ImGui.TableNextColumn(); Widgets.Secondary("never (visit the bell)");
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(intakeText);
+        ImGui.TableNextColumn(); MarketChrome.CellText("Retainer " + name);
+        ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+        ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+        ImGui.TableNextColumn(); MarketChrome.CellText("never (visit the bell)", Theme.TextSecondary);
+        if (withIntake) { ImGui.TableNextColumn(); MarketChrome.CellText(intakeText); }
       }
     }
     ImGui.EndTable();
   }
 
-  private static void Row(string label, int size, int used, string seen, int threshold, string? intake)
+  private const string Dash = "–";
+
+  private static void Row(string label, int size, int used, string seen, int threshold, string? intake, bool withIntake)
   {
     ImGui.TableNextRow();
     ImGui.TableNextColumn();
-    ImGui.TextUnformatted(label);
-    ImGui.TableNextColumn();
+    MarketChrome.CellText(label);
     if (size <= 0)
     {
-      Widgets.Secondary("?");
-      ImGui.TableNextColumn(); Widgets.Secondary("not loaded");
-      ImGui.TableNextColumn(); Widgets.Secondary(seen);
-      ImGui.TableNextColumn(); ImGui.TextUnformatted(intake ?? string.Empty);
+      ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+      ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+      ImGui.TableNextColumn(); MarketChrome.CellText("not loaded", Theme.TextSecondary);
+      if (withIntake) { ImGui.TableNextColumn(); MarketChrome.CellText(intake ?? string.Empty); }
       return;
     }
     var free = SpaceMath.Free(size, used);
-    if (SpaceMath.Low(free, threshold)) Widgets.StateText(free.ToString(), UiState.Blocked);
-    else ImGui.TextUnformatted(free.ToString());
-    ImGui.TableNextColumn(); ImGui.TextUnformatted($"{used} / {size}");
-    ImGui.TableNextColumn(); Widgets.Secondary(seen);
-    ImGui.TableNextColumn(); ImGui.TextUnformatted(intake ?? string.Empty);
+    ImGui.TableNextColumn();
+    MarketChrome.CellRight(free.ToString(), SpaceMath.Low(free, threshold) ? Theme.StateAmber : null);
+    ImGui.TableNextColumn(); MarketChrome.CellRight($"{used} / {size}");
+    ImGui.TableNextColumn(); MarketChrome.CellText(seen, Theme.TextSecondary);
+    if (withIntake) { ImGui.TableNextColumn(); MarketChrome.CellText(intake ?? string.Empty); }
   }
 
-  private static void RowSeen(string label, ContainerSeen? seen, long now, int threshold)
+  private static void RowSeen(string label, ContainerSeen? seen, long now, int threshold, bool withIntake)
   {
     if (seen == null)
     {
       ImGui.TableNextRow();
-      ImGui.TableNextColumn(); ImGui.TextUnformatted(label);
-      ImGui.TableNextColumn(); Widgets.Secondary("?");
-      ImGui.TableNextColumn(); Widgets.Secondary("-");
-      ImGui.TableNextColumn(); Widgets.Secondary("open it once");
-      ImGui.TableNextColumn();
+      ImGui.TableNextColumn(); MarketChrome.CellText(label);
+      ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+      ImGui.TableNextColumn(); MarketChrome.CellRight(Dash, Theme.TextSecondary);
+      ImGui.TableNextColumn(); MarketChrome.CellText("open it once", Theme.TextSecondary);
+      if (withIntake) ImGui.TableNextColumn();
       return;
     }
-    Row(label, seen.Size, seen.Used, SpaceMath.Age(seen.SeenUnixMs, now), threshold, null);
+    Row(label, seen.Size, seen.Used, SpaceMath.Age(seen.SeenUnixMs, now), threshold, null, withIntake);
   }
 
   // =====================================================================================
@@ -222,22 +249,24 @@ internal sealed class InventoryTab
   private void DrawVentureLoot()
   {
     var c = Plugin.Configuration;
-    ImGui.TextWrapped("Venture loot = a stack in a retainer's own inventory that AutoRetainer's venture log for that retainer records as a " +
+    MarketChrome.Secondary("Venture loot = a stack in a retainer's own inventory that AutoRetainer's venture log for that retainer records as a " +
       "Quick Exploration reward within the look-back window, with no more of it in the retainer than those rewards delivered. " +
       "Marketable stock (grey marker) is never vendored or sorted - it is always KEEP. Auto-Market stock, AutoRetainer entrust-plan " +
       "items, gearset items and anything uncertain are always KEEP too. Only unmarketable loot is bucketed (GC delivery / desynth, preview only).");
+    ImGui.Dummy(new Vector2(0, 8));
 
-    ImGui.SetNextItemWidth(90);
     var days = c.VentureLootLookbackDays;
-    if (ImGui.InputInt("Look-back (days)##vllook", ref days)) { c.VentureLootLookbackDays = Math.Clamp(days, 1, 365); c.Save(); }
+    if (MarketChrome.Field("Look-back", width => MarketChrome.IntInput("##vllook", ref days, width), "days")) { c.VentureLootLookbackDays = Math.Clamp(days, 1, 365); c.Save(); }
     var hq = c.VentureLootAllowHq;
     if (MarketChrome.Toggle("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
     Tip("Off (default): HQ venture loot is always kept.");
+    MarketChrome.RowsDone();
+    ImGui.Dummy(new Vector2(0, 8));
 
     var names = _s.RetainerNames();
     if (names.Count == 0)
     {
-      Widgets.InfoBox("Empty · no retainers seen yet. Visit a summoning bell to populate inventory history.", UiState.Empty);
+      MarketChrome.Notice("Empty · no retainers seen yet. Visit a summoning bell to populate inventory history.", UiState.Empty);
       return;
     }
     if (!names.Contains(_retainer))
@@ -245,27 +274,29 @@ internal sealed class InventoryTab
 
     // Summary across retainers. (No price check: marketable stock is never vendored, so nothing here needs a price.)
     var plans = names.ToDictionary(n => n, n => _s.VenturePreview(n, out _));
-    if (ImGui.BeginTable("##vlsum", 6, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
+    if (MarketChrome.BeginTable("##vlsum", 6, ImGuiTableFlags.None, new Vector2(MarketChrome.Avail(), 0)))
     {
       ImGui.TableSetupColumn("Retainer", ImGuiTableColumnFlags.WidthStretch, 2);
-      ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthFixed, 60);
-      ImGui.TableSetupColumn("GC", ImGuiTableColumnFlags.WidthFixed, 40);
-      ImGui.TableSetupColumn("Desynth", ImGuiTableColumnFlags.WidthFixed, 60);
-      ImGui.TableSetupColumn("Keep", ImGuiTableColumnFlags.WidthFixed, 45);
-      ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 60);
-      ImGui.TableHeadersRow();
+      ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthFixed, 80);
+      ImGui.TableSetupColumn("GC", ImGuiTableColumnFlags.WidthFixed, 56);
+      ImGui.TableSetupColumn("Desynth", ImGuiTableColumnFlags.WidthFixed, 84);
+      ImGui.TableSetupColumn("Keep", ImGuiTableColumnFlags.WidthFixed, 64);
+      ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 72);
+      MarketChrome.TableHeader(("Retainer", false), ("Vendor", true), ("GC", true), ("Desynth", true), ("Keep", true), ("", false));
       foreach (var n in names)
       {
         var p = plans[n];
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
-        if (ImGui.Selectable(n + "##vlsel" + n, n == _retainer, ImGuiSelectableFlags.SpanAllColumns))
+        ImGui.PushStyleVar(ImGuiStyleVar.SelectableTextAlign, new Vector2(0, 0.5f));
+        if (ImGui.Selectable(n + "##vlsel" + n, n == _retainer, ImGuiSelectableFlags.SpanAllColumns, new Vector2(0, 24)))
           _retainer = n;
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.Vendor).ToString());
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.GcDelivery).ToString());
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.Desynth).ToString());
-        ImGui.TableNextColumn(); ImGui.TextUnformatted(p.Count(LootBucket.Keep).ToString());
-        ImGui.TableNextColumn(); Widgets.Secondary(n == _s.SettledRetainer() ? "open" : string.Empty);
+        ImGui.PopStyleVar();
+        ImGui.TableNextColumn(); MarketChrome.CellRight(p.Count(LootBucket.Vendor).ToString());
+        ImGui.TableNextColumn(); MarketChrome.CellRight(p.Count(LootBucket.GcDelivery).ToString());
+        ImGui.TableNextColumn(); MarketChrome.CellRight(p.Count(LootBucket.Desynth).ToString());
+        ImGui.TableNextColumn(); MarketChrome.CellRight(p.Count(LootBucket.Keep).ToString());
+        ImGui.TableNextColumn(); MarketChrome.CellText(n == _s.SettledRetainer() ? "open" : string.Empty, Theme.TextSecondary);
       }
       ImGui.EndTable();
     }
@@ -277,20 +308,25 @@ internal sealed class InventoryTab
   {
     var plan = _s.VenturePreview(retainer, out var live);
     var seen = _s.Character is { } ch && ch.Retainers.TryGetValue(retainer, out var r) ? r.PagesSeenUnixMs : 0;
-    ImGui.Spacing();
+    ImGui.Dummy(new Vector2(0, 12));
     ImGui.TextUnformatted($"Retainer {retainer}: ");
     ImGui.SameLine(0, 0);
-    Widgets.StateText(live ? "live (its inventory is open)" : $"last seen {SpaceMath.Age(seen, InventoryService.NowMs)} - open its inventory to act", live ? UiState.Ready : UiState.Idle);
+    MarketChrome.StateText(live ? "live (its inventory is open)" : $"last seen {SpaceMath.Age(seen, InventoryService.NowMs)} - open its inventory to act", live ? UiState.Ready : UiState.Idle);
     foreach (var note in plan.Notes)
-      Widgets.StateText(note, UiState.Blocked);
+      MarketChrome.Notice(note, UiState.Blocked);
+    ImGui.Dummy(new Vector2(0, 4));
 
     // ONE button per bucket. VENDOR is the only live one; GC delivery and desynth hand off to the plugins
     // that already do them from the bags; KEEP is the absence of an action.
     var ops = VentureLoot.VendorOps(plan);
     var est = ops.Sum(o => o.EstGil);
     var blocker = ops.Count == 0 ? "nothing in the VENDOR bucket" : _s.VendorBlocker(retainer);
+    var right = ImGui.GetCursorScreenPos().X + MarketChrome.Avail();
+    var first = true;
+    var vendorLabel = $"Vendor {ops.Count} {Plural(ops.Count, "stack", "stacks")} (~{est:N0} gil)";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(vendorLabel));
     if (blocker != null) ImGui.BeginDisabled();
-    if (ImGui.Button($"Vendor {ops.Count} stack(s) (~{est:N0} gil)##vlvendor"))
+    if (ImGui.Button(vendorLabel + "##vlvendor"))
       _s.StartVendor(retainer, ops);
     if (blocker != null) ImGui.EndDisabled();
     TipAlways(blocker == null
@@ -299,45 +335,56 @@ internal sealed class InventoryTab
         "Sold stacks can be bought back from the retainer until the retainer is dismissed."
       : "Not now: " + blocker + ".\r\nMarketable (grey-marker) stock is never vendored, and unmarketable stock cannot be priced, so this bucket stays empty.");
 
-    ImGui.NewLine();
+    var gcLabel = $"GC delivery: {plan.Count(LootBucket.GcDelivery)} (hand off)";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(gcLabel));
     ImGui.BeginDisabled();
-    ImGui.Button($"GC delivery: {plan.Count(LootBucket.GcDelivery)} (hand off)##vlgc");
+    ImGui.Button(gcLabel + "##vlgc");
     ImGui.EndDisabled();
     TipAlways("Preview only. Green gear goes to Grand Company expert delivery: move it to the bags and let AutoDuty's or\r\n" +
               "AutoRetainer's GC delivery turn it in. LMC does not deliver (that would need new, untested machinery).");
-    ImGui.NewLine();
+
+    var desynthLabel = $"Desynth: {plan.Count(LootBucket.Desynth)} (hand off)";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(desynthLabel));
     ImGui.BeginDisabled();
-    ImGui.Button($"Desynth: {plan.Count(LootBucket.Desynth)} (hand off)##vldesynth");
+    ImGui.Button(desynthLabel + "##vldesynth");
     ImGui.EndDisabled();
     TipAlways("Preview only. PandorasBox (Desynth All) or AutoRetainer desynthesis handle these from the bags.\r\n" +
               "LMC does not desynthesize (that would need new, untested machinery).");
-    ImGui.NewLine();
-    Widgets.Secondary($"Keep: {plan.Count(LootBucket.Keep)}");
+
+    var keepLabel = $"Keep: {plan.Count(LootBucket.Keep)}";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(keepLabel));
+    MarketChrome.Tag(keepLabel);
+    ImGui.Dummy(new Vector2(0, 8));
 
     if (plan.Rows.Count == 0)
     {
-      Widgets.InfoBox("Empty · no venture loot in this retainer during the selected look-back window.", UiState.Empty);
+      MarketChrome.Notice("Empty · no venture loot in this retainer during the selected look-back window.", UiState.Empty);
       return;
     }
 
-    if (!ImGui.BeginTable("##vlrows", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY, new Vector2(-1, 260)))
+    var rowsHeight = MarketChrome.FrozenTableHeight(plan.Rows.Count, 56f);
+    if (!MarketChrome.BeginTable("##vlrows", 5, rowsHeight > 0 ? ImGuiTableFlags.ScrollY : ImGuiTableFlags.None, new Vector2(MarketChrome.Avail(), rowsHeight)))
       return;
-    ImGui.TableSetupScrollFreeze(0, 1);
+    if (rowsHeight > 0)
+      ImGui.TableSetupScrollFreeze(0, 1);
     ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2);
-    ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 40);
-    ImGui.TableSetupColumn("Bucket", ImGuiTableColumnFlags.WidthFixed, 80);
+    ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 56);
+    ImGui.TableSetupColumn("Bucket", ImGuiTableColumnFlags.WidthFixed, 100);
     ImGui.TableSetupColumn("Why", ImGuiTableColumnFlags.WidthStretch, 4);
-    ImGui.TableSetupColumn("Opt in", ImGuiTableColumnFlags.WidthFixed, 50);
-    ImGui.TableHeadersRow();
+    ImGui.TableSetupColumn("Opt in", ImGuiTableColumnFlags.WidthFixed, 80);
+    MarketChrome.TableHeader(("Item", false), ("Qty", true), ("Bucket", false), ("Why", false), ("Opt in", false));
     var optIns = Plugin.Configuration.VentureLootOptIns;
     foreach (var row in plan.Rows.OrderBy(x => x.Bucket).ThenBy(x => x.Stack.Container).ThenBy(x => x.Stack.Slot))
     {
       ImGui.PushID($"{row.Stack.Container}:{row.Stack.Slot}");
       ImGui.TableNextRow();
       ImGui.TableNextColumn();
-      ImGui.TextUnformatted(ItemNameResolver.GetItemName(row.Stack.ItemId) + (row.Stack.Hq ? " (HQ)" : string.Empty));
+      ImGui.AlignTextToFramePadding();
+      MarketChrome.CellText(ItemNameResolver.GetItemName(row.Stack.ItemId) + (row.Stack.Hq ? MarketChrome.HqMark : string.Empty), null, row.Stack.Hq ? MarketChrome.HqMark : "");
       Tip($"Item {row.Stack.ItemId}, {InventoryActionLine.Slot(row.Stack.Container, row.Stack.Slot)}, Quick Exploration delivered {row.Delivered} in the window");
-      ImGui.TableNextColumn(); ImGui.TextUnformatted(row.Stack.Quantity.ToString());
+      ImGui.TableNextColumn();
+      ImGui.AlignTextToFramePadding();
+      MarketChrome.CellRight(row.Stack.Quantity.ToString());
       ImGui.TableNextColumn();
       var (label, state) = row.Bucket switch
       {
@@ -346,9 +393,13 @@ internal sealed class InventoryTab
         LootBucket.Desynth => ("DESYNTH", UiState.Blocked),
         _ => (row.IsLoot ? "KEEP" : "not loot", UiState.Idle),
       };
-      Widgets.StateText(label, state);
+      ImGui.AlignTextToFramePadding();
+      MarketChrome.StateText(label, state);
       ImGui.TableNextColumn();
-      ImGui.TextWrapped(row.Reason + (row.Bucket == LootBucket.Vendor ? $" (~{row.EstGil:N0} gil)" : string.Empty));
+      ImGui.AlignTextToFramePadding();
+      ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
+      ImGui.TextUnformatted(row.Reason + (row.Bucket == LootBucket.Vendor ? $" (~{row.EstGil:N0} gil)" : string.Empty));
+      ImGui.PopTextWrapPos();
       ImGui.TableNextColumn();
       var opted = optIns.Contains(row.Stack.ItemId);
       if (row.OptInRail != null || opted)
@@ -368,37 +419,50 @@ internal sealed class InventoryTab
   private void DrawGearMover()
   {
     var c = Plugin.Configuration;
-    ImGui.TextWrapped("Moves equippable gear from the bags into its Armoury Chest page. Never moves a stack LMC or AutoRetainer acts on " +
+    MarketChrome.Secondary("Moves equippable gear from the bags into its Armoury Chest page. Never moves a stack LMC or AutoRetainer acts on " +
       "(Auto-Market list, category routing, entrust plans, vendor / discard / desynth lists), a gearset item, or into a full page. " +
       "Every move is logged and the last batch can be undone.");
+    ImGui.Dummy(new Vector2(0, 8));
 
     var idle = c.GearMoverWhenIdle;
     if (MarketChrome.Toggle("Move gear on its own when everything is idle##gmidle", ref idle)) { c.GearMoverWhenIdle = idle; c.Save(); }
     Tip("Off by default. Idle = not in combat, a duty, crafting, gathering, a cutscene or an in-game window/event, and\r\n" +
         "AutoRetainer, AutoDuty, Artisan, GatherBuddy Reborn and LMC's own automation all idle, continuously for 20 s.\r\n" +
         $"At most {InventoryService.IdleMoveCap} pieces per pass, one pass a minute.");
+    MarketChrome.RowsDone();
+    ImGui.Dummy(new Vector2(0, 8));
     var verdict = _s.LastIdle;
-    Widgets.StateText(verdict.Idle ? "Ready · idle conditions met" : "Idle · " + string.Join("; ", verdict.Why), verdict.Idle ? UiState.Ready : UiState.Idle);
+    MarketChrome.Notice(verdict.Idle ? "Ready · idle conditions met" : "Idle · " + string.Join("; ", verdict.Why), verdict.Idle ? UiState.Ready : UiState.Idle);
     if (_s.IdleBackoffMinutesLeft > 0)
-      Widgets.StateText($"The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).", UiState.Blocked);
+    {
+      ImGui.Dummy(new Vector2(0, 8));
+      MarketChrome.Notice($"Blocked · The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).", UiState.Blocked);
+    }
+    ImGui.Dummy(new Vector2(0, 8));
 
     var preview = _s.GearPreview(0);
     var blocker = preview.Ops.Count == 0 ? "no gear to move" : _s.MoveBlocker();
     var n = Math.Min(preview.Ops.Count, InventoryService.ManualMoveCap);
+    var right = ImGui.GetCursorScreenPos().X + MarketChrome.Avail();
+    var first = true;
+    var moveLabel = $"Move {n} {Plural(n, "piece", "pieces")} to the Armoury";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(moveLabel));
     if (blocker != null) ImGui.BeginDisabled();
-    if (ImGui.Button($"Move {n} piece(s) to the Armoury##gmmove"))
+    if (ImGui.Button(moveLabel + "##gmmove"))
       _s.StartGearMoves("manual");
     if (blocker != null) ImGui.EndDisabled();
     TipAlways(blocker == null ? $"Moves up to {InventoryService.ManualMoveCap} pieces, re-checking each one first." : "Not now: " + blocker);
 
-    ImGui.NewLine();
     var last = _s.LastGearBatch;
     var undoBlocker = last.Count == 0 ? "nothing to undo" : _s.MoveBlocker();
+    var undoLabel = $"Undo last batch ({last.Count})";
+    FlowNext(ref first, right, MarketChrome.ButtonWidth(undoLabel));
     if (undoBlocker != null) ImGui.BeginDisabled();
-    if (ImGui.Button($"Undo last batch ({last.Count})##gmundo"))
+    if (ImGui.Button(undoLabel + "##gmundo"))
       _s.StartUndo();
     if (undoBlocker != null) ImGui.EndDisabled();
     TipAlways(undoBlocker == null ? "Moves the last batch back to the bags (only pieces still sitting where they were put)." : "Not now: " + undoBlocker);
+    ImGui.Dummy(new Vector2(0, 4));
 
     if (preview.Ops.Count > 0 && ImGui.TreeNode($"Would move ({preview.Ops.Count})##gmops"))
     {
@@ -409,7 +473,7 @@ internal sealed class InventoryTab
     if (preview.Skipped.Count > 0 && ImGui.TreeNode($"Left in the bags ({preview.Skipped.Count})##gmskip"))
     {
       foreach (var sk in preview.Skipped)
-        Widgets.Secondary($"{ItemNameResolver.GetItemName(sk.Stack.ItemId)}{(sk.Stack.Hq ? " (HQ)" : string.Empty)}: {sk.Reason}");
+        MarketChrome.Secondary($"{ItemNameResolver.GetItemName(sk.Stack.ItemId)}{(sk.Stack.Hq ? " (HQ)" : string.Empty)}: {sk.Reason}");
       ImGui.TreePop();
     }
   }
@@ -418,15 +482,23 @@ internal sealed class InventoryTab
 
   private void DrawLog()
   {
-    Widgets.Secondary("Append-only audit file: " + _s.ActionsPath);
-    Widgets.Secondary("Every Inventory action is one IV| line there and in the plugin log.");
+    MarketChrome.Secondary("Append-only audit file: " + _s.ActionsPath);
+    MarketChrome.Secondary("Every Inventory action is one IV| line there and in the plugin log.");
     var lines = _s.RecentLines;
     if (lines.Count == 0)
     {
-      Widgets.InfoBox("Empty · no inventory actions this session.", UiState.Empty);
+      ImGui.Dummy(new Vector2(0, 4));
+      MarketChrome.Notice("Empty · no inventory actions this session.", UiState.Empty);
       return;
     }
-    if (ImGui.BeginChild("##invlog", new Vector2(-1, 160), true))
+    ImGui.Dummy(new Vector2(0, 4));
+    ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.ShellBar);
+    ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12, 8));
+    var open = ImGui.BeginChild("##invlog", new Vector2(MarketChrome.Avail(), 160), true);
+    ImGui.PopStyleVar();
+    ImGui.PopStyleColor(2);
+    if (open)
     {
       for (var i = lines.Count - 1; i >= 0; i--)
         ImGui.TextWrapped(lines[i]);

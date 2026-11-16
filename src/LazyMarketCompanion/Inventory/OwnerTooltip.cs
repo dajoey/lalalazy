@@ -91,30 +91,53 @@ internal sealed class OwnerTooltip : Window
 
     ImGuiHelpers.ForceNextWindowMainViewport();
     ImGuiHelpers.SetNextWindowPosRelativeMainViewport(pos);
-    using var tip = LalaUiKit.Layout.Overlay.Begin("###LMCOwnerTip", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar
-      | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing,
-      transparentBackground: false);
+    // One container: the window itself is the card (padding, rounding, border), at a fixed content width so the
+    // text wraps inside it instead of collapsing to the width of an auto-sizing region.
+    const float contentWidth = 280f;
     MarketChrome.PushFrame();
     try
     {
-      MarketChrome.Card("owner_tooltip", () =>
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16, 14));
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+      ImGui.PushStyleColor(ImGuiCol.WindowBg, Theme.Surface);
+      ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+      using var tip = LalaUiKit.Layout.Overlay.Begin("###LMCOwnerTip", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar
+        | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoFocusOnAppearing,
+        transparentBackground: false);
+      ImGui.PopStyleColor(2);
+      ImGui.PopStyleVar(3);
+
+      var origin = ImGui.GetCursorScreenPos();
+      MarketChrome.PushRight(origin.X + contentWidth);
+      ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + contentWidth);
+      ImGui.Dummy(new Vector2(contentWidth, 0));
+      var titleScale = Theme.TitleScale;
+      var titleHeight = MarketChrome.LineHeight(titleScale);
+      MarketChrome.Diamond(ImGui.GetWindowDrawList(), origin + new Vector2(8, titleHeight / 2f), 7, Theme.Pack(Theme.Accent));
+      ImGui.SetCursorScreenPos(origin + new Vector2(24, 0));
+      Widgets.Title("Who handles this stack");
+      ImGui.SetCursorScreenPos(new Vector2(origin.X, origin.Y + titleHeight + 8));
+      foreach (var line in _lines)
       {
-        var titlePos = ImGui.GetCursorScreenPos();
-        MarketChrome.Diamond(ImGui.GetWindowDrawList(), titlePos + new Vector2(7, 9), 6, Theme.Pack(Theme.Accent));
-        ImGui.SetCursorScreenPos(titlePos + new Vector2(22, 0));
-        Widgets.Title("Who handles this stack");
-        ImGui.SetCursorScreenPos(new Vector2(titlePos.X, ImGui.GetCursorScreenPos().Y));
-        foreach (var line in _lines)
+        var warn = line.Contains("DISCARDS", StringComparison.Ordinal);
+        if (warn)
         {
-          var warn = line.Contains("DISCARDS", StringComparison.Ordinal);
-          if (warn) Widgets.StateText(line, UiState.Blocked);
-          else ImGui.TextWrapped(line);
+          ImGui.PushStyleColor(ImGuiCol.Text, Copy.MarkColor(UiState.Blocked));
+          ImGui.TextWrapped(line);
+          ImGui.PopStyleColor();
         }
-        if (_lines.Count == 0)
-          Widgets.InfoBox("Empty · nothing handles this stack.", UiState.Empty);
-        if (!_service.Ar.Available)
-          Widgets.SecondaryWrapped($"AutoRetainer: {_service.Ar.Status}");
-      });
+        else ImGui.TextWrapped(line);
+      }
+      if (_lines.Count == 0)
+        MarketChrome.Notice("Empty · nothing handles this stack.", UiState.Empty);
+      if (!_service.Ar.Available)
+      {
+        ImGui.Dummy(new Vector2(0, 4));
+        MarketChrome.Secondary(_service.Ar.Status.StartsWith("AutoRetainer", StringComparison.Ordinal) ? _service.Ar.Status : $"AutoRetainer: {_service.Ar.Status}");
+      }
+      ImGui.PopTextWrapPos();
+      MarketChrome.PopRight();
     }
     finally
     {
