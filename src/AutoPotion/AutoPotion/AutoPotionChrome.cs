@@ -161,7 +161,7 @@ internal static class AutoPotionChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
-    internal static float BrandWidth() => 12f + 24f + 8f + TextWidth("AutoPotion", Theme.TitleScale) + 16f;
+    internal static float BrandWidth() => 12f + 24f + 12f + TextWidth("AutoPotion", Theme.TitleScale) + 16f;
 
     internal static void Brand(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
@@ -170,46 +170,34 @@ internal static class AutoPotionChrome
         Diamond(draw, pos + new Vector2(12f + 12f, size.Y / 2f), 12f, Theme.Pack(Theme.Accent));
         const string label = "AutoPotion";
         var lineHeight = LineHeight(Theme.TitleScale);
-        DrawText(draw, pos + new Vector2(12f + 24f + 8f, (size.Y - lineHeight) / 2f), label, Theme.TextPrimary, Theme.TitleScale);
+        DrawText(draw, pos + new Vector2(48f, (size.Y - lineHeight) / 2f), label, Theme.TextPrimary, Theme.TitleScale);
     }
 
-    internal static float FeatureWidth(string label) => 16f + 12f + 8f + TextWidth(label, Theme.SecondaryScale) + 16f + 1f;
-
-    internal static bool FeatureButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size, bool selected)
-    {
-        ImGui.SetCursorScreenPos(pos);
-        var clicked = ImGui.InvisibleButton("##autopotion_feature_" + id, size);
-        var hovered = ImGui.IsItemHovered();
-        var fill = selected ? Alpha(Theme.Accent, 0.14f) : Theme.Surface;
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(fill), Radius);
-        var outline = selected || hovered ? Theme.Accent : Alpha(Theme.SurfaceBorder, 0.6f);
-        draw.AddRect(pos, pos + size, Theme.Pack(outline), Radius);
-        var marker = pos + new Vector2(16f + 6f, size.Y / 2f);
-        draw.AddCircle(marker, 6f, Theme.Pack(selected ? Theme.Accent : Theme.TextSecondary), 16, 1f);
-        if (selected)
-            draw.AddCircleFilled(marker, 3f, Theme.Pack(Theme.Accent));
-        var lineHeight = LineHeight(Theme.SecondaryScale);
-        var color = selected ? Theme.Accent : hovered ? Theme.TextPrimary : Theme.TextSecondary;
-        DrawText(draw, pos + new Vector2(16f + 12f + 8f, (size.Y - lineHeight) / 2f), label, color, Theme.SecondaryScale);
-        return clicked;
-    }
-
-    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size, float windowRight)
+    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##autopotion_close", size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Alpha(Theme.Accent, 0.20f) : Theme.Surface), Radius);
-        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius, ImDrawFlags.None, hovered ? 1.5f : 1f);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Alpha(Theme.Accent, 0.14f) : Theme.Surface), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
         var center = pos + (size / 2f);
-        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextPrimary);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
         draw.AddLine(center + new Vector2(-6f, -6f), center + new Vector2(6f, 6f), color, 1.5f);
         draw.AddLine(center + new Vector2(-6f, 6f), center + new Vector2(6f, -6f), color, 1.5f);
         if (hovered)
         {
-            // Anchored under the button and kept inside the window, instead of following the pointer off the edge.
-            ImGui.SetNextWindowPos(new Vector2(MathF.Min(pos.X + size.X, windowRight), pos.Y + size.Y + 8f), ImGuiCond.Always, new Vector2(1f, 0f));
-            ImGui.SetTooltip("Close");
+            // Anchored right-aligned 4 px under the button so it never follows the pointer over the glyph.
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4f), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 4f));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
         }
         return clicked;
     }
@@ -220,20 +208,21 @@ internal static class AutoPotionChrome
         var widest = 0f;
         foreach (var state in Enum.GetValues<UiState>())
             widest = MathF.Max(widest, TextWidth(Copy.Word(state)));
-        return (2f * Theme.DotRadius) + 8f + widest + 32f;
+        return MathF.Max(104f, (2f * Theme.DotRadius) + 8f + widest + 32f);
     }
 
     internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
     {
         var label = Copy.Word(state);
         var color = Copy.MarkColor(state);
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), Radius);
-        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), Radius);
+        var neutral = state is UiState.Idle or UiState.Empty or UiState.NeedsSetup;
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), size.Y / 2f);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), size.Y / 2f);
         var textWidth = TextWidth(label);
         var content = (2f * Theme.DotRadius) + 8f + textWidth;
         var left = pos.X + ((size.X - content) / 2f);
         draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
-        DrawText(draw, new Vector2(left + (2f * Theme.DotRadius) + 8f, pos.Y + ((size.Y - LineHeight()) / 2f)), label, color);
+        DrawText(draw, new Vector2(left + (2f * Theme.DotRadius) + 8f, pos.Y + ((size.Y - LineHeight()) / 2f)), label, neutral ? Theme.TextSecondary : color);
     }
 
     // ---- cards and columns ----
@@ -469,7 +458,7 @@ internal static class AutoPotionChrome
     /// <summary>Height of a stat note wrapped to the card's inner width, so a long note grows the card instead of being cut.</summary>
     internal static float StatNoteHeight(float cardWidth, string note) => WrappedHeight(note, cardWidth - 32f, Theme.SecondaryScale);
 
-    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, float height, bool compact, string label, string value, string? cap, float fraction, string note)
+    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, float height, bool compact, string label, string value, string? cap, float? fraction, string note)
     {
         var pad = compact ? 12f : 16f;
         var inner = width - (2f * pad);
@@ -510,17 +499,21 @@ internal static class AutoPotionChrome
             y += valueHeight + 8f;
         }
 
-        var barMin = new Vector2(x, y);
-        var barMax = new Vector2(x + inner, y + Theme.BarHeight);
-        draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
-        var filled = Math.Clamp(fraction, 0f, 1f);
-        if (filled > 0f)
-            draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * filled), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
+        // The 4 px bar slot is always reserved; only a real ratio draws a track.
+        if (fraction is { } ratio)
+        {
+            var barMin = new Vector2(x, y);
+            var barMax = new Vector2(x + inner, y + Theme.BarHeight);
+            draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
+            var filled = Math.Clamp(ratio, 0f, 1f);
+            if (filled > 0f)
+                draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * filled), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
+        }
 
         if (!compact)
         {
             y += Theme.BarHeight + 8f;
-            DrawWrapped(draw, new Vector2(x, y), note, inner, fraction >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
+            DrawWrapped(draw, new Vector2(x, y), note, inner, fraction is >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
         }
     }
 
@@ -533,7 +526,7 @@ internal static class AutoPotionChrome
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##autopotion_stop", size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Alpha(Theme.StateRed, 0.14f) : Theme.Surface), Radius);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Alpha(Theme.StateRed, hovered ? 0.24f : 0.12f)), Radius);
         draw.AddRect(pos, pos + size, Theme.Pack(Alpha(Theme.StateRed, hovered ? 0.85f : 0.55f)), Radius);
         const string label = "Stop";
         DrawText(draw, pos + new Vector2((size.X - TextWidth(label)) / 2f, (size.Y - LineHeight()) / 2f), label, Theme.TextPrimary);

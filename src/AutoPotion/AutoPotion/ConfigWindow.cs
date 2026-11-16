@@ -1,7 +1,6 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using LalaUiKit;
 using Lumina.Excel.Sheets;
@@ -12,7 +11,6 @@ internal sealed class ConfigWindow : Window
 {
     private const float ControlHeight = 36f;
     private const float TopBarHeight = 68f;
-    private const float FeatureBarHeight = 56f;
     private const float ColumnsBreakpoint = 900f;
 
     private readonly Plugin _plugin;
@@ -37,9 +35,9 @@ internal sealed class ConfigWindow : Window
     public override void PostDraw() => ImGui.PopStyleVar();
 
     /// <summary>Side gutter shared by the bars, the page header, the cards and the footer.</summary>
-    internal static float Gutter(float width) => width >= 900f ? 24f : width >= 560f ? 16f : 12f;
+    internal static float Gutter(float width) => width >= 760f ? 24f : width >= 560f ? 16f : 12f;
 
-    /// <summary>Below this size the feature row and page header scroll with the body so the cards keep the room.</summary>
+    /// <summary>Below this size the page header scrolls with the body so the cards keep the room.</summary>
     internal static bool IsCompact(Vector2 size) => size.X < 560f || size.Y < 620f;
 
     public override void Draw()
@@ -53,7 +51,6 @@ internal sealed class ConfigWindow : Window
         var jobId = local?.ClassJob.RowId ?? 0;
         var job = jobId == 0 ? config.DefaultJob : config.GetOrCreateJobSettings(jobId);
         var jobName = ResolveJobName(jobId);
-        var jobIcon = ResolveJobIcon(jobId);
         var rulesOn = CountRules(job);
         var profileCount = config.Jobs.Count + 1;
         var inCombat = Plugin.Condition[ConditionFlag.InCombat];
@@ -106,13 +103,12 @@ internal sealed class ConfigWindow : Window
             var draw = ImGui.GetWindowDrawList();
             var gutter = Gutter(winSize.X);
             var compact = IsCompact(winSize);
-            var footerHeight = FooterHeight();
+            var footerHeight = FooterHeight(winSize.X, config.MasterEnable);
 
             var y = DrawTopBar(draw, winPos, winSize.X, gutter, state);
             if (!compact)
             {
-                y += DrawFeatureBar(draw, winPos.X, winPos.Y + y, winSize.X, gutter);
-                y += DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, winPos.X + gutter, winPos.Y + y, winSize.X - (2f * gutter), winSize.X);
+                y += DrawPageHeader(draw, jobName, rulesOn, profileCount, winPos.X + gutter, winPos.Y + y, winSize.X - (2f * gutter), winSize.X);
             }
 
             ImGui.SetCursorPos(new Vector2(0f, y));
@@ -126,7 +122,7 @@ internal sealed class ConfigWindow : Window
             ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
             ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
             ImGui.BeginChild("##autopotionBody", new Vector2(winSize.X, MathF.Max(40f, winSize.Y - footerHeight - y)), true);
-            DrawBody(config, job, jobIcon, jobName, rulesOn, profileCount, inCombat, inDuty, compact, gutter);
+            DrawBody(config, job, jobName, rulesOn, profileCount, inCombat, inDuty, compact, gutter);
             DrawScrollFades();
             ImGui.EndChild();
             ImGui.PopStyleColor(4);
@@ -151,63 +147,55 @@ internal sealed class ConfigWindow : Window
         (job.HpPotionEnable ? 1 : 0) + (job.MpPotionEnable ? 1 : 0)
         + (job.RegenPotionEnable ? 1 : 0) + (job.SilenceEchoDropsEnable ? 1 : 0);
 
-    private static float FooterHeight()
+    private const float StackedFooterWidth = 620f;
+
+    private static float FooterHeight(float width, bool hasAction)
     {
         var block = AutoPotionChrome.LineHeight() + 4f + AutoPotionChrome.LineHeight(Theme.SecondaryScale);
-        return 12f + MathF.Max(block, ControlHeight) + 12f;
+        return width < StackedFooterWidth && hasAction
+            ? 12f + block + 12f + ControlHeight + 12f
+            : 12f + MathF.Max(block, ControlHeight) + 12f;
     }
 
     private float DrawTopBar(ImDrawListPtr draw, Vector2 winPos, float width, float gutter, UiState state)
     {
         draw.AddRectFilled(winPos, winPos + new Vector2(width, TopBarHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(winPos + new Vector2(0f, TopBarHeight - 1f), winPos + new Vector2(width, TopBarHeight - 1f), Theme.Pack(Theme.SurfaceBorder));
+        draw.PushClipRect(winPos, winPos + new Vector2(width, TopBarHeight + 1f), false);
+        draw.AddLine(winPos + new Vector2(0f, TopBarHeight), winPos + new Vector2(width, TopBarHeight), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
 
         var closeSize = new Vector2(ControlHeight);
         var statusSize = new Vector2(AutoPotionChrome.StatusWidth(), ControlHeight);
         var controlY = winPos.Y + ((TopBarHeight - ControlHeight) / 2f);
         var closePos = new Vector2(winPos.X + width - gutter - closeSize.X, controlY);
-        var statusPos = new Vector2(closePos.X - 12f - statusSize.X, controlY);
-        var brandWidth = MathF.Min(AutoPotionChrome.BrandWidth(), statusPos.X - 12f - (winPos.X + gutter));
+        var statusPos = new Vector2(closePos.X - 8f - statusSize.X, controlY);
+        var brandWidth = MathF.Min(AutoPotionChrome.BrandWidth(), statusPos.X - 8f - (winPos.X + gutter));
         var brandSize = new Vector2(MathF.Max(120f, brandWidth), 40f);
 
         AutoPotionChrome.Brand(draw, new Vector2(winPos.X + gutter, winPos.Y + ((TopBarHeight - brandSize.Y) / 2f)), brandSize);
         AutoPotionChrome.StatusPill(draw, statusPos, statusSize, state);
-        if (AutoPotionChrome.CloseButton(draw, closePos, closeSize, winPos.X + width - 8f))
+        if (AutoPotionChrome.CloseButton(draw, closePos, closeSize))
             IsOpen = false;
-        return TopBarHeight;
-    }
-
-    private static float DrawFeatureBar(ImDrawListPtr draw, float left, float top, float width, float gutter)
-    {
-        draw.AddRectFilled(new Vector2(left, top), new Vector2(left + width, top + FeatureBarHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(new Vector2(left, top + FeatureBarHeight - 1f), new Vector2(left + width, top + FeatureBarHeight - 1f), Theme.Pack(Theme.SurfaceBorder));
-        const string label = "Potion rules";
-        var size = new Vector2(MathF.Min(width - (2f * gutter), AutoPotionChrome.FeatureWidth(label)), 32f);
-        AutoPotionChrome.FeatureButton(draw, "rules", label, new Vector2(left + gutter, top + 12f), size, true);
-        return FeatureBarHeight;
+        return TopBarHeight + 1f;
     }
 
     /// <summary>
     ///     Icon tile, title, description and counts. Returns the height used, including 20 px above and 8 px below.
     ///     Wide windows put the counts at the right; narrower ones put them under the description.
     /// </summary>
-    private static float DrawPageHeader(ImDrawListPtr draw, ImTextureID? jobIcon, string jobName, int rulesOn, int profileCount,
+    private static float DrawPageHeader(ImDrawListPtr draw, string jobName, int rulesOn, int profileCount,
         float left, float top, float innerWidth, float windowWidth)
     {
         const float tile = 44f;
         var origin = new Vector2(left, top + 20f);
-        var wide = windowWidth >= 1000f;
+        var wide = windowWidth >= 760f;
         var title = $"Potion rules · {jobName}";
         const string description = "Switch jobs to edit another profile; uncustomized jobs inherit Default.";
         var count = $"{rulesOn}/4 rules";
         var profiles = profileCount == 1 ? "1 job profile" : $"{profileCount} job profiles";
 
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(AutoPotionChrome.Alpha(Theme.Accent, 0.14f)), AutoPotionChrome.Radius);
-        draw.AddRect(origin, origin + new Vector2(tile), Theme.Pack(Theme.SurfaceBorder), AutoPotionChrome.Radius);
-        if (jobIcon is { } icon)
-            draw.AddImage(icon, origin + new Vector2(6f), origin + new Vector2(tile - 6f));
-        else
-            AutoPotionChrome.Diamond(draw, origin + new Vector2(tile / 2f), 11f, Theme.Pack(Theme.Accent));
+        AutoPotionChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10f, Theme.Pack(Theme.Accent));
 
         var textX = left + 60f;
         var metaWidth = wide
@@ -243,12 +231,12 @@ internal sealed class ConfigWindow : Window
         return 20f + MathF.Max(tile, blockHeight) + 8f;
     }
 
-    private void DrawBody(Configuration config, JobPotionSettings job, ImTextureID? jobIcon, string jobName, int rulesOn, int profileCount,
+    private void DrawBody(Configuration config, JobPotionSettings job, string jobName, int rulesOn, int profileCount,
         bool inCombat, bool inDuty, bool compact, float gutter)
     {
         if (compact)
         {
-            // Scrolls away with the cards: a full-bleed band, then the header, then the body padding.
+            // Scrolls away with the cards: the header, then the body padding.
             var childPos = ImGui.GetWindowPos();
             var width = ImGui.GetWindowWidth();
             var top = ImGui.GetCursorScreenPos().Y - 16f;
@@ -257,8 +245,7 @@ internal sealed class ConfigWindow : Window
             var childSize = ImGui.GetWindowSize();
             var scrollbar = ImGui.GetScrollMaxY() > 0f ? ImGui.GetStyle().ScrollbarSize : 0f;
             draw.PushClipRect(childPos, childPos + childSize, false);
-            var used = DrawFeatureBar(draw, childPos.X, top, width, gutter);
-            used += DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, childPos.X + gutter, top + used, width - (2f * gutter) - scrollbar, width);
+            var used = DrawPageHeader(draw, jobName, rulesOn, profileCount, childPos.X + gutter, top, width - (2f * gutter) - scrollbar, width);
             draw.PopClipRect();
             ImGui.SetCursorScreenPos(new Vector2(childPos.X + gutter, top + used + 16f));
             ImGui.Dummy(new Vector2(1f, 0f));
@@ -441,14 +428,16 @@ internal sealed class ConfigWindow : Window
         var secondaryShort = masterEnabled
             ? $"{jobName}: {rulesOn} of 4 rules on"
             : "Profiles and thresholds are kept";
+        var stacked = masterEnabled && winSize.X < StackedFooterWidth;
         var stopSize = AutoPotionChrome.StopSize();
+        if (stacked)
+            stopSize.X = winSize.X - (2f * gutter);
         var right = winPos.X + winSize.X - gutter;
         var textLeft = winPos.X + gutter + 16f;
-        var textRight = masterEnabled ? right - stopSize.X - 16f : right;
+        var textRight = masterEnabled && !stacked ? right - stopSize.X - 16f : right;
         var lineHeight = AutoPotionChrome.LineHeight();
         var block = lineHeight + 4f + AutoPotionChrome.LineHeight(Theme.SecondaryScale);
-        var content = height - 24f;
-        var blockTop = top + 12f + ((content - block) / 2f);
+        var blockTop = stacked ? top + 12f : top + ((height - block) / 2f);
 
         draw.AddRectFilled(new Vector2(winPos.X, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
         draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + winSize.X, top), Theme.Pack(Theme.SurfaceBorder));
@@ -468,14 +457,16 @@ internal sealed class ConfigWindow : Window
         stop = false;
         if (masterEnabled)
         {
-            var stopPos = new Vector2(right - stopSize.X, top + 12f + ((content - stopSize.Y) / 2f));
+            var stopPos = stacked
+                ? new Vector2(winPos.X + gutter, top + 12f + block + 12f)
+                : new Vector2(right - stopSize.X, top + ((height - stopSize.Y) / 2f));
             stop = AutoPotionChrome.StopButton(draw, stopPos, stopSize);
         }
         ImGui.SetCursorScreenPos(winPos + new Vector2(0f, winSize.Y - 1f));
         ImGui.Dummy(new Vector2(1f, 0f));
     }
 
-    private readonly record struct Stat(string Label, string Value, string? Cap, float Fraction, string Note);
+    private readonly record struct Stat(string Label, string Value, string? Cap, float? Fraction, string Note);
 
     private static void DrawStatCards(params Stat[] stats)
     {
@@ -527,15 +518,5 @@ internal sealed class ConfigWindow : Window
                 words[i] = char.ToUpper(words[i][0]) + words[i][1..];
         }
         return string.Join(' ', words);
-    }
-
-    private static ImTextureID? ResolveJobIcon(uint jobId)
-    {
-        // ClassJob does not expose Icon in this Lumina build; framed job icons use this stable offset.
-        if (jobId == 0)
-            return null;
-        var iconId = 62000u + jobId;
-        var texture = Plugin.Textures.GetFromGameIcon(new GameIconLookup(iconId));
-        return texture.GetWrapOrEmpty().Handle;
     }
 }
