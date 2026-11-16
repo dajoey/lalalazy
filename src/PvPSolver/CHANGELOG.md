@@ -1,4 +1,11 @@
-﻿## v0.1.2.16 (2026-11-15) [testing]
+﻿## v0.1.2.17 (2026-11-15) [testing]
+- The settings window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The window uses a header band with a brand chip, a drawn close button, a fixed-width status pill, a section band and a footer with the main action.
+- Settings are rows inside cards, with the label and a muted help line on the left, the control on the right and a Reset beside any value that differs from its default.
+- Slider values are printed beside the track and still open for typing with Ctrl+click; the target priority list has Up, Down and Remove buttons and an In use now tag, and the job picker shows one row per role.
+- Buttons and link chips wrap instead of clipping, dropdowns are as wide as their longest option, and the reset and restore confirmations are centred over the window with a dimmed backdrop.
+
+## v0.1.2.16 (2026-11-15) [testing]
 - The settings window has been rebuilt as a responsive card-based shell with custom two-level navigation, toggle tracks, styled sliders and choices, a custom close button in place of the native title bar, and a persistent Stop footer. Rotation, targeting, presets and saved settings are unchanged.
 
 ## v0.1.2.15 (2026-11-14) [testing]
