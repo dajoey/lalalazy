@@ -357,9 +357,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// Opens the given advisor battles. The page keeps tree-node state in the storage of the body child window and, in the
-    /// two-column layout, of its left column; this pass begins the same nested children (same names, same id stack) and
-    /// writes the same node ids a click would, one frame before the real draw.
+    /// Opens the given advisor battles. The page keeps tree-node state in the storage of the body child window; this pass
+    /// begins the same child (same name, same id stack) and writes the same node ids a click would, one frame before the real draw.
     /// </summary>
     private static void OpenAdvisorNodes(Window window, Vector2 size, int[] battles, CrucibleShell shell)
     {
@@ -370,11 +369,8 @@ internal static class Program
             foreach (var battle in battles)
                 ImGui.GetStateStorage().SetInt(ImGui.GetID(AdvisorHeader(board, battle)), 1);
         }
-        ImGui.BeginChild("##crucibleBody", new Vector2(0, 0), false);
+        ImGui.BeginChild("##crucibleBody", new Vector2(0, 0), true);
         Open();
-        ImGui.BeginChild("kit_left", new Vector2(100, 100), false);
-        Open();
-        ImGui.EndChild();
         ImGui.EndChild();
         ImGui.End();
     }
@@ -518,7 +514,7 @@ internal static class Program
                 if (step == 0)
                 {
                     var origin = ImGui.GetCursorScreenPos();
-                    clickPos = origin + new Vector2(ImGui.GetContentRegionAvail().X - 22, 12);
+                    clickPos = origin + new Vector2(ImGui.GetContentRegionAvail().X - 22, 24);
                 }
                 shell.Setting("Interaction setting", () => value, newValue => value = newValue);
                 ImGui.End();
@@ -535,16 +531,20 @@ internal static class Program
 
     private static void DrawMainWindow(MainWindow window, Vector2 size)
     {
+        window.PreDraw();
         BeginRealWindow(window.WindowName, size, window.Flags);
         window.Draw();
         ImGui.End();
+        window.PostDraw();
     }
 
     private static void DrawGuideWindow(GuideWindow window, Vector2 size)
     {
+        window.PreDraw();
         BeginRealWindow(window.WindowName, size, window.Flags);
         window.Draw();
         ImGui.End();
+        window.PostDraw();
     }
 
     private static void BeginRealWindow(string name, Vector2 size, ImGuiWindowFlags windowFlags)

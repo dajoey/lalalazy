@@ -9,10 +9,6 @@ internal sealed record CruciblePage(string Id, string Group, string Title, strin
 /// <summary>Per-plugin navigation, focus, search, status and save-on-change state for the structural UI.</summary>
 internal sealed class CrucibleShell
 {
-    private const float ControlHeight = 34f;
-    private const float WideFooterHeight = 68f;
-    private const float NarrowFooterHeight = 100f;
-
     public const string OverviewPage = "shell.overview";
     public const string RosterHornsPage = "run.roster_horns";
     public const string UpcomingPage = "guide.upcoming";
@@ -99,23 +95,32 @@ internal sealed class CrucibleShell
         Incoming = found;
     }
 
+    /// <summary>Bottom space kept under the last card: the body padding plus the gap every card leaves.</summary>
+    public const float PageBottomReserve = 2 * CrucibleChrome.Gap;
+
+    private const float BodyPadY = CrucibleChrome.Gap;
+
     public void Draw(Plugin? plugin)
     {
         _plugin = plugin ?? _plugin;
         _changed = false;
+        CrucibleChrome.ResetLayout();
+        CrucibleCard.FillBottom = float.NaN;
         Theme.PushFrame();
         try
         {
-            DrawTopGroups();
-            DrawSearch();
-            DrawFeatureRow();
-            DrawPageHeader();
-            DrawStatusBanner();
-            var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
-            ImGui.BeginChild("##crucibleBody", new Vector2(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
-            CruciblePages.Render(this, CurrentPage);
-            ImGui.EndChild();
-            DrawFooter();
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            var gutter = CrucibleChrome.Gutter(winSize.X);
+            ImGui.SetCursorPos(Vector2.Zero);
+            var y = DrawTopBar(winPos, winSize.X, gutter);
+            y = DrawFeatureBar(winPos, winSize.X, gutter, y);
+            y = DrawPageHeader(winPos, winSize.X, gutter, y);
+
+            var footerHeight = FooterHeight(winSize.X);
+            ImGui.SetCursorPos(new Vector2(0, y));
+            DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter);
+            DrawFooter(winPos, winSize, gutter, footerHeight);
         }
         finally
         {
@@ -125,10 +130,42 @@ internal sealed class CrucibleShell
         }
     }
 
-    public void Setting(string literalLabel, Func<bool> get, Action<bool> set, string? help = null)
+    private void DrawBody(Vector2 size, float gutter)
+    {
+        // A one pixel transparent border makes the child honour its window padding, which gives every page the same
+        // left and right gutter and a bottom margin; the scrollbar then sits on the window edge.
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, BodyPadY));
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 2 * Theme.Unit + 2);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 2 * Theme.Unit);
+        ImGui.PushStyleColor(ImGuiCol.Border, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.TextSecondary with { W = 0.45f });
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent with { W = 0.6f });
+        ImGui.BeginChild("##crucibleBody", size, true);
+        DrawStatusBanner();
+        CruciblePages.Render(this, CurrentPage);
+        // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
+        if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+        {
+            var draw = ImGui.GetWindowDrawList();
+            var bg = ImGui.GetColorU32(ImGuiCol.WindowBg);
+            var min = ImGui.GetWindowPos() + new Vector2(1, ImGui.GetWindowHeight() - (7 * Theme.Unit));
+            draw.AddRectFilledMultiColor(min, ImGui.GetWindowPos() + new Vector2(ImGui.GetWindowWidth() - 1, ImGui.GetWindowHeight() - 1),
+                bg & 0x00FFFFFFu, bg & 0x00FFFFFFu, bg, bg);
+        }
+        ImGui.EndChild();
+        ImGui.PopStyleColor(6);
+        ImGui.PopStyleVar(5);
+    }
+
+    public void Setting(string literalLabel, Func<bool> get, Action<bool> set, string? help = null, bool separator = false)
     {
         var value = get();
-        if (!CrucibleChrome.Toggle(literalLabel, ref value, help))
+        if (!CrucibleChrome.Toggle(literalLabel, ref value, help, separator))
             return;
         set(value);
         _changed = true;
@@ -166,129 +203,168 @@ internal sealed class CrucibleShell
             : "settings and guide ready");
     }
 
-    private void DrawTopGroups()
+    private float DrawTopBar(Vector2 winPos, float winWidth, float gutter)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
         var gap = 2 * Theme.Unit;
+        var wideGap = 4 * Theme.Unit;
+        var inner = winWidth - (2 * gutter);
         var groups = Pages.Select(p => p.Group).Distinct().ToArray();
-        var brandSize = new Vector2(MathF.Max(180, (ImGui.CalcTextSize("LazyCrucible").X * Theme.TitleScale) + 68), 42);
-        var groupSizes = groups.Select(group => new Vector2(MathF.Max(72, ImGui.CalcTextSize(group).X + 32), ControlHeight)).ToArray();
+        var brandSize = new Vector2(CrucibleChrome.BrandWidth(), 10 * Theme.Unit);
+        var groupSizes = groups.Select(group => new Vector2(MathF.Max(18 * Theme.Unit, CrucibleChrome.TextWidth(group) + (8 * Theme.Unit)), CrucibleChrome.ControlHeight)).ToArray();
         var (state, _) = OverallState();
         var stateLabel = Copy.Word(state);
-        var statusSize = new Vector2(MathF.Max(76, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
-        var closeSize = new Vector2(ControlHeight);
-        var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-        const float minSearchWidth = 180;
-        const float maxSearchWidth = 280;
-        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + closeSize.X + (4 * gap);
-        var groupPositions = new Vector2[groups.Length];
-        var brandPos = new Vector2(0, 12);
-        float searchWidth;
-        Vector2 searchPos;
-        Vector2 statusPos;
-        Vector2 closePos;
-        float barHeight;
+        var pillSize = new Vector2(CrucibleChrome.PillWidth(), CrucibleChrome.ControlHeight);
+        var closeSize = new Vector2(CrucibleChrome.ControlHeight);
+        var groupsWidth = groupSizes.Sum(size => size.X) + ((groups.Length - 1) * gap);
+        var rightWidth = pillSize.X + gap + closeSize.X;
+        const float minSearch = 180;
+        const float maxSearch = 320;
+        var navWidth = brandSize.X + wideGap + groupsWidth;
+        var padY = 3.5f * Theme.Unit;
+        var rowHeight = brandSize.Y;
 
-        if (singleRow)
+        var oneRow = inner >= navWidth + wideGap + minSearch + wideGap + rightWidth;
+        var twoRows = !oneRow && inner >= navWidth + wideGap + rightWidth;
+        var groupPositions = new Vector2[groups.Length];
+        var groupSizesUsed = (Vector2[])groupSizes.Clone();
+        Vector2 brandPos, pillPos, closePos, searchPos;
+        float searchWidth;
+        float barHeight;
+        var rowTop = padY;
+        var controlY = rowTop + ((rowHeight - CrucibleChrome.ControlHeight) / 2f);
+        brandPos = new Vector2(gutter, rowTop);
+        closePos = new Vector2(winWidth - gutter - closeSize.X, controlY);
+        pillPos = new Vector2(closePos.X - gap - pillSize.X, controlY);
+        if (oneRow || twoRows)
         {
-            barHeight = 66;
-            var x = brandSize.X + gap;
-            var y = (barHeight - ControlHeight) / 2f;
+            var x = gutter + brandSize.X + wideGap;
             for (var i = 0; i < groups.Length; i++)
             {
-                groupPositions[i] = new Vector2(x, y);
+                groupPositions[i] = new Vector2(x, controlY);
                 x += groupSizes[i].X + gap;
             }
-            searchWidth = MathF.Min(maxSearchWidth, width - leftWidth - statusSize.X - closeSize.X - (4 * gap));
-            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, y);
-            closePos = new Vector2(width - closeSize.X, y);
-            searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
+            if (oneRow)
+            {
+                var room = pillPos.X - wideGap - (gutter + navWidth + wideGap);
+                searchWidth = MathF.Min(maxSearch, room);
+                searchPos = new Vector2(pillPos.X - wideGap - searchWidth, controlY);
+                barHeight = rowTop + rowHeight + padY;
+            }
+            else
+            {
+                searchPos = new Vector2(gutter, rowTop + rowHeight + gap);
+                searchWidth = inner;
+                barHeight = searchPos.Y + CrucibleChrome.ControlHeight + padY;
+            }
         }
         else
         {
-            var groupsBesideBrand = leftWidth <= width;
-            var x = groupsBesideBrand ? brandSize.X + gap : 0;
-            var y = groupsBesideBrand ? 16f : 62f;
+            // Compact: brand with status on the first row, groups sharing the second, search on its own row.
+            var groupRowY = rowTop + rowHeight + gap;
+            var each = (inner - ((groups.Length - 1) * gap)) / groups.Length;
             for (var i = 0; i < groups.Length; i++)
             {
-                var buttonWidth = MathF.Min(groupSizes[i].X, width);
-                if (x > 0 && x + buttonWidth > width)
-                {
-                    x = 0;
-                    y += ControlHeight + gap;
-                }
-                groupPositions[i] = new Vector2(x, y);
-                x += buttonWidth + gap;
+                groupSizesUsed[i] = new Vector2(each, CrucibleChrome.ControlHeight);
+                groupPositions[i] = new Vector2(gutter + (i * (each + gap)), groupRowY);
             }
-            var navigationBottom = groupsBesideBrand ? brandPos.Y + brandSize.Y : y + ControlHeight;
-            var searchY = navigationBottom + gap;
-            searchWidth = MathF.Min(maxSearchWidth, MathF.Max(120, width - statusSize.X - closeSize.X - (2 * gap)));
-            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, searchY);
-            closePos = new Vector2(width - closeSize.X, searchY);
-            searchPos = new Vector2(statusPos.X - gap - searchWidth, searchY);
-            barHeight = searchY + ControlHeight + 12;
+            searchPos = new Vector2(gutter, groupRowY + CrucibleChrome.ControlHeight + gap);
+            searchWidth = inner;
+            barHeight = searchPos.Y + CrucibleChrome.ControlHeight + padY;
         }
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        if (CrucibleChrome.BrandButton(draw, origin + brandPos, brandSize))
+        draw.PushClipRect(winPos, winPos + new Vector2(winWidth, barHeight + 1), false);
+        draw.AddRectFilled(winPos, winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, barHeight), winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+        if (CrucibleChrome.BrandButton(draw, winPos + brandPos, brandSize))
             CurrentPage = OverviewPage;
         for (var i = 0; i < groups.Length; i++)
         {
             var group = groups[i];
             var first = Pages.First(p => p.Group == group);
-            NavButton("group_" + group, group, origin + groupPositions[i], groupSizes[i], Current.Group == group, () => CurrentPage = first.Id);
+            if (CrucibleChrome.OutlineButton(draw, "group_" + group, group, winPos + groupPositions[i], groupSizesUsed[i], Current.Group == group))
+                CurrentPage = first.Id;
         }
-        DrawSearchInput(origin + searchPos, searchWidth);
-        CrucibleChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
-        if (CrucibleChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+        DrawSearchInput(winPos + searchPos, searchWidth);
+        CrucibleChrome.StatusPill(draw, winPos + pillPos, pillSize, stateLabel, state);
+        if (CrucibleChrome.OutlineButton(draw, "close_window", "×", winPos + closePos, closeSize))
             CloseRequested?.Invoke();
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        DrawSearchResults(winPos + searchPos, searchWidth);
+        return barHeight + 1;
     }
 
-    private static void NavButton(string id, string label, Vector2 pos, Vector2 size, bool selected, Action navigate)
+    private float DrawFeatureBar(Vector2 winPos, float winWidth, float gutter, float top)
     {
-        if (CrucibleChrome.OutlineButton(ImGui.GetWindowDrawList(), id, label, pos, size, selected))
-            navigate();
-    }
-
-    private void DrawFeatureRow()
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
+        var inner = winWidth - (2 * gutter);
         var gap = 3 * Theme.Unit;
         var features = Pages.Where(p => p.Group == Current.Group).ToArray();
         var titles = features.Select(FeatureTitle).ToArray();
-        var sizes = titles.Select(title => new Vector2(
-            MathF.Min(width, MathF.Max(110, ImGui.CalcTextSize(title).X + 52)), ControlHeight)).ToArray();
-        var positions = new Vector2[features.Length];
-        float x = 0;
-        float y = 8;
-        for (var i = 0; i < features.Length; i++)
+        var heightEach = 8 * Theme.Unit;
+        var padY = 3 * Theme.Unit;
+        var sizes = titles.Select(title => new Vector2(CrucibleChrome.FeatureWidth(title), heightEach)).ToArray();
+        var total = sizes.Sum(size => size.X) + ((features.Length - 1) * gap);
+        var collapsed = total > inner;
+        float barHeight;
+        if (collapsed)
         {
-            if (x > 0 && x + sizes[i].X > width)
+            barHeight = padY + CrucibleChrome.ControlHeight + padY;
+            DrawBar(draw, winPos, winWidth, top, barHeight);
+            var fieldPos = winPos + new Vector2(gutter, top + padY);
+            var fieldSize = new Vector2(inner, CrucibleChrome.ControlHeight);
+            ImGui.SetCursorScreenPos(fieldPos);
+            var open = ImGui.InvisibleButton("##crucible_feature_menu", fieldSize);
+            var hovered = ImGui.IsItemHovered();
+            draw.AddRectFilled(fieldPos, fieldPos + fieldSize, Theme.Pack(Theme.Accent with { W = 0.14f }), CrucibleChrome.Radius);
+            draw.AddRect(fieldPos, fieldPos + fieldSize, Theme.Pack(hovered ? Theme.Accent : Theme.Accent with { W = 0.6f }), CrucibleChrome.Radius);
+            var currentTitle = FeatureTitle(Current);
+            CrucibleChrome.DrawFitted(draw, fieldPos + new Vector2(CrucibleChrome.Gap, (fieldSize.Y - CrucibleChrome.LineHeight()) / 2f), currentTitle,
+                inner - (4 * CrucibleChrome.Gap), Theme.Accent);
+            CrucibleChrome.Chevron(draw, fieldPos + new Vector2(inner - CrucibleChrome.Gap - 4, fieldSize.Y / 2f), Theme.Accent);
+            if (open)
+                ImGui.OpenPopup("##crucibleFeatureMenu");
+            ImGui.SetNextWindowPos(fieldPos + new Vector2(0, fieldSize.Y + Theme.Unit));
+            ImGui.SetNextWindowSize(new Vector2(inner, 0));
+            ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, CrucibleChrome.Radius);
+            ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(2 * Theme.Unit, 2 * Theme.Unit));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2 * Theme.Unit, Theme.Unit));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleColor(ImGuiCol.Header, Theme.Accent with { W = 0.20f });
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.Accent with { W = 0.14f });
+            if (ImGui.BeginPopup("##crucibleFeatureMenu"))
             {
-                x = 0;
-                y += ControlHeight + (2 * Theme.Unit);
+                for (var i = 0; i < features.Length; i++)
+                    if (ImGui.Selectable(titles[i] + "##feature_" + features[i].Id, CurrentPage == features[i].Id, ImGuiSelectableFlags.None, new Vector2(0, CrucibleChrome.ControlHeight - 8)))
+                        CurrentPage = features[i].Id;
+                ImGui.EndPopup();
             }
-            positions[i] = new Vector2(x, y);
-            x += sizes[i].X + gap;
+            ImGui.PopStyleColor(4);
+            ImGui.PopStyleVar(4);
         }
-        var barHeight = y + ControlHeight + 8;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        for (var i = 0; i < features.Length; i++)
+        else
         {
-            var feature = features[i];
-            if (CrucibleChrome.FeatureButton(draw, feature.Id, titles[i], origin + positions[i], sizes[i], CurrentPage == feature.Id))
-                CurrentPage = feature.Id;
+            barHeight = padY + heightEach + padY;
+            DrawBar(draw, winPos, winWidth, top, barHeight);
+            var x = gutter;
+            for (var i = 0; i < features.Length; i++)
+            {
+                if (CrucibleChrome.FeatureButton(draw, features[i].Id, titles[i], winPos + new Vector2(x, top + padY), sizes[i], CurrentPage == features[i].Id))
+                    CurrentPage = features[i].Id;
+                x += sizes[i].X + gap;
+            }
         }
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        return top + barHeight + 1;
+    }
+
+    private static void DrawBar(ImDrawListPtr draw, Vector2 winPos, float winWidth, float top, float height)
+    {
+        draw.PushClipRect(winPos + new Vector2(0, top), winPos + new Vector2(winWidth, top + height + 1), false);
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + new Vector2(winWidth, top + height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top + height), winPos + new Vector2(winWidth, top + height), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
     }
 
     private static string FeatureTitle(CruciblePage feature) => feature.Id == AdvisorPage ? "Beast picks by battle" :
@@ -298,98 +374,140 @@ internal sealed class CrucibleShell
     {
         ImGui.SetCursorScreenPos(pos);
         ImGui.SetNextItemWidth(width);
-        var framePadding = Theme.FramePadding;
-        framePadding.Y = MathF.Max(framePadding.Y, (ControlHeight - ImGui.GetTextLineHeight()) / 2f);
+        var framePadding = new Vector2(CrucibleChrome.Gap, MathF.Max(Theme.Unit, (CrucibleChrome.ControlHeight - ImGui.GetTextLineHeight()) / 2f));
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, framePadding);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, CrucibleChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
         ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.Surface);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
         ImGui.InputTextWithHint("##crucibleSearch", "Search settings and fights...", ref SearchText, 256);
-        ImGui.PopStyleColor(3);
-        ImGui.PopStyleVar(2);
+        ImGui.PopStyleColor(4);
+        ImGui.PopStyleVar(3);
     }
 
-    private void DrawSearch()
+    /// <summary>Results float under the search box as a popup; opening it never moves the page.</summary>
+    private void DrawSearchResults(Vector2 searchPos, float searchWidth)
     {
-        if (SearchText.Trim().Length == 0)
+        const string popupId = "##crucibleSearchResults";
+        var query = SearchText.Trim();
+        if (query.Length == 0)
             return;
-        var matches = Pages.Where(p => (p.Title + " " + p.SearchTerms).Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase)).Take(6).ToList();
-        Widgets.Caption($"{matches.Count} destinations for ‘{SearchText}’");
-        if (matches.Count == 0)
-            return;
-        var height = MathF.Min(240, (matches.Count * ImGui.GetFrameHeightWithSpacing()) + 12);
-        ImGui.BeginChild("##crucibleSearchResults", new Vector2(0, height), true);
-        foreach (var match in matches)
-            if (ImGui.Selectable($"{match.Group} · {match.Title}##search_{match.Id}"))
-            {
-                CurrentPage = match.Id;
-                SearchText = "";
-            }
-        ImGui.EndChild();
+        var matches = Pages.Where(p => (p.Title + " " + p.SearchTerms).Contains(query, StringComparison.OrdinalIgnoreCase)).Take(6).ToList();
+        var width = MathF.Max(searchWidth, 300);
+        ImGui.SetNextWindowPos(searchPos + new Vector2(0, CrucibleChrome.ControlHeight + Theme.Unit));
+        ImGui.SetNextWindowSize(new Vector2(width, 0));
+        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, CrucibleChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(3 * Theme.Unit, 3 * Theme.Unit));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2 * Theme.Unit, 2 * Theme.Unit));
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.Header, Theme.Accent with { W = 0.20f });
+        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.Accent with { W = 0.14f });
+        if (!ImGui.IsPopupOpen(popupId))
+            ImGui.OpenPopup(popupId);
+        if (ImGui.BeginPopup(popupId, ImGuiWindowFlags.NoFocusOnAppearing))
+        {
+            Widgets.Caption(matches.Count == 1 ? $"1 destination for ‘{SearchText}’" : $"{matches.Count} destinations for ‘{SearchText}’");
+            foreach (var match in matches)
+                if (ImGui.Selectable($"{match.Group} · {match.Title}##search_{match.Id}"))
+                {
+                    CurrentPage = match.Id;
+                    SearchText = "";
+                }
+            ImGui.EndPopup();
+        }
+        ImGui.PopStyleColor(4);
+        ImGui.PopStyleVar(4);
     }
 
-    private void DrawPageHeader()
+    private float DrawPageHeader(Vector2 winPos, float winWidth, float gutter, float top)
     {
         var page = Current;
         var title = page.Title;
         var description = page.Description;
-        if (CurrentPage == UpcomingPage && Plugin.Guide.Fight(GuideBoard, GuideBattle) is { } fight)
-        {
-            title = fight.Title;
-            description = fight.Summary;
-        }
         var count = CruciblePages.LiveCount(this, CurrentPage);
         var subtext = CruciblePages.LiveSubtext(this, CurrentPage);
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        var tileSize = new Vector2(42);
-        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
-        CrucibleChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
-
-        if (width >= 1100)
+        if (CurrentPage == UpcomingPage)
         {
-            var textX = origin.X + tileSize.X + 12;
-            var countWidth = ImGui.CalcTextSize(count).X;
-            var subtextWidth = ImGui.CalcTextSize(subtext).X;
-            DrawText(draw, new Vector2(textX, origin.Y), FitText(title, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-            DrawText(draw, new Vector2(textX, origin.Y + 29), FitText(description, width - tileSize.X - 12 - subtextWidth - 16), Theme.TextSecondary);
-            DrawTextRight(draw, origin.X + width, origin.Y + 4, count, Theme.TextSecondary);
-            DrawTextRight(draw, origin.X + width, origin.Y + 31, subtext, Theme.TextSecondary);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, 58));
-            ImGui.Separator();
-            return;
+            if (GuideFollow && RunTracker.Focus.Battle < 0)
+                subtext = "";
+            else if (Plugin.Guide.Fight(GuideBoard, GuideBattle) is { } fight)
+            {
+                title = fight.Title;
+                description = fight.Summary;
+            }
         }
+        var draw = ImGui.GetWindowDrawList();
+        var tile = 11 * Theme.Unit;
+        var padTop = 5 * Theme.Unit;
+        var wide = winWidth >= 1000;
+        var textX = gutter + tile + (4 * Theme.Unit);
+        var metaWidth = wide ? MathF.Min(winWidth * 0.40f, MathF.Max(CrucibleChrome.TextWidth(count, Theme.SecondaryScale), CrucibleChrome.TextWidth(subtext, Theme.SecondaryScale))) : 0;
+        var textWidth = winWidth - textX - gutter - (wide ? metaWidth + (6 * Theme.Unit) : 0);
+        var origin = winPos + new Vector2(gutter, top + padTop);
+        draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), CrucibleChrome.Radius);
+        CrucibleChrome.Diamond(draw, origin + new Vector2(tile / 2f), 11, Theme.Pack(Theme.Accent));
 
-        DrawText(draw, origin + new Vector2(tileSize.X + 12, 4), FitText(title, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 8));
-        Widgets.SecondaryWrapped(description);
-        Widgets.Caption(count);
-        Widgets.Caption(subtext);
-        ImGui.Separator();
+        var shownTitle = CrucibleChrome.ClampLines(title, textWidth, CrucibleChrome.PageTitleScale, wide ? 1 : 2);
+        var titleHeight = CrucibleChrome.WrappedHeight(shownTitle, textWidth, CrucibleChrome.PageTitleScale);
+        var textOrigin = new Vector2(winPos.X + textX, origin.Y);
+        CrucibleChrome.DrawWrapped(draw, textOrigin, shownTitle, textWidth, Theme.TextPrimary, CrucibleChrome.PageTitleScale);
+        var shownDescription = CrucibleChrome.ClampLines(description, textWidth, Theme.SecondaryScale, wide ? 1 : 3);
+        var descriptionTop = textOrigin.Y + titleHeight + Theme.Unit;
+        var descriptionHeight = CrucibleChrome.DrawWrapped(draw, new Vector2(textOrigin.X, descriptionTop), shownDescription, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        var blockBottom = descriptionTop + descriptionHeight;
+        if ((shownTitle != title || shownDescription != description)
+            && ImGui.IsMouseHoveringRect(textOrigin, new Vector2(textOrigin.X + textWidth, blockBottom)))
+            ImGui.SetTooltip(shownTitle != title ? title : description);
+
+        if (wide)
+        {
+            var right = winPos.X + winWidth - gutter;
+            var metaScale = Theme.SecondaryScale;
+            var line1 = textOrigin.Y + ((titleHeight - CrucibleChrome.LineHeight(metaScale)) / 2f);
+            var line2 = descriptionTop;
+            CrucibleChrome.DrawFittedRight(draw, right, line1, count, metaWidth, Theme.TextSecondary, metaScale);
+            CrucibleChrome.DrawFittedRight(draw, right, line2, subtext, metaWidth, Theme.TextSecondary, metaScale);
+        }
+        else
+        {
+            var y = blockBottom + Theme.Unit;
+            foreach (var meta in new[] { count, subtext })
+            {
+                if (meta.Length == 0)
+                    continue;
+                CrucibleChrome.DrawFitted(draw, new Vector2(textOrigin.X, y), meta, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+                y += CrucibleChrome.LineHeight(Theme.SecondaryScale) + (Theme.Unit / 2f);
+            }
+            blockBottom = y;
+        }
+        var height = MathF.Max(tile, blockBottom - origin.Y);
+        return top + padTop + height + (2 * Theme.Unit);
     }
 
     private void DrawStatusBanner()
     {
         if (PetSelect.YieldReason == "conflict_gluttony")
-            Widgets.InfoBox("LazyCrucible is not writing — an older GluttonyCombo that also fills familiars is loaded and must be updated.", UiState.Failed);
+            CrucibleChrome.Notice("LazyCrucible is not writing — an older GluttonyCombo that also fills familiars is loaded and must be updated.", UiState.Failed);
         else if (PetSelect.YieldReason == "autoduty_running")
-            Widgets.InfoBox("AutoDuty standby — " + Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces), UiState.Blocked);
+            CrucibleChrome.Notice("AutoDuty standby", Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces), UiState.Blocked);
         else if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
-            Widgets.InfoBox($"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.", UiState.Blocked);
+            CrucibleChrome.Notice("AutoDuty attention", $"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.", UiState.Blocked);
 
         // Incoming guidance is independent of the main AutoDuty/conflict banner and must never be suppressed.
         if (Incoming is { } warn)
         {
             var guideDo = Plugin.Guide.File.Fights.SelectMany(f => f.Hits.Concat(f.Mechanics))
                 .Where(m => m.Ids.Contains(warn.CastId) && m.Do.Length > 0).Select(m => m.Do).FirstOrDefault();
-            Widgets.InfoBox("INCOMING — " + warn.Text + (guideDo is null ? "" : " Guide: " + guideDo), UiState.Running);
+            CrucibleChrome.Notice("Incoming", warn.Text + (guideDo is null ? "" : " Guide: " + guideDo), UiState.Running, strong: true);
         }
         if (CurrentPage == UpcomingPage && Plugin.Guide.Fight(GuideBoard, GuideBattle) is { } fight
             && RunTracker.Focus == (fight.Board, fight.Battle)
             && FightWarnings.EntryAdvice(fight.Board, fight.Battle, RunTracker.PlayerHpPercent) is { } advice)
-            Widgets.InfoBox("Before this fight — " + advice, UiState.Blocked);
+            CrucibleChrome.Notice("Before this fight", advice, UiState.Blocked);
     }
 
     private static string StallText(string reason) => reason switch
@@ -402,18 +520,28 @@ internal sealed class CrucibleShell
         _ => reason,
     };
 
-    private static float FooterHeight(float width) => width < 620 ? NarrowFooterHeight : WideFooterHeight;
-
-    private void DrawFooter()
+    private static float FooterHeight(float width)
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = FooterHeight(width);
+        var textBlock = CrucibleChrome.LineHeight() + Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale);
+        const float pad = 3 * Theme.Unit;
+        return width < 620
+            ? pad + textBlock + pad + CrucibleChrome.ControlHeight + pad
+            : pad + MathF.Max(textBlock, CrucibleChrome.ControlHeight) + pad;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex Parenthetical = new(@"\s*\([^)]*\)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private void DrawFooter(Vector2 winPos, Vector2 winSize, float gutter, float height)
+    {
+        var top = winPos.Y + winSize.Y - height;
         var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
+        draw.PushClipRect(new Vector2(winPos.X, top), winPos + winSize, false);
+        draw.AddRectFilled(new Vector2(winPos.X, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
+        draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + winSize.X, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
         var (state, detail) = OverallState();
         string primary;
+        string fullPrimary;
         string secondary;
         if (Current.Group == "Guide")
         {
@@ -427,62 +555,57 @@ internal sealed class CrucibleShell
                 UiState.Missing => "Needs setup · Missing Bestiary",
                 _ => "Ready · guide and horn picks use the same ranking",
             };
+            fullPrimary = primary;
             secondary = state == UiState.Missing
                 ? "Open the Master's Bestiary once; picks assume every familiar is captured until then."
                 : "Follow the next fight uses the existing focus; no action is added.";
         }
         else
         {
-            primary = PetSelect.LastSummary.Length == 0 ? "No familiar selection yet this session." : $"{PetSelect.LastSummaryAt:HH:mm:ss}  {PetSelect.LastSummary}";
+            fullPrimary = PetSelect.LastSummary.Length == 0 ? "No familiar selection yet this session." : $"{PetSelect.LastSummaryAt:HH:mm:ss}  {PetSelect.LastSummary}";
+            // The summary lists each horn with its traits; the footer keeps the names and the full line is the tooltip.
+            primary = PetSelect.LastSummary.Length == 0 ? fullPrimary
+                : $"{PetSelect.LastSummaryAt:HH:mm:ss}  {Parenthetical.Replace(PetSelect.LastSummary, "")}";
             secondary = SelectionScreens.Status.Length > 0 ? SelectionScreens.Status : detail;
         }
 
         var actionLabel = Current.Group == "Guide" ? "Return to run setup" : "Open the fight guide";
-        var actionWidth = MathF.Min(width, MathF.Max(180, ImGui.CalcTextSize(actionLabel).X + 48));
-        var narrow = width < 620;
-        var actionPos = origin + new Vector2(width - actionWidth, narrow ? 56 : 16);
-        var textRight = narrow ? origin.X + width : actionPos.X - 16;
-        var textPos = origin + new Vector2(24, 9);
-        draw.AddCircleFilled(origin + new Vector2(10, 19), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        DrawText(draw, textPos, FitText(primary, textRight - textPos.X), Theme.TextPrimary);
-        DrawText(draw, textPos + new Vector2(0, 27), FitText(secondary, textRight - textPos.X), Theme.TextSecondary);
-        if (CrucibleChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, new Vector2(actionWidth, 36)))
+        var narrow = winSize.X < 620;
+        var inner = winSize.X - (2 * gutter);
+        var actionSize = new Vector2(narrow ? inner : MathF.Max(180, CrucibleChrome.TextWidth(actionLabel) + (6 * CrucibleChrome.Gap / 2)), CrucibleChrome.ControlHeight);
+        var textBlock = CrucibleChrome.LineHeight() + Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale);
+        var pad = 3 * Theme.Unit;
+        var textLeft = winPos.X + gutter + (4 * Theme.Unit);
+        Vector2 actionPos;
+        float textTop;
+        float textRight;
+        if (narrow)
+        {
+            textTop = top + pad;
+            actionPos = new Vector2(winPos.X + gutter, textTop + textBlock + pad);
+            textRight = winPos.X + winSize.X - gutter;
+        }
+        else
+        {
+            textTop = top + ((height - textBlock) / 2f);
+            actionPos = new Vector2(winPos.X + winSize.X - gutter - actionSize.X, top + ((height - actionSize.Y) / 2f));
+            textRight = actionPos.X - (4 * Theme.Unit);
+        }
+        draw.AddCircleFilled(new Vector2(winPos.X + gutter + Theme.Unit, textTop + (CrucibleChrome.LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        var textWidth = textRight - textLeft;
+        var shown = CrucibleChrome.Fit(primary, textWidth);
+        CrucibleChrome.DrawText(draw, new Vector2(textLeft, textTop), shown, Theme.TextPrimary);
+        var shownSecondary = CrucibleChrome.Fit(secondary, textWidth, Theme.SecondaryScale);
+        CrucibleChrome.DrawText(draw, new Vector2(textLeft, textTop + CrucibleChrome.LineHeight() + Theme.Unit), shownSecondary, Theme.TextSecondary, Theme.SecondaryScale);
+        if ((shown != fullPrimary || shownSecondary != secondary)
+            && ImGui.IsMouseHoveringRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + textBlock)))
+            ImGui.SetTooltip(fullPrimary + "\n" + secondary);
+        if (CrucibleChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, actionSize))
         {
             if (Current.Group == "Guide")
                 CurrentPage = RosterHornsPage;
             else
                 _plugin?.ToggleGuide();
         }
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
-    }
-
-    private static void DrawText(ImDrawListPtr draw, Vector2 pos, string text, Vector4 color, float scale = 1)
-    {
-        if (text.Length == 0)
-            return;
-        if (scale == 1)
-            draw.AddText(pos, Theme.Pack(color), text);
-        else
-            draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * scale, pos, Theme.Pack(color), text);
-    }
-
-    private static void DrawTextRight(ImDrawListPtr draw, float right, float y, string text, Vector4 color)
-    {
-        if (text.Length == 0)
-            return;
-        draw.AddText(new Vector2(right - ImGui.CalcTextSize(text).X, y), Theme.Pack(color), text);
-    }
-
-    private static string FitText(string text, float width, float scale = 1)
-    {
-        if (width <= 0)
-            return "";
-        if (ImGui.CalcTextSize(text).X * scale <= width)
-            return text;
-        const string ellipsis = "…";
-        var length = text.Length;
-        while (length > 0 && ImGui.CalcTextSize(text[..length] + ellipsis).X * scale > width)
-            length--;
-        return length == 0 ? "" : text[..length].TrimEnd() + ellipsis;
     }
 }

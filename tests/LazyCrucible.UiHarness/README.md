@@ -74,3 +74,9 @@ Built-in mode keeps the original eight hermetic captures (`main-empty-ready`, `m
 Built-in mode uses a CPU rasterizer and only ImGui's built-in font; it never reads host font files. Its glyph coverage and text metrics differ from Dalamud's live font atlas, so some production symbols render as fallback glyphs and line widths differ. Use it as the hermetic regression capture.
 
 Game mode reproduces the stock default font, scale and style (the exact members are listed in `../HarnessShared/UiRender/README.md`) and keeps the rest of this harness unchanged. It still does not reproduce the GPU renderer (blending is a CPU approximation), a custom font or style chosen by a player, the game's own glyphs (the private-use game symbols are absent), the Dalamud window chrome and title bar, input interaction, custom textures, draw callbacks, multiple viewports or DPI scaling. The real game also runs a different Dalamud build than the supplied runtime directory, so small drift is possible. It captures source compilation, rendered content/layout and state branches for human inspection; it does not compare golden images or assert scenario-specific pixels. In-game visual and interaction checks remain separate release gates.
+
+## Window padding
+
+Both windows set their window padding to zero in `PreDraw` (the shell lays out its own gutters), so the harness calls
+`PreDraw` before `ImGui.Begin` and `PostDraw` after `ImGui.End`, as Dalamud's window system does. The advisor tree prepass
+opens nodes in the single body child (`##crucibleBody`).

@@ -24,5 +24,10 @@ internal sealed class GuideWindow : Window
     /// <summary> Follow the real focused fight and warned casts without inventing a focus.</summary>
     public void FollowFocus() => _shell.FollowFocus(this);
 
+    // The shell lays out its own gutters from the window edge, so the window itself carries no padding.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     public override void Draw() => _shell.Draw(_plugin);
 }

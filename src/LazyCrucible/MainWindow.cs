@@ -21,5 +21,10 @@ internal sealed class MainWindow : Window
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
+    // The shell lays out its own gutters from the window edge, so the window itself carries no padding.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
     public override void Draw() => _shell.Draw(_plugin);
 }
