@@ -81,7 +81,7 @@ internal static class OverlayMirror
   /// <summary>The statements copied above, as they must still read in MarketAutomation.cs (whitespace-insensitive).</summary>
   private static readonly string[] Copied =
   [
-    "ImGuiCond.None, new System.Numerics.Vector2(1f, 0f));",
+    "ImGuiHelpers.SetNextWindowPosRelativeMainViewport(new System.Numerics.Vector2(right, position.Y), ImGuiCond.None, new System.Numerics.Vector2(1f, 0f));",
     "ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8f.Scale());",
     "ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3f.Scale(), 3f.Scale()));",
     "ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0f.Scale(), 0f.Scale()));",

@@ -27,6 +27,9 @@ internal static class OverlayPlacement
   /// </summary>
   internal static readonly uint[] HeaderButtonNodeIds = [7, 6, 5];
 
+  /// <summary>Node ids of the title and subtitle text inside the window component (WindowA component data: title 3, subtitle 4).</summary>
+  internal static readonly uint[] TitleNodeIds = [3, 4];
+
   /// <summary>Pixels kept between the overlay and anything it keeps clear of, before UI scale.</summary>
   internal const float Gap = 4f;
 
