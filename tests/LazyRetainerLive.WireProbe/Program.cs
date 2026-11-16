@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 
 namespace LazyRetainerLive.WireProbe;
@@ -112,6 +115,8 @@ internal static class Program
         Check(failures, RetainerLivePresentation.LiveSubtext(true, 10504) == "127.0.0.1:10504 · GET /retainers",
             "live endpoint subtext");
 
+        ListenerRebindCase(failures);
+
         if (failures.Count > 0)
         {
             Console.WriteLine($"FAIL ({failures.Count}):");
@@ -120,7 +125,67 @@ internal static class Program
         }
         Console.WriteLine("ALL WIRE CHECKS PASS");
         Console.WriteLine("ALL PRESENTATION CHECKS PASS");
+        Console.WriteLine("ALL LISTENER REBIND CHECKS PASS");
         return 0;
+    }
+
+    // A port change stops the listener and binds a new one. A stale serve loop woken
+    // after the rebind used to spin on the dead listener; twenty rebinds must leave
+    // the process idle and the last listener serving.
+    private static void ListenerRebindCase(List<string> failures)
+    {
+        var ports = new[] { FreePort(), FreePort() };
+        var current = ports[0];
+        var server = new HttpServer(new RetainerLiveService(), () => current, () => true);
+        try
+        {
+            // Keep the first serve loop busy inside a request, so it is still running
+            // when the rebinds finish and only notices the stop afterwards.
+            server.EnsureStarted();
+            using var holder = new TcpClient();
+            holder.Connect(IPAddress.Loopback, current);
+            Thread.Sleep(300);
+
+            for (var i = 1; i <= 20; i++)
+            {
+                current = ports[i % 2];
+                server.Stop();
+                server.EnsureStarted();
+            }
+
+            holder.Close();
+
+            Check(failures, server.LastError.Length == 0, "rebind: last bind succeeded (" + server.LastError + ")");
+
+            var cpuBefore = Process.GetCurrentProcess().TotalProcessorTime;
+            Thread.Sleep(1500);
+            var cpu = (Process.GetCurrentProcess().TotalProcessorTime - cpuBefore).TotalSeconds;
+            Console.WriteLine($"rebind: idle CPU over 1.5 s = {cpu:F3} s");
+            Check(failures, cpu < 0.3, $"rebind: idle CPU over 1.5 s was {cpu:F3} s (limit 0.3 s)");
+
+            using var client = new TcpClient();
+            client.Connect(IPAddress.Loopback, current);
+            var stream = client.GetStream();
+            var req = System.Text.Encoding.ASCII.GetBytes("GET /retainers HTTP/1.1\r\nHost: x\r\n\r\n");
+            stream.Write(req, 0, req.Length);
+            var buf = new byte[256];
+            var n = stream.Read(buf, 0, buf.Length);
+            var head = System.Text.Encoding.ASCII.GetString(buf, 0, n);
+            Check(failures, head.StartsWith("HTTP/1.1 503"), "rebind: the last listener still answers (" + head.Split('\n')[0].Trim() + ")");
+        }
+        finally
+        {
+            server.Dispose();
+        }
+    }
+
+    private static int FreePort()
+    {
+        var l = new TcpListener(IPAddress.Loopback, 0);
+        l.Start();
+        var port = ((IPEndPoint)l.LocalEndpoint).Port;
+        l.Stop();
+        return port;
     }
 
     private static void Check(List<string> failures, bool cond, string what)

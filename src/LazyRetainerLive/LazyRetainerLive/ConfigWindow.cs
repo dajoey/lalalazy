@@ -422,7 +422,7 @@ internal class ConfigWindow : Window
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.SurfaceBorder);
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.SurfaceBorder);
         ImGui.SetNextItemWidth(MathF.Min(220, RetainerLiveChrome.Avail()));
-        var edited = ImGui.InputInt("##retainerLivePort", ref port);
+        var edited = ImGui.InputInt("##retainerLivePort", ref port, flags: ImGuiInputTextFlags.EnterReturnsTrue);
         ImGui.PopStyleColor(7);
         ImGui.PopStyleVar(3);
         if (edited)
@@ -432,7 +432,7 @@ internal class ConfigWindow : Window
         }
 
         ImGui.SetCursorScreenPos(ImGui.GetCursorScreenPos() + new Vector2(0, 8 - Theme.ItemSpacing.Y));
-        RetainerLiveChrome.Para("Saved port edits rebind automatically on the next framework tick. Valid ports: 1024–65535; no plugin reload is needed.", Theme.SecondaryScale, Theme.TextSecondary, 0);
+        RetainerLiveChrome.Para("Press Enter to apply a port change; it rebinds on the next framework tick. Valid ports: 1024–65535; no plugin reload is needed.", Theme.SecondaryScale, Theme.TextSecondary, 0);
     }
 
     private static float FooterHeight(float width)
