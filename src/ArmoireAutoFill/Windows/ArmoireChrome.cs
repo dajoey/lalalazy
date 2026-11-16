@@ -30,7 +30,7 @@ internal static class ArmoireChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
-    internal static void TopBar(IReadOnlyList<ArmoireNavItem> navigation, int selected, Action<int> navigate, UiState state)
+    internal static void TopBar(IReadOnlyList<ArmoireNavItem> navigation, int selected, Action<int> navigate, UiState state, Action closeRequested)
     {
         var width = MathF.Max(1, ImGui.GetContentRegionAvail().X);
         var origin = ImGui.GetCursorScreenPos();
@@ -41,11 +41,13 @@ internal static class ArmoireChrome
             MathF.Max(100, ImGui.CalcTextSize(item.Label).X + 52), ControlHeight)).ToArray();
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
+        var closeSize = new Vector2(ControlHeight);
         var navigationWidth = navSizes.Sum(size => size.X) + (Math.Max(0, navSizes.Length - 1) * gap);
-        var singleRow = width >= brandSize.X + navigationWidth + statusSize.X + (4 * gap);
+        var singleRow = width >= brandSize.X + navigationWidth + statusSize.X + closeSize.X + (5 * gap);
         var positions = new Vector2[navigation.Count];
         var brandPos = new Vector2(0, singleRow ? 12 : 9);
         Vector2 statusPos;
+        Vector2 closePos;
         float barHeight;
 
         if (singleRow)
@@ -58,11 +60,13 @@ internal static class ArmoireChrome
                 positions[i] = new Vector2(x, y);
                 x += navSizes[i].X + gap;
             }
-            statusPos = new Vector2(width - statusSize.X, y);
+            closePos = new Vector2(width - closeSize.X, y);
+            statusPos = new Vector2(closePos.X - gap - statusSize.X, y);
         }
         else
         {
-            statusPos = new Vector2(width - statusSize.X, 13);
+            closePos = new Vector2(width - closeSize.X, 13);
+            statusPos = new Vector2(closePos.X - gap - statusSize.X, 13);
             float x = 0;
             float y = 61;
             for (var i = 0; i < navigation.Count; i++)
@@ -87,9 +91,27 @@ internal static class ArmoireChrome
             if (OutlineButton(draw, navigation[i].Id, navigation[i].Label, origin + positions[i], navSizes[i], i == selected))
                 navigate(i);
         StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (CloseButton(draw, origin + closePos, closeSize))
+            closeRequested();
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    private static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##armoire_close", size);
+        var hovered = ImGui.IsItemHovered();
+        var color = hovered ? Theme.Accent : Theme.TextSecondary;
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), 2 * Theme.Unit);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2 * Theme.Unit);
+        var center = pos + (size / 2f);
+        draw.AddLine(center + new Vector2(-6, -6), center + new Vector2(6, 6), Theme.Pack(color), 1.5f);
+        draw.AddLine(center + new Vector2(-6, 6), center + new Vector2(6, -6), Theme.Pack(color), 1.5f);
+        if (hovered)
+            ImGui.SetTooltip("Close");
+        return clicked;
     }
 
     private static void DrawBrand(ImDrawListPtr draw, Vector2 pos, Vector2 size)
