@@ -267,7 +267,9 @@ internal static class RetainerLiveChrome
 
         // The visible page bottom: body height less the 1 px border and 16 px bottom padding, in cursor space.
         var pageFill = bodyHeight - 17 - 16 - ImGui.GetCursorPos().Y;
-        var target = MathF.Max(MathF.Max(previous.Main, previous.Rail), pageFill);
+        // Equal column bottoms always; reaching down to the page bottom only when that adds little empty card.
+        var natural = MathF.Max(previous.Main, previous.Rail);
+        var target = pageFill - natural <= 72 ? MathF.Max(natural, pageFill) : natural;
         var savedFill = (_fillTop, _fillHeight);
         _fillTop = origin.Y;
         _fillHeight = target;

@@ -126,6 +126,7 @@ internal static class Program
             Live(p, Typical());
         }),
         new("16-ready-typical-narrow-scrolled", MinW, MinH, p => Live(p, Typical())) { ScrollToBottom = true },
+        new("17-ready-typical-scrolled", 980, 680, p => Live(p, Typical())) { ScrollToBottom = true },
         new("scale150-ready-typical", DefaultW, DefaultH, p => Live(p, Typical())) { Scale = 1.5f },
     ];
 
