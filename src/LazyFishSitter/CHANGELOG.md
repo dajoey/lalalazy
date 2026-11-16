@@ -1,4 +1,11 @@
-﻿## v0.1.5.5 (2026-11-15) [testing]
+﻿## v0.1.5.6 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The settings window opens larger so the whole page, both cards and the footer fit without being cut off; windows already saved at another size keep it.
+- The Sit sends card shows the plain number of sends this trip with no false cap or bar, and turns amber with "Retry limit reached" only when the retry limit is actually hit.
+- The invalid-command hint and the Last check line are visible on first open, and Needs setup reads as neutral instead of amber.
+- The header, close button with an anchored tooltip, neutral status pill and red Stop button match the other plugin windows; the redundant single-tab row and the rule under the page header are gone.
+
+## v0.1.5.5 (2026-11-15) [testing]
 - The plugin window now has a drawn close button in the top bar that closes the window, and the outer window no longer shows a redundant scrollbar; the inner body still scrolls when fishing details or a smaller window require it. Fishing policy, commands, configuration keys and saved settings are unchanged.
 
 ## v0.1.5.4 (2026-11-15) [testing]
