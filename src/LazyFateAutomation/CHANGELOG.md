@@ -1,4 +1,7 @@
-﻿## v0.0.3.12 (2026-11-14) [testing]
+﻿## v0.0.3.13 (2026-11-15) [testing]
+- The FATE window has been redrawn with a responsive card layout, custom close, settings and minimise controls in place of the native title bar, grouped settings, and persistent Start and Stop actions. Automation, saved settings and behaviour are unchanged, and existing configuration loads as-is.
+
+## v0.0.3.12 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.0.3.11 (2026-11-10) [testing]
