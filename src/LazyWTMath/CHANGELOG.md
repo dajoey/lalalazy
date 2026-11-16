@@ -1,3 +1,11 @@
+## v3.2.3.8 (2026-11-15) [testing]
+### Changed
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- Cards keep their content height, so the sticker map, Shuffle average, About and Journal overlay no longer stretch into empty space at large sizes.
+- At the default size the whole sticker map is visible in the Idle, Empty and Failed states too, and the three line-chance cards stay in one row down to the narrowest width.
+- The header has a bordered name chip, a neutral status pill showing only the state word and a What's new button.
+- The Close button shows an accent cross and outline on hover, with its tooltip directly beneath it.
+
 ## v3.2.3.7 (2026-11-15) [testing]
 ### Changed
 - The Dalamud Open actions now show a responsive probability window with a custom header without the native title bar, a close control, a live sticker count and sticker map, line chances and the solver-supplied shuffle averages. What's new in the header reopens this changelog. The probability text beside the journal uses higher-contrast colours. Solver results, configuration and commands are unchanged.
