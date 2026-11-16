@@ -58,7 +58,7 @@ internal static class ArmoireChrome
         ImGui.Dummy(new Vector2(MathF.Max(1, width), MathF.Max(0, height + gap - Theme.ItemSpacing.Y)));
     }
 
-    public static float Gutter(float windowWidth) => windowWidth >= 900 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
+    public static float Gutter(float windowWidth) => windowWidth >= 760 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
 
     // ---- text ----
 
@@ -297,7 +297,19 @@ internal static class ArmoireChrome
         draw.AddLine(center + new Vector2(-6, -6), center + new Vector2(6, 6), Theme.Pack(color), 1.5f);
         draw.AddLine(center + new Vector2(-6, 6), center + new Vector2(6, -6), Theme.Pack(color), 1.5f);
         if (hovered)
-            ImGui.SetTooltip("Close");
+        {
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
         return clicked;
     }
 
@@ -394,7 +406,7 @@ internal static class ArmoireChrome
         var origin = ImGui.GetCursorScreenPos() + new Vector2(0, Theme.Unit);
         var width = Avail();
         var windowWidth = ImGui.GetWindowWidth();
-        var wide = windowWidth >= 1000;
+        var wide = windowWidth >= 760;
         var shortWindow = ImGui.GetWindowHeight() < ShortWindow - 120;
         const float tile = 11 * Theme.Unit;
         var textX = origin.X + tile + Gap;
@@ -435,7 +447,7 @@ internal static class ArmoireChrome
 
         var height = MathF.Max(tile, textBottom - origin.Y);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), Radius);
-        Diamond(draw, origin + new Vector2(tile / 2f), 11, Theme.Pack(Theme.Accent));
+        Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
         Advance(origin - new Vector2(0, Theme.Unit), width, height + Theme.Unit, Gap + Theme.Unit);
     }
 
@@ -493,9 +505,12 @@ internal static class ArmoireChrome
 
             var min = new Vector2(pos.X + pad, y);
             var max = new Vector2(pos.X + cardWidth - pad, y + Theme.BarHeight);
-            draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
-            if (stat.Fraction is { } fraction && fraction > 0)
-                draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y), Theme.Pack(Theme.StateGreen), Theme.BarHeight / 2f);
+            if (stat.Fraction is { } fraction)
+            {
+                draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
+                if (fraction > 0)
+                    draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y), Theme.Pack(Theme.StateGreen), Theme.BarHeight / 2f);
+            }
             y += Theme.BarHeight + (2 * Theme.Unit);
 
             DrawWrapped(draw, new Vector2(pos.X + pad, y), stat.Note, cardWidth - (2 * pad),
@@ -808,7 +823,7 @@ internal static class ArmoireChrome
         var narrow = winSize.X < 620 && !compact;
         var lineHeight = LineHeight();
         var textBlock = compact ? lineHeight : lineHeight + Theme.Unit + LineHeight(Theme.SecondaryScale);
-        var stopSize = new Vector2(MathF.Max(24 * Theme.Unit, TextWidth("Stop") + (8 * Theme.Unit)), ControlHeight);
+        var stopSize = new Vector2(MathF.Max(72, TextWidth("Stop") + 32f), ControlHeight);
         var textLeft = winPos.X + gutter + Gap;
         float textTop;
         float textRight;
@@ -844,10 +859,9 @@ internal static class ArmoireChrome
             ImGui.SetCursorScreenPos(stopPos);
             stopClicked = ImGui.InvisibleButton("Stop", stopSize);
             var hovered = ImGui.IsItemHovered();
-            draw.AddRectFilled(stopPos, stopPos + stopSize, Theme.Pack(Theme.StateRed with { W = hovered ? 0.28f : 0.16f }), Radius);
-            draw.AddRect(stopPos, stopPos + stopSize, Theme.Pack(Theme.StateRed), Radius);
-            var textSize = ImGui.CalcTextSize("Stop");
-            draw.AddText(stopPos + ((stopSize - textSize) / 2f), Theme.Pack(Theme.StateRed), "Stop");
+            draw.AddRectFilled(stopPos, stopPos + stopSize, Theme.Pack(Theme.StateRed with { W = hovered ? 0.24f : 0.12f }), Radius);
+            draw.AddRect(stopPos, stopPos + stopSize, Theme.Pack(Theme.StateRed with { W = hovered ? 0.85f : 0.55f }), Radius);
+            DrawText(draw, stopPos + new Vector2((stopSize.X - TextWidth("Stop")) / 2f, (stopSize.Y - lineHeight) / 2f), "Stop", Theme.TextPrimary);
         }
     }
 }
