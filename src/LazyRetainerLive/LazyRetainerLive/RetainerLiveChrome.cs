@@ -47,6 +47,25 @@ internal static class RetainerLiveChrome
         draw.AddText(pos + new Vector2(27, (size.Y - textSize.Y) / 2f), Theme.Pack(color), label);
     }
 
+    public static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##retainerlive_close", size);
+        var hovered = ImGui.IsItemHovered();
+        var fill = hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface;
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(fill), 2 * Theme.Unit);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2 * Theme.Unit);
+
+        var center = pos + (size / 2f);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        const float extent = 6;
+        draw.AddLine(center + new Vector2(-extent, -extent), center + new Vector2(extent, extent), color, 1.5f);
+        draw.AddLine(center + new Vector2(-extent, extent), center + new Vector2(extent, -extent), color, 1.5f);
+        if (hovered)
+            ImGui.SetTooltip("Close");
+        return clicked;
+    }
+
     public static bool Toggle(string literalLabel, ref bool value, string? help)
     {
         var pos = ImGui.GetCursorScreenPos();
