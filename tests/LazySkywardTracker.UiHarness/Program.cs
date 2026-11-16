@@ -197,7 +197,11 @@ internal static class Program
         ImGui.Begin(window.WindowName, ref open, window.Flags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
+        var readsBefore = Plugin.CompletedReads;
         window.Draw();
+        var reads = Plugin.CompletedReads - readsBefore;
+        if (reads != Plugin.AchievementIds.Length)
+            throw new InvalidOperationException($"IsAchievementCompleted was read {reads} times in one frame; expected {Plugin.AchievementIds.Length} (once per job).");
         ImGui.End();
         window.PostDraw();
     }

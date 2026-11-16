@@ -33,6 +33,11 @@ internal static class Checks
         State("logged in without a progress report remains Empty", "Empty", Derive(true, 0, 0, 0, 0));
         State("all jobs complete remains Ready", "Ready", Derive(true, 11, 11, 5500000, 0));
         State("partial progress remains Running", "Running", Derive(true, 11, 4, 2000000, 0));
+        State("hook down is Blocked", "Blocked", Derive(true, 0, 0, 0, 0, tracking: false));
+        State("hook down stays Blocked even with cached progress", "Blocked", Derive(true, 11, 4, 2000000, 0, tracking: false));
+        Check("hook down reports why the points may be stale",
+            _reason.GetValue(Derive(true, 0, 0, 0, 0, tracking: false)) is string offline && offline == "progress hook did not start; points may be stale");
+        State("logged out wins over a dead hook", "Blocked", Derive(false, 0, 0, 0, 0, tracking: false));
 
         var projected = Derive(true, 11, 4, 2000000, 1200);
         Check("inventory points keep their live footer reason", _reason.GetValue(projected) is string reason && reason.Contains("points waiting", StringComparison.Ordinal));
@@ -79,8 +84,8 @@ internal static class Checks
             rows.All(r => Plugin.SkywardAchievements.TryGetValue(r.Id, out var s) && s.Job == r.Job && s.AchName == r.Ach));
     }
 
-    private static object Derive(bool loggedIn, int reports, int completed, uint current, uint inventory)
-        => _derive.Invoke(null, [loggedIn, reports, completed, current, inventory])
+    private static object Derive(bool loggedIn, int reports, int completed, uint current, uint inventory, bool tracking = true)
+        => _derive.Invoke(null, [loggedIn, tracking, reports, completed, current, inventory])
            ?? throw new InvalidOperationException("DeriveLive returned null");
 
     private static void State(string name, string expected, object live)

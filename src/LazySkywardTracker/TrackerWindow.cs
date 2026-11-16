@@ -57,6 +57,11 @@ public sealed class TrackerWindow : Window
             var projections = _plugin.Scanner.ScanInventory();
             var loggedIn = Plugin.ClientState.IsLoggedIn;
 
+            // Each completion read re-resolves the achievement table in the game; read each job once per frame and share the result.
+            var completed = new Dictionary<uint, bool>(Plugin.AchievementIds.Length);
+            foreach (var id in Plugin.AchievementIds)
+                completed[id] = Plugin.IsAchievementCompleted(id);
+
             uint totalCurrent = 0;
             uint totalInventoryPts = 0;
             var completedCount = 0;
@@ -64,7 +69,7 @@ public sealed class TrackerWindow : Window
 
             foreach (var id in Plugin.AchievementIds)
             {
-                if (Plugin.IsAchievementCompleted(id))
+                if (completed[id])
                 {
                     totalCurrent += PointsPerJob;
                     completedCount++;
@@ -83,7 +88,7 @@ public sealed class TrackerWindow : Window
                 }
             }
 
-            var live = DeriveLive(loggedIn, Plugin.ProgressCache.Count, completedCount, totalCurrent, totalInventoryPts);
+            var live = DeriveLive(loggedIn, Plugin.IsTracking, Plugin.ProgressCache.Count, completedCount, totalCurrent, totalInventoryPts);
             _winPos = ImGui.GetWindowPos();
             _winSize = ImGui.GetWindowSize();
             var gutter = SkywardChrome.Gutter(_winSize.X);
@@ -95,7 +100,7 @@ public sealed class TrackerWindow : Window
 
             var footerHeight = FooterHeight();
             ImGui.SetCursorPos(new Vector2(0, y));
-            DrawBody(new Vector2(_winSize.X, MathF.Max(40, _winSize.Y - footerHeight - y)), gutter, live, turnInItems, projections, loggedIn);
+            DrawBody(new Vector2(_winSize.X, MathF.Max(40, _winSize.Y - footerHeight - y)), gutter, live, turnInItems, projections, loggedIn, completed);
             DrawFooter(live, gutter, footerHeight);
         }
         finally
@@ -104,7 +109,7 @@ public sealed class TrackerWindow : Window
         }
     }
 
-    private void DrawBody(Vector2 size, float gutter, Live live, int turnInItems, Dictionary<uint, InventoryScanner.InventoryProjection> projections, bool loggedIn)
+    private void DrawBody(Vector2 size, float gutter, Live live, int turnInItems, Dictionary<uint, InventoryScanner.InventoryProjection> projections, bool loggedIn, Dictionary<uint, bool> completed)
     {
         // A one pixel transparent border makes the child honour its window padding, which gives the page the same
         // left and right gutter and a bottom margin; the scrollbar then sits on the window edge.
@@ -121,7 +126,7 @@ public sealed class TrackerWindow : Window
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent with { W = 0.6f });
         ImGui.BeginChild("##skyward_body", size, true);
         DrawStatCards(live, turnInItems);
-        DrawJobsCard(projections, loggedIn);
+        DrawJobsCard(projections, loggedIn, completed);
         // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
         if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
         {
@@ -136,10 +141,15 @@ public sealed class TrackerWindow : Window
         ImGui.PopStyleVar(5);
     }
 
-    private static Live DeriveLive(bool loggedIn, int progressReports, int completedCount, uint totalCurrent, uint totalInventoryPoints)
+    private const string TrackingOfflineReason = "progress hook did not start; points may be stale";
+
+    private static Live DeriveLive(bool loggedIn, bool tracking, int progressReports, int completedCount, uint totalCurrent, uint totalInventoryPoints)
     {
         if (!loggedIn)
             return new Live(UiState.Blocked, "waiting for you to log in", "no character", completedCount, totalCurrent, totalInventoryPoints);
+
+        if (!tracking)
+            return new Live(UiState.Blocked, "tracking offline", TrackingOfflineReason, completedCount, totalCurrent, totalInventoryPoints);
 
         if (progressReports == 0)
             return new Live(UiState.Empty, "awaiting first progress report", "press Refresh progress to request it now", completedCount, totalCurrent, totalInventoryPoints);
@@ -356,7 +366,7 @@ public sealed class TrackerWindow : Window
     // Rows that have no progress report are not an alert: they read neutral, amber stays with the Blocked pill and notice.
     private static Vector4 RowColor(UiState rowState) => rowState == UiState.Missing ? Theme.StateNeutral : Copy.MarkColor(rowState);
 
-    private void DrawJobsCard(Dictionary<uint, InventoryScanner.InventoryProjection> projections, bool loggedIn)
+    private void DrawJobsCard(Dictionary<uint, InventoryScanner.InventoryProjection> projections, bool loggedIn, Dictionary<uint, bool> completed)
     {
         var draw = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
@@ -385,6 +395,11 @@ public sealed class TrackerWindow : Window
         {
             noticeState = UiState.Blocked;
             notice = SkywardChrome.MeasureNotice(inner, "Log in to load Skyward achievement progress — the table fills in right after character select.");
+        }
+        else if (!Plugin.IsTracking)
+        {
+            noticeState = UiState.Blocked;
+            notice = SkywardChrome.MeasureNotice(inner, "Tracking offline — " + TrackingOfflineReason + ".");
         }
         else if (Plugin.ProgressCache.Count == 0)
         {
@@ -460,7 +475,7 @@ public sealed class TrackerWindow : Window
         foreach (var id in Plugin.AchievementIds)
         {
             var info = Plugin.SkywardAchievements[id];
-            var isCompleted = Plugin.IsAchievementCompleted(id);
+            var isCompleted = completed[id];
             uint current = 0;
             uint max = PointsPerJob;
             if (isCompleted)
