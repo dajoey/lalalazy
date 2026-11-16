@@ -89,7 +89,9 @@ public sealed class CollectorWindow : Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
-    // Scrollbar track reserved at the right of the body child.
+    // Scrollbar track reserved at the right of the body child. It sits inside the right gutter: the child's right
+    // padding is the gutter less the track and the content is indented by the track on the left, so the cards end
+    // at the same edge as the header controls.
     private const float ScrollTrack = 10f;
 
     private static float Gutter(float width) => width >= 760 ? 24 : width >= 560 ? 16 : 12;
@@ -147,7 +149,7 @@ public sealed class CollectorWindow : Window
         var footer = FooterFor(collection, donePieces, target);
         var footerHeight = FooterHeight(winSize.X, footer.Secondary);
         var bodyHeight = MathF.Max(80, winSize.Y - footerHeight - y);
-        DrawBodyChild(winSize.X, gutter, y, bodyHeight, () =>
+        DrawBodyChild(winSize.X, gutter, y, bodyHeight, headerInBody, () =>
         {
             if (headerInBody)
             {
@@ -579,8 +581,8 @@ public sealed class CollectorWindow : Window
             var metaWidth = MathF.Min(
                 MathF.Max(CollectorChrome.TextWidth(info.Count, sm), CollectorChrome.TextWidth(info.Subtext, sm)),
                 width * 0.4f);
-            // Content ends at the gutter minus the body's reserved scrollbar track; the meta aligns with the cards below.
-            var contentRight = width - gutter - ScrollTrack;
+            // Content, meta and the cards below all end at the window width less the gutter.
+            var contentRight = width - gutter;
             var textWidth = contentRight - textX - metaWidth - 16;
             var shownTitle = CollectorChrome.FitText(info.Title, textWidth, titleScale);
             var shownDescription = CollectorChrome.ClampLines(info.Description, textWidth, sm, 2);
@@ -639,7 +641,7 @@ public sealed class CollectorWindow : Window
 
     // ---- body -------------------------------------------------------------------------------------------------
 
-    private void DrawBodyChild(float width, float gutter, float top, float height, Action page)
+    private void DrawBodyChild(float width, float gutter, float top, float height, bool headerInBody, Action page)
     {
         // A one pixel transparent border makes the child honour its window padding: every page gets the same gutters
         // and a bottom margin. One scroll region for the whole body; the scrollbar track is always reserved so the
@@ -647,7 +649,7 @@ public sealed class CollectorWindow : Window
         ImGui.SetCursorPos(new Vector2(0, top));
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(MathF.Max(0, gutter - ScrollTrack), 16));
         ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, ScrollTrack);
         ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
         ImGui.PushStyleColor(ImGuiCol.Border, 0u);
@@ -657,6 +659,7 @@ public sealed class CollectorWindow : Window
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, _bodyScrolls ? Theme.Pack(Theme.TextSecondary with { W = 0.45f }) : 0u);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, _bodyScrolls ? Theme.Pack(Theme.Accent with { W = 0.6f }) : 0u);
         ImGui.BeginChild("##gear_body", new Vector2(width, height), true, ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        ImGui.Indent(gutter - MathF.Max(0, gutter - ScrollTrack));
         // The child has applied its own padding; tooltips opened from page content keep the theme padding.
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
         page();
@@ -677,6 +680,21 @@ public sealed class CollectorWindow : Window
                 window & 0x00FFFFFFu,
                 window | 0xFF000000u,
                 window | 0xFF000000u);
+        }
+
+        // Pinned page header: content that scrolled under it fades out instead of ending in a hard edge.
+        if (!headerInBody && ImGui.GetScrollY() > 1)
+        {
+            var bodyDraw = ImGui.GetWindowDrawList();
+            var min = ImGui.GetWindowPos();
+            var window = ImGui.GetColorU32(ImGuiCol.WindowBg);
+            bodyDraw.AddRectFilledMultiColor(
+                min,
+                new Vector2(min.X + width - 11, min.Y + 16),
+                window | 0xFF000000u,
+                window | 0xFF000000u,
+                window & 0x00FFFFFFu,
+                window & 0x00FFFFFFu);
         }
 
         ImGui.EndChild();
