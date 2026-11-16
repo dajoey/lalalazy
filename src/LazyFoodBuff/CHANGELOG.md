@@ -1,4 +1,7 @@
-﻿## v0.1.5.3 (2026-11-14) [testing]
+﻿## v0.1.5.4 (2026-11-15) [testing]
+- The settings window has been redesigned as a responsive card layout: a custom header with a close button instead of the native title bar, no outer scrollbar, switch-style toggles, live requirements and counts, cards that adapt to the window size, and a persistent footer with the live state and a Stop button that only turns the automation off. Food selection, fallback behavior, saved settings and automation are unchanged.
+
+## v0.1.5.3 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.5.2 (2026-11-10) [testing]
