@@ -1,4 +1,7 @@
-﻿## v0.1.0.5 (2026-11-15) [testing]
+## v0.1.0.6 (2026-11-15) [testing]
+- The settings window has a custom close button in the header, next to the state pill, that closes the window directly. The outer window scrollbar is removed; the body and the wide columns keep their own scrolling, so every card and setting stays reachable at narrow sizes while the footer and the Stop listener button remain in view.
+
+## v0.1.0.5 (2026-11-15) [testing]
 - The settings window has a new card-based layout: a custom header with a live state pill, summary cards for retainers, active ventures and free inventory slots, and cards for the loopback endpoint, snapshot continuity, requirements and settings. The layout wraps responsively at narrow and wide window sizes, and the body scrolls.
 - The window no longer has a native title bar. A footer pinned to the bottom shows the current listener state and keeps the "Stop listener" button reachable at every size.
 - Listener state, retainer details, inventory, venture progress and endpoint information are all taken from the live snapshot and listener status. Saved settings, the listener, automatic port rebinding, commands, Lazy Hub controls and the HTTP response format are unchanged.
