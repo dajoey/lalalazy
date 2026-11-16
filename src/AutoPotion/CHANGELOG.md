@@ -1,3 +1,7 @@
+## v0.2.5.5 (2026-11-15) [testing]
+### Changed
+- The settings window uses a custom header without the native title bar, pink navigation and toggle controls, responsive rule, requirement and settings cards, live profile counts and a persistent Stop footer. Settings, job profiles, potion decisions and automation behaviour are unchanged, and existing configuration loads as-is.
+
 ## v0.2.5.4 (2026-11-14) [testing]
 ### Changed
 - The settings window has been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents across every page. All settings, presets and automation behaviour are unchanged, and existing configuration loads as-is.
