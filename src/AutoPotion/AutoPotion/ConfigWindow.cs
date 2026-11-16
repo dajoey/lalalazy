@@ -253,13 +253,18 @@ internal sealed class ConfigWindow : Window
             var width = ImGui.GetWindowWidth();
             var top = ImGui.GetCursorScreenPos().Y - 16f;
             var draw = ImGui.GetWindowDrawList();
+            // The child clips to its padded inner rect; widen the clip to the whole child so the band is full bleed.
+            var childSize = ImGui.GetWindowSize();
+            var scrollbar = ImGui.GetScrollMaxY() > 0f ? ImGui.GetStyle().ScrollbarSize : 0f;
+            draw.PushClipRect(childPos, childPos + childSize, false);
             var used = DrawFeatureBar(draw, childPos.X, top, width, gutter);
-            used += DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, childPos.X + gutter, top + used, width - (2f * gutter), width);
+            used += DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, childPos.X + gutter, top + used, width - (2f * gutter) - scrollbar, width);
+            draw.PopClipRect();
             ImGui.SetCursorScreenPos(new Vector2(childPos.X + gutter, top + used + 16f));
             ImGui.Dummy(new Vector2(1f, 0f));
         }
 
-        AutoPotionChrome.Columns("page", () => DrawRules(job, rulesOn, profileCount), () => DrawRail(config, jobName, rulesOn, inCombat, inDuty), ColumnsBreakpoint);
+        AutoPotionChrome.Columns("page", () => DrawRules(job, rulesOn, profileCount, config.MasterEnable), () => DrawRail(config, jobName, rulesOn, inCombat, inDuty), ColumnsBreakpoint);
     }
 
     /// <summary>Soft edges where the body is cut by the bars: a fade at the bottom, and at the top once scrolled.</summary>
@@ -281,15 +286,28 @@ internal sealed class ConfigWindow : Window
             draw.AddRectFilledMultiColor(pos, pos + new Vector2(size.X, 16f), solid, solid, clear, clear);
     }
 
-    private void DrawRules(JobPotionSettings job, int rulesOn, int profileCount)
+    private void DrawRules(JobPotionSettings job, int rulesOn, int profileCount, bool masterEnabled)
+    {
+        AutoPotionChrome.Dim = !masterEnabled;
+        try
+        {
+            DrawRuleCards(job, rulesOn, profileCount);
+        }
+        finally
+        {
+            AutoPotionChrome.Dim = false;
+        }
+    }
+
+    private void DrawRuleCards(JobPotionSettings job, int rulesOn, int profileCount)
     {
         DrawStatCards(
             new Stat("Active rules", rulesOn.ToString(), "/ 4", rulesOn / 4f,
-                profileCount == 1 ? "1 profile including Default" : $"{profileCount} profiles including Default"),
+                profileCount == 1 ? "1 profile incl. Default" : $"{profileCount} profiles incl. Default"),
             new Stat("HP trigger", $"{job.HpPotionThreshold:F0}%", null, job.HpPotionThreshold / 100f,
-                job.HpPotionEnable ? "HP potion rule on" : "Threshold retained while off"),
+                job.HpPotionEnable ? "HP potion rule on" : "Threshold kept while off"),
             new Stat("MP trigger", $"{job.MpPotionThreshold:F0}%", null, job.MpPotionThreshold / 100f,
-                job.MpPotionEnable ? "MP potion rule on" : "Threshold retained while off"));
+                job.MpPotionEnable ? "MP potion rule on" : "Threshold kept while off"));
 
         AutoPotionChrome.Card("hp_rule", () =>
         {
@@ -420,6 +438,9 @@ internal sealed class ConfigWindow : Window
         var secondary = masterEnabled
             ? $"{jobName}: {rulesOn} of 4 rules enabled · changes save immediately"
             : "Automation is stopped · thresholds and job profiles are preserved";
+        var secondaryShort = masterEnabled
+            ? $"{jobName}: {rulesOn} of 4 rules on"
+            : "Profiles and thresholds are kept";
         var stopSize = AutoPotionChrome.StopSize();
         var right = winPos.X + winSize.X - gutter;
         var textLeft = winPos.X + gutter + 16f;
@@ -433,6 +454,9 @@ internal sealed class ConfigWindow : Window
         draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + winSize.X, top), Theme.Pack(Theme.SurfaceBorder));
         draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4f, blockTop + (lineHeight / 2f)), 4f, Theme.Pack(Copy.MarkColor(state)));
 
+        // Narrow windows use the short second line instead of cutting the long one.
+        if (AutoPotionChrome.TextWidth(secondary, Theme.SecondaryScale) > textRight - textLeft)
+            secondary = secondaryShort;
         var shownPrimary = AutoPotionChrome.Fit(primary, textRight - textLeft);
         AutoPotionChrome.DrawText(draw, new Vector2(textLeft, blockTop), shownPrimary, Theme.TextPrimary);
         var secondaryY = blockTop + lineHeight + 4f;
@@ -459,7 +483,10 @@ internal sealed class ConfigWindow : Window
         var compact = available < 560f;
         const float gap = 16f;
         var width = compact ? available : (available - (2f * gap)) / 3f;
-        var height = AutoPotionChrome.StatHeight(compact);
+        var noteHeight = 0f;
+        foreach (var stat in stats)
+            noteHeight = MathF.Max(noteHeight, AutoPotionChrome.StatNoteHeight(width, stat.Note));
+        var height = AutoPotionChrome.StatHeight(compact, noteHeight);
         var rowGap = compact ? 8f : gap;
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
@@ -468,7 +495,7 @@ internal sealed class ConfigWindow : Window
         {
             var stat = stats[i];
             var pos = origin + (compact ? new Vector2(0f, i * (height + rowGap)) : new Vector2(i * (width + gap), 0f));
-            AutoPotionChrome.StatCard(draw, pos, width, compact, stat.Label, stat.Value, stat.Cap, stat.Fraction, stat.Note);
+            AutoPotionChrome.StatCard(draw, pos, width, height, compact, stat.Label, stat.Value, stat.Cap, stat.Fraction, stat.Note);
         }
 
         var total = compact ? (stats.Length * height) + ((stats.Length - 1) * rowGap) : height;

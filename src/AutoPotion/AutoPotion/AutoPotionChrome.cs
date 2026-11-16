@@ -20,8 +20,12 @@ internal static class AutoPotionChrome
     private static float _stretch;
     private static float _lastBottom;
 
+    /// <summary>Set while the master switch is off: rule rows are drawn muted. Drawing only; no control changes.</summary>
+    internal static bool Dim;
+
     internal static void Reset()
     {
+        Dim = false;
         Rights.Clear();
         _fillBottom = 0f;
         _stretch = 0f;
@@ -368,13 +372,13 @@ internal static class AutoPotionChrome
         if (clicked)
             value = !value;
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(togglePos, togglePos + ToggleSize, Theme.Pack(value ? Theme.Accent : Theme.SurfaceBorder), ToggleSize.Y / 2f);
+        draw.AddRectFilled(togglePos, togglePos + ToggleSize, Theme.Pack(value ? (Dim ? Alpha(Theme.Accent, 0.45f) : Theme.Accent) : Theme.SurfaceBorder), ToggleSize.Y / 2f);
         if (hovered)
             draw.AddRect(togglePos, togglePos + ToggleSize, Theme.Pack(Theme.Accent), ToggleSize.Y / 2f);
         draw.AddCircleFilled(togglePos + new Vector2(value ? 32f : 12f, 12f), 8f, Theme.Pack(value ? Theme.Surface : Theme.TextSecondary));
 
         var textPos = origin + new Vector2(0f, top + ((core - block) / 2f));
-        DrawWrapped(draw, textPos, label, textWidth, Theme.TextPrimary);
+        DrawWrapped(draw, textPos, label, textWidth, Dim ? Theme.TextSecondary : Theme.TextPrimary);
         if (hasHelp)
             DrawWrapped(draw, textPos + new Vector2(0f, labelHeight + 4f), help!, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
 
@@ -385,8 +389,18 @@ internal static class AutoPotionChrome
 
     internal static bool ThresholdSlider(string id, string label, ref float value)
     {
-        TextBlock(label, Theme.SecondaryScale, Theme.TextSecondary, 4f);
+        // The value is drawn on the label line at the right, clear of the thumb; the slider's own text is hidden
+        // (transparent) so its format, and therefore the rounding of the saved value, stay as they were.
+        var draw = ImGui.GetWindowDrawList();
+        var labelOrigin = ImGui.GetCursorScreenPos();
         var width = Avail();
+        var valueText = $"{value:F0}%";
+        var valueWidth = TextWidth(valueText, Theme.SecondaryScale);
+        var labelHeight = LineHeight(Theme.SecondaryScale);
+        DrawText(draw, labelOrigin, Fit(label, width - valueWidth - 12f, Theme.SecondaryScale), Theme.TextSecondary, Theme.SecondaryScale);
+        DrawText(draw, new Vector2(labelOrigin.X + width - valueWidth, labelOrigin.Y), valueText, Dim ? Theme.TextSecondary : Theme.TextPrimary, Theme.SecondaryScale);
+        ImGui.Dummy(new Vector2(width, MathF.Max(1f, labelHeight + 4f - Theme.ItemSpacing.Y)));
+
         var padY = MathF.Max(0f, (28f - ImGui.GetFontSize()) / 2f);
         ImGui.SetNextItemWidth(MathF.Max(1f, width));
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, Radius);
@@ -396,10 +410,11 @@ internal static class AutoPotionChrome
         ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ShellBar);
         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Theme.Accent);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Dim ? Alpha(Theme.Accent, 0.5f) : Theme.Accent);
         ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
+        ImGui.PushStyleColor(ImGuiCol.Text, 0u);
         var changed = ImGui.SliderFloat("##autopotion_threshold_" + id, ref value, 1f, 99f, "%.0f%%");
-        ImGui.PopStyleColor(5);
+        ImGui.PopStyleColor(6);
         ImGui.PopStyleVar(4);
         return changed;
     }
@@ -447,13 +462,15 @@ internal static class AutoPotionChrome
 
     // ---- stat cards ----
 
-    internal static float StatHeight(bool compact) => compact
+    internal static float StatHeight(bool compact, float noteHeight = 0f) => compact
         ? 12f + MathF.Max(LineHeight(Theme.SecondaryScale), LineHeight(1.35f)) + 8f + Theme.BarHeight + 12f
-        : 16f + LineHeight(Theme.SecondaryScale) + 8f + LineHeight(1.7f) + 8f + Theme.BarHeight + 8f + LineHeight(Theme.SecondaryScale) + 16f;
+        : 16f + LineHeight(Theme.SecondaryScale) + 8f + LineHeight(1.7f) + 8f + Theme.BarHeight + 8f + MathF.Max(noteHeight, LineHeight(Theme.SecondaryScale)) + 16f;
 
-    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, bool compact, string label, string value, string? cap, float fraction, string note)
+    /// <summary>Height of a stat note wrapped to the card's inner width, so a long note grows the card instead of being cut.</summary>
+    internal static float StatNoteHeight(float cardWidth, string note) => WrappedHeight(note, cardWidth - 32f, Theme.SecondaryScale);
+
+    internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, float height, bool compact, string label, string value, string? cap, float fraction, string note)
     {
-        var height = StatHeight(compact);
         var pad = compact ? 12f : 16f;
         var inner = width - (2f * pad);
         draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.Surface), Radius);
@@ -503,10 +520,7 @@ internal static class AutoPotionChrome
         if (!compact)
         {
             y += Theme.BarHeight + 8f;
-            var shown = Fit(note, inner, Theme.SecondaryScale);
-            DrawText(draw, new Vector2(x, y), shown, fraction >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
-            if (shown != note)
-                HoverTip(new Vector2(x, y), new Vector2(x + inner, y + capHeight), note);
+            DrawWrapped(draw, new Vector2(x, y), note, inner, fraction >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
         }
     }
 
