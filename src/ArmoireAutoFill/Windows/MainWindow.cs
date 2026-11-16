@@ -40,7 +40,7 @@ public class MainWindow : Window
         _scanner = scanner;
         _cabinet = cabinet;
         _autoStore = autoStore;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(520, 380),
@@ -60,7 +60,7 @@ public class MainWindow : Window
         try
         {
             var (state, action) = OverallState();
-            ArmoireChrome.TopBar(Navigation, (int)_section, index => _section = (Section)index, state);
+            ArmoireChrome.TopBar(Navigation, (int)_section, index => _section = (Section)index, state, () => IsOpen = false);
 
             var showStop = c.AutoStoreOnOpen;
             var footerHeight = ArmoireChrome.FooterHeight(ImGui.GetContentRegionAvail().X, showStop);
