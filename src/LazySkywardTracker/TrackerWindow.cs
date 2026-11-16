@@ -20,7 +20,7 @@ public sealed class TrackerWindow : Window
     public TrackerWindow(Plugin plugin) : base("Lazy Skyward Tracker##lazysky")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(1180, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -112,7 +112,7 @@ public sealed class TrackerWindow : Window
         return new Live(UiState.Running, "tracking Skyward points", reason, completedCount, totalCurrent, totalInventoryPoints);
     }
 
-    private static void DrawTopBar(Live live)
+    private void DrawTopBar(Live live)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
@@ -121,15 +121,16 @@ public sealed class TrackerWindow : Window
         var brandWidth = MathF.Max(230, SkywardChrome.TextWidth(title, Theme.TitleScale) + 68);
         var statusText = $"{Copy.Word(live.State)} · {live.Completed} of {Plugin.AchievementIds.Length}";
         var statusWidth = MathF.Max(132, SkywardChrome.TextWidth(statusText) + 48);
+        var closeSize = new Vector2(34);
         var gap = 3 * Theme.Unit;
-        var singleRow = width >= brandWidth + statusWidth + gap;
+        var singleRow = width >= brandWidth + statusWidth + closeSize.X + (2 * gap);
         brandWidth = MathF.Min(brandWidth, width);
         statusWidth = MathF.Min(statusWidth, width);
         var barHeight = singleRow ? 66f : 108f;
         var brandPos = origin + new Vector2(0, 12);
-        var statusPos = singleRow
-            ? origin + new Vector2(width - statusWidth, 16)
-            : origin + new Vector2(width - statusWidth, 62);
+        var controlY = singleRow ? 16 : 62;
+        var statusPos = origin + new Vector2(width - statusWidth - closeSize.X - gap, controlY);
+        var closePos = origin + new Vector2(width - closeSize.X, controlY);
 
         draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
         draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
@@ -139,6 +140,8 @@ public sealed class TrackerWindow : Window
         SkywardChrome.DrawText(draw, brandPos + new Vector2(49, 10),
             SkywardChrome.FitText(title, brandWidth - 59, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
         SkywardChrome.StatusPill(draw, statusPos, new Vector2(statusWidth, 34), live.State, $"{live.Completed} of {Plugin.AchievementIds.Length}");
+        if (SkywardChrome.OutlineButton(draw, "close_window", "×", closePos, closeSize))
+            IsOpen = false;
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
