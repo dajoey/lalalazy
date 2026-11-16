@@ -26,7 +26,7 @@ column). Scroll scenarios send one mouse-wheel event to the real child windows, 
 The `scale150-` image is evidence only and is written in game mode only.
 
 Checks that run after rendering: the glyph audit (game mode), the drawn close button closes the window on a real press and
-release, and the drawn toggle flips its value on a real press and release.
+release, the drawn toggle flips its value on a real press and release, and a threshold slider takes a typed value (Ctrl+click, digits, Enter).
 
 ## Limits
 
