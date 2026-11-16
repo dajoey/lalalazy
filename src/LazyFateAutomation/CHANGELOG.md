@@ -1,4 +1,11 @@
-﻿## v0.0.3.13 (2026-11-15) [testing]
+﻿## v0.0.3.14 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The header has a bordered brand chip, outlined FATEs and Settings tabs, a Minimise button, a status pill and a drawn Close button, each with a tooltip; the tabs stack in two rows when the window is narrow.
+- Page headers show a larger title with the description and counts, and the footer shows a status dot, a two-line status and a fixed-width Start, Stop or Stopping button.
+- Every FATE sits in a card list with the whole row clickable, and stat cards show a progress bar only where a real ratio exists.
+- The FATE hover card says first whether a FATE will be automated and why it is blocked, followed by every event detail; dropdowns and the zone filter are bordered fields, and the Grind mode and Add sort criterion popups open below their buttons and scroll when room is short.
+
+## v0.0.3.13 (2026-11-15) [testing]
 - The FATE window has been redrawn with a responsive card layout, custom close, settings and minimise controls in place of the native title bar, grouped settings, and persistent Start and Stop actions. Automation, saved settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.0.3.12 (2026-11-14) [testing]
