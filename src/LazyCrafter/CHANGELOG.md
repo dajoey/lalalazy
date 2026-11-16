@@ -1,4 +1,7 @@
-﻿## v0.1.7.11 (2026-11-14) [testing]
+﻿## v0.1.7.12 (2026-11-15) [testing]
+- The plugin window now uses a responsive card-based shell for catalog, cart, run and settings, with integrated area navigation, destination search, live page counts, a close button in the header and persistent dispatch and footer actions. Catalog logic, cart editing, dispatch, integrations and saved configuration are unchanged.
+
+## v0.1.7.11 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.1.7.10 (2026-11-10) [testing]
