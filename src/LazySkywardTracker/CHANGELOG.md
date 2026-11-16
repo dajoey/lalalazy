@@ -1,4 +1,11 @@
-﻿## v0.0.3.5 (2026-11-15) [testing]
+﻿## v0.0.3.6 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- Job rows and the Refresh button keep a clear margin inside their card edges, so the points text no longer sits against the border.
+- Job rows are compact and vertically centred, with the job, achievement, progress bar and points aligned on one line.
+- Stat cards show a larger value at the same height; cards with a real ratio get a green progress bar and the inventory card shows no empty track.
+- The header has a bordered brand chip, a rounded status pill with only the state word and a drawn close button with a Close tooltip; log-in and no-data messages are tinted, rounded notices, and the footer stays visible even at the minimum size.
+
+## v0.0.3.5 (2026-11-15) [testing]
 - The tracker window now has a close button in its header, placed beside the status pill, and the redundant outer scrollbar is gone. The job list keeps its own scrolling for narrow windows. Tracking, settings, commands and refresh behaviour are unchanged.
 
 ## v0.0.3.4 (2026-11-15) [testing]
