@@ -33,7 +33,7 @@ public sealed class CollectorWindow : Window
     public CollectorWindow(Plugin plugin) : base("Lazy Gear Collector##lazygear")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(1100, 720);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -116,12 +116,11 @@ public sealed class CollectorWindow : Window
             _searchText = "";
 
         DrawTopBar(collection, state);
+        var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
+        ImGui.BeginChild("##gear_body", new Vector2(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
         DrawSearchResults(collection);
         DrawFeatureRow(collection);
         DrawPageHeader(collection, roles, donePieces, grandTotal);
-
-        var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
-        ImGui.BeginChild("##gear_body", new Vector2(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
         if (collection == null && _group != CollectorGroup.Settings)
         {
             DrawEmptyCollection();
@@ -171,14 +170,16 @@ public sealed class CollectorWindow : Window
         var groupSizes = groups.Select(group => new Vector2(MathF.Max(82, ImGui.CalcTextSize(GroupName(group)).X + 32), ControlHeight)).ToArray();
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(76, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
+        var closeSize = new Vector2(ControlHeight);
         var search = SearchEnabled(collection);
         const float minSearchWidth = 180;
         const float maxSearchWidth = 260;
         var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-        var singleRow = width >= leftWidth + statusSize.X + (2 * gap) + (search ? minSearchWidth + gap : 0);
+        var singleRow = width >= leftWidth + statusSize.X + closeSize.X + (3 * gap) + (search ? minSearchWidth + gap : 0);
         var groupPositions = new Vector2[groups.Length];
         var brandPos = new Vector2(0, 12);
         Vector2 statusPos;
+        Vector2 closePos;
         Vector2 searchPos = default;
         float searchWidth = 0;
         float barHeight;
@@ -193,7 +194,8 @@ public sealed class CollectorWindow : Window
                 groupPositions[i] = new Vector2(x, y);
                 x += groupSizes[i].X + gap;
             }
-            statusPos = new Vector2(width - statusSize.X, y);
+            statusPos = new Vector2(width - closeSize.X - gap - statusSize.X, y);
+            closePos = new Vector2(width - closeSize.X, y);
             if (search)
             {
                 searchWidth = MathF.Min(maxSearchWidth, statusPos.X - gap - x);
@@ -202,7 +204,8 @@ public sealed class CollectorWindow : Window
         }
         else
         {
-            statusPos = new Vector2(width - statusSize.X, 16);
+            statusPos = new Vector2(width - closeSize.X - gap - statusSize.X, 16);
+            closePos = new Vector2(width - closeSize.X, 16);
             float x = 0;
             float y = 62;
             for (var i = 0; i < groups.Length; i++)
@@ -245,6 +248,10 @@ public sealed class CollectorWindow : Window
         if (search)
             DrawSearchInput(origin + searchPos, searchWidth);
         CollectorChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (CollectorChrome.OutlineButton(draw, "close", "×", origin + closePos, closeSize))
+            IsOpen = false;
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Close");
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
