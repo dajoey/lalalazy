@@ -1,3 +1,7 @@
+## v3.2.3.9 (2026-11-16) [testing]
+- Fixed a crash risk while logging in or out with the Wondrous Tails journal open.
+- The probability overlay no longer recomputes every frame.
+
 ## v3.2.3.8 (2026-11-15) [testing]
 ### Changed
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
