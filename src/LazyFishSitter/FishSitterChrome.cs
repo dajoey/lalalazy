@@ -349,10 +349,9 @@ internal static class FishSitterChrome
 
             var noteColor = stat.Warn ? Theme.StateAmber : stat.Fraction >= 1f ? Theme.StateGreen : Theme.TextSecondary;
             DrawText(draw, new Vector2(pos.X + Pad, y), FitText(stat.Note, inner, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
-            ImGui.SetCursorScreenPos(pos);
-            ImGui.InvisibleButton("##fish_sitter_stat_" + i, size);
-            if (TextWidth(stat.Note, Theme.SecondaryScale) > inner)
-                Tooltip(stat.Note);
+            // Hover test only, with no item over the card, so a press on a card still drags the window.
+            if (ImGui.IsWindowHovered() && ImGui.IsMouseHoveringRect(pos, pos + size) && TextWidth(stat.Note, Theme.SecondaryScale) > inner)
+                ImGui.SetTooltip(stat.Note);
         }
         var totalHeight = stacked ? (stats.Length * height) + ((stats.Length - 1) * gap) : height;
         ImGui.SetCursorScreenPos(origin);

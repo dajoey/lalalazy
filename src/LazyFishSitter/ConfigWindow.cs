@@ -9,6 +9,8 @@ namespace LazyFishSitter;
 internal class ConfigWindow : Window
 {
     private const float ControlHeight = 36f;
+    private const float DefaultHeight = 780f;
+    private const float MinimumHeight = 480f;
     private readonly Plugin _plugin;
 
     private readonly record struct LiveStatus(UiState State, string Action, string? Reason);
@@ -17,16 +19,23 @@ internal class ConfigWindow : Window
     {
         _plugin = plugin;
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        Size = new Vector2(900, 780);
+        Size = new Vector2(900, DefaultHeight);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(420, 480),
+            MinimumSize = new Vector2(420, MinimumHeight),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
     }
 
-    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+    public override void PreDraw()
+    {
+        // First-use height follows the screen so the footer stays on it at 1280x720; a saved size always wins.
+        var screenHeight = ImGui.GetMainViewport().Size.Y;
+        if (screenHeight > 0)
+            Size = new Vector2(900, Math.Clamp(screenHeight - 80, MinimumHeight, DefaultHeight));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+    }
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
@@ -381,7 +390,7 @@ internal class ConfigWindow : Window
 
         var textMin = new Vector2(left + 16, textTop);
         var textMax = textMin + new Vector2(layout.TextWidth, block);
-        if (ImGui.IsMouseHoveringRect(textMin, textMax) && layout.FullSecondary.Length > 0)
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseHoveringRect(textMin, textMax) && layout.FullSecondary.Length > 0)
             ImGui.SetTooltip(layout.FullSecondary);
 
         var actionPos = layout.Narrow
