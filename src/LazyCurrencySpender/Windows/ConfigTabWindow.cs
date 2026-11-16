@@ -20,7 +20,7 @@ internal class ConfigTabWindow : Window
     private Section _section = Section.Settings;
     private readonly CurrencyChrome.ShellControls _controls;
 
-    public ConfigTabWindow() : base("ConfigTabWindow", ImGuiWindowFlags.NoTitleBar)
+    public ConfigTabWindow() : base("ConfigTabWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _controls = new(this, new Vector2(520, 360), new Vector2(9999, 9999));
         P.ws.AddWindow(this);

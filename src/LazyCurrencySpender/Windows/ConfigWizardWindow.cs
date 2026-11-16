@@ -21,7 +21,7 @@ internal class ConfigWizardWindow : Window
         { "1.2.4", DrawVersion1_2_4Steps },
     };
 
-    public ConfigWizardWindow() : base("ConfigWizardWindow", ImGuiWindowFlags.NoTitleBar)
+    public ConfigWizardWindow() : base("ConfigWizardWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _controls = new(this, new Vector2(520, 420), new Vector2(float.MaxValue, float.MaxValue));
         CalculateSteps();

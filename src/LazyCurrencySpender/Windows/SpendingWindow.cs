@@ -16,7 +16,7 @@ internal class SpendingWindow : Window
     internal static List<ShopItem>? GeneralItems;
     private readonly CurrencyChrome.ShellControls _controls;
 
-    public SpendingWindow() : base("SpendingWindow", ImGuiWindowFlags.NoTitleBar)
+    public SpendingWindow() : base("SpendingWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _controls = new(this, new Vector2(720, 360), new Vector2(float.MaxValue, float.MaxValue));
         P.ws.AddWindow(this);

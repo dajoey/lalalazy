@@ -17,7 +17,7 @@ internal class MainTabWindow : Window
     private Section _section = Section.Currencies;
     private readonly CurrencyChrome.ShellControls _controls;
 
-    public MainTabWindow() : base($"{P.Name} {P.Version}###MainTabWindow", ImGuiWindowFlags.NoTitleBar)
+    public MainTabWindow() : base($"{P.Name} {P.Version}###MainTabWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _controls = new(this, new Vector2(460, 320), new Vector2(9999, 9999));
         P.ws.AddWindow(this);

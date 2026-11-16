@@ -51,10 +51,16 @@ internal unsafe class CurrencyOverlay : Window
                     Position = new(addon->X, addon->Y - height);
                 var label = "Open Currency Spender";
                 var size = new Vector2(ImGui.CalcTextSize(label).X + 34, 34);
-                if (CurrencyChrome.OutlineButton(ImGui.GetWindowDrawList(), "overlay_open", label,
-                        ImGui.GetCursorScreenPos(), size, true))
+                var origin = ImGui.GetCursorScreenPos();
+                var draw = ImGui.GetWindowDrawList();
+                if (CurrencyChrome.OutlineButton(draw, "overlay_open", label, origin, size, true))
                     P.mainTabWindow.IsOpen = true;
-                if (C.OpenAutomatically && !MainIsOpen)
+                var closePos = origin + new Vector2(size.X + (2 * LalaUiKit.Theme.Unit), 0);
+                if (CurrencyChrome.OutlineButton(draw, "overlay_close", "×", closePos, new Vector2(30, size.Y)))
+                    IsOpen = false;
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Close");
+                if (IsOpen && C.OpenAutomatically && !MainIsOpen)
                 {
                     P.mainTabWindow.IsOpen = true;
                     MainIsOpen = true;

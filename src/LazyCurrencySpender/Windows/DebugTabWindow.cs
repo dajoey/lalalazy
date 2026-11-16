@@ -10,7 +10,7 @@ internal class DebugTabWindow : Window
 {
     private readonly CurrencyChrome.ShellControls _controls;
 
-    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow", ImGuiWindowFlags.NoTitleBar)
+    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _controls = new(this, new Vector2(520, 320), new Vector2(9999, 9999));
         P.ws.AddWindow(this);
