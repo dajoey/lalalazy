@@ -168,8 +168,27 @@ internal static class MarketChrome
     return length == 0 ? "" : text[..length].TrimEnd() + ellipsis;
   }
 
-  /// <summary>Greedy word wrap into at most maxLines lines at the draw size; the last line is elided.</summary>
-  internal static List<string> WrapText(string text, float width, float scale, int maxLines)
+  /// <summary>Quality marker that follows an item name; never elided.</summary>
+  internal const string HqMark = " (HQ)";
+
+  internal static string ItemLabel(string name, bool hq) => hq ? name + HqMark : name;
+
+  /// <summary>FitText for text that ends in a marker which must stay whole: only the part before the suffix is elided.</summary>
+  internal static string FitTextKeepSuffix(string text, string suffix, float width, float scale = 1)
+  {
+    if (suffix.Length == 0 || !text.EndsWith(suffix, StringComparison.Ordinal))
+      return FitText(text, width, scale);
+    if (TextWidth(text, scale) <= width)
+      return text;
+    var room = width - TextWidth(suffix, scale);
+    var head = text[..^suffix.Length];
+    if (room <= TextWidth("…", scale))
+      return FitText(text, width, scale);
+    return FitText(head, room, scale) + suffix;
+  }
+
+  /// <summary>Greedy word wrap into at most maxLines lines at the draw size; the last line is elided (keepSuffix, when the text ends in it, stays whole).</summary>
+  internal static List<string> WrapText(string text, float width, float scale, int maxLines, string keepSuffix = "")
   {
     var lines = new List<string>();
     if (text.Length == 0 || width <= 0)
@@ -192,7 +211,7 @@ internal static class MarketChrome
       else
         line = candidate;
     }
-    lines.Add(FitText(line, width, scale));
+    lines.Add(FitTextKeepSuffix(line, keepSuffix, width, scale));
     return lines;
   }
 
@@ -793,7 +812,7 @@ internal static class MarketChrome
   }
 
   /// <summary>A row with a one or two line text block on the left and a button on the right. Returns true when the button was pressed.</summary>
-  internal static bool ActionRow(string title, string? sub, string buttonLabel)
+  internal static bool ActionRow(string title, string? sub, string buttonLabel, string keepSuffix = "")
   {
     var pos = ImGui.GetCursorScreenPos();
     var width = Avail();
@@ -807,7 +826,7 @@ internal static class MarketChrome
     var rowH = top + contentH + RowPad;
     var y = pos.Y + top + ((contentH - block) / 2f);
     var draw = ImGui.GetWindowDrawList();
-    var shownTitle = FitText(title, textW);
+    var shownTitle = FitTextKeepSuffix(title, keepSuffix, textW);
     DrawText(draw, new Vector2(pos.X, y), shownTitle, Theme.TextPrimary);
     var shownSub = sub is null ? string.Empty : FitText(sub, textW, Theme.SecondaryScale);
     if (sub is not null)
@@ -1180,10 +1199,10 @@ internal static class MarketChrome
   }
 
   /// <summary>Cell text that is elided to the column and shows the full text on hover.</summary>
-  internal static void CellText(string text, Vector4? color = null)
+  internal static void CellText(string text, Vector4? color = null, string keepSuffix = "")
   {
     var room = ImGui.GetContentRegionAvail().X;
-    var shown = FitText(text, room);
+    var shown = FitTextKeepSuffix(text, keepSuffix, room);
     if (color is { } c)
       ImGui.PushStyleColor(ImGuiCol.Text, c);
     ImGui.TextUnformatted(shown);

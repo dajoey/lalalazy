@@ -136,6 +136,7 @@ internal static class Fixtures
     Add(44158, true, stack: 99);
     Add(44160, false, enabled: false);
     Add(44164, true, stack: 50, maxList: 4);
+    Add(44164, false, stack: 50, maxList: 4);
     Add(5114, false, stack: 99, keepRet: 200);
     Add(12537, false, stack: 99, source: StockSource.RetainerOnly);
     Add(39931, false, stack: 99, fixedPrice: 1450);

@@ -516,7 +516,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var left = onList ? x + 44 + 10 : x;
     var nameRoom = pos.X + pad + inner - left;
     var name = $"{row.Name}{(row.Hq ? " (HQ)" : "")}";
-    var nameLines = MarketChrome.WrapText(name, nameRoom, 1f, 2);
+    var nameLines = MarketChrome.WrapText(name, nameRoom, 1f, 2, row.Hq ? MarketChrome.HqMark : "");
     var nameH = MathF.Max(onList ? line : 0, nameLines.Count * MarketChrome.LineHeight());
     var height = pad + nameH + 6 + line + (onList ? 8 + line + 8 + line : 0) + pad;
     draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.ShellBar), 8f);

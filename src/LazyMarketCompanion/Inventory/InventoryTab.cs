@@ -380,7 +380,7 @@ internal sealed class InventoryTab
       ImGui.TableNextRow();
       ImGui.TableNextColumn();
       ImGui.AlignTextToFramePadding();
-      MarketChrome.CellText(ItemNameResolver.GetItemName(row.Stack.ItemId) + (row.Stack.Hq ? " (HQ)" : string.Empty));
+      MarketChrome.CellText(ItemNameResolver.GetItemName(row.Stack.ItemId) + (row.Stack.Hq ? MarketChrome.HqMark : string.Empty), null, row.Stack.Hq ? MarketChrome.HqMark : "");
       Tip($"Item {row.Stack.ItemId}, {InventoryActionLine.Slot(row.Stack.Container, row.Stack.Slot)}, Quick Exploration delivered {row.Delivered} in the window");
       ImGui.TableNextColumn();
       ImGui.AlignTextToFramePadding();

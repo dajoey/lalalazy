@@ -367,7 +367,9 @@ public sealed class ConfigWindow : Window
       {
         var hq = _searchHq && canHq;
         var already = c.GetAutoMarketItem(id, hq) != null;
-        if (ImGui.Selectable($"{name}{(hq ? " (HQ)" : "")}{(already ? "  [on list]" : "")}##add{id}", false, ImGuiSelectableFlags.None, new Vector2(0, rowH)))
+        var tail = (hq ? MarketChrome.HqMark : "") + (already ? "  [on list]" : "");
+        var rowLabel = MarketChrome.FitTextKeepSuffix(name + tail, tail, ImGui.GetContentRegionAvail().X - 24f);
+        if (ImGui.Selectable($"{rowLabel}##add{id}", false, ImGuiSelectableFlags.None, new Vector2(0, rowH)))
         {
           c.GetOrAddAutoMarketItem(id, hq);
           c.Save();
@@ -422,7 +424,7 @@ public sealed class ConfigWindow : Window
 
         ImGui.TableNextColumn();
         ImGui.AlignTextToFramePadding();
-        MarketChrome.CellText($"{ItemNameResolver.GetItemName(entry.ItemId)}{(entry.HQ ? " (HQ)" : "")}");
+        MarketChrome.CellText(MarketChrome.ItemLabel(ItemNameResolver.GetItemName(entry.ItemId), entry.HQ), null, entry.HQ ? MarketChrome.HqMark : "");
         if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Item ID: {entry.ItemId}  max stack {ItemNameResolver.MaxStack(entry.ItemId)}");
 
         ImGui.TableNextColumn();
@@ -502,7 +504,7 @@ public sealed class ConfigWindow : Window
       var draw = ImGui.GetWindowDrawList();
       var name = $"{ItemNameResolver.GetItemName(entry.ItemId)}{(entry.HQ ? " (HQ)" : "")}";
       var left = pos.X + pad + 44 + 10;
-      var nameLines = MarketChrome.WrapText(name, pos.X + pad + inner - left, 1f, 2);
+      var nameLines = MarketChrome.WrapText(name, pos.X + pad + inner - left, 1f, 2, entry.HQ ? MarketChrome.HqMark : "");
       var nameH = MathF.Max(line, nameLines.Count * MarketChrome.LineHeight());
       var height = pad + nameH + (4 * (8 + line)) + pad;
       draw.AddRectFilled(pos, pos + new Vector2(avail, height), Theme.Pack(Theme.ShellBar), 8f);
@@ -732,7 +734,7 @@ public sealed class ConfigWindow : Window
         title = $"{ItemNameResolver.GetItemName(itemId)}{(hq ? " (HQ)" : "")}";
         sub = $"{session}, {FriendlyPlace((InventoryType)container, slot)} · {heldSince}";
       }
-      if (MarketChrome.ActionRow(title, sub, $"Retry now##quarantinedRetry{key}"))
+      if (MarketChrome.ActionRow(title, sub, $"Retry now##quarantinedRetry{key}", hq ? MarketChrome.HqMark : ""))
         release = key;
     }
     if (releaseAll)
