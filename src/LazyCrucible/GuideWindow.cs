@@ -16,7 +16,7 @@ internal sealed class GuideWindow : Window
         _shell = shell;
         _shell.CloseRequested = () => IsOpen = false;
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(380, 260), MaximumSize = new Vector2(1400, 1600) };
+        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(380, 600), MaximumSize = new Vector2(1400, 1600) };
         Size = new Vector2(1280, 840);
         SizeCondition = ImGuiCond.FirstUseEver;
     }

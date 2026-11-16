@@ -100,10 +100,17 @@ internal static class CrucibleChrome
         if (TextWidth(text, scale) <= width + 1f)
             return text;
         const string ellipsis = "…";
-        var length = text.Length;
-        while (length > 0 && TextWidth(text[..length] + ellipsis, scale) > width)
-            length--;
-        return length == 0 ? "" : text[..length].TrimEnd() + ellipsis;
+        var lo = 0;
+        var hi = text.Length;
+        while (lo < hi)
+        {
+            var mid = (lo + hi + 1) / 2;
+            if (TextWidth(text[..mid] + ellipsis, scale) <= width)
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        return lo == 0 ? "" : text[..lo].TrimEnd() + ellipsis;
     }
 
     /// <summary>Clamp wrapped text to a number of lines, ending in an ellipsis when it is cut.</summary>
@@ -267,7 +274,9 @@ internal static class CrucibleChrome
         var contentWidth = (Theme.DotRadius * 2) + (2 * Theme.Unit) + textSize.X;
         var left = pos.X + ((size.X - contentWidth) / 2f);
         draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
-        draw.AddText(new Vector2(left + (Theme.DotRadius * 2) + (2 * Theme.Unit), pos.Y + ((size.Y - textSize.Y) / 2f)), Theme.Pack(color), label);
+        // The neutral state colour is too dim for text on the pill; the dot keeps it, the word reads as secondary text.
+        var textColor = state is UiState.Idle or UiState.Empty or UiState.NeedsSetup ? Theme.TextSecondary : color;
+        draw.AddText(new Vector2(left + (Theme.DotRadius * 2) + (2 * Theme.Unit), pos.Y + ((size.Y - textSize.Y) / 2f)), Theme.Pack(textColor), label);
     }
 
     // ---- combo ----

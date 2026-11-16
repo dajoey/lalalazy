@@ -146,8 +146,11 @@ internal sealed class CrucibleShell
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.TextSecondary with { W = 0.45f });
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent with { W = 0.6f });
         ImGui.BeginChild("##crucibleBody", size, true);
+        // The child has applied its own padding; popups and tooltips opened from page content keep the theme padding.
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
         DrawStatusBanner();
         CruciblePages.Render(this, CurrentPage);
+        ImGui.PopStyleVar();
         // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
         if (ImGui.GetScrollMaxY() > 0 && ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
         {

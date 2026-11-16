@@ -84,6 +84,7 @@ internal static class Program
             // Smaller sizes of the same state: a realistic narrow resize, then the narrowest width the window allows.
             MainWin("main-roster-horns-920x640", 920, 640, Roster, Populated),
             MainWin("main-roster-horns-420x840", 420, 840, Roster, Populated),
+            MainWin("main-roster-horns-minimum-size", 420, 600, Roster, Populated),
             MainWin("scale150-main-roster-horns-1280x840", FirstUseWidth, FirstUseHeight, Roster, Populated, scale: 1.5f),
             // Home: live overview, and the failed state (older plugin writing the same screens) with nothing recorded yet.
             MainWin("main-home-1280x840", FirstUseWidth, FirstUseHeight, CrucibleShell.OverviewPage, Populated),
@@ -113,6 +114,8 @@ internal static class Program
                 IncomingAtomicRay();
             }),
             GuideWin("guide-upcoming-380x840", 380, FirstUseHeight, state: () => { Populated(); FocusOn(5, 11); }),
+            GuideWin("guide-upcoming-minimum-size", 380, 600, state: () => { Populated(); FocusOn(5, 11); }),
+            GuideWin("guide-upcoming-short-1280x600", FirstUseWidth, 600, state: () => { Populated(); FocusOn(5, 11); }),
             GuideWin("guide-idle-1280x840", FirstUseWidth, FirstUseHeight, state: () => FocusOnly(0, -1)),
             GuideWin("guide-missing-entry-920x640", 920, 640, state: () => FocusOnly(4, 99)),
             GuideWin("guide-browse-1280x840", FirstUseWidth, FirstUseHeight, "guide.browse", Populated, s => { s.GuideFollow = false; s.GuideBoard = 4; s.GuideBattle = 8; }),
@@ -195,7 +198,7 @@ internal static class Program
         var here = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
         var current = here == board ? CrucibleGame.CurrentBattle() : -1;
         var tag = info.Role switch { CrucibleRole.Boss => "boss", CrucibleRole.EliteEnemy => "elite", _ => "enemy" };
-        return $"{(battle == current ? "> " : "")}{BST_CrucibleData.BattleLabel(board, battle)} ({tag}{(info.RandomOnly ? ", random space" : "")})##lc{board}_{battle}";
+        return $"{BST_CrucibleData.BattleLabel(board, battle)} ({tag}{(info.RandomOnly ? ", random space" : "")}){(battle == current ? " · current" : "")}##lc{board}_{battle}";
     }
 
     public static int Main(string[] args)

@@ -495,11 +495,18 @@ internal static class CrucibleGuidePages
                 {
                     var label = BST_CrucibleData.BattleLabel(battle.Board, battle.Battle);
                     var tag = battle.Role switch { CrucibleRole.Boss => "boss", CrucibleRole.EliteEnemy => "elite", _ => "enemy" };
-                    var header = $"{(battle.Battle == current ? "> " : "")}{label} ({tag}{(battle.RandomOnly ? ", random space" : "")})##lc{battle.Board}_{battle.Battle}";
-                    if (!ImGui.TreeNode(header))
+                    var isCurrent = battle.Battle == current;
+                    var header = $"{label} ({tag}{(battle.RandomOnly ? ", random space" : "")}){(isCurrent ? " · current" : "")}##lc{battle.Board}_{battle.Battle}";
+                    if (isCurrent)
+                        ImGui.PushStyleColor(ImGuiCol.Text, Theme.Accent);
+                    var open = ImGui.TreeNode(header);
+                    if (isCurrent)
+                        ImGui.PopStyleColor();
+                    if (!open)
                         continue;
-                    if (ImGui.Selectable("Show in the loadout rail##advisor_select_" + header, shell.AdvisorBattle == battle.Battle, ImGuiSelectableFlags.None, new Vector2(CrucibleChrome.Avail(), 0)))
+                    if (CrucibleChrome.ListRow($"advisor_select_{battle.Board}_{battle.Battle}", "Show in the loadout rail", null, null, shell.AdvisorBattle == battle.Battle))
                         shell.AdvisorBattle = battle.Battle;
+                    ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
                     var weaknesses = BST_CrucibleData.Enemies.Where(e => e.Board == battle.Board && e.Battle == battle.Battle)
                         .Select(e => $"{e.Name}: {e.Weakness}");
                     Widgets.SecondaryWrapped(string.Join("; ", weaknesses));
@@ -514,6 +521,7 @@ internal static class CrucibleGuidePages
                     var capture = BST_CrucibleNeedFirst.WorthCapturing(battle.Board, battle.Battle, CrucibleGame.BeastCaptured, selection);
                     if (CrucibleGame.RosterLoaded && capture.Count > 0)
                         ImGui.TextWrapped("Worth capturing: " + string.Join(", ", capture.Select(c => $"{CruciblePages.BeastName(c.Row)} (L{BST_Beasts.All[c.Row].CaptureLevel}: {c.Why})")));
+                    ImGui.PopStyleColor();
                     ImGui.TreePop();
                 }
                 ImGui.PopStyleColor(3);
