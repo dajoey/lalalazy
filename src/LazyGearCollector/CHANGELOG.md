@@ -1,4 +1,11 @@
-﻿## v0.0.2.4 (2026-11-15) [testing]
+﻿## v0.0.2.5 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The window uses a branded top bar with Overview, Roles and Settings, a status pill and a close button, plus a page header and a two-line status footer.
+- Overview shows progress cards, a role progress list and a requirements card beside the settings.
+- Role pages list each piece with its owned state and the materials still needed, with long material names shown in full.
+- Search results open in a floating list under the search box so the page does not shift while typing, and narrow windows collapse the page choices into a dropdown.
+
+## v0.0.2.4 (2026-11-15) [testing]
 - The collector window now presents role progress, material requirements, ownership and collection settings in a responsive card-based layout with custom navigation, a close button and search across roles and pages. Collection planning, ownership scanning, shop and trade-up logic, saved settings and hub quick controls are unchanged.
 
 ## v0.0.2.3 (2026-11-14) [testing]
