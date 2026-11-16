@@ -40,8 +40,8 @@ internal class ItemsTab
                         UiHelper.LeftAlign(currentItem.Name.ToString());
                         if (ImGui.IsItemHovered() && C.Debug)
                         {
-                            ImGui.BeginTooltip();
-                            UiHelper.LeftAlign($"ID: {item}");
+                            ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
+                            ImGui.TextUnformatted($"ID: {item}");
                             ImGui.EndTooltip();
                         }
 

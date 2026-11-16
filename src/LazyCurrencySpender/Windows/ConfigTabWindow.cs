@@ -47,7 +47,8 @@ internal class ConfigTabWindow : Window
                 : ["Settings", "Currencies", "Items", "Changelog", "About"];
             _section = (Section)CurrencyChrome.FeatureRow("config_nav", sections, (int)_section);
 
-            CurrencyChrome.BeginBody("##currency_config_body"); // Fork: shared scrolling body child with the suite gutter
+            var footerHeight = CurrencyChrome.FooterHeight(); // Fork: suite footer status line
+            CurrencyChrome.BeginBody("##currency_config_body", footerHeight); // Fork: shared scrolling body child with the suite gutter
             switch (_section)
             {
                 case Section.Settings:
@@ -88,6 +89,7 @@ internal class ConfigTabWindow : Window
                     break;
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
+            CurrencyChrome.Footer(footerHeight, $"{C.SelectedCurrencies.Count} currencies tracked · {C.ItemsOfInterest.Count} items of interest", UiState.Idle);
         }
         finally
         {

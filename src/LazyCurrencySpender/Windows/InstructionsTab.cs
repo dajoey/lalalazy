@@ -17,6 +17,7 @@ internal class InstructionsTab
         CurrencyChrome.Card("shared_fate_help", () =>
         {
             CurrencyChrome.Section("Shared FATE ranks");
+            ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, ImGui.GetCursorScreenPos().Y - 12)); // Fork: tighter title-to-body gap
             CurrencyChrome.Muted(
                 "If the current Shared FATE rank cannot be retrieved, a warning appears in the main window. Open the shared FATE rank screen from that warning so the plugin can read the required information.");
         }, CurrencyCardTone.Attention);
@@ -31,7 +32,7 @@ internal class InstructionsTab
             CurrencyChrome.StepBadge(number);
             ImGui.SetCursorScreenPos(origin + new Vector2(44, 4));
             CurrencyChrome.Section(title);
-            ImGui.SetCursorScreenPos(new Vector2(origin.X + 44, ImGui.GetCursorScreenPos().Y));
+            ImGui.SetCursorScreenPos(new Vector2(origin.X + 44, ImGui.GetCursorScreenPos().Y - 12)); // Fork: tighter title-to-body gap (Section trails 12 px)
             CurrencyChrome.Muted(body);
         });
     }

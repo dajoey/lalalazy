@@ -41,7 +41,8 @@ internal class SpendingWindow : Window
                 utilityAction: C.Debug ? RefreshPrices : null, utilityTooltip: "Force refresh Universalis");
             if (minimized)
                 return;
-            CurrencyChrome.BeginBody("##currency_spending_body"); // Fork: shared scrolling body child; the page header scrolls with it
+            var footerHeight = CurrencyChrome.FooterHeight(); // Fork: suite footer status line
+            CurrencyChrome.BeginBody("##currency_spending_body", footerHeight); // Fork: shared scrolling body child; the page header scrolls with it
             CurrencyChrome.PageHeader(Currency.Name,
                 "Compare available purchases and open vendor travel actions.",
                 $"{StringHelper.FormatString(Currency.CurrentCount.ToString())} available");
@@ -99,6 +100,7 @@ internal class SpendingWindow : Window
                 Service.Log.Error(e, "ImGuiTable");
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
+            CurrencyChrome.Footer(footerHeight, $"{Currency.Name} · {sectionCount} {(sectionCount == 1 ? "table" : "tables")} shown", sectionCount > 0 ? UiState.Ready : UiState.Empty);
         }
         finally
         {
@@ -206,8 +208,8 @@ internal class SpendingWindow : Window
                 UiHelper.LeftAlign(childCurrency.Name);
                 if (ImGui.IsItemHovered() && C.Debug)
                 {
-                    ImGui.BeginTooltip();
-                    UiHelper.LeftAlign($"ID: {childCurrency.ItemId}");
+                    ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
+                    ImGui.TextUnformatted($"ID: {childCurrency.ItemId}");
                     ImGui.EndTooltip();
                 }
             }
@@ -242,8 +244,8 @@ internal class SpendingWindow : Window
             DrawItemContext(item);
             if (ImGui.IsItemHovered() && C.Debug)
             {
-                ImGui.BeginTooltip();
-                UiHelper.LeftAlign($"ID: {item.Id}\nCollectableType: {item.CollectableType}\nIsUnlocked: {ItemHelper.IsUnlocked(item.Id)}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}\nShopType: {item.Shop.Type}");
+                ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
+                ImGui.TextUnformatted($"ID: {item.Id}\nCollectableType: {item.CollectableType}\nIsUnlocked: {ItemHelper.IsUnlocked(item.Id)}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}\nShopType: {item.Shop.Type}");
                 ImGui.EndTooltip();
             }
             if (item.Currency != Currency.ItemId)
@@ -335,8 +337,8 @@ internal class SpendingWindow : Window
             UiHelper.LeftAlign(item.Name);
             if (ImGui.IsItemHovered() && C.Debug)
             {
-                ImGui.BeginTooltip();
-                UiHelper.LeftAlign($"ID: {item.Id}\nName: {item.Name}\nCat: {item.Category}\nNPC:{item.Shop.NpcName}\nShop:{item.Shop.ShopId}\nNpcName: {item.Shop.NpcName}\nNpcId: {item.Shop.NpcId}");
+                ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
+                ImGui.TextUnformatted($"ID: {item.Id}\nName: {item.Name}\nCat: {item.Category}\nNPC:{item.Shop.NpcName}\nShop:{item.Shop.ShopId}\nNpcName: {item.Shop.NpcName}\nNpcId: {item.Shop.NpcId}");
                 ImGui.EndTooltip();
             }
             DrawItemContext(item);
@@ -395,8 +397,8 @@ internal class SpendingWindow : Window
     {
         if (!ImGui.IsItemHovered() || !C.Debug)
             return;
-        ImGui.BeginTooltip();
-        UiHelper.LeftAlign($"ID: {item.Id}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}");
+        ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
+        ImGui.TextUnformatted($"ID: {item.Id}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}");
         ImGui.EndTooltip();
     }
 

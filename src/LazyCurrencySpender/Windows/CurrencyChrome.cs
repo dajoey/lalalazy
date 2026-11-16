@@ -401,6 +401,7 @@ internal static class CurrencyChrome
         var winPos = ImGui.GetWindowPos();
         var winWidth = ImGui.GetWindowWidth();
         var origin = ImGui.GetCursorScreenPos();
+        origin.Y -= ImGui.GetStyle().ItemSpacing.Y; // the band starts flush under the header rule, not one item spacing below it
         var gutter = Gutter(winWidth);
         var draw = ImGui.GetWindowDrawList();
         const float gap = 12;
@@ -485,20 +486,21 @@ internal static class CurrencyChrome
         var gutter = Gutter(winWidth);
         var height = MathF.Max(40, winPos.Y + winHeight - top.Y - footerHeight);
         ImGui.SetCursorScreenPos(new Vector2(winPos.X, top.Y));
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16));
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Clear);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, Clear);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.TextSecondary with { W = 0.5f });
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent);
         ImGui.PushStyleColor(ImGuiCol.Border, Clear); // the transparent 1 px border makes the child honour its window padding
-        _bodyVars = 5;
+        _bodyVars = 2;
         _bodyColors = 6;
         ImGui.BeginChild(id, new Vector2(winWidth, height), true);
+        ImGui.PopStyleVar(3); // the child captured padding and border; popups and tooltips opened in the body keep the default style
         ImGui.PopStyleColor();
         ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder); // content widgets keep the suite border
         _lastToggleBottom = float.NaN;
@@ -518,6 +520,31 @@ internal static class CurrencyChrome
         ImGui.EndChild();
         ImGui.PopStyleColor(_bodyColors);
         ImGui.PopStyleVar(_bodyVars);
+    }
+
+    /// <summary>Height of the footer band for the current window; 0 when the window is too short to spare it.</summary>
+    internal static float FooterHeight() => ImGui.GetWindowHeight() < 400 ? 0f : 12 + MathF.Max(LineHeight(), Control) + 12;
+
+    /// <summary>Footer band with a status dot and one status line at the gutter; call after <see cref="EndBody"/> with <see cref="FooterHeight"/>.</summary>
+    internal static void Footer(float height, string status, UiState state)
+    {
+        if (height <= 0)
+            return;
+        var winPos = ImGui.GetWindowPos();
+        var width = ImGui.GetWindowWidth();
+        var gutter = Gutter(width);
+        var top = winPos.Y + ImGui.GetWindowHeight() - height;
+        var draw = ImGui.GetWindowDrawList();
+        draw.PushClipRect(winPos, winPos + ImGui.GetWindowSize(), false);
+        draw.AddRectFilled(new Vector2(winPos.X, top), winPos + ImGui.GetWindowSize(), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + width, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+        var textY = top + ((height - LineHeight()) / 2f);
+        var textX = winPos.X + gutter + 16;
+        draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textY + (LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        DrawText(draw, new Vector2(textX, textY), FitText(status, winPos.X + width - gutter - textX), Theme.TextPrimary);
+        ImGui.SetCursorScreenPos(new Vector2(winPos.X, top + height));
+        ImGui.Dummy(Vector2.Zero);
     }
 
     // ---- page header ---------------------------------------------------------------------------------------------
@@ -778,6 +805,12 @@ internal static class CurrencyChrome
         var pos = ImGui.GetCursorScreenPos();
         var width = Avail();
         var draw = ImGui.GetWindowDrawList();
+        if (!float.IsNaN(_lastToggleBottom) && MathF.Abs(_lastToggleBottom - pos.Y) < 1.5f)
+        {
+            draw.AddLine(pos, pos + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder with { W = 0.7f })); // same hairline as between toggle rows
+            pos.Y += 12;
+            ImGui.SetCursorScreenPos(pos);
+        }
         var fieldWidth = MathF.Min(168, MathF.Max(110, width - TextWidth(label) - 16));
         DrawText(draw, pos + new Vector2(0, (Control - LineHeight()) / 2f), label, Theme.TextPrimary);
         ImGui.SetCursorScreenPos(new Vector2(pos.X + width - fieldWidth, pos.Y));
@@ -849,12 +882,15 @@ internal static class CurrencyChrome
             ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, cardWidth - (2 * CardPadding)));
             ImGui.BeginGroup();
             _lastToggleBottom = float.NaN;
+            _tableEndY = float.NaN;
             content();
             ImGui.PopTextWrapPos();
             ImGui.EndGroup();
             Rights.Pop();
             var contentBottom = ImGui.GetItemRectMax().Y;
-            var height = MathF.Max(minHeight, contentBottom - origin.Y + padY);
+            // A table that ends the card carries its own bottom cell padding: trim it so the bottom inset matches the top.
+            var trim = !float.IsNaN(_tableEndY) && MathF.Abs(contentBottom - _tableEndY) < 1.5f ? TableCellPaddingY : 0f;
+            var height = MathF.Max(minHeight, contentBottom - origin.Y + padY - trim);
             if (columnIndex >= 0 && columnIndex == _fillIndex && _fillBottom > origin.Y + height)
             {
                 _stretchAdded += _fillBottom - origin.Y - height;
@@ -908,8 +944,12 @@ internal static class CurrencyChrome
         _inTable = false;
         ImGui.PopStyleColor();
         ImGui.PopStyleVar(_tableVars);
-        ImGui.Dummy(new Vector2(1, 4));
+        ImGui.Dummy(new Vector2(1, 0));
+        _tableEndY = ImGui.GetItemRectMax().Y;
     }
+
+    private static float _tableEndY = float.NaN;
+    private const float TableCellPaddingY = 6f;
 
     /// <summary>Header row: labels at the secondary size, numeric columns right-aligned, sort arrow beside its own label.</summary>
     private static int _headerIndentColumn = -1;
@@ -1258,8 +1298,15 @@ internal static class CurrencyChrome
             var smallHeight = LineHeight(Theme.SecondaryScale);
             var valueHeight = LineHeight(valueScale);
             var y = pos.Y + pad;
-            Diamond(draw, new Vector2(pos.X + pad + 5, y + (smallHeight / 2f)), 5, Theme.Pack(Theme.Accent));
-            DrawText(draw, new Vector2(pos.X + pad + 16, y), FitText(stat.Label, width - (2 * pad) - 16, Theme.SecondaryScale),
+            var compactRow = row && !wide;
+            var labelLead = compactRow ? 0f : 16f; // the compact one-row variant drops the diamond so the label keeps its width
+            var labelRoom = width - (2 * pad) - labelLead;
+            var label = stat.Label;
+            if (compactRow && TextWidth(label, Theme.SecondaryScale) > labelRoom && label.Contains(' '))
+                label = label[..label.IndexOf(' ')]; // short form, first word only
+            if (!compactRow)
+                Diamond(draw, new Vector2(pos.X + pad + 5, y + (smallHeight / 2f)), 5, Theme.Pack(Theme.Accent));
+            DrawText(draw, new Vector2(pos.X + pad + labelLead, y), FitText(label, labelRoom, Theme.SecondaryScale),
                 Theme.TextSecondary, Theme.SecondaryScale);
             y += smallHeight + inner;
             var dash = stat.Value == "—";

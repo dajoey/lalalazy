@@ -43,7 +43,8 @@ internal class MainTabWindow : Window
                 return;
             _section = (Section)CurrencyChrome.FeatureRow("main_nav", ["Currencies", "Instructions"], (int)_section);
 
-            CurrencyChrome.BeginBody("##currency_main_body"); // Fork: shared scrolling body child with the suite gutter
+            var footerHeight = CurrencyChrome.FooterHeight(); // Fork: suite footer status line
+            CurrencyChrome.BeginBody("##currency_main_body", footerHeight); // Fork: shared scrolling body child with the suite gutter
             switch (_section)
             {
                 case Section.Currencies:
@@ -60,6 +61,8 @@ internal class MainTabWindow : Window
                     break;
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
+            CurrencyChrome.Footer(footerHeight, !loggedIn ? "Log in to a character to read balances"
+                : $"{P.config.SelectedCurrencies.Count} tracked currencies", state);
         }
         finally
         {

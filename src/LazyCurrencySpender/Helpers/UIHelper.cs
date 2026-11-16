@@ -145,11 +145,11 @@ internal static unsafe class UiHelper
         }
         if (ImGui.IsItemHovered())
         {
-            ImGui.BeginTooltip();
+            ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
             if(item.Shop.Location.NeedsPresence && AgentMap.Instance()->CurrentTerritoryId != item.Shop.Location.TerritoryId)
-                UiHelper.LeftAlign($"The flag will only show up, if you are here: {item.Shop.Location.Zone}\nShowing teleport point instead: {backupLocation.Zone}");
+                ImGui.TextUnformatted($"The flag will only show up, if you are here: {item.Shop.Location.Zone}\nShowing teleport point instead: {backupLocation.Zone}");
             else
-                UiHelper.LeftAlign($"{item.Shop.Location.Zone}");
+                ImGui.TextUnformatted($"{item.Shop.Location.Zone}");
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
@@ -163,11 +163,11 @@ internal static unsafe class UiHelper
         }
         if (ImGui.IsItemHovered())
         {
-            ImGui.BeginTooltip();
+            ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
             if(item.Shop.Location.NeedsPresence && AgentMap.Instance()->CurrentTerritoryId != item.Shop.Location.TerritoryId)
-                UiHelper.LeftAlign($"You need to travel there first manually.\nWill teleport to nearest Aetheryte instead.");
+                ImGui.TextUnformatted($"You need to travel there first manually.\nWill teleport to nearest Aetheryte instead.");
             else
-                UiHelper.LeftAlign($"{item.Shop.Location.Zone}");
+                ImGui.TextUnformatted($"{item.Shop.Location.Zone}");
             ImGui.EndTooltip();
         }
         CurrencyChrome.MapButtonsEnd(slotTop); // Fork: pairs with MapButtonsBegin
