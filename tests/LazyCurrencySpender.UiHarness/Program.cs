@@ -127,7 +127,7 @@ internal static unsafe class Program
             new("main-logged-out", Kind.Main, 1000, 560, () => FakeService.LoggedIn = false),
             new("main-shared-fate-problem", Kind.Main, 1000, 1100, () => { P.Problem = true; C.SelectedCurrencies.Add(26807); }),
             new("main-instructions", Kind.Main, 1000, 980, () => SetSection(P.mainTabWindow, "Instructions")),
-            new("main-minimized", Kind.Main, 760, 152, () => Minimize(P.mainTabWindow)),
+            new("main-minimized", Kind.Main, 760, 69, () => Minimize(P.mainTabWindow)),
             new("scale150-main-currencies-typical", Kind.Main, 1000, 1100, () => { }) { Scale = 1.5f },
 
             // Settings window (min 520x360).
@@ -300,9 +300,11 @@ internal static unsafe class Program
             throw new InvalidOperationException("The overlay did not accept the stubbed Currency addon.");
         ImGui.SetNextWindowPos(new Vector2(24, 24));
         var open = true;
+        window.PreDraw();
         ImGui.Begin("Currency overlay###harness", ref open, window.Flags | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoSavedSettings);
         window.Draw();
         ImGui.End();
+        window.PostDraw();
     }
 
     // Every non-ASCII character in strings the windows, the kit, the changelog and the fixtures can draw must exist in

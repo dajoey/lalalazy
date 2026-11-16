@@ -30,12 +30,12 @@ internal class DebugTabWindow : Window
             CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle, controls: _controls);
             if (minimized)
                 return;
-            ImGui.BeginChild("##currency_debug_body", Vector2.Zero, false);
+            CurrencyChrome.BeginBody("##currency_debug_body"); // Fork: shared scrolling body child with the suite gutter
             CurrencyChrome.PageHeader("Debug data",
                 "Generated shop data and unlock states for diagnosis.",
                 $"{Generator.shops.Count} shops · {Generator.items.Count} items");
             DebugMainTab.Draw();
-            ImGui.EndChild();
+            CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
         }
         finally
         {

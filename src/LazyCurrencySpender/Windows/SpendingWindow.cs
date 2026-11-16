@@ -41,10 +41,10 @@ internal class SpendingWindow : Window
                 utilityAction: C.Debug ? RefreshPrices : null, utilityTooltip: "Force refresh Universalis");
             if (minimized)
                 return;
+            CurrencyChrome.BeginBody("##currency_spending_body"); // Fork: shared scrolling body child; the page header scrolls with it
             CurrencyChrome.PageHeader(Currency.Name,
                 "Compare available purchases and open vendor travel actions.",
                 $"{StringHelper.FormatString(Currency.CurrentCount.ToString())} available");
-            ImGui.BeginChild("##currency_spending_body", Vector2.Zero, false);
             DrawSummary(sectionCount);
 
             if (C.Debug)
@@ -98,7 +98,7 @@ internal class SpendingWindow : Window
             {
                 Service.Log.Error(e, "ImGuiTable");
             }
-            ImGui.EndChild();
+            CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
         }
         finally
         {
@@ -171,13 +171,17 @@ internal class SpendingWindow : Window
         }
     }
 
+    // Fork: shared width of the Price column (number, gap and currency icon).
+    private const float PriceColumnWidth = 136;
+
     private static void SetupStandardColumns()
     {
-        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 100);
-        ImGui.TableSetupColumn("Zone");
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
-        ImGui.TableHeadersRow();
+        // Fork: stretch Name and Zone across the card, fixed measured Price and Actions columns, shared header row.
+        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1f);
+        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, PriceColumnWidth);
+        ImGui.TableSetupColumn("Zone", ImGuiTableColumnFlags.WidthStretch, 0.7f);
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, UiHelper.MapButtonsWidth());
+        CurrencyChrome.TableHeaders(false, true, false, true);
     }
 
     private static void DrawSimpleTable(string id, ref List<ShopItem>? items)
@@ -214,7 +218,7 @@ internal class SpendingWindow : Window
             ImGui.TableSetColumnIndex(3);
             UiHelper.BuildMapButtons(item);
         }
-        ImGui.EndTable();
+        CurrencyChrome.EndTable(); // Fork: pops the shared table style
     }
 
     private static void DrawCollectableTable()
@@ -248,9 +252,10 @@ internal class SpendingWindow : Window
                 var childItems = Generator.items.Where(cur => cur.Id == item.Currency).ToList();
                 foreach (var unused in childItems)
                 {
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20);
+                    // Fork: child rows sit in their own line slot with an elbow marker instead of a hand-tuned offset.
+                    CurrencyChrome.ChildRowBegin();
                     UiHelper.LeftAlign(childCurrency.Name);
+                    CurrencyChrome.ChildRowEnd();
                 }
             }
 
@@ -273,8 +278,7 @@ internal class SpendingWindow : Window
                 var childItems = Generator.items.Where(cur => cur.Id == item.Currency).ToList();
                 foreach (var childItem in childItems)
                 {
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 3);
-                    UiHelper.LeftAlign(childItem.Shop.Location != null ? childItem.Shop.Location.Zone : "Unknown");
+                    UiHelper.LeftAlign(childItem.Shop.Location != null ? childItem.Shop.Location.Zone : "Unknown"); // Fork: line slots replace the manual 3 px offset
                 }
             }
 
@@ -287,7 +291,7 @@ internal class SpendingWindow : Window
                     UiHelper.BuildMapButtons(childItem);
             }
         }
-        ImGui.EndTable();
+        CurrencyChrome.EndTable(); // Fork: pops the shared table style
     }
 
     private static void DrawSellableTable()
@@ -297,14 +301,15 @@ internal class SpendingWindow : Window
         if (!CurrencyChrome.BeginTable("##markettable", 7,
                 ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true))
             return;
+        // Fork: stretch Name, fixed right-aligned numeric columns with shared header row.
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Sales");
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 100);
-        ImGui.TableSetupColumn("Qty");
-        ImGui.TableSetupColumn("Sells for");
-        ImGui.TableSetupColumn("Total");
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
-        ImGui.TableHeadersRow();
+        ImGui.TableSetupColumn("Sales", ImGuiTableColumnFlags.WidthFixed, 72);
+        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, PriceColumnWidth);
+        ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 64);
+        ImGui.TableSetupColumn("Sells for", ImGuiTableColumnFlags.WidthFixed, 96);
+        ImGui.TableSetupColumn("Total", ImGuiTableColumnFlags.WidthFixed, 104);
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, UiHelper.MapButtonsWidth());
+        CurrencyChrome.TableHeaders(false, true, true, true, true, true, true);
 
         var sortSpecs = ImGui.TableGetSortSpecs();
         if (!sortSpecs.IsNull && sortSpecs.SpecsCount > 0 && SellableItems.Count > 0)
@@ -357,7 +362,7 @@ internal class SpendingWindow : Window
             ImGui.TableSetColumnIndex(6);
             UiHelper.BuildMapButtons(item);
         }
-        ImGui.EndTable();
+        CurrencyChrome.EndTable(); // Fork: pops the shared table style
     }
 
     private static void DrawGeneralTable()
@@ -383,7 +388,7 @@ internal class SpendingWindow : Window
             ImGui.TableSetColumnIndex(3);
             UiHelper.BuildMapButtons(item);
         }
-        ImGui.EndTable();
+        CurrencyChrome.EndTable(); // Fork: pops the shared table style
     }
 
     private static void DrawDebugTooltip(ShopItem item)

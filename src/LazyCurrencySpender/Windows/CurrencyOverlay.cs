@@ -34,6 +34,22 @@ internal unsafe class CurrencyOverlay : Window
         PluginLog.Debug("Currency addon closed — reset auto-open flag.");
     }
 
+    // Fork: rounded surface panel with an even 8 px inset around the button pair.
+    public override void PreDraw()
+    {
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, CurrencyChrome.Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(8, 8));
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, LalaUiKit.Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.Border, LalaUiKit.Theme.SurfaceBorder);
+    }
+
+    public override void PostDraw()
+    {
+        ImGui.PopStyleColor(2);
+        ImGui.PopStyleVar(3);
+    }
+
     public override bool DrawConditions()
     {
         return GenericHelpers.TryGetAddonByName<AtkUnitBase>("Currency", out var addon) &&
@@ -50,16 +66,14 @@ internal unsafe class CurrencyOverlay : Window
                 if (addon->X != 0 || addon->Y != 0)
                     Position = new(addon->X, addon->Y - height);
                 var label = "Open Currency Spender";
-                var size = new Vector2(ImGui.CalcTextSize(label).X + 34, 34);
+                var size = new Vector2(CurrencyChrome.TextWidth(label) + 40, CurrencyChrome.Control); // Fork: shared 36 px control height
                 var origin = ImGui.GetCursorScreenPos();
                 var draw = ImGui.GetWindowDrawList();
                 if (CurrencyChrome.OutlineButton(draw, "overlay_open", label, origin, size, true))
                     P.mainTabWindow.IsOpen = true;
                 var closePos = origin + new Vector2(size.X + (2 * LalaUiKit.Theme.Unit), 0);
-                if (CurrencyChrome.OutlineButton(draw, "overlay_close", "×", closePos, new Vector2(30, size.Y)))
+                if (CurrencyChrome.WindowButton(draw, "overlay_close", closePos, CurrencyChrome.WindowGlyph.Close, "Close")) // Fork: drawn cross, same height as the open button
                     IsOpen = false;
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Close");
                 if (IsOpen && C.OpenAutomatically && !MainIsOpen)
                 {
                     P.mainTabWindow.IsOpen = true;

@@ -24,9 +24,9 @@ internal class ConfigTab
                     CurrencyChrome.Toggle("Show items eligible for sale", ref C.ShowSellables,
                         "Show marketable items and their latest sales data.");
 
-                    ImGui.SetNextItemWidth(MathF.Min(180, ImGui.GetContentRegionAvail().X));
-                    ImGui.InputInt("Minimum sales", ref C.MinSales);
-                    Widgets.Caption("Minimum weekly sales for the market table; 0 disables the filter.");
+                    // Fork: label left, framed field right, help below (was a bare input with a trailing label).
+                    CurrencyChrome.IntField("Minimum sales", ref C.MinSales,
+                        "Minimum weekly sales for the market table; 0 disables the filter.");
                 });
 
                 if (C.ShowCollectables)
@@ -49,7 +49,9 @@ internal class ConfigTab
                 {
                     CurrencyChrome.Section("Display & startup");
                     string[] separators = ["None", "Dot (.)", "Comma (,)"];
-                    if (ImGui.BeginCombo("Thousands separator", separators[C.Separator]))
+                    // Fork: label above a full-width framed combo (was a bare arrow with a trailing label).
+                    ImGui.TextUnformatted("Thousands separator");
+                    if (CurrencyChrome.BeginCombo("thousands_separator", separators[C.Separator]))
                     {
                         for (var i = 0; i < separators.Length; i++)
                         {
@@ -59,8 +61,9 @@ internal class ConfigTab
                             if (isSelected)
                                 ImGui.SetItemDefaultFocus();
                         }
-                        ImGui.EndCombo();
+                        CurrencyChrome.EndCombo();
                     }
+                    ImGui.Dummy(new Vector2(1, 4));
                     CurrencyChrome.Toggle("Open automatically with the Currency window", ref C.OpenAutomatically,
                         "Open the main window whenever the game Currency window opens.");
                 });
@@ -68,7 +71,8 @@ internal class ConfigTab
                 CurrencyChrome.Card("setup_diagnostics", () =>
                 {
                     CurrencyChrome.Section("Setup & diagnostics");
-                    Widgets.SecondaryWrapped("Review options introduced in earlier versions.");
+                    CurrencyChrome.Muted("Review options introduced in earlier versions."); // Fork: secondary size like every card description
+                    ImGui.Dummy(new Vector2(1, 4));
                     if (CurrencyChrome.Button("open_config_wizard", "Open configuration wizard"))
                         VersionHelper.OpenConfigWizard();
                     CurrencyChrome.Toggle("Debug Mode", ref C.Debug,
@@ -79,7 +83,10 @@ internal class ConfigTab
 
     internal static void DrawCollectableType(CollectableType type)
     {
-        var label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName : type.ToString();
+        // Fork: types without a label entry show a readable name instead of the raw identifier.
+        var label = CollectableTypeLabels.TryGetValue(type, out var displayName) ? displayName
+            : type == CollectableType.FashionAccessory ? "Fashion Accessories"
+            : System.Text.RegularExpressions.Regex.Replace(type.ToString(), "(?<=[a-z])(?=[A-Z])", " ");
         var isSelected = C.SelectedCollectableTypes.Contains(type);
         if (!CurrencyChrome.Toggle(label, ref isSelected, id: "collectable_" + type))
             return;

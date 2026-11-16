@@ -47,7 +47,7 @@ internal class ConfigTabWindow : Window
                 : ["Settings", "Currencies", "Items", "Changelog", "About"];
             _section = (Section)CurrencyChrome.FeatureRow("config_nav", sections, (int)_section);
 
-            ImGui.BeginChild("##currency_config_body", Vector2.Zero, false);
+            CurrencyChrome.BeginBody("##currency_config_body"); // Fork: shared scrolling body child with the suite gutter
             switch (_section)
             {
                 case Section.Settings:
@@ -87,7 +87,7 @@ internal class ConfigTabWindow : Window
                     DebugTab.Draw();
                     break;
             }
-            ImGui.EndChild();
+            CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
         }
         finally
         {
