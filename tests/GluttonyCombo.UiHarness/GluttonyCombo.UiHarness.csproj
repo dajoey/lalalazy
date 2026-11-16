@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
   </PropertyGroup>
@@ -17,10 +18,20 @@
     <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real shell drawing, controls and navigation policy; the plugin and game boundaries are not linked. -->
   <ItemGroup>
     <Compile Include="$(LalaSourceRoot)\src\GluttonyCombo\GluttonyCombo\Window\GluttonyChrome.cs" Link="Real\GluttonyChrome.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\GluttonyCombo\GluttonyCombo\Window\GluttonyShellView.cs" Link="Real\GluttonyShellView.cs" />
     <Compile Include="$(LalaSourceRoot)\src\GluttonyCombo\GluttonyCombo\Window\GluttonyShellNavigation.cs" Link="Real\GluttonyShellNavigation.cs" />
     <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(LalaSourceRoot)\tests\HarnessShared\UiRender\Rasterizer.cs" Link="Real\Rasterizer.cs" />
   </ItemGroup>
 </Project>
