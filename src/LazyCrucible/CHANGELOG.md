@@ -1,4 +1,10 @@
-﻿## v0.1.9.23 (2026-11-15) [testing]
+﻿## v0.1.9.24 (2026-11-15) [testing]
+- Time-critical notices (incoming cast, AutoDuty standby, conflict and low HP) stay pinned above the scrolling page in both windows.
+- Both windows can be made small again, with a compact header and footer at short sizes.
+- The Run roster card shows the plain count again, and help text on the Treasure and Display pages is back.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.1.9.23 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders, in both windows.
 - The current battle in the advisor battles list is shown in the accent colour with a "current" label instead of a raw marker, and "Show in the loadout rail" is a rounded accent-tinted row like the other lists.
 - The close button is a drawn cross in a rounded box with an accent hover state and a "Close" tooltip that sits beneath the button.
