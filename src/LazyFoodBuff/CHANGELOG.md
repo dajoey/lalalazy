@@ -1,4 +1,9 @@
-﻿## v0.1.5.5 (2026-11-15) [testing]
+﻿## v0.1.5.6 (2026-11-15) [testing]
+- The Refresh threshold and Low-food warning sliders accept a typed value again (Ctrl+click or double-click) and keyboard or gamepad steps.
+- The help text of the Log food decisions switch names the log line prefix again, and the helper line under the master switch is back.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.1.5.5 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The settings window scrolls as one page with even side margins, so toggles, buttons and values sit well inside their cards.
 - On wide windows the two columns are balanced: Diagnostics sits under Food selection, leaving no large empty card at the end of the page.
