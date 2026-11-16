@@ -1,4 +1,7 @@
-﻿## v0.5.7.2 (2026-11-14) [testing]
+﻿## v0.5.7.3 (2026-11-15) [testing]
+- The Collection, Shopping, Auto-store and Settings windows now use custom headers instead of the native title bar, with responsive card layouts, live collection and shopping counts, and persistent storage controls. Item data, ownership scans, storage automation, import and export, and settings are unchanged.
+
+## v0.5.7.2 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v0.5.7.1 (2026-11-10) [testing]
