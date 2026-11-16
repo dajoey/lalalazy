@@ -24,7 +24,8 @@ internal sealed unsafe class LazyWTMathWindow : Window
             MinimumSize = new Vector2(480, 600),
             MaximumSize = new Vector2(1400, 1000),
         };
-        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     }
 
     public override void Draw()
@@ -89,10 +90,11 @@ internal sealed unsafe class LazyWTMathWindow : Window
         var gap = 3 * Theme.Unit;
         var brandSize = new Vector2(178, 42);
         var actionSize = new Vector2(104, 34);
+        var closeSize = new Vector2(34);
         var state = State(snapshot);
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), 34);
-        var requiredWidth = 24 + brandSize.X + gap + actionSize.X + gap + statusSize.X;
+        var requiredWidth = 24 + brandSize.X + gap + actionSize.X + gap + statusSize.X + gap + closeSize.X;
         var singleRow = width >= requiredWidth;
         var barHeight = singleRow ? 62f : 104f;
 
@@ -105,16 +107,21 @@ internal sealed unsafe class LazyWTMathWindow : Window
         LazyWTMathChrome.Diamond(draw, brandPos + new Vector2(24, 21), 12, Theme.Pack(Theme.Accent));
         LazyWTMathChrome.Text(draw, brandPos + new Vector2(48, 11), "Lazy WT Math", Theme.TextPrimary, Theme.TitleScale);
 
+        var closePos = origin + new Vector2(width - 12 - closeSize.X, singleRow ? 14 : 58);
         var actionPos = origin + (singleRow
-            ? new Vector2(width - 12 - actionSize.X, 14)
-            : new Vector2(width - 12 - statusSize.X - gap - actionSize.X, 58));
+            ? new Vector2(closePos.X - origin.X - gap - actionSize.X, 14)
+            : new Vector2(closePos.X - origin.X - gap - statusSize.X - gap - actionSize.X, 58));
         var statusPos = origin + (singleRow
             ? new Vector2(actionPos.X - origin.X - gap - statusSize.X, 14)
-            : new Vector2(width - 12 - statusSize.X, 58));
+            : new Vector2(closePos.X - origin.X - gap - statusSize.X, 58));
 
         if (LazyWTMathChrome.OutlineButton(draw, "whats_new", "What's new", actionPos, actionSize))
             _showChangelog();
         LazyWTMathChrome.StatusPill(draw, statusPos, statusSize, state);
+        if (LazyWTMathChrome.OutlineButton(draw, "close", "×", closePos, closeSize))
+            IsOpen = false;
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Close");
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
