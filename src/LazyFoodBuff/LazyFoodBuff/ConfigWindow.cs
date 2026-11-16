@@ -22,7 +22,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("LazyFoodBuff##cfg")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(1080, 760);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -112,15 +112,17 @@ internal class ConfigWindow : Window
         return new Live(UiState.Running, "choosing food", null, pillDetail, fed, left, rowId);
     }
 
-    private static void DrawTopBar(Live live)
+    private void DrawTopBar(Live live)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
         var stateLabel = Copy.Word(live.State);
         var statusSize = FoodUiChrome.StatusPillSize(stateLabel, live.PillDetail);
+        var closeSize = new Vector2(34);
+        var closePos = origin + new Vector2(width - closeSize.X, 16);
         const float brandWidth = 190;
-        var singleRow = width >= brandWidth + statusSize.X + 24;
+        var singleRow = width >= brandWidth + statusSize.X + closeSize.X + 36;
         var barHeight = singleRow ? 66f : 108f;
 
         draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
@@ -133,9 +135,11 @@ internal class ConfigWindow : Window
         FoodUiChrome.DrawText(draw, brandPos + new Vector2(50, (42 - brandSize.Y) / 2f), brand, Theme.TextPrimary, Theme.TitleScale);
 
         var statusPos = singleRow
-            ? origin + new Vector2(width - statusSize.X, 16)
+            ? origin + new Vector2(width - closeSize.X - 12 - statusSize.X, 16)
             : origin + new Vector2(0, 62);
         FoodUiChrome.StatusPill(draw, statusPos, stateLabel, live.PillDetail, live.State);
+        if (FoodUiChrome.OutlineButton(draw, "close", "×", closePos, closeSize))
+            IsOpen = false;
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
