@@ -19,7 +19,7 @@ internal class ItemsTab
             {
                 CurrencyChrome.Section("Tracked items",
                     "These items appear when the selected currency can buy them.",
-                    C.ItemsOfInterest.Count + " items");
+                    C.ItemsOfInterest.Count + (C.ItemsOfInterest.Count == 1 ? " item" : " items")); // Fork: singular for one
                 if (C.ItemsOfInterest.Count == 0)
                 {
                     // Fork: centred empty block instead of a bare bullet and sentence.
@@ -40,8 +40,8 @@ internal class ItemsTab
                         UiHelper.LeftAlign(currentItem.Name.ToString());
                         if (ImGui.IsItemHovered() && C.Debug)
                         {
-                            ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
-                            ImGui.TextUnformatted($"ID: {item}");
+                            ImGui.BeginTooltip();
+                            UiHelper.LeftAlign($"ID: {item}");
                             ImGui.EndTooltip();
                         }
 

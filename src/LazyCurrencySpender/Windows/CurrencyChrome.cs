@@ -23,6 +23,7 @@ internal static class CurrencyChrome
     private static float _shellHeight;
     private static float _lastToggleBottom = float.NaN;
     private static bool _inTable;
+    private static nint _tableDrawList;
     private static int _tableVars;
 
     /// <summary>Outer gutter shared by every drawn part of a window.</summary>
@@ -105,6 +106,7 @@ internal static class CurrencyChrome
 
     internal static void PushFrame()
     {
+        _inTable = false; // a table that threw mid-draw must not leave the cell helpers active for the next frame
         Theme.PushFrame();
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, Radius);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, Radius);
@@ -473,6 +475,10 @@ internal static class CurrencyChrome
         return clicked;
     }
 
+    private const float BodyScrollbar = 10f;
+    private static readonly Dictionary<string, bool> _scrollbarShown = new();
+    private static string _bodyId = "";
+    private static bool _bodyIndented;
     private static int _bodyColors;
     private static int _bodyVars;
 
@@ -483,14 +489,19 @@ internal static class CurrencyChrome
         var winWidth = ImGui.GetWindowWidth();
         var winHeight = ImGui.GetWindowHeight();
         var top = ImGui.GetCursorScreenPos();
+        top.Y -= ImGui.GetStyle().ItemSpacing.Y; // the band above ended with a zero-height Dummy; the body starts flush under its rule
         var gutter = Gutter(winWidth);
+        // The scrollbar sits inside the right gutter: while it shows, the right padding shrinks by its width and the left side is indented
+        // by the same amount, so content spans gutter to width - gutter in both states.
+        _scrollbarShown.TryGetValue(id, out var shown);
+        var side = shown ? gutter - BodyScrollbar : gutter;
         var height = MathF.Max(40, winPos.Y + winHeight - top.Y - footerHeight);
         ImGui.SetCursorScreenPos(new Vector2(winPos.X, top.Y));
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, BodyScrollbar);
         ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(side, 16));
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Clear);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, Clear);
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
@@ -500,6 +511,10 @@ internal static class CurrencyChrome
         _bodyVars = 2;
         _bodyColors = 6;
         ImGui.BeginChild(id, new Vector2(winWidth, height), true);
+        _bodyId = id;
+        _bodyIndented = shown;
+        if (shown)
+            ImGui.Indent(BodyScrollbar);
         ImGui.PopStyleVar(3); // the child captured padding and border; popups and tooltips opened in the body keep the default style
         ImGui.PopStyleColor();
         ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder); // content widgets keep the suite border
@@ -517,16 +532,20 @@ internal static class CurrencyChrome
             var opaque = ImGui.GetColorU32(ImGuiCol.WindowBg) | 0xFF000000u;
             draw.AddRectFilledMultiColor(pos + new Vector2(0, size.Y - 28), pos + size, transparent, transparent, opaque, opaque);
         }
+        if (_bodyIndented)
+            ImGui.Unindent(BodyScrollbar);
+        _scrollbarShown[_bodyId] = ImGui.GetScrollMaxY() > 0;
         ImGui.EndChild();
         ImGui.PopStyleColor(_bodyColors);
         ImGui.PopStyleVar(_bodyVars);
     }
 
     /// <summary>Height of the footer band for the current window; 0 when the window is too short to spare it.</summary>
-    internal static float FooterHeight() => ImGui.GetWindowHeight() < 400 ? 0f : 12 + MathF.Max(LineHeight(), Control) + 12;
+    internal static float FooterHeight()
+        => ImGui.GetWindowHeight() < 400 ? 0f : 12 + MathF.Max(LineHeight() + 4 + LineHeight(Theme.SecondaryScale), Control) + 12;
 
-    /// <summary>Footer band with a status dot and one status line at the gutter; call after <see cref="EndBody"/> with <see cref="FooterHeight"/>.</summary>
-    internal static void Footer(float height, string status, UiState state)
+    /// <summary>Footer band with a status dot and a two-line status block at the gutter; call after <see cref="EndBody"/> with <see cref="FooterHeight"/>.</summary>
+    internal static void Footer(float height, string status, string detail, UiState state)
     {
         if (height <= 0)
             return;
@@ -539,10 +558,22 @@ internal static class CurrencyChrome
         draw.AddRectFilled(new Vector2(winPos.X, top), winPos + ImGui.GetWindowSize(), Theme.Pack(Theme.ShellBar));
         draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + width, top), Theme.Pack(Theme.SurfaceBorder));
         draw.PopClipRect();
-        var textY = top + ((height - LineHeight()) / 2f);
+        var block = LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
+        var textY = top + ((height - block) / 2f);
         var textX = winPos.X + gutter + 16;
+        var room = winPos.X + width - gutter - textX;
         draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textY + (LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        DrawText(draw, new Vector2(textX, textY), FitText(status, winPos.X + width - gutter - textX), Theme.TextPrimary);
+        var shownStatus = FitText(status, room);
+        var shownDetail = FitText(detail, room, Theme.SecondaryScale);
+        DrawText(draw, new Vector2(textX, textY), shownStatus, Theme.TextPrimary);
+        DrawText(draw, new Vector2(textX, textY + LineHeight() + 4), shownDetail, Theme.TextSecondary, Theme.SecondaryScale);
+        if (shownStatus != status || shownDetail != detail)
+        {
+            ImGui.SetCursorScreenPos(new Vector2(textX, textY));
+            ImGui.InvisibleButton("##currency_footer_text", new Vector2(MathF.Max(1, room), block));
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(detail.Length > 0 ? status + "\n" + detail : status);
+        }
         ImGui.SetCursorScreenPos(new Vector2(winPos.X, top + height));
         ImGui.Dummy(Vector2.Zero);
     }
@@ -930,6 +961,7 @@ internal static class CurrencyChrome
         if (open)
         {
             _inTable = true;
+            _tableDrawList = DrawListId();
             return true;
         }
         ImGui.PopStyleColor();
@@ -1006,7 +1038,20 @@ internal static class CurrencyChrome
     }
 
     /// <summary>True while a <see cref="BeginTable"/> table is open: helpers then centre content in a line slot.</summary>
-    internal static bool InTable => _inTable;
+    internal static bool InTable => _inTable && DrawListId() == _tableDrawList;
+
+    /// <summary>Identity of the current window's draw list: a tooltip or popup opened from a table row is another window, so it is not "in the table".</summary>
+    private static unsafe nint DrawListId() => (nint)ImGui.GetWindowDrawList().Handle;
+
+    /// <summary>Draws every line of the text as a table cell line when a table is open; false (nothing drawn) otherwise.</summary>
+    internal static bool TextCells(string text, bool right)
+    {
+        if (!InTable)
+            return false;
+        foreach (var line in text.Split('\n'))
+            TextCell(line, right);
+        return true;
+    }
 
     /// <summary>Centres content of the given height inside a cell area of the given height; call <see cref="CellEnd"/> afterwards.</summary>
     internal static float CellBegin(float contentHeight, float areaHeight)
@@ -1052,8 +1097,10 @@ internal static class CurrencyChrome
     }
 
     /// <summary>Number followed by a currency icon, right aligned in one line slot.</summary>
-    internal static void IconTextCell(string text, ImTextureID icon)
+    internal static bool IconTextCell(string text, ImTextureID icon)
     {
+        if (!InTable)
+            return false;
         var draw = ImGui.GetWindowDrawList();
         var pos = ImGui.GetCursorScreenPos();
         var width = MathF.Max(1, ImGui.GetContentRegionAvail().X);
@@ -1063,6 +1110,7 @@ internal static class CurrencyChrome
         draw.AddImage(icon, iconPos, iconPos + new Vector2(20));
         draw.AddText(new Vector2(iconPos.X - 8 - TextWidth(text), pos.Y + ((LineSlot - ImGui.GetTextLineHeight()) / 2f)),
             ImGui.GetColorU32(ImGuiCol.Text), text);
+        return true;
     }
 
     /// <summary>Marks a sub-row of a combined table row: an elbow connector, an indent and muted text.</summary>
@@ -1078,6 +1126,11 @@ internal static class CurrencyChrome
     }
 
     internal static void ChildRowEnd() => ImGui.PopStyleColor();
+
+    /// <summary>Width of the Flag and TP button pair, for the shared Actions column.</summary>
+    internal static float MapButtonsWidth() => SmallButtonWidth("Flag") + 8 + SmallButtonWidth("TP");
+
+    internal static Vector2 MapButtonsBegin() => MapButtonsBegin(MapButtonsWidth());
 
     /// <summary>Starts a right-aligned button pair centred in one line slot; returns the slot's top for <see cref="MapButtonsEnd"/>.</summary>
     internal static Vector2 MapButtonsBegin(float pairWidth)

@@ -37,7 +37,7 @@ internal class DebugTabWindow : Window
                 $"{Generator.shops.Count} shops · {Generator.items.Count} items");
             DebugMainTab.Draw();
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
-            CurrencyChrome.Footer(footerHeight, $"{Generator.shops.Count} shops · {Generator.items.Count} items generated", UiState.Idle);
+            CurrencyChrome.Footer(footerHeight, $"{Generator.shops.Count} shops", $"{Generator.items.Count} items generated", UiState.Idle);
         }
         finally
         {

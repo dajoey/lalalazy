@@ -25,7 +25,7 @@ internal static unsafe class Program
     private static bool _strictGlyphs;
     private static bool _lookReported;
 
-    private enum Kind { Main, Config, Spending, Wizard, Debug, Overlay }
+    private enum Kind { Main, Config, Spending, Wizard, Debug, Overlay, TableTooltip }
 
     // Window minimum sizes come from each window's SizeConstraints in the real source; no window sets Size, so the
     // first-use size is the minimum. WIDE sizes stand for a window the player has resized.
@@ -181,6 +181,9 @@ internal static unsafe class Program
             // Debug data window (min 520x320).
             new("debug-window", Kind.Debug, 1000, 960, () => C.Debug = true),
 
+            // A tooltip opened from a table row, forced open (the harness cannot hover): its text must draw.
+            new("table-row-tooltip", Kind.TableTooltip, 520, 260, () => { }),
+
             // Overlay next to the game's Currency window.
             new("overlay-open-button", Kind.Overlay, 340, 100, () => GenericHelpersAddon(true)),
         };
@@ -249,7 +252,7 @@ internal static unsafe class Program
                 CheckGlyphs(look);
             }
 
-            for (var frame = 0; frame < 2; frame++)
+            for (var frame = 0; frame < 6; frame++)
             {
                 ImGui.NewFrame();
                 switch (scenario.Kind)
@@ -260,6 +263,7 @@ internal static unsafe class Program
                     case Kind.Wizard: DrawWindow(P.configWizard, size, () => P.configWizard.Draw(), P.configWizard.PreDraw); break;
                     case Kind.Debug: DrawWindow(P.debugTabWindow, size, () => P.debugTabWindow.Draw(), P.debugTabWindow.PreDraw); break;
                     case Kind.Overlay: DrawOverlay(); break;
+                    case Kind.TableTooltip: DrawTableTooltip(size); break;
                 }
                 ImGui.Render();
             }
@@ -290,6 +294,39 @@ internal static unsafe class Program
         ImGui.Begin(window.WindowName, ref open, window.Flags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
         draw();
+        ImGui.End();
+    }
+
+    private static void DrawTableTooltip(Vector2 size)
+    {
+        ImGui.SetNextWindowPos(Vector2.Zero);
+        ImGui.SetNextWindowSize(size);
+        var open = true;
+        ImGui.Begin("Tooltip probe###harness", ref open, ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
+        CurrencyChrome.PushFrame();
+        try
+        {
+            if (CurrencyChrome.BeginTable("##probe", 2, ImGuiTableFlags.None))
+            {
+                ImGui.TableSetupColumn("Name");
+                ImGui.TableSetupColumn("Zone");
+                CurrencyChrome.TableHeaders(false, false);
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                UiHelper.LeftAlign("Row cell text");
+                ImGui.TableSetColumnIndex(1);
+                UiHelper.LeftAlign("Cell that opens the tooltip");
+                ImGui.SetNextWindowPos(new Vector2(40, 110));
+                ImGui.BeginTooltip();
+                UiHelper.LeftAlign("Tooltip first line\nTooltip second line");
+                ImGui.EndTooltip();
+                CurrencyChrome.EndTable();
+            }
+        }
+        finally
+        {
+            CurrencyChrome.PopFrame();
+        }
         ImGui.End();
     }
 

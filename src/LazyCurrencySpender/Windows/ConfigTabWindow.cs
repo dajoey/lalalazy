@@ -89,7 +89,7 @@ internal class ConfigTabWindow : Window
                     break;
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
-            CurrencyChrome.Footer(footerHeight, $"{C.SelectedCurrencies.Count} currencies tracked · {C.ItemsOfInterest.Count} items of interest", UiState.Idle);
+            CurrencyChrome.Footer(footerHeight, $"{C.SelectedCurrencies.Count} currencies tracked", $"{C.ItemsOfInterest.Count} items of interest", UiState.Idle);
         }
         finally
         {

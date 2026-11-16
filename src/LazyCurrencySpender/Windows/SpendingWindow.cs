@@ -100,7 +100,7 @@ internal class SpendingWindow : Window
                 Service.Log.Error(e, "ImGuiTable");
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
-            CurrencyChrome.Footer(footerHeight, $"{Currency.Name} · {sectionCount} {(sectionCount == 1 ? "table" : "tables")} shown", sectionCount > 0 ? UiState.Ready : UiState.Empty);
+            CurrencyChrome.Footer(footerHeight, Currency.Name, $"{sectionCount} {(sectionCount == 1 ? "table" : "tables")} shown", sectionCount > 0 ? UiState.Ready : UiState.Empty);
         }
         finally
         {
@@ -148,7 +148,7 @@ internal class SpendingWindow : Window
     {
         CurrencyChrome.Card(id, () =>
         {
-            CurrencyChrome.Section(title, description, count + " items");
+            CurrencyChrome.Section(title, description, count + (count == 1 ? " item" : " items")); // Fork: singular for one
             content();
         });
     }
@@ -182,7 +182,7 @@ internal class SpendingWindow : Window
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1f);
         ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, PriceColumnWidth);
         ImGui.TableSetupColumn("Zone", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, UiHelper.MapButtonsWidth());
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, CurrencyChrome.MapButtonsWidth());
         CurrencyChrome.TableHeaders(false, true, false, true);
     }
 
@@ -208,8 +208,8 @@ internal class SpendingWindow : Window
                 UiHelper.LeftAlign(childCurrency.Name);
                 if (ImGui.IsItemHovered() && C.Debug)
                 {
-                    ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
-                    ImGui.TextUnformatted($"ID: {childCurrency.ItemId}");
+                    ImGui.BeginTooltip();
+                    UiHelper.LeftAlign($"ID: {childCurrency.ItemId}");
                     ImGui.EndTooltip();
                 }
             }
@@ -244,8 +244,8 @@ internal class SpendingWindow : Window
             DrawItemContext(item);
             if (ImGui.IsItemHovered() && C.Debug)
             {
-                ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
-                ImGui.TextUnformatted($"ID: {item.Id}\nCollectableType: {item.CollectableType}\nIsUnlocked: {ItemHelper.IsUnlocked(item.Id)}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}\nShopType: {item.Shop.Type}");
+                ImGui.BeginTooltip();
+                UiHelper.LeftAlign($"ID: {item.Id}\nCollectableType: {item.CollectableType}\nIsUnlocked: {ItemHelper.IsUnlocked(item.Id)}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}\nShopType: {item.Shop.Type}");
                 ImGui.EndTooltip();
             }
             if (item.Currency != Currency.ItemId)
@@ -310,7 +310,7 @@ internal class SpendingWindow : Window
         ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 64);
         ImGui.TableSetupColumn("Sells for", ImGuiTableColumnFlags.WidthFixed, 96);
         ImGui.TableSetupColumn("Total", ImGuiTableColumnFlags.WidthFixed, 104);
-        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, UiHelper.MapButtonsWidth());
+        ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, CurrencyChrome.MapButtonsWidth());
         CurrencyChrome.TableHeaders(false, true, true, true, true, true, true);
 
         var sortSpecs = ImGui.TableGetSortSpecs();
@@ -337,8 +337,8 @@ internal class SpendingWindow : Window
             UiHelper.LeftAlign(item.Name);
             if (ImGui.IsItemHovered() && C.Debug)
             {
-                ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
-                ImGui.TextUnformatted($"ID: {item.Id}\nName: {item.Name}\nCat: {item.Category}\nNPC:{item.Shop.NpcName}\nShop:{item.Shop.ShopId}\nNpcName: {item.Shop.NpcName}\nNpcId: {item.Shop.NpcId}");
+                ImGui.BeginTooltip();
+                UiHelper.LeftAlign($"ID: {item.Id}\nName: {item.Name}\nCat: {item.Category}\nNPC:{item.Shop.NpcName}\nShop:{item.Shop.ShopId}\nNpcName: {item.Shop.NpcName}\nNpcId: {item.Shop.NpcId}");
                 ImGui.EndTooltip();
             }
             DrawItemContext(item);
@@ -397,8 +397,8 @@ internal class SpendingWindow : Window
     {
         if (!ImGui.IsItemHovered() || !C.Debug)
             return;
-        ImGui.BeginTooltip(); // Fork: plain text; the table cell helpers would draw nothing in a tooltip window
-        ImGui.TextUnformatted($"ID: {item.Id}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}");
+        ImGui.BeginTooltip();
+        UiHelper.LeftAlign($"ID: {item.Id}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}");
         ImGui.EndTooltip();
     }
 

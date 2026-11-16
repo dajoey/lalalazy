@@ -86,7 +86,7 @@ internal class ConfigWizardWindow : Window
             var versionStepCount = GetVersionStepCount(version);
             if (Step > cumulativeSteps && Step <= cumulativeSteps + versionStepCount)
             {
-                CurrencyChrome.Section($"Changed in Version {version}"); // (unchanged call; the section now has its own spacing)
+                CurrencyChrome.Section($"Changed in Version {version}");
                 drawSteps(Step - cumulativeSteps);
                 break;
             }
@@ -110,6 +110,8 @@ internal class ConfigWizardWindow : Window
         return buttons;
     }
 
+    private static string FooterDetail() => Step == 0 ? $"{MaxSteps} steps to review" : $"Step {Step} of {MaxSteps}";
+
     private static string FooterStatus() => Step == 0 ? "Ready to review" : Step == MaxSteps ? "Ready to finish" : "Reviewing changes";
 
     private bool FooterNarrow(float width)
@@ -122,7 +124,7 @@ internal class ConfigWizardWindow : Window
 
     private float FooterHeight(float width)
     {
-        var textBlock = CurrencyChrome.LineHeight();
+        var textBlock = CurrencyChrome.LineHeight() + 4 + CurrencyChrome.LineHeight(Theme.SecondaryScale);
         return FooterNarrow(width) ? 12 + textBlock + 12 + CurrencyChrome.Control + 12 : 12 + MathF.Max(textBlock, CurrencyChrome.Control) + 12;
     }
 
@@ -143,7 +145,7 @@ internal class ConfigWizardWindow : Window
         var gap = 8f;
         var widths = buttons.Select(button => CurrencyChrome.ActionWidth(96, button.Label)).ToArray();
         var buttonsWidth = widths.Sum() + ((buttons.Count - 1) * gap);
-        var textBlock = CurrencyChrome.LineHeight();
+        var textBlock = CurrencyChrome.LineHeight() + 4 + CurrencyChrome.LineHeight(Theme.SecondaryScale);
         var buttonY = narrow ? top + 12 + textBlock + 12 : top + ((height - CurrencyChrome.Control) / 2f);
         var x = winPos.X + width - gutter - buttonsWidth;
         for (var i = 0; i < buttons.Count; i++)
@@ -155,9 +157,11 @@ internal class ConfigWizardWindow : Window
         }
         var textY = narrow ? top + 12 : top + ((height - textBlock) / 2f);
         var textX = winPos.X + gutter + 16;
-        draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textY + (textBlock / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(UiState.NeedsSetup)));
+        draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textY + (CurrencyChrome.LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(UiState.NeedsSetup)));
         var room = narrow ? width - gutter - textX : winPos.X + width - gutter - buttonsWidth - 16 - textX;
         CurrencyChrome.DrawText(draw, new Vector2(textX, textY), CurrencyChrome.FitText(FooterStatus(), room), Theme.TextPrimary);
+        CurrencyChrome.DrawText(draw, new Vector2(textX, textY + CurrencyChrome.LineHeight() + 4), CurrencyChrome.FitText(FooterDetail(), room, Theme.SecondaryScale),
+            Theme.TextSecondary, Theme.SecondaryScale);
         ImGui.SetCursorScreenPos(new Vector2(winPos.X, top + height));
         ImGui.Dummy(Vector2.Zero);
     }

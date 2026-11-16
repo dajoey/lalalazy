@@ -61,8 +61,8 @@ internal class MainTabWindow : Window
                     break;
             }
             CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
-            CurrencyChrome.Footer(footerHeight, !loggedIn ? "Log in to a character to read balances"
-                : $"{P.config.SelectedCurrencies.Count} tracked currencies", state);
+            CurrencyChrome.Footer(footerHeight, !loggedIn ? "Not logged in" : $"{P.config.SelectedCurrencies.Count} tracked currencies",
+                !loggedIn ? "Log in to a character to read balances" : "Select Spend it to open a spending guide", state);
         }
         finally
         {
