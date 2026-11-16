@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LazyRetainerLive.UiHarness</RootNamespace>
+    <AssemblyName>LazyRetainerLive.UiHarness</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LalaSourceRoot Condition="'$(LalaSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..</LalaSourceRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudLibPath)\Dalamud.dll" />
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll" />
+    <None Include="$(DalamudLibPath)\cimgui.dll" Link="cimgui.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Shared render core: rasterizer, PNG writer, game-look setup. -->
+  <ItemGroup>
+    <Compile Include="..\HarnessShared\UiRender\*.cs" Link="UiRender\%(Filename)%(Extension)" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>LalaSourceRoot</_Parameter1>
+      <_Parameter2>$(LalaSourceRoot)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- The real window, chrome, status rules, wire model and shared kit; only the plugin/service boundary is stubbed (Stubs.cs). -->
+  <ItemGroup>
+    <Compile Include="$(LalaSourceRoot)\src\LazyRetainerLive\LazyRetainerLive\ConfigWindow.cs" Link="Real\ConfigWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyRetainerLive\LazyRetainerLive\RetainerLiveChrome.cs" Link="Real\RetainerLiveChrome.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyRetainerLive\LazyRetainerLive\RetainerLivePresentation.cs" Link="Real\RetainerLivePresentation.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyRetainerLive\LazyRetainerLive\RetainerState.cs" Link="Real\RetainerState.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyRetainerLive\LazyRetainerLive\Configuration.cs" Link="Real\Configuration.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
