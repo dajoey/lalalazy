@@ -64,7 +64,10 @@ internal static class GluttonyShellNavigation
                 {
                     features.Add(new("pve", "PvE jobs", GluttonyPage.PvE));
                 }
-                features.Add(new("pvp", "PvP jobs", GluttonyPage.PvP));
+                // An open PvP job returns to the PvP job list from this entry, as the old Back button did.
+                features.Add(current == GluttonyPage.PvP && jobOpen
+                    ? new("pvp", "PvP jobs", GluttonyPage.PvP, "root")
+                    : new("pvp", "PvP jobs", GluttonyPage.PvP));
                 break;
             case "Automation":
                 features.Add(new("autorotation", "AutoRotation", GluttonyPage.AutoRotation));

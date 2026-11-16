@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
@@ -22,10 +23,6 @@ namespace GluttonyCombo.Window;
 // Fork: responsive two-level shell around the existing tab and preset renderers.
 internal static class GluttonyShell
 {
-    private const float ControlHeight = 34f;
-    private const float WideFooterHeight = 68f;
-    private const float NarrowFooterHeight = 96f;
-
     private static bool IncludeDebug
     {
         get
@@ -40,40 +37,82 @@ internal static class GluttonyShell
 
     internal static void Draw(ConfigWindow window)
     {
-        Theme.PushFrame();
-        GluttonyChrome.PushControlColors();
-        try
-        {
-            if (window.OpenWindow == OpenWindow.None)
-                window.OpenWindow = OpenWindow.PvE;
-            var page = Page(window.OpenWindow);
-            DrawTopBar(window, page);
-            if (!Service.Configuration.UILeftColumnCollapsed)
-                DrawFeatureRow(window, page);
-            else
-                DrawCollapsedFeatureRow();
-            DrawPageHeader(page);
-            ConflictingPlugins.Draw();
+        if (window.OpenWindow == OpenWindow.None)
+            window.OpenWindow = OpenWindow.PvE;
+        var page = Page(window.OpenWindow);
+        var model = BuildModel(window, page, out var features);
+        var search = ConfigWindow.Search;
+        var descriptions = ConfigWindow.SearchDescription;
+        var result = GluttonyShellView.Draw(model, ref search, ref descriptions, DrawBodyPrefix(page), () => DrawBody(window.OpenWindow));
+        ConfigWindow.Search = search;
+        ConfigWindow.SearchDescription = descriptions;
 
-            var footerHeight = FooterEnabled() ? FooterHeight(ImGui.GetContentRegionAvail().X) : 0;
-            var bodyHeight = MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight);
-            if (ImGui.BeginChild("##gc_shell_body", new Vector2(0, bodyHeight), false))
-            {
-                DrawBody(window.OpenWindow);
-                ImGui.EndChild();
-            }
-            else
-            {
-                ImGui.EndChild();
-            }
-            DrawFooter();
-        }
-        finally
+        if (result.Close)
+            window.IsOpen = false;
+        if (result.Brand)
         {
-            GluttonyChrome.PopControlColors();
-            Theme.PopFrame();
+            FeaturesWindow.OpenJob = null;
+            FeaturesWindow.OpenPvPJob = null;
+            Navigate(window, GluttonyPage.PvE);
         }
+        if (result.Group is { } group)
+            Navigate(window, GluttonyShellNavigation.FirstPage(group, IncludeDebug));
+        if (result.Feature >= 0 && result.Feature < features.Count)
+            SelectFeature(window, features[result.Feature]);
+        if (result.ExpandFeatures)
+        {
+            Service.Configuration.UILeftColumnCollapsed = false;
+            Service.Configuration.Save();
+        }
+        if (result.FooterStop)
+            AutoRotationController.ToggleAutoRotation(false);
     }
+
+    private static ShellModel BuildModel(ConfigWindow window, GluttonyPage page, out IReadOnlyList<GluttonyFeature> features)
+    {
+        var content = page == GluttonyPage.PvE && FeaturesWindow.OpenJob is { } job
+            ? PvEFeatures.ApprovedContents(job)
+            : [];
+        features = GluttonyShellNavigation.Features(page, JobOpen(page), content, IncludeDebug);
+        var (title, description, count) = PageDetails(page);
+        var state = LiveState();
+        var enabled = FooterEnabled();
+        var paused = AutoRotationController.Paused;
+        var presetPage = page is GluttonyPage.PvE or GluttonyPage.PvP;
+        return new ShellModel
+        {
+            Groups = GluttonyShellNavigation.Groups,
+            CurrentGroup = GluttonyShellNavigation.Group(page),
+            State = state,
+            ShowSearch = GluttonyShellNavigation.ShowSearch(page, JobOpen(page), Service.Configuration.UIShowSearchBar),
+            ShowDescriptions = presetPage,
+            SearchHint = page == GluttonyPage.Settings ? SettingsUI.Info_searchHintText : FeaturesUI.Search_searchHintText,
+            Features = features.Select(feature => new ShellFeature(feature.Id, feature.Label, FeatureSelected(window, page, feature))).ToList(),
+            FeaturesCollapsed = Service.Configuration.UILeftColumnCollapsed,
+            // Fork: the problem-report button the old sidebar showed on every page.
+            ReportButton = GluttonyCombo.P.Telemetry is { } telemetry ? () => telemetry.DrawReportButton() : null,
+            Title = title,
+            Description = description,
+            Meta = count.Length == 0 ? [] : [count],
+            Footer = new ShellFooter
+            {
+                State = state,
+                Primary = enabled ? $"{Copy.Word(state)} · AutoRotation" : "Ready · AutoRotation is off",
+                Secondary = !enabled ? "Turn it on from the Automation page; combos still work from their own buttons."
+                    : paused ? "Automatic actions are paused" : "Automatic action replacement is enabled",
+                StopLabel = enabled ? "Stop" : null,
+            },
+        };
+    }
+
+    // Fork: banners that used to sit above the page now scroll with the body, under the shell bands.
+    private static Action DrawBodyPrefix(GluttonyPage page) => () =>
+    {
+        if (page == GluttonyPage.PvE && FeaturesWindow.OpenJob is { } job &&
+            GluttonyCombo.P.UIHelper.JobControlled(job) is not null)
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded(job);
+        ConflictingPlugins.Draw();
+    };
 
     private static void DrawBody(OpenWindow page)
     {
@@ -103,152 +142,12 @@ internal static class GluttonyShell
         }
     }
 
-    private static void DrawTopBar(ConfigWindow window, GluttonyPage page)
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        var gap = 2 * Theme.Unit;
-        var brandSize = new Vector2(MathF.Max(196, (ImGui.CalcTextSize("GluttonyCombo").X * Theme.TitleScale) + 66), 42);
-        var groupSizes = GluttonyShellNavigation.Groups
-            .Select(group => new Vector2(MathF.Max(82, ImGui.CalcTextSize(group).X + 30), ControlHeight)).ToArray();
-        var state = LiveState();
-        var stateLabel = Copy.Word(state);
-        var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
-        var closePos = new Vector2(width - GluttonyChrome.CloseButtonSize, 16);
-        var statusPos = new Vector2(closePos.X - gap - statusSize.X, 16);
-        var navigationRight = statusPos.X - gap;
-        var brandPos = new Vector2(0, 12);
-        var groupsWidth = groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-        var besideBrand = brandSize.X + gap + groupsWidth <= navigationRight;
-        var positions = new Vector2[groupSizes.Length];
-        var x = besideBrand ? brandSize.X + gap : 0;
-        var y = besideBrand ? 16f : 62f;
-        var navigationBottom = brandPos.Y + brandSize.Y;
-
-        for (var i = 0; i < groupSizes.Length; i++)
-        {
-            var rightLimit = y == 16f ? navigationRight : width;
-            if (x > 0 && x + groupSizes[i].X > rightLimit)
-            {
-                x = 0;
-                y += ControlHeight + gap;
-            }
-            positions[i] = new Vector2(x, y);
-            x += groupSizes[i].X + gap;
-            navigationBottom = MathF.Max(navigationBottom, y + ControlHeight);
-        }
-
-        var showSearch = GluttonyShellNavigation.ShowSearch(page, JobOpen(page), Service.Configuration.UIShowSearchBar);
-        var searchY = navigationBottom + gap;
-        var barHeight = showSearch ? searchY + ControlHeight + 12 : navigationBottom + 12;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-
-        if (GluttonyChrome.BrandButton(draw, origin + brandPos, brandSize))
-        {
-            FeaturesWindow.OpenJob = null;
-            FeaturesWindow.OpenPvPJob = null;
-            Navigate(window, GluttonyPage.PvE);
-        }
-        for (var i = 0; i < GluttonyShellNavigation.Groups.Length; i++)
-        {
-            var group = GluttonyShellNavigation.Groups[i];
-            if (GluttonyChrome.OutlineButton(draw, "group_" + group, group, origin + positions[i], groupSizes[i],
-                    GluttonyShellNavigation.Group(page) == group) && GluttonyShellNavigation.Group(page) != group)
-                Navigate(window, GluttonyShellNavigation.FirstPage(group, IncludeDebug));
-        }
-        GluttonyChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
-        if (GluttonyChrome.CloseButton(draw, "main", origin + closePos))
-            window.IsOpen = false;
-
-        if (showSearch)
-        {
-            var descriptions = page is GluttonyPage.PvE or GluttonyPage.PvP;
-            var descriptionWidth = descriptions ? 112f : 0;
-            var inputWidth = MathF.Max(120, width - (descriptions ? descriptionWidth + gap : 0));
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, searchY));
-            ImGui.SetNextItemWidth(inputWidth);
-            var padding = Theme.FramePadding;
-            padding.Y = MathF.Max(padding.Y, (ControlHeight - ImGui.GetTextLineHeight()) / 2f);
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, padding);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
-            var hint = page == GluttonyPage.Settings ? SettingsUI.Info_searchHintText : FeaturesUI.Search_searchHintText;
-            ImGui.InputTextWithHint("##gc_shell_search", hint, ref ConfigWindow.Search, 30, ImGuiInputTextFlags.AutoSelectAll);
-            ImGui.PopStyleVar(2);
-            if (descriptions && GluttonyChrome.OutlineButton(draw, "search_descriptions", "Descriptions",
-                    origin + new Vector2(width - descriptionWidth, searchY), new Vector2(descriptionWidth, ControlHeight),
-                    ConfigWindow.SearchDescription))
-                ConfigWindow.SearchDescription = !ConfigWindow.SearchDescription;
-        }
-
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
-    }
-
-    private static void DrawFeatureRow(ConfigWindow window, GluttonyPage page)
-    {
-        var content = page == GluttonyPage.PvE && FeaturesWindow.OpenJob is { } job
-            ? PvEFeatures.ApprovedContents(job)
-            : [];
-        var features = GluttonyShellNavigation.Features(page, JobOpen(page), content, IncludeDebug);
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        var gap = 3 * Theme.Unit;
-        var sizes = features.Select(feature => new Vector2(
-            MathF.Min(width, MathF.Max(104, ImGui.CalcTextSize(feature.Label).X + 52)), ControlHeight)).ToArray();
-        var positions = new Vector2[features.Count];
-        float x = 0;
-        float y = 8;
-        for (var i = 0; i < features.Count; i++)
-        {
-            if (x > 0 && x + sizes[i].X > width)
-            {
-                x = 0;
-                y += ControlHeight + (2 * Theme.Unit);
-            }
-            positions[i] = new Vector2(x, y);
-            x += sizes[i].X + gap;
-        }
-        var barHeight = y + ControlHeight + 8;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        for (var i = 0; i < features.Count; i++)
-        {
-            var feature = features[i];
-            if (GluttonyChrome.FeatureButton(draw, feature.Id, feature.Label, origin + positions[i], sizes[i],
-                    FeatureSelected(window, page, feature)))
-                SelectFeature(window, feature);
-        }
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
-    }
-
-    private static void DrawCollapsedFeatureRow()
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        const float height = 50;
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, height), origin + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder));
-        if (GluttonyChrome.OutlineButton(draw, "expand_features", "Show destinations", origin + new Vector2(0, 8),
-                new Vector2(MathF.Min(180, width), ControlHeight)))
-        {
-            Service.Configuration.UILeftColumnCollapsed = false;
-            Service.Configuration.Save();
-        }
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, height));
-    }
-
     private static bool FeatureSelected(ConfigWindow window, GluttonyPage page, GluttonyFeature feature)
     {
         if (feature.Page != page)
             return false;
         if (feature.ContentId == "root")
-            return FeaturesWindow.OpenJob is null;
+            return feature.Page == GluttonyPage.PvP || FeaturesWindow.OpenJob is null;
         if (feature.ContentId is not null)
             return PvEFeatures.ContentId(FeaturesWindow.CurrentTab) == feature.ContentId;
         return feature.Page != GluttonyPage.PvE || FeaturesWindow.OpenJob is null;
@@ -258,6 +157,11 @@ internal static class GluttonyShell
     {
         if (feature.ContentId == "root")
         {
+            if (feature.Page == GluttonyPage.PvP)
+            {
+                FeaturesWindow.OpenPvPJob = null;
+                return;
+            }
             FeaturesWindow.OpenJob = null;
             PvEFeatures.SetCurrentTab(FeaturesWindow.FeatureTab.Normal);
             return;
@@ -269,39 +173,6 @@ internal static class GluttonyShell
             return;
         }
         Navigate(window, feature.Page);
-    }
-
-    private static void DrawPageHeader(GluttonyPage page)
-    {
-        var (title, description, count) = PageDetails(page);
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var draw = ImGui.GetWindowDrawList();
-        var tileSize = new Vector2(42);
-        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
-        GluttonyChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
-
-        if (width >= 720)
-        {
-            var textX = origin.X + tileSize.X + 12;
-            var countWidth = ImGui.CalcTextSize(count).X;
-            GluttonyChrome.DrawText(draw, new Vector2(textX, origin.Y),
-                GluttonyChrome.FitText(title, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale),
-                Theme.TextPrimary, Theme.TitleScale);
-            GluttonyChrome.DrawText(draw, new Vector2(textX, origin.Y + 29),
-                GluttonyChrome.FitText(description, width - tileSize.X - 12), Theme.TextSecondary);
-            draw.AddText(new Vector2(origin.X + width - countWidth, origin.Y + 12), Theme.Pack(Theme.TextSecondary), count);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, 58));
-            ImGui.Separator();
-            return;
-        }
-
-        GluttonyChrome.DrawText(draw, origin + new Vector2(tileSize.X + 12, 4),
-            GluttonyChrome.FitText(title, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 8));
-        Widgets.SecondaryWrapped(description);
-        Widgets.Caption(count);
-        ImGui.Separator();
     }
 
     private static (string Title, string Description, string Count) PageDetails(GluttonyPage page)
@@ -361,37 +232,6 @@ internal static class GluttonyShell
     }
 
     private static bool FooterEnabled() => AutoRotationController.cfg is { Enabled: true };
-
-    private static float FooterHeight(float width) => width < 600 ? NarrowFooterHeight : WideFooterHeight;
-
-    private static void DrawFooter()
-    {
-        if (!FooterEnabled())
-            return;
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = FooterHeight(width);
-        var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
-        var state = LiveState();
-        var paused = AutoRotationController.Paused;
-        var narrow = width < 600;
-        var stopSize = new Vector2(88, 36);
-        var stopPos = origin + new Vector2(width - stopSize.X, narrow ? 52 : 16);
-        var textRight = narrow ? origin.X + width : stopPos.X - 16;
-        var textPos = origin + new Vector2(24, 9);
-        draw.AddCircleFilled(origin + new Vector2(10, 19), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        GluttonyChrome.DrawText(draw, textPos,
-            GluttonyChrome.FitText($"{Copy.Word(state)} · AutoRotation", textRight - textPos.X), Theme.TextPrimary);
-        GluttonyChrome.DrawText(draw, textPos + new Vector2(0, 27),
-            GluttonyChrome.FitText(paused ? "Blocked · automatic actions are paused" : "Automatic action replacement is enabled",
-                textRight - textPos.X), Theme.TextSecondary);
-        ImGui.SetCursorScreenPos(stopPos);
-        if (Widgets.StopButton("Stop"))
-            AutoRotationController.ToggleAutoRotation(false);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
-    }
 
     private static UiState LiveState()
     {

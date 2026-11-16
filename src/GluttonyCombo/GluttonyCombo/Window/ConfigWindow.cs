@@ -125,6 +125,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         RespectCloseHotkey = true;
         // Fork: the custom shell supplies the title and close controls; only its inner body scrolls.
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        Size = new Vector2(1040, 720);
+        SizeCondition = ImGuiCond.FirstUseEver;
 
         SetMinSize();
 
@@ -153,6 +155,11 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             return UiState.Ready;
         return AutoRotationController.Paused ? UiState.Blocked : UiState.Running;
     }
+
+    // Fork: the shell draws full-bleed bands, so the window itself carries no padding; the body child adds its own.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
 
     public override void Draw()
     {
