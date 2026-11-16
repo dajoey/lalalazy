@@ -537,7 +537,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.16/LazyCrucible.zip",
         "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.16/LazyCrucible.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v./LazyCrucible-testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/testing/testing.zip",
         "Tags":  [
                      "beastmaster",
                      "bst",
