@@ -13,7 +13,7 @@ internal static class LazyWTMathChrome
     internal const float Radius = 8f;
 
     /// <summary>Side gutter shared by the top bar, page body and footer.</summary>
-    internal static float Gutter(float width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
+    internal static float Gutter(float width) => width >= 760 ? 24 : width >= 560 ? 16 : 12;
 
     // ---- measuring: always at the draw size (the font bakes each size separately) ----
 
@@ -175,13 +175,15 @@ internal static class LazyWTMathChrome
         draw.AddRect(pos, pos + size, Theme.Pack(border), Radius);
     }
 
-    /// <summary>Outlined control with a centred label. Secondary controls stay quiet until hovered.</summary>
-    internal static bool OutlineButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size)
+    internal static float ActionWidth(float minWidth, params string[] labels) => MathF.Max(minWidth, labels.Max(l => TextWidth(l)) + 32f);
+
+    /// <summary>Neutral action control with a centred label; the outline and label brighten on hover.</summary>
+    internal static bool ActionButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size)
     {
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##wtm_" + id, size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Surface : Theme.ShellBar), Radius);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), Radius);
         draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
         var textSize = new Vector2(TextWidth(label), LineH());
         Text(draw, pos + ((size - textSize) / 2f), label, hovered ? Theme.TextPrimary : Theme.TextSecondary);
@@ -194,12 +196,12 @@ internal static class LazyWTMathChrome
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##wtm_" + id, new Vector2(size));
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + new Vector2(size), Theme.Pack(hovered ? Theme.Surface : Theme.ShellBar), Radius);
+        draw.AddRectFilled(pos, pos + new Vector2(size), Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), Radius);
         draw.AddRect(pos, pos + new Vector2(size), Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
         var c = pos + new Vector2(size / 2f);
-        var color = Theme.Pack(hovered ? Theme.TextPrimary : Theme.TextSecondary);
-        draw.AddLine(c + new Vector2(-5, -5), c + new Vector2(5, 5), color, 1.5f);
-        draw.AddLine(c + new Vector2(-5, 5), c + new Vector2(5, -5), color, 1.5f);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        draw.AddLine(c + new Vector2(-6, -6), c + new Vector2(6, 6), color, 1.5f);
+        draw.AddLine(c + new Vector2(-6, 6), c + new Vector2(6, -6), color, 1.5f);
         return clicked;
     }
 
@@ -209,28 +211,30 @@ internal static class LazyWTMathChrome
         ImGui.SetNextWindowPos(anchorRight, ImGuiCond.Always, new Vector2(1, 0));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 3));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
         ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
-        ImGui.PushStyleColor(ImGuiCol.Border, Theme.TextSecondary with { W = 0.45f });
-        ImGui.SetTooltip(text);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+        ImGui.BeginTooltip();
+        ImGui.TextUnformatted(text);
+        ImGui.EndTooltip();
         ImGui.PopStyleColor(2);
         ImGui.PopStyleVar(3);
     }
 
-    /// <summary>Status pill of a fixed width: dot and word centred, alert states tinted.</summary>
+    /// <summary>Status pill of a fixed width: dot and word centred, always neutral fill.</summary>
     internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
     {
         var label = Copy.Word(state);
         var color = Copy.MarkColor(state);
-        var tinted = state is UiState.Ready or UiState.Failed or UiState.Blocked or UiState.Running or UiState.Missing;
+        var neutral = state is UiState.Idle or UiState.Empty or UiState.NeedsSetup;
         var radius = size.Y / 2f;
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(tinted ? color with { W = 0.12f } : Theme.Surface), radius);
-        draw.AddRect(pos, pos + size, Theme.Pack(tinted ? color with { W = 0.45f } : Theme.SurfaceBorder), radius);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), radius);
         var textWidth = TextWidth(label);
         var groupWidth = (2 * Theme.DotRadius) + 8 + textWidth;
         var x = pos.X + ((size.X - groupWidth) / 2f);
         draw.AddCircleFilled(new Vector2(x + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
-        Text(draw, new Vector2(x + (2 * Theme.DotRadius) + 8, pos.Y + ((size.Y - LineH()) / 2f)), label, tinted ? color : Theme.TextSecondary);
+        Text(draw, new Vector2(x + (2 * Theme.DotRadius) + 8, pos.Y + ((size.Y - LineH()) / 2f)), label, neutral ? Theme.TextSecondary : color);
     }
 
     /// <summary>

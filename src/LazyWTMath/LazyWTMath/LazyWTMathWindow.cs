@@ -100,52 +100,51 @@ internal sealed unsafe class LazyWTMathWindow : Window
     private float DrawTopBar(ImDrawListPtr draw, Vector2 winPos, float width, float g, UiState state)
     {
         const float padY = 14f;
-        const float gap = 12f;
+        const float gap = 8f;
         var controlHeight = MathF.Max(36, LazyWTMathChrome.LineH() + 16);
         var brandHeight = MathF.Max(40, LazyWTMathChrome.LineH(Theme.TitleScale) + 16);
         var rowHeight = MathF.Max(brandHeight, controlHeight);
         const string brand = "Lazy WT Math";
         const string whatsNew = "What's new";
-        var brandWidth = 16 + 20 + 10 + LazyWTMathChrome.TextWidth(brand, Theme.TitleScale) + 16;
-        var whatsNewWidth = MathF.Max(72, LazyWTMathChrome.TextWidth(whatsNew) + 32);
+        var brandWidth = 12 + 24 + 12 + LazyWTMathChrome.TextWidth(brand, Theme.TitleScale) + 16;
+        var whatsNewWidth = LazyWTMathChrome.ActionWidth(96, whatsNew);
         var widestState = 0f;
         foreach (var s in AllStates)
             widestState = MathF.Max(widestState, LazyWTMathChrome.TextWidth(Copy.Word(s)));
-        var statusWidth = 16 + (2 * Theme.DotRadius) + 8 + widestState + 16;
+        var statusWidth = MathF.Max(104, 16 + (2 * Theme.DotRadius) + 8 + widestState + 16);
         var closeSize = controlHeight;
         var required = (2 * g) + brandWidth + gap + statusWidth + gap + whatsNewWidth + gap + closeSize;
         var singleRow = width >= required;
-        var bandHeight = (2 * padY) + rowHeight + (singleRow ? 0 : gap + controlHeight);
+        var ruleY = (2 * padY) + rowHeight + (singleRow ? 0 : gap + controlHeight);
+        var bandHeight = ruleY + 1;
 
-        draw.AddRectFilled(winPos, winPos + new Vector2(width, bandHeight), Theme.Pack(Theme.ShellBar));
-        LazyWTMathChrome.Hairline(draw, winPos.X, winPos.X + width, winPos.Y + bandHeight - 0.5f);
+        draw.AddRectFilled(winPos, winPos + new Vector2(width, ruleY), Theme.Pack(Theme.ShellBar));
+        LazyWTMathChrome.Hairline(draw, winPos.X, winPos.X + width, winPos.Y + ruleY + 0.5f);
 
         var brandPos = winPos + new Vector2(g, padY + ((rowHeight - brandHeight) / 2f));
         LazyWTMathChrome.Panel(draw, brandPos, new Vector2(brandWidth, brandHeight), Theme.Surface, Theme.SurfaceBorder);
-        LazyWTMathChrome.Diamond(draw, brandPos + new Vector2(16 + 10, brandHeight / 2f), 10, Theme.Pack(Theme.Accent));
-        LazyWTMathChrome.Text(draw, brandPos + new Vector2(46, (brandHeight - LazyWTMathChrome.LineH(Theme.TitleScale)) / 2f),
+        LazyWTMathChrome.Diamond(draw, brandPos + new Vector2(24, brandHeight / 2f), 12, Theme.Pack(Theme.Accent));
+        LazyWTMathChrome.Text(draw, brandPos + new Vector2(48, (brandHeight - LazyWTMathChrome.LineH(Theme.TitleScale)) / 2f),
             brand, Theme.TextPrimary, Theme.TitleScale);
 
         var controlY = padY + ((rowHeight - controlHeight) / 2f);
         var closePos = winPos + new Vector2(width - g - closeSize, controlY);
         var statusSize = new Vector2(statusWidth, controlHeight);
-        var statusPos = singleRow
-            ? closePos - new Vector2(gap + whatsNewWidth + gap + statusWidth, 0)
-            : closePos - new Vector2(gap + statusWidth, 0);
+        var statusPos = closePos - new Vector2(gap + statusWidth, 0);
         var whatsNewPos = singleRow
-            ? closePos - new Vector2(gap + whatsNewWidth, 0)
+            ? statusPos - new Vector2(gap + whatsNewWidth, 0)
             : winPos + new Vector2(g, padY + rowHeight + gap);
         var whatsNewSize = new Vector2(singleRow ? whatsNewWidth : width - (2 * g), controlHeight);
 
         LazyWTMathChrome.StatusPill(draw, statusPos, statusSize, state);
-        if (LazyWTMathChrome.OutlineButton(draw, "whats_new", whatsNew, whatsNewPos, whatsNewSize))
+        if (LazyWTMathChrome.ActionButton(draw, "whats_new", whatsNew, whatsNewPos, whatsNewSize))
             _showChangelog();
         if (LazyWTMathChrome.CloseButton(draw, "close", closePos, closeSize))
             IsOpen = false;
         if (ImGui.IsItemHovered())
         {
             // Directly under the button, inside the bar: it covers neither the top-bar controls nor the page header.
-            LazyWTMathChrome.TooltipBelow("Close", new Vector2(closePos.X + closeSize, closePos.Y + closeSize + 3));
+            LazyWTMathChrome.TooltipBelow("Close", new Vector2(closePos.X + closeSize, closePos.Y + closeSize + 4));
         }
 
         return bandHeight;
@@ -164,7 +163,10 @@ internal sealed unsafe class LazyWTMathWindow : Window
     private const string FooterDetail = "Read-only view; this window never changes the journal.";
 
     private static float FooterHeight()
-        => 12 + LazyWTMathChrome.LineH() + 4 + LazyWTMathChrome.LineH(Theme.SecondaryScale) + 12;
+        => 12 + MathF.Max(TextBlock(), 36) + 12;
+
+    private static float TextBlock()
+        => LazyWTMathChrome.LineH() + 4 + LazyWTMathChrome.LineH(Theme.SecondaryScale);
 
     private static void DrawFooter(ImDrawListPtr draw, Vector2 winPos, Vector2 winSize, float g, float height,
         LazyWTMathSnapshot snapshot, UiState state)
@@ -175,11 +177,12 @@ internal sealed unsafe class LazyWTMathWindow : Window
         LazyWTMathChrome.Hairline(draw, winPos.X, winPos.X + winSize.X, top + 0.5f);
 
         var lineH = LazyWTMathChrome.LineH();
+        var textTop = top + ((height - TextBlock()) / 2f);
         var textX = winPos.X + g + 16;
         var textWidth = winSize.X - (2 * g) - 16;
-        draw.AddCircleFilled(new Vector2(winPos.X + g + 4, top + 12 + (lineH / 2f)), 4f, Theme.Pack(Copy.MarkColor(state)));
-        LazyWTMathChrome.Text(draw, new Vector2(textX, top + 12), LazyWTMathChrome.Fit(FooterLead(snapshot, state), textWidth), Theme.TextPrimary);
-        LazyWTMathChrome.Text(draw, new Vector2(textX, top + 12 + lineH + 4),
+        draw.AddCircleFilled(new Vector2(winPos.X + g + 4, textTop + (lineH / 2f)), 4f, Theme.Pack(Copy.MarkColor(state)));
+        LazyWTMathChrome.Text(draw, new Vector2(textX, textTop), LazyWTMathChrome.Fit(FooterLead(snapshot, state), textWidth), Theme.TextPrimary);
+        LazyWTMathChrome.Text(draw, new Vector2(textX, textTop + lineH + 4),
             LazyWTMathChrome.Fit(FooterDetail, textWidth, Theme.SecondaryScale), Theme.TextSecondary, Theme.SecondaryScale);
         draw.PopClipRect();
     }
@@ -316,9 +319,9 @@ internal sealed unsafe class LazyWTMathWindow : Window
         const float titleScale = 1.35f;
         const string title = "Wondrous Tails probabilities";
         var meta = snapshot.PlayerAvailable ? $"{snapshot.StickersPlaced} / 9 stickers" : "Player state unavailable";
-        var wide = width >= 600;
+        var wide = ImGui.GetWindowWidth() >= 760;
         var textX = tile + 16;
-        var metaWidth = wide ? LazyWTMathChrome.TextWidth(meta) : 0;
+        var metaWidth = wide ? LazyWTMathChrome.TextWidth(meta, Theme.SecondaryScale) : 0;
         var textWidth = width - textX - (wide ? metaWidth + 16 : 0);
 
         var titleLines = LazyWTMathChrome.ClampLines(title, textWidth, titleScale, wide ? 1 : 2, out var titleCut);
@@ -329,19 +332,19 @@ internal sealed unsafe class LazyWTMathWindow : Window
         var descHeight = descLines.Count * descLine;
         var block = titleHeight + 4 + descHeight + (wide ? 0 : 4 + descLine);
         var height = MathF.Max(tile, block);
-        var textY = (height - block) / 2f;
+        origin += new Vector2(0, 4);
 
-        var tilePos = origin + new Vector2(0, (height - tile) / 2f);
+        var tilePos = origin;
         draw.AddRectFilled(tilePos, tilePos + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), LazyWTMathChrome.Radius);
         LazyWTMathChrome.Diamond(draw, tilePos + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
 
-        var textPos = origin + new Vector2(textX, textY);
+        var textPos = origin + new Vector2(textX, 0);
         LazyWTMathChrome.Lines(draw, textPos, titleLines, Theme.TextPrimary, titleScale);
         LazyWTMathChrome.Lines(draw, textPos + new Vector2(0, titleHeight + 4), descLines, Theme.TextSecondary, Theme.SecondaryScale);
         if (wide)
         {
-            var metaY = textPos.Y + ((titleLine - LazyWTMathChrome.LineH()) / 2f);
-            LazyWTMathChrome.TextRight(draw, origin.X + width, metaY, meta, Theme.TextPrimary);
+            var metaY = textPos.Y + ((titleLine - LazyWTMathChrome.LineH(Theme.SecondaryScale)) / 2f);
+            LazyWTMathChrome.TextRight(draw, origin.X + width, metaY, meta, Theme.TextSecondary, Theme.SecondaryScale);
         }
         else
             LazyWTMathChrome.Text(draw, textPos + new Vector2(0, titleHeight + 4 + descHeight + 4), meta, Theme.TextSecondary, Theme.SecondaryScale);
@@ -349,9 +352,7 @@ internal sealed unsafe class LazyWTMathWindow : Window
         if ((titleCut || descCut) && ImGui.IsMouseHoveringRect(textPos, textPos + new Vector2(textWidth, block)))
             ImGui.SetTooltip(title + "\n" + Description);
 
-        var ruleY = origin.Y + height + 8;
-        LazyWTMathChrome.Hairline(draw, origin.X, origin.X + width, ruleY + 0.5f);
-        return height + 8 + 1 + SectionGap;
+        return 4 + height + 8 + SectionGap;
     }
 
     // ------------------------------------------------------------------ left column
@@ -431,9 +432,12 @@ internal sealed unsafe class LazyWTMathWindow : Window
 
         var barMin = new Vector2(pos.X + pad, y);
         var barMax = new Vector2(pos.X + size.X - pad, y + Theme.BarHeight);
-        draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
-        if (hasFraction && fraction > 0)
-            draw.AddRectFilled(barMin, new Vector2(barMin.X + ((barMax.X - barMin.X) * Math.Clamp(fraction, 0, 1)), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
+        if (hasFraction)
+        {
+            draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
+            if (fraction > 0)
+                draw.AddRectFilled(barMin, new Vector2(barMin.X + ((barMax.X - barMin.X) * Math.Clamp(fraction, 0, 1)), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
+        }
         LazyWTMathChrome.Text(draw, new Vector2(pos.X + pad, y + Theme.BarHeight + step), LazyWTMathChrome.Fit(note, inner, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
     }
 
