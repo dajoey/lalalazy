@@ -5,19 +5,11 @@ using LazyCrafter.Core;
 
 namespace LazyCrafter.UI;
 
-/// <summary>
-/// Bottom panel (Plan §Phase 4 task 4): the cart - recipe x quantity lines with cash cost, the aggregated missing
-/// list across the whole cart (one shared inventory ledger, see <see cref="Tiering.AssessCart"/>), <b>Dispatch</b>
-/// (Phase 5: ARC → GBR → Artisan through <see cref="Adapters.DispatchService"/>, with a Stop while it runs and a
-/// preview tooltip from <see cref="DispatchPlan"/>), and <b>Export to TeamCraft</b>.
-/// Converted to LalaUiKit per the UI Brief (R3/R4): the run Stop is the kit's red stop button, run status reads
-/// in state colours (amber running, red only failed); every handler is unchanged.
-/// </summary>
+/// <summary>Cart quantities, the shared missing-material ledger, and the existing dispatch/export actions.</summary>
 public sealed class CartPanel
 {
     private readonly Plugin _plugin;
     private readonly MainWindow _main;
-    private bool _collapsed;
     private DispatchPlan.Plan? _preview;
     private int _previewFor = -1;
 
@@ -27,142 +19,201 @@ public sealed class CartPanel
         _main = main;
     }
 
-    private string PreviewText(DispatchPlan.Plan p)
+    private string PreviewText(DispatchPlan.Plan plan)
     {
-        string N(uint id) => _plugin.GameData?.ItemName(id) ?? $"#{id}";
-        var sb = new System.Text.StringBuilder("Dispatch order: ARC -> GBR -> Artisan\n");
-        // Retrieve is first because nothing else can happen until it does, and only the player can do it.
-        if (p.Retrievals.Count > 0)
-            sb.Append("RETRIEVE FIRST (not in your bags): ").AppendJoin(", ", p.Retrievals.Select(r => $"{N(r.ItemId)} x{r.Quantity} from {r.Places}")).Append('\n');
-        if (p.Ventures.Count > 0) sb.Append("ARC ventures: ").AppendJoin(", ", p.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})")).Append('\n');
-        if (p.Gathers.Count > 0) sb.Append("GBR gather: ").AppendJoin(", ", p.Gathers.Select(g => $"{N(g.ItemId)} x{g.Quantity}")).Append('\n');
-        if (p.Crafts.Count > 0) sb.Append("Artisan crafts: ").AppendJoin(", ", p.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}")).Append('\n');
-        if (p.Vendor.Count > 0) sb.Append("Gil vendor (list + map flag): ").AppendJoin(", ", p.Vendor.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
-        if (p.Market.Count > 0) sb.Append("Market board (list): ").AppendJoin(", ", p.Market.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
-        if (p.Manual.Count > 0) sb.Append("Manual: ").AppendJoin(", ", p.Manual.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
-        if (p.Deferred.Count > 0) sb.Append("Not crafted yet (blocked): ").AppendJoin(", ", p.Deferred.Select(d => N(d.ResultItemId))).Append('\n');
-        if (p.Crafts.Any(c => c.AfterGather)) sb.Append("* waits for GBR to finish");
-        return sb.ToString().TrimEnd();
-    }
-
-    public float DesiredHeight(CatalogSnapshot snap)
-    {
-        var line = ImGui.GetTextLineHeightWithSpacing();
-        if (_collapsed || snap.Cart.Count == 0) return line * 2.2f;
-        var rows = Math.Min(6, Math.Max(snap.Cart.Count, snap.CartTotals.Missing.Count()));
-        return line * (rows + 4.5f);
+        string Name(uint id) => _plugin.GameData?.ItemName(id) ?? $"#{id}";
+        var text = new System.Text.StringBuilder("Dispatch order: ARC -> GBR -> Artisan\n");
+        if (plan.Retrievals.Count > 0)
+            text.Append("RETRIEVE FIRST (not in bags): ").AppendJoin(", ", plan.Retrievals.Select(item => $"{Name(item.ItemId)} x{item.Quantity} from {item.Places}")).Append('\n');
+        if (plan.Ventures.Count > 0)
+            text.Append("ARC ventures: ").AppendJoin(", ", plan.Ventures.Select(item => $"{Name(item.ItemId)} x{item.Quantity} ({item.Match.Retainer.Name})")).Append('\n');
+        if (plan.Gathers.Count > 0)
+            text.Append("GBR gather: ").AppendJoin(", ", plan.Gathers.Select(item => $"{Name(item.ItemId)} x{item.Quantity}")).Append('\n');
+        if (plan.Crafts.Count > 0)
+            text.Append("Artisan crafts: ").AppendJoin(", ", plan.Crafts.Select(item => $"{Name(item.ResultItemId)} x{item.Crafts}{(item.AfterGather ? "*" : "")}")).Append('\n');
+        if (plan.Vendor.Count > 0)
+            text.Append("Gil vendor (list + map flag): ").AppendJoin(", ", plan.Vendor.Select(item => $"{Name(item.ItemId)} x{item.Quantity}")).Append('\n');
+        if (plan.Market.Count > 0)
+            text.Append("Market board (list): ").AppendJoin(", ", plan.Market.Select(item => $"{Name(item.ItemId)} x{item.Quantity}")).Append('\n');
+        if (plan.Manual.Count > 0)
+            text.Append("Manual: ").AppendJoin(", ", plan.Manual.Select(item => $"{Name(item.ItemId)} x{item.Quantity}")).Append('\n');
+        if (plan.Deferred.Count > 0)
+            text.Append("Not crafted yet (blocked): ").AppendJoin(", ", plan.Deferred.Select(item => Name(item.ResultItemId))).Append('\n');
+        if (plan.Crafts.Any(item => item.AfterGather))
+            text.Append("* waits for GBR to finish");
+        return text.ToString().TrimEnd();
     }
 
     public void Draw(CatalogSnapshot snap)
     {
         var cart = snap.Cart;
         var totals = snap.CartTotals;
-        var svc = _plugin.Catalog;
+        var missingCount = totals.Missing.Count();
+        var cashCost = cart.Sum(line => line.Estimate?.CashCost ?? 0);
+        var hasEstimate = cart.Any(line => line.Estimate is not null);
+        var complete = cart.All(line => line.Estimate is null || line.Estimate.CostComplete);
 
-        if (!ImGui.BeginChild("##lcraft-cart", new Vector2(0, DesiredHeight(snap)), true)) { ImGui.EndChild(); return; }
+        CrafterChrome.DrawStatCards(
+            new CrafterChrome.Stat("Cart lines", cart.Count.ToString(), null,
+                cart.Count == 0 ? "No recipes selected" : $"{cart.Sum(line => line.Crafts):N0} total crafts", null),
+            new CrafterChrome.Stat("Missing materials", missingCount.ToString(), null,
+                missingCount == 0 ? "Every material is accounted for" : $"Worst tier {Fmt.TierName(totals.Tier)}", null),
+            new CrafterChrome.Stat("Estimated cash cost", hasEstimate ? (complete ? "" : ">") + Fmt.Gil(cashCost) : "—", null,
+                !hasEstimate ? "No material prices are available yet" : complete ? "Material estimate is complete" : "Lower bound; some materials are unpriced", null));
 
-        var header = cart.Count == 0 ? "Cart (empty)" : $"Cart - {cart.Count} recipe{(cart.Count == 1 ? "" : "s")}, {totals.Missing.Count()} materials missing, worst tier {Fmt.TierName(totals.Tier)}";
-        if (ImGui.SmallButton(_collapsed ? ">" : "v")) _collapsed = !_collapsed;
-        ImGui.SameLine();
-        Widgets.Title(header);
-        if (cart.Count > 0)
+        if (cart.Count == 0)
         {
-            var cost = cart.Sum(l => l.Estimate?.CashCost ?? 0);
-            var complete = cart.All(l => l.Estimate is null || l.Estimate.CostComplete);
-            ImGui.SameLine();
-            ImGui.TextDisabled($"cash cost {(complete ? "" : ">")}{Fmt.Gil(cost)}");
-            ImGui.SameLine();
-            var dispatch = _plugin.Dispatch;
-            if (dispatch.Running)
+            CrafterChrome.Card("cart_empty", () =>
             {
-                if (Widgets.StopButton("Stop")) dispatch.Stop();
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Abort the run - retainer queue aborted, GBR off, Artisan stop request.");
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Run tab")) _main.OpenRunTab();
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open the Run tab: every step, its reason, and the Resume / Copy report buttons.");
-                ImGui.SameLine();
-                ImGui.TextColored(Copy.MarkColor(UiState.Running), dispatch.Status);
-            }
-            else
-            {
-                if (ImGui.Button("Dispatch")) dispatch.DispatchCart();
-                if (ImGui.IsItemHovered())
-                {
-                    if (_previewFor != snap.Generation) { _preview = dispatch.PlanFor(); _previewFor = snap.Generation; }
-                    ImGui.SetTooltip(_preview is null ? "Sends ventures to ARC, gathering to GBR, then crafts with Artisan (in that order)." : PreviewText(_preview));
-                }
-                if (dispatch.Current is Adapters.DispatchService.Phase.Failed) { ImGui.SameLine(); ImGui.TextColored(Copy.MarkColor(UiState.Failed), dispatch.Status); }
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Export to TeamCraft"))
-            {
-                var link = TeamcraftExport.Link(cart.Where(l => l.Row is not null).Select(l => new TeamcraftExport.Line(l.Row!.ResultItemId, l.RecipeId, l.Crafts * l.Row.ResultAmount)));
-                if (link is not null) { ImGui.SetClipboardText(link); Plugin.ChatGui.Print("[LazyCrafter] TeamCraft import link copied to clipboard."); }
-            }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Copies a https://ffxivteamcraft.com/import/ link for the final items in the cart.");
-            ImGui.SameLine();
-            if (ImGui.Button("Clear")) svc.ClearCart();
+                CrafterChrome.Section("Build a cart from the Catalog");
+                Widgets.InfoBox("Empty — select a recipe, choose a quantity, then use Add to cart. The saved cart and all dispatch actions remain here.", UiState.Empty);
+                if (ImGui.Button("Browse catalog"))
+                    _main.OpenCatalog();
+            });
+            return;
         }
-        if (_collapsed || cart.Count == 0) { ImGui.EndChild(); return; }
 
-        var avail = ImGui.GetContentRegionAvail();
-        var half = (avail.X - ImGui.GetStyle().ItemSpacing.X) * 0.5f;
-
-        if (ImGui.BeginChild("##cart-lines", new Vector2(half, 0), false))
-        {
-            if (ImGui.BeginTable("##cartlines", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp))
-            {
-                ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableSetupColumn("Recipe", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Crafts", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Tier", ImGuiTableColumnFlags.WidthFixed, 50);
-                ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("##rm", ImGuiTableColumnFlags.WidthFixed, 22);
-                ImGui.TableHeadersRow();
-                foreach (var line in cart)
-                {
-                    ImGui.TableNextRow();
-                    ImGui.PushID((int)line.RecipeId);
-                    ImGui.TableNextColumn(); ImGui.TextUnformatted(line.Row?.Name ?? $"recipe {line.RecipeId}");
-                    ImGui.TableNextColumn();
-                    var q = line.Crafts;
-                    ImGui.SetNextItemWidth(-1);
-                    if (ImGui.InputInt("##q", ref q, 1, 10) && q != line.Crafts) svc.SetCartQuantity(line.RecipeId, q);
-                    ImGui.TableNextColumn(); ImGui.TextColored(Fmt.TierColor(line.Assessment.Tier), Fmt.TierName(line.Assessment.Tier));
-                    ImGui.TableNextColumn();
-                    if (line.Estimate is { } e) ImGui.TextUnformatted((e.CostComplete ? "" : ">") + Fmt.Gil(e.CashCost)); else ImGui.TextDisabled("-");
-                    ImGui.TableNextColumn();
-                    if (ImGui.SmallButton("x")) svc.RemoveFromCart(line.RecipeId);
-                    ImGui.PopID();
-                }
-                ImGui.EndTable();
-            }
-        }
-        ImGui.EndChild();
-        ImGui.SameLine();
-        if (ImGui.BeginChild("##cart-missing", new Vector2(half, 0), false))
-        {
-            if (ImGui.BeginTable("##cartmissing", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp))
-            {
-                ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableSetupColumn("Missing material", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthFixed, 110);
-                ImGui.TableSetupColumn("Est.", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableHeadersRow();
-                foreach (var leaf in totals.Missing)
-                {
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn(); ImGui.TextColored(Fmt.TierColor(leaf.Tier), _plugin.GameData?.ItemName(leaf.ItemId) ?? $"#{leaf.ItemId}");
-                    ImGui.TableNextColumn(); ImGui.TextUnformatted(leaf.Missing.ToString());
-                    ImGui.TableNextColumn(); ImGui.TextUnformatted(string.Join(", ", leaf.Sources.Where(s => s != Core.Model.SourceKind.OnHand).Select(Fmt.SourceName)));
-                    ImGui.TableNextColumn();
-                    if (svc.UnitCost(leaf.ItemId) is { } u) ImGui.TextUnformatted(Fmt.Gil(u * leaf.Missing)); else ImGui.TextDisabled("-");
-                }
-                ImGui.EndTable();
-            }
-        }
-        ImGui.EndChild();
-        ImGui.EndChild();
+        DrawToolbar(snap);
+        CrafterChrome.TwoColumns("cart", 0.52f,
+            () => CrafterChrome.Card("cart_lines", () => DrawCartLines(snap)),
+            () => CrafterChrome.Card("cart_missing", () => DrawMissing(snap)));
     }
+
+    private void DrawToolbar(CatalogSnapshot snap)
+    {
+        var dispatch = _plugin.Dispatch;
+        if (dispatch.Running)
+        {
+            if (Widgets.StopButton("Stop"))
+                dispatch.Stop();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Abort the run: retainer queue, GBR and Artisan receive the existing stop requests.");
+            CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Open run"));
+            if (ImGui.Button("Open run"))
+                _main.OpenRunTab();
+            CrafterChrome.SameLineWrapped(220);
+            Widgets.StateText(Copy.Word(UiState.Running), UiState.Running);
+            ImGui.SameLine();
+            Widgets.SecondaryWrapped(dispatch.Status);
+        }
+        else
+        {
+            if (ImGui.Button("Dispatch"))
+                dispatch.DispatchCart();
+            if (ImGui.IsItemHovered())
+            {
+                if (_previewFor != snap.Generation)
+                {
+                    _preview = dispatch.PlanFor();
+                    _previewFor = snap.Generation;
+                }
+                ImGui.SetTooltip(_preview is null
+                    ? "Sends ventures to ARC, gathering to GBR, then crafts with Artisan in that order."
+                    : PreviewText(_preview));
+            }
+            if (dispatch.Current is Adapters.DispatchService.Phase.Failed)
+            {
+                ImGui.SameLine();
+                Widgets.StateText(dispatch.Status, UiState.Failed);
+            }
+        }
+
+        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Export to TeamCraft"));
+        if (ImGui.Button("Export to TeamCraft"))
+        {
+            var link = TeamcraftExport.Link(snap.Cart.Where(line => line.Row is not null)
+                .Select(line => new TeamcraftExport.Line(line.Row!.ResultItemId, line.RecipeId, line.Crafts * line.Row.ResultAmount)));
+            if (link is not null)
+            {
+                ImGui.SetClipboardText(link);
+                Plugin.ChatGui.Print("[LazyCrafter] TeamCraft import link copied to clipboard.");
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Copy an import link for the final items in the cart.");
+        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Clear"));
+        if (ImGui.Button("Clear"))
+            _plugin.Catalog.ClearCart();
+        ImGui.Dummy(new System.Numerics.Vector2(0, Theme.Unit));
+    }
+
+    private void DrawCartLines(CatalogSnapshot snap)
+    {
+        CrafterChrome.Section("Recipes", "Quantities update the saved cart immediately.");
+        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
+        if (!ImGui.BeginTable("##crafter_cart_lines", 5, flags, new System.Numerics.Vector2(0, TableHeight(snap.Cart.Count))))
+            return;
+        ImGui.TableSetupScrollFreeze(0, 1);
+        ImGui.TableSetupColumn("Recipe", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Crafts", ImGuiTableColumnFlags.WidthFixed, 70);
+        ImGui.TableSetupColumn("Tier", ImGuiTableColumnFlags.WidthFixed, 60);
+        ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, 82);
+        ImGui.TableSetupColumn("##remove", ImGuiTableColumnFlags.WidthFixed, 34);
+        ImGui.TableHeadersRow();
+        foreach (var line in snap.Cart)
+        {
+            ImGui.TableNextRow();
+            ImGui.PushID((int)line.RecipeId);
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(line.Row?.Name ?? $"recipe {line.RecipeId}");
+            ImGui.TableNextColumn();
+            var quantity = line.Crafts;
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.InputInt("##quantity", ref quantity, 1, 10) && quantity != line.Crafts)
+                _plugin.Catalog.SetCartQuantity(line.RecipeId, quantity);
+            ImGui.TableNextColumn();
+            ImGui.TextColored(Fmt.TierColor(line.Assessment.Tier), Fmt.TierName(line.Assessment.Tier));
+            ImGui.TableNextColumn();
+            if (line.Estimate is { } estimate)
+                ImGui.TextUnformatted((estimate.CostComplete ? "" : ">") + Fmt.Gil(estimate.CashCost));
+            else
+                ImGui.TextDisabled("-");
+            ImGui.TableNextColumn();
+            if (ImGui.SmallButton("×"))
+                _plugin.Catalog.RemoveFromCart(line.RecipeId);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Remove this recipe from the cart.");
+            ImGui.PopID();
+        }
+        ImGui.EndTable();
+    }
+
+    private void DrawMissing(CatalogSnapshot snap)
+    {
+        var missing = snap.CartTotals.Missing.ToArray();
+        CrafterChrome.Section("Missing materials", "One shared inventory ledger across every cart line.");
+        if (missing.Length == 0)
+        {
+            Widgets.InfoBox("Ready — no materials are missing from the current cart.", UiState.Ready);
+            return;
+        }
+        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
+        if (!ImGui.BeginTable("##crafter_cart_missing", 4, flags, new System.Numerics.Vector2(0, TableHeight(missing.Length))))
+            return;
+        ImGui.TableSetupScrollFreeze(0, 1);
+        ImGui.TableSetupColumn("Material", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Need", ImGuiTableColumnFlags.WidthFixed, 60);
+        ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthFixed, 120);
+        ImGui.TableSetupColumn("Est.", ImGuiTableColumnFlags.WidthFixed, 82);
+        ImGui.TableHeadersRow();
+        foreach (var leaf in missing)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.TextColored(Fmt.TierColor(leaf.Tier), _plugin.GameData?.ItemName(leaf.ItemId) ?? $"#{leaf.ItemId}");
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(leaf.Missing.ToString());
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(string.Join(", ", leaf.Sources.Where(source => source != Core.Model.SourceKind.OnHand).Select(Fmt.SourceName)));
+            ImGui.TableNextColumn();
+            if (_plugin.Catalog.UnitCost(leaf.ItemId) is { } unit)
+                ImGui.TextUnformatted(Fmt.Gil(unit * leaf.Missing));
+            else
+                ImGui.TextDisabled("-");
+        }
+        ImGui.EndTable();
+    }
+
+    private static float TableHeight(int rows) =>
+        Math.Clamp((rows + 1.5f) * ImGui.GetTextLineHeightWithSpacing(), 120, 340);
 }
