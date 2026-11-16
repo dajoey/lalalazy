@@ -24,7 +24,7 @@ internal static class Program
     private static bool _missingGlyphs;
     private static bool _strictGlyphs;
 
-    // The window opens at 1080x780 on first use; its minimum size is 420x540 and the layout changes at 960 px of
+    // The window opens at 1080x780 on first use; its minimum size is 420x540 and the layout changes at 900 px of
     // content width, so 900x700 shows the stacked layout and the two sizes below show the wide and the narrow one.
     private const int WideW = 1080, WideH = 780;
     private const int MidW = 900, MidH = 700;
@@ -42,8 +42,8 @@ internal static class Program
         public bool InCombat { get; init; }
         public bool InDuty { get; init; }
         public bool Hover { get; init; }                       // mouse over the close button (tooltip)
-        public float RulesWheel { get; init; }                 // wheel notches (negative = down; about 86 px each) over the rules column, or the whole body when stacked; -200 = to its end
-        public float RailWheel { get; init; }                  // the same for the right rail (wide layout only)
+        public float RulesWheel { get; init; }                 // wheel notches (negative = down; about 86 px each) over the body (one scrolling child holding both columns); -200 = to its end
+        public float RailWheel { get; init; }                  // kept for scenario names; the rail scrolls with the same body
         private bool Scrolls => RulesWheel != 0f || RailWheel != 0f;
         public bool ScrollsAny => Scrolls;
         public float? Scale { get; init; }                     // overrides LALA_UI_SCALE (evidence only)
@@ -79,7 +79,7 @@ internal static class Program
             HasPlayer = true, JobId = Paladin, InCombat = true, InDuty = true,
             Configure = (c, j) => { c.OnlyInDuty = true; j.HpPotionThreshold = 55f; },
         },
-        // Stacked layout (content narrower than 960 px) with three rules on.
+        // Stacked layout (content narrower than 900 px) with three rules on.
         new("running-gunbreaker", MidW, MidH)
         {
             HasPlayer = true, JobId = Gunbreaker, InCombat = true,
@@ -257,7 +257,12 @@ internal static class Program
             // that scrolls it to its end, then move the mouse away so no hover highlight is left in the image.
             var plan = new List<(Spot Mouse, float Wheel)> { (Spot.Away, 0f), (Spot.Away, 0f) };
             if (scenario.Hover)
+            {
+                // The tooltip window is hidden on its first frame, so hold the pointer for several frames.
                 plan.Add((Spot.Close, 0f));
+                plan.Add((Spot.Close, 0f));
+                plan.Add((Spot.Close, 0f));
+            }
             if (scenario.ScrollsAny)
             {
                 plan.Clear();
@@ -275,21 +280,19 @@ internal static class Program
                 if (wheel != 0f)
                     io.AddMouseWheelEvent(0f, wheel);
                 ImGui.NewFrame();
+                window.PreDraw();
                 BeginRealWindow(window.WindowName, size, window.Flags);
                 if (index == 0)
                 {
-                    var origin = ImGui.GetCursorScreenPos();
-                    var avail = ImGui.GetContentRegionAvail().X;
-                    spots[Spot.Close] = CloseButtonCenter();
-                    // ConfigWindow.DrawWideBody: left column floor((avail - 12) * 0.68) wide, 12 px gap, rail takes the rest.
-                    // The spots sit on a card edge, outside every control, so no hover highlight is drawn.
-                    var y = scenario.Height * 0.55f;
-                    var left = avail >= 960f ? MathF.Floor((avail - 12f) * 0.68f) : 0f;
-                    spots[Spot.Rules] = new Vector2(origin.X + 3f, y);
-                    spots[Spot.Rail] = left > 0f ? new Vector2(origin.X + left + 12f + 3f, y) : spots[Spot.Rules];
+                    spots[Spot.Close] = CloseButtonCenter(size.X);
+                    // The body is one scrolling child, so both wheel spots sit in its left gutter, outside every control.
+                    var gutter = ConfigWindow.Gutter(size.X);
+                    spots[Spot.Rules] = new Vector2(gutter / 2f, scenario.Height * 0.55f);
+                    spots[Spot.Rail] = spots[Spot.Rules];
                 }
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 
@@ -312,12 +315,11 @@ internal static class Program
     }
 
     /// <summary>Centre of the close button, derived from the window's content origin (top bar layout in ConfigWindow.DrawTopBar).</summary>
-    private static Vector2 CloseButtonCenter()
+    private static Vector2 CloseButtonCenter(float width)
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        const float barHeight = 66f, controlHeight = 34f;
-        return origin + new Vector2(width - (controlHeight / 2f), ((barHeight - controlHeight) / 2f) + (controlHeight / 2f));
+        // Top bar: 68 px high, 36 px controls centred in it, the close button's right edge on the side gutter.
+        const float barHeight = 68f, controlHeight = 36f;
+        return new Vector2(width - ConfigWindow.Gutter(width) - (controlHeight / 2f), barHeight / 2f);
     }
 
     /// <summary>Placeholder art for a game job icon: a deterministic tinted tile, so the framed icon slot is filled like in game.</summary>
@@ -444,11 +446,13 @@ internal static class Program
                 io.MousePos = step == 0 ? new Vector2(-10000, -10000) : target;
                 io.MouseDown[0] = step is 2;
                 ImGui.NewFrame();
+                window.PreDraw();
                 BeginRealWindow(window.WindowName, size, window.Flags);
                 if (step == 0)
-                    target = CloseButtonCenter();
+                    target = CloseButtonCenter(size.X);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
             if (window.IsOpen)

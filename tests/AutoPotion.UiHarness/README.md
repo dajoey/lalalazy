@@ -21,7 +21,7 @@ makes a missing glyph fail the run. Image names are `<scenario>-<width>x<height>
 
 Every scenario is one `Scenario` record in `Program.cs` (`AllScenarios`): job, character present or dead, combat and duty flags,
 a `Configure` action over the real `Configuration`, and optional hover or wheel scrolling. The window is drawn at its first-use
-size (1080x780), at its minimum (420x540) and at 900x700 (below the 960 px content width the rules and the rail stack in one
+size (1080x780), at its minimum (420x540) and at 900x700 (below the 900 px content width the rules and the rail stack in one
 column). Scroll scenarios send one mouse-wheel event to the real child windows, so lower cards are reached the way a player does.
 The `scale150-` image is evidence only and is written in game mode only.
 
