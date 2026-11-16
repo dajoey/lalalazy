@@ -347,13 +347,13 @@ internal sealed class PvpApprovedShell
         if (ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
         {
             float bottom = min.Y + height - 1;
-            draw.AddRectFilledMultiColor(new Vector2(min.X, bottom - 28), new Vector2(right, bottom), clear, clear, solid, solid);
+            draw.AddRectFilledMultiColor(new Vector2(min.X, bottom - 12), new Vector2(right, bottom), clear, clear, solid, solid);
         }
 
         if (ImGui.GetScrollY() > 1)
         {
-            draw.AddRectFilled(new Vector2(min.X, min.Y + 1), new Vector2(right, min.Y + 17), solid);
-            draw.AddRectFilledMultiColor(new Vector2(min.X, min.Y + 17), new Vector2(right, min.Y + 41), solid, solid, clear, clear);
+            draw.AddRectFilled(new Vector2(min.X, min.Y + 1), new Vector2(right, min.Y + 5), solid);
+            draw.AddRectFilledMultiColor(new Vector2(min.X, min.Y + 5), new Vector2(right, min.Y + 15), solid, solid, clear, clear);
         }
     }
 

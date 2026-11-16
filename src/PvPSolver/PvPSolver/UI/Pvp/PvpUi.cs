@@ -320,7 +320,8 @@ internal static class PvpUi
         else
         {
             string preview = spec.Choices.FirstOrDefault(c => c.Name == current)?.Label ?? current;
-            const float comboWidth = 240f;
+            float widest = spec.Choices.Max(c => PvpApprovedChrome.TextWidth(c.Label));
+            float comboWidth = MathF.Min(320f, MathF.Max(240f, widest + 24 + 28 + 8));
             PvpApprovedChrome.Row(spec.Property, spec.Label, spec.Help, comboWidth, PvpApprovedChrome.BodyControl, pos =>
             {
                 ImGui.SetCursorScreenPos(pos);
