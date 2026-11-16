@@ -8,7 +8,7 @@ namespace LazyFishSitter;
 
 internal class ConfigWindow : Window
 {
-    private const float ControlHeight = 34f;
+    private const float ControlHeight = 36f;
     private readonly Plugin _plugin;
 
     private readonly record struct LiveStatus(UiState State, string Action, string? Reason);
@@ -30,7 +30,7 @@ internal class ConfigWindow : Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
-    private static float Gutter(float width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
+    private static float Gutter(float width) => width >= 760 ? 24 : width >= 560 ? 16 : 12;
 
     public override void Draw()
     {
@@ -47,7 +47,6 @@ internal class ConfigWindow : Window
         try
         {
             var y = DrawTopBar(winPos, winSize.X, gutter, compact, status.State);
-            y += DrawFeatureRow(winPos, y, winSize.X, gutter, compact);
             var footer = MeasureFooter(config, service, status, winSize.X, gutter);
             if (!compact)
             {
@@ -142,7 +141,7 @@ internal class ConfigWindow : Window
         var height = stacked ? pad + brandHeight + 8 + ControlHeight + pad : pad + brandHeight + pad;
 
         draw.AddRectFilled(winPos, winPos + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(winPos + new Vector2(0, height - 0.5f), winPos + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
+        draw.AddLine(winPos + new Vector2(0, height), winPos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder));
         var rowCenter = pad + (brandHeight / 2f);
         FishSitterChrome.Brand(draw, winPos + new Vector2(gutter, pad), brandSize);
         var closePos = winPos + new Vector2(width - gutter - closeSize, rowCenter - (closeSize / 2f));
@@ -152,30 +151,14 @@ internal class ConfigWindow : Window
         FishSitterChrome.StatusPill(draw, pillPos, pillSize, state);
         if (FishSitterChrome.CloseButton(draw, closePos, closeSize))
             IsOpen = false;
-        return height;
+        return height + 1;
     }
 
-    private static float DrawFeatureRow(Vector2 winPos, float top, float width, float gutter, bool compact)
-    {
-        var draw = ImGui.GetWindowDrawList();
-        const string label = "Fish sitting";
-        var pad = compact ? 8f : 12f;
-        var height = pad + 32 + pad;
-        var origin = winPos + new Vector2(0, top);
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, height - 0.5f), origin + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
-        var pillWidth = MathF.Min(width - (2 * gutter), FishSitterChrome.FeaturePillWidth(label));
-        FishSitterChrome.FeaturePill(draw, label, origin + new Vector2(gutter, pad), new Vector2(pillWidth, 32));
-        return height;
-    }
-
-    /// <summary>The fixed page header: 20 px above, 8 px below, and a hairline at the bottom.</summary>
+    /// <summary>The fixed page header: 20 px above and 8 px below, with no rule.</summary>
     private static float DrawPageHeader(Vector2 bandOrigin, float width, float gutter, FishSitService service)
     {
-        var draw = ImGui.GetWindowDrawList();
         var contentHeight = DrawHeaderBlock(bandOrigin + new Vector2(gutter, 20), width - (2 * gutter), width, service);
         var height = 20 + contentHeight + 8;
-        draw.AddLine(bandOrigin + new Vector2(0, height - 0.5f), bandOrigin + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
         return height;
     }
 
@@ -184,7 +167,7 @@ internal class ConfigWindow : Window
     {
         var draw = ImGui.GetWindowDrawList();
         const float tile = 44;
-        var wide = windowWidth >= 1000;
+        var wide = windowWidth >= 760;
         var count = $"{service.SendsThisTrip} sit {(service.SendsThisTrip == 1 ? "send" : "sends")} this trip";
         const string title = "Fish sitting";
         const string description = "Sits at a safe fishing beat, then stays out of the way until the character stands again.";
@@ -204,14 +187,14 @@ internal class ConfigWindow : Window
         var y = origin.Y;
         FishSitterChrome.DrawWrapped(draw, new Vector2(textX, y), shownTitle, textWidth, Theme.TextPrimary, scale);
         y += titleBlock + 4;
-        var descriptionTop = y;
         FishSitterChrome.DrawWrapped(draw, new Vector2(textX, y), shownDescription, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
         y += descriptionHeight;
 
         if (wide)
         {
             var shownCount = FishSitterChrome.FitText(count, countWidth, Theme.SecondaryScale);
-            FishSitterChrome.DrawTextRight(draw, origin.X + width, descriptionTop, shownCount, Theme.TextSecondary, Theme.SecondaryScale);
+            FishSitterChrome.DrawTextRight(draw, origin.X + width,
+                origin.Y + ((FishSitterChrome.LineHeight(scale) - FishSitterChrome.LineHeight(Theme.SecondaryScale)) / 2f), shownCount, Theme.TextSecondary, Theme.SecondaryScale);
         }
         else
         {
@@ -232,13 +215,11 @@ internal class ConfigWindow : Window
         var sends = service.SendsThisTrip;
         var capReached = status.State == UiState.Blocked && service.LastSkipReason.StartsWith("cap reached", StringComparison.OrdinalIgnoreCase);
         FishSitterChrome.StatCards(
-            new FishSitterStat("Sit sends", sends.ToString(), null, capReached ? 1f : 0f,
+            new FishSitterStat("Sit sends", sends.ToString(), null, null,
                 capReached ? "Retry limit reached" : "Total this hole visit", capReached),
-            new FishSitterStat("Fishing hole", service.TripActive ? "Active" : "None", null,
-                service.TripActive ? 1f : 0f,
+            new FishSitterStat("Fishing hole", service.TripActive ? "Active" : "None", null, null,
                 service.TripActive ? "Trip counters are live" : "Start fishing to begin a trip"),
-            new FishSitterStat("Posture", service.SitBelieved ? "Seated" : "Not seated", null,
-                service.SitBelieved ? 1f : 0f,
+            new FishSitterStat("Posture", service.SitBelieved ? "Seated" : "Not seated", null, null,
                 service.SitBelieved ? "No sit command needed" : service.SeatedReadWorksWithRodOut
                     ? "Rod-out read proven" : "Rod-out read not seen yet"));
 
@@ -365,7 +346,7 @@ internal class ConfigWindow : Window
     {
         var narrow = width < 620;
         var actionLabel = config.Enabled ? "Stop" : "Enable auto-sit";
-        var actionWidth = narrow ? width - (2 * gutter) : FishSitterChrome.ActionWidth("Stop", "Enable auto-sit");
+        var actionWidth = narrow ? width - (2 * gutter) : FishSitterChrome.ActionWidth(96, "Stop", "Enable auto-sit");
         var textRight = narrow ? width - gutter : width - gutter - actionWidth - 16;
         var textWidth = MathF.Max(40, textRight - (gutter + 16));
         var primary = $"{Copy.Word(status.State)} · {status.Action}";
@@ -407,8 +388,11 @@ internal class ConfigWindow : Window
             ? new Vector2(left, origin.Y + layout.Height - 12 - ControlHeight)
             : new Vector2(origin.X + width - gutter - layout.ActionWidth, origin.Y + ((layout.Height - ControlHeight) / 2f));
         var enabled = config.Enabled;
-        if (FishSitterChrome.ActionButton(draw, "footer_action", layout.ActionLabel, actionPos, new Vector2(layout.ActionWidth, ControlHeight),
-                enabled ? FishSitterChrome.ButtonStyle.Neutral : FishSitterChrome.ButtonStyle.Accent, destructive: enabled))
+        var actionSize = new Vector2(layout.ActionWidth, ControlHeight);
+        var pressed = enabled
+            ? FishSitterChrome.StopButton(draw, "footer_action", layout.ActionLabel, actionPos, actionSize)
+            : FishSitterChrome.ActionButton(draw, "footer_action", layout.ActionLabel, actionPos, actionSize);
+        if (pressed)
         {
             config.Enabled = !config.Enabled;
             changed = true;

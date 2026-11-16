@@ -5,7 +5,7 @@ using LalaUiKit;
 namespace LazyFishSitter;
 
 /// <summary>One stat card: a label, a value, an optional "/ cap" and bar fraction, and a one-line note.</summary>
-internal readonly record struct FishSitterStat(string Label, string Value, string? Cap, float Fraction, string Note, bool Warn = false);
+internal readonly record struct FishSitterStat(string Label, string Value, string? Cap, float? Fraction, string Note, bool Warn = false);
 
 /// <summary>Drawn controls for the plugin's single-area settings shell.</summary>
 internal static class FishSitterChrome
@@ -130,27 +130,26 @@ internal static class FishSitterChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
-    /// <summary>The state colour for the status pill, footer dot and notices. Setup problems read as amber.</summary>
-    internal static Vector4 StateColor(UiState state) =>
-        state == UiState.NeedsSetup ? Theme.StateAmber : Copy.MarkColor(state);
+    /// <summary>The state colour for the status pill, footer dot and notices.</summary>
+    internal static Vector4 StateColor(UiState state) => Copy.MarkColor(state);
 
     internal static float StatusPillWidth()
     {
         var widest = 0f;
         foreach (var state in Enum.GetValues<UiState>())
             widest = MathF.Max(widest, TextWidth(Copy.Word(state)));
-        return 16 + (2 * Theme.DotRadius) + 8 + widest + 16;
+        return MathF.Max(104, 16 + (2 * Theme.DotRadius) + 8 + widest + 16);
     }
 
-    internal static float BrandWidth() => 50 + (TextWidth("LazyFishSitter", Theme.TitleScale)) + 20;
+    internal static float BrandWidth() => 48 + TextWidth("LazyFishSitter", Theme.TitleScale) + 16;
 
     internal static void Brand(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
         draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), 2 * Theme.Unit);
         draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), 2 * Theme.Unit);
-        Diamond(draw, pos + new Vector2(25, size.Y / 2f), 12, Theme.Pack(Theme.Accent));
+        Diamond(draw, pos + new Vector2(24, size.Y / 2f), 12, Theme.Pack(Theme.Accent));
         var height = LineHeight(Theme.TitleScale);
-        DrawText(draw, pos + new Vector2(50, (size.Y - height) / 2f), "LazyFishSitter", Theme.TextPrimary, Theme.TitleScale);
+        DrawText(draw, pos + new Vector2(48, (size.Y - height) / 2f), "LazyFishSitter", Theme.TextPrimary, Theme.TitleScale);
     }
 
     internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
@@ -164,19 +163,7 @@ internal static class FishSitterChrome
         var left = pos.X + ((size.X - contentWidth) / 2f);
         draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
         DrawText(draw, new Vector2(left + (2 * Theme.DotRadius) + 8, pos.Y + ((size.Y - LineHeight()) / 2f)), label,
-            state == UiState.Idle ? Theme.TextSecondary : color);
-    }
-
-    internal static float FeaturePillWidth(string label) => 16 + 12 + 8 + TextWidth(label, Theme.SecondaryScale) + 16 + 1;
-
-    internal static void FeaturePill(ImDrawListPtr draw, string label, Vector2 pos, Vector2 size)
-    {
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
-        draw.AddRect(pos, pos + size, Theme.Pack(Theme.Accent), 2 * Theme.Unit);
-        var marker = pos + new Vector2(16, size.Y / 2f);
-        draw.AddCircle(marker, 6, Theme.Pack(Theme.Accent), 16, 1);
-        draw.AddCircleFilled(marker, 3, Theme.Pack(Theme.Accent));
-        DrawText(draw, pos + new Vector2(36, (size.Y - LineHeight(Theme.SecondaryScale)) / 2f), label, Theme.Accent, Theme.SecondaryScale);
+            state is UiState.Idle or UiState.Empty or UiState.NeedsSetup ? Theme.TextSecondary : color);
     }
 
     internal static void Hairline(float inset = 0)
@@ -350,14 +337,17 @@ internal static class FishSitterChrome
 
             var barMin = new Vector2(pos.X + Pad, y);
             var barMax = new Vector2(pos.X + Pad + inner, y + Theme.BarHeight);
-            draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2);
-            var fraction = Math.Clamp(stat.Fraction, 0f, 1f);
-            if (fraction > 0)
-                draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * fraction), barMax.Y),
-                    Theme.Pack(stat.Warn ? Theme.StateAmber : Theme.StateGreen), 2);
+            if (stat.Fraction is { } raw)
+            {
+                draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2);
+                var fraction = Math.Clamp(raw, 0f, 1f);
+                if (fraction > 0)
+                    draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * fraction), barMax.Y),
+                        Theme.Pack(stat.Warn ? Theme.StateAmber : Theme.StateGreen), 2);
+            }
             y += Theme.BarHeight + 8;
 
-            var noteColor = stat.Fraction >= 1f ? (stat.Warn ? Theme.StateAmber : Theme.StateGreen) : Theme.TextSecondary;
+            var noteColor = stat.Warn ? Theme.StateAmber : stat.Fraction >= 1f ? Theme.StateGreen : Theme.TextSecondary;
             DrawText(draw, new Vector2(pos.X + Pad, y), FitText(stat.Note, inner, Theme.SecondaryScale), noteColor, Theme.SecondaryScale);
             ImGui.SetCursorScreenPos(pos);
             ImGui.InvisibleButton("##fish_sitter_stat_" + i, size);
@@ -428,39 +418,36 @@ internal static class FishSitterChrome
             Tooltip(label);
     }
 
-    internal enum ButtonStyle { Neutral, Accent }
-
-    internal static float ActionWidth(params string[] labels)
+    internal static float ActionWidth(float minWidth, params string[] labels)
     {
         var widest = 0f;
         foreach (var label in labels)
             widest = MathF.Max(widest, TextWidth(label));
-        return MathF.Max(104, widest + 32);
+        return MathF.Max(minWidth, widest + 32);
     }
 
-    /// <summary>A 36 px outlined button. Neutral buttons turn red on hover when destructive, accent buttons are always accent.</summary>
-    internal static bool ActionButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size, ButtonStyle style, bool destructive = false)
+    /// <summary>A 36 px neutral action button: surface fill, accent outline and brighter text on hover.</summary>
+    internal static bool ActionButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size)
     {
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##fish_sitter_" + id, size);
         var hovered = ImGui.IsItemHovered();
-        Vector4 border;
-        Vector4 text;
-        if (style == ButtonStyle.Accent)
-        {
-            draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Accent with { W = hovered ? 0.22f : 0.14f }), 2 * Theme.Unit);
-            border = Theme.Accent;
-            text = Theme.Accent;
-        }
-        else
-        {
-            var hover = destructive ? Theme.StateRed : Theme.Accent;
-            draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? hover with { W = 0.12f } : Theme.Surface), 2 * Theme.Unit);
-            border = hovered ? hover : Theme.SurfaceBorder;
-            text = hovered && destructive ? Theme.StateRed : Theme.TextPrimary;
-        }
-        draw.AddRect(pos, pos + size, Theme.Pack(border), 2 * Theme.Unit);
-        DrawText(draw, pos + new Vector2((size.X - TextWidth(label)) / 2f, (size.Y - LineHeight()) / 2f), label, text);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), 2 * Theme.Unit);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2 * Theme.Unit);
+        DrawText(draw, pos + new Vector2((size.X - TextWidth(label)) / 2f, (size.Y - LineHeight()) / 2f), label,
+            hovered ? Theme.TextPrimary : Theme.TextSecondary);
+        return clicked;
+    }
+
+    /// <summary>A 36 px stop button: red tint at rest, stronger on hover, white label.</summary>
+    internal static bool StopButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##fish_sitter_" + id, size);
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.24f : 0.12f }), 2 * Theme.Unit);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.85f : 0.55f }), 2 * Theme.Unit);
+        DrawText(draw, pos + new Vector2((size.X - TextWidth(label)) / 2f, (size.Y - LineHeight()) / 2f), label, Theme.TextPrimary);
         return clicked;
     }
 
@@ -470,13 +457,26 @@ internal static class FishSitterChrome
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##fish_sitter_close", new Vector2(size));
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + new Vector2(size), Theme.Pack(Theme.Surface), 2 * Theme.Unit);
+        draw.AddRectFilled(pos, pos + new Vector2(size), Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), 2 * Theme.Unit);
         draw.AddRect(pos, pos + new Vector2(size), Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2 * Theme.Unit);
         var center = pos + new Vector2(size / 2f);
-        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextPrimary);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
         draw.AddLine(center + new Vector2(-6, -6), center + new Vector2(6, 6), color, 1.5f);
         draw.AddLine(center + new Vector2(-6, 6), center + new Vector2(6, -6), color, 1.5f);
-        Tooltip("Close");
+        if (hovered)
+        {
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size, pos.Y + size + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
         return clicked;
     }
 }
