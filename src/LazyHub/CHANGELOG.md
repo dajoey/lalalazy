@@ -1,4 +1,10 @@
-﻿## v0.1.1.6 (2026-11-15) [testing]
+﻿## v0.1.1.7 (2026-11-16) [testing]
+- The Lazy Hub window now has the same dark, rounded look as the other lalalazy windows, with crisp edges instead of blurry ones.
+- Settings buttons show the full word, and the buttons and switches now match the style of the other plugin windows.
+- The window no longer shows the game's blue background between panels, has a status bar at the bottom, and rows and sections line up evenly with consistent spacing between the two columns.
+- The What's new window now uses the same custom window style as the plugin windows.
+
+## v0.1.1.6 (2026-11-15) [testing]
 - Lazy Hub now presents quick controls and plugin details in a responsive card-based shell with clear live state and automatically hidden inner scrolling.
 
 ## v0.1.1.5 (2026-11-14) [testing]
