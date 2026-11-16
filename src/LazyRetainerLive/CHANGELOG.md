@@ -1,3 +1,10 @@
+## v0.1.0.7 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- Endpoint and continuity values sit in one aligned column and no longer break letter by letter; requirement rows keep a fixed pitch with the status word on the right in its state colour.
+- Stat cards show larger values at equal heights, with a progress track only on cards that have a real ratio, and collapse to compact cards at narrow widths.
+- The window body is a single scroll area with a soft fade at the bottom and thin scrollbars, and columns end at the same height.
+- The header has a bordered brand chip, a fixed-width neutral status pill and a close button with a small tooltip beneath it; the Stop listener button sizes to its label with a red outline and dims when the listener is already off.
+
 ## v0.1.0.6 (2026-11-15) [testing]
 - The settings window has a custom close button in the header, next to the state pill, that closes the window directly. The outer window scrollbar is removed; the body and the wide columns keep their own scrolling, so every card and setting stays reachable at narrow sizes while the footer and the Stop listener button remain in view.
 
