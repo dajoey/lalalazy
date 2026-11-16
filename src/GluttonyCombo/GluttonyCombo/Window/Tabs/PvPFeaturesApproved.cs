@@ -9,7 +9,7 @@ namespace GluttonyCombo.Window.Tabs;
 // Fork: the approved shell owns headers, search, and job navigation.
 internal partial class PvPFeatures
 {
-    internal static new void Draw()
+    internal static void DrawApproved()
     {
         var openPvPJob = OpenPvPJob;
         if (openPvPJob is null)

@@ -43,7 +43,8 @@ internal static class GluttonyShell
         var model = BuildModel(window, page, out var features);
         var search = ConfigWindow.Search;
         var descriptions = ConfigWindow.SearchDescription;
-        var result = GluttonyShellView.Draw(model, ref search, ref descriptions, DrawBodyPrefix(page), () => DrawBody(window.OpenWindow));
+        var result = GluttonyShellView.Draw(model, ref search, ref descriptions, DrawBodyPrefix(page), () => DrawBody(window.OpenWindow),
+            GluttonyShellNavigation.UsesPageCard(page));
         ConfigWindow.Search = search;
         ConfigWindow.SearchDescription = descriptions;
 
@@ -125,10 +126,10 @@ internal static class GluttonyShell
         switch (page)
         {
             case OpenWindow.PvE:
-                PvEFeatures.Draw();
+                PvEFeatures.DrawApproved();
                 break;
             case OpenWindow.PvP:
-                PvPFeatures.Draw();
+                PvPFeatures.DrawApproved();
                 break;
             case OpenWindow.Settings:
                 Settings.Draw();

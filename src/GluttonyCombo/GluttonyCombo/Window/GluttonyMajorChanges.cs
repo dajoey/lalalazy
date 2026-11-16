@@ -67,9 +67,15 @@ internal static class GluttonyMajorChanges
         var footer = GluttonyChrome.FooterBandHeight;
         ImGui.SetCursorPos(new Vector2(0, y));
         GluttonyChrome.BeginBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - y - footer)), gutter, bodyId);
-        foreach (var section in sections)
-            DrawSection(section, result);
-        GluttonyChrome.EndBody();
+        try
+        {
+            foreach (var section in sections)
+                DrawSection(section, result);
+        }
+        finally
+        {
+            GluttonyChrome.EndBody();
+        }
 
         GluttonyChrome.DrawFooterBand(draw, winPos, winSize, footer);
         var top = winPos.Y + winSize.Y - footer;

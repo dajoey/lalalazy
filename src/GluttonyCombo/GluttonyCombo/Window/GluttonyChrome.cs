@@ -422,12 +422,17 @@ internal static class GluttonyChrome
     /// the same width whether or not a scrollbar shows, and every widget that spans the content width (headers, rules,
     /// wrapped text, fields) ends at the gutter instead of at the window padding. Pair with <see cref="EndBody"/>.
     /// </summary>
-    internal static void BeginBody(Vector2 size, float gutter, string id)
+    internal static void BeginBody(Vector2 size, float gutter, string id, bool pageCard = false)
     {
+        // A page that threw last frame may have left card state open; every body starts clean.
         Rights.Clear();
         Tops.Clear();
         CardLefts.Clear();
+        InfoBoxPushes.Clear();
+        _cardDepth = 0;
+        _boxSplit = false;
         _titlePending = false;
+        _pageCard = pageCard;
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
         // The 1 px transparent border is what makes a child honour its window padding (top and bottom margin).
@@ -441,12 +446,28 @@ internal static class GluttonyChrome
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.TextSecondary with { W = 0.45f });
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent with { W = 0.6f });
         ImGui.BeginChild(id, size, true);
+        _fadePos = ImGui.GetWindowPos();
+        _fadeSize = ImGui.GetWindowSize();
+        _fadeScroll = ImGui.GetScrollY();
+        _fadeScrollMax = ImGui.GetScrollMaxY();
         ImGui.SetCursorPosX(gutter);
         // The column is as tall as the content measured last frame, so the outer region scrolls only when the page
         // really is longer than the view; a page that changes length is off by at most one frame.
         _columnId = id;
-        var columnHeight = MathF.Max(1, _columnHeights.TryGetValue(id, out var known) ? known : size.Y - 32);
-        ImGui.BeginChild(id + "_column", new Vector2(MathF.Max(40, size.X - (2 * gutter)), columnHeight), false,
+        var inset = pageCard ? CardPad : 0f;
+        var columnHeight = MathF.Max(1, _columnHeights.TryGetValue(id, out var known) ? known : size.Y - 32 - (2 * inset));
+        var columnWidth = MathF.Max(40, size.X - (2 * gutter) - (2 * inset));
+        if (pageCard)
+        {
+            // One shared card behind the loose settings pages: drawn in the scrolling region, under the column.
+            var origin = ImGui.GetCursorScreenPos();
+            var back = ImGui.GetWindowDrawList();
+            var max = origin + new Vector2(size.X - (2 * gutter), columnHeight + (2 * inset));
+            back.AddRectFilled(origin, max, Theme.Pack(Theme.Surface), Radius);
+            back.AddRect(origin, max, Theme.Pack(Theme.SurfaceBorder), Radius);
+            ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(inset, inset));
+        }
+        ImGui.BeginChild(id + "_column", new Vector2(columnWidth, columnHeight), false,
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         // What the page content, its popups and its tooltips see: the suite theme, not the child's own overrides.
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
@@ -464,33 +485,49 @@ internal static class GluttonyChrome
 
     private static readonly Dictionary<string, float> _columnHeights = [];
     private static string _columnId = "";
+    private static bool _pageCard;
+    private static Vector2 _fadePos, _fadeSize;
+    private static float _fadeScroll, _fadeScrollMax;
 
+    /// <summary>
+    /// Closes the body opened by <see cref="BeginBody"/>. Safe after a page threw: it merges any draw-list split a
+    /// half-drawn card left open and clears the card bookkeeping, so the frame ends in a consistent state.
+    /// </summary>
     internal static void EndBody()
     {
+        var draw = ImGui.GetWindowDrawList();
+        if (_boxSplit || _cardDepth > 0)
+            draw.ChannelsMerge();
+        _boxSplit = false;
+        _cardDepth = 0;
+        InfoBoxPushes.Clear();
         Tops.Clear();
         Rights.Clear();
+        CardLefts.Clear();
+        _titlePending = false;
         ImGui.PopStyleColor(2);
         ImGui.PopStyleVar(8);
-        _columnHeights[_columnId] = ImGui.GetCursorPosY();
-        ImGui.EndChild();
-        var scrollMax = ImGui.GetScrollMaxY();
-        if (scrollMax > 0 && ImGui.GetScrollY() < scrollMax - 1)
+        _columnHeights[_columnId] = ImGui.GetCursorPosY() - (_pageCard ? Theme.ItemSpacing.Y : 0f);
+        if (_fadeScrollMax > 0 && _fadeScroll < _fadeScrollMax - 1)
         {
-            // Cards that run on below the footer fade out instead of being cut off.
-            var draw = ImGui.GetWindowDrawList();
-            var pos = ImGui.GetWindowPos();
-            var size = ImGui.GetWindowSize();
+            // Cards that run on below the footer fade out instead of being cut off. Drawn here, in the column's own
+            // list, because the column is a child window and paints after (above) the scrolling region's list.
             var bg = ImGui.GetColorU32(ImGuiCol.WindowBg);
             var clear = bg & 0x00FFFFFFu;
             var solid = bg | 0xFF000000u;
-            var bottom = pos.Y + size.Y;
-            draw.AddRectFilledMultiColor(new Vector2(pos.X, bottom - 28), new Vector2(pos.X + size.X - ScrollbarWidth, bottom),
+            var bottom = _fadePos.Y + _fadeSize.Y;
+            draw.AddRectFilledMultiColor(new Vector2(_fadePos.X, bottom - FadeHeight), new Vector2(_fadePos.X + _fadeSize.X, bottom),
                 clear, clear, solid, solid);
         }
+        ImGui.EndChild();
+        if (_pageCard)
+            ImGui.Dummy(new Vector2(1, MathF.Max(0, CardPad - Theme.ItemSpacing.Y)));
         ImGui.EndChild();
         ImGui.PopStyleColor(6);
         ImGui.PopStyleVar(5);
     }
+
+    internal const float FadeHeight = 28f;
 
     internal static bool Toggle(string literalLabel, ref bool value)
     {
@@ -520,11 +557,11 @@ internal static class GluttonyChrome
         var rowHeight = MathF.Max(ToggleSize.Y, labelSize.Y);
         var togglePos = pos + new Vector2(width - ToggleSize.X, (rowHeight - ToggleSize.Y) / 2f);
 
-        ImGui.SetCursorScreenPos(togglePos);
-        var clicked = ImGui.InvisibleButton("##gc_toggle" + literalLabel, ToggleSize);
-        if (clicked)
-            value = !value;
-        DrawTrack(togglePos, value, ImGui.IsItemHovered());
+        // The whole row (label, gap and track) toggles. The row button comes first; the label's own button comes last so
+        // the row's last item is the label: a help marker or tooltip that follows sits beside the text, not at the far edge.
+        ImGui.SetCursorScreenPos(pos);
+        var rowClicked = ImGui.InvisibleButton("##gc_toggle" + literalLabel, new Vector2(MathF.Max(1, width), rowHeight));
+        var rowHovered = ImGui.IsItemHovered();
 
         ImGui.SetCursorScreenPos(pos + new Vector2(0, (rowHeight - labelSize.Y) / 2f));
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + labelWidth);
@@ -532,9 +569,14 @@ internal static class GluttonyChrome
         ImGui.TextUnformatted(label);
         ImGui.SetWindowFontScale(1f);
         ImGui.PopTextWrapPos();
-        ImGui.SetCursorScreenPos(pos + new Vector2(0, rowHeight));
-        // One dummy closes the row: it extends the scroll area and applies the item spacing.
-        ImGui.Dummy(new Vector2(1, 0));
+
+        ImGui.SetCursorScreenPos(pos);
+        var labelClicked = ImGui.InvisibleButton("##gc_toggle_label" + literalLabel, new Vector2(MathF.Max(1, labelSize.X), rowHeight));
+        var hovered = rowHovered || ImGui.IsItemHovered();
+        var clicked = rowClicked || labelClicked;
+        if (clicked)
+            value = !value;
+        DrawTrack(togglePos, value, hovered);
         return clicked;
     }
 

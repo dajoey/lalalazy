@@ -93,4 +93,8 @@ internal static class GluttonyShellNavigation
             return GluttonyActivity.Ready;
         return paused ? GluttonyActivity.Blocked : GluttonyActivity.Running;
     }
+
+    /// <summary>Pages drawn by flat upstream renderers sit on one shared card; the preset and About pages draw their own cards.</summary>
+    internal static bool UsesPageCard(GluttonyPage page) =>
+        page is GluttonyPage.Settings or GluttonyPage.AutoRotation or GluttonyPage.CustomActions or GluttonyPage.Debug;
 }

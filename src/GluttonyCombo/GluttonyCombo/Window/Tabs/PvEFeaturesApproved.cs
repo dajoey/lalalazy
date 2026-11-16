@@ -15,7 +15,7 @@ namespace GluttonyCombo.Window.Tabs;
 // Fork: the approved shell owns headers, search, and content navigation.
 internal partial class PvEFeatures
 {
-    internal static new void Draw()
+    internal static void DrawApproved()
     {
         if (ActionReplacer.ClassLocked())
         {

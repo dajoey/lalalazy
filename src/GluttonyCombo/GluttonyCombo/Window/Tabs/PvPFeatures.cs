@@ -20,10 +20,10 @@ using GluttonyCombo.Window.Functions;
 
 namespace GluttonyCombo.Window.Tabs;
 
+// Fork: partial so the approved entry point (DrawApproved) lives in PvPFeaturesApproved.cs.
 internal partial class PvPFeatures : FeaturesWindow
 {
-    // Fork: the approved entry point lives in PvPFeaturesApproved.cs; this legacy renderer is retained for merge context.
-    private static void DrawLegacy()
+    internal static new void Draw()
     {
         using (ImRaii.Child("scrolling", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y), true))
         {

@@ -68,7 +68,7 @@ internal static class GluttonyShellView
     internal static float LastSearchWidth { get; private set; }
 
     internal static ShellResult Draw(ShellModel model, ref string search, ref bool descriptions,
-        Action? bodyPrefix, Action body)
+        Action? bodyPrefix, Action body, bool bodyCard = false)
     {
         var result = new ShellResult();
         Theme.PushFrame();
@@ -84,7 +84,7 @@ internal static class GluttonyShellView
             y = DrawPageHeader(model, winPos, winSize.X, gutter, y);
             var footerHeight = FooterHeight(winSize.X, model.Footer.StopLabel is not null || model.ReportButton is not null);
             ImGui.SetCursorPos(new Vector2(0, y));
-            DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter, bodyPrefix, body);
+            DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter, bodyPrefix, body, bodyCard);
             DrawFooter(model, result, winPos, winSize, gutter, footerHeight);
         }
         finally
@@ -441,12 +441,19 @@ internal static class GluttonyShellView
 
     // ---- body ----
 
-    private static void DrawBody(Vector2 size, float gutter, Action? prefix, Action body)
+    private static void DrawBody(Vector2 size, float gutter, Action? prefix, Action body, bool card)
     {
-        GluttonyChrome.BeginBody(size, gutter, "##gc_shell_body");
-        prefix?.Invoke();
-        body();
-        GluttonyChrome.EndBody();
+        GluttonyChrome.BeginBody(size, gutter, "##gc_shell_body", card);
+        try
+        {
+            prefix?.Invoke();
+            body();
+        }
+        finally
+        {
+            // A page that throws must not leave the child windows and style stack open for the rest of the frame.
+            GluttonyChrome.EndBody();
+        }
     }
 
     // ---- footer ----

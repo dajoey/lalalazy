@@ -58,9 +58,9 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
-    // Fork: header band with a real close control, page header, one card per change and a footer with the dismiss
-    // action (drawing and wording in GluttonyMajorChanges); the upstream body below is kept for merge context.
-    public override void Draw()
+    // Fork: approved-style window body (header band, page header, one card per change, footer with the dismiss action).
+    // Drawing and wording live in GluttonyMajorChanges; always returns true so the upstream body below stays for merges.
+    private bool DrawApproved()
     {
         Theme.PushFrame();
         GluttonyChrome.PushControlColors();
@@ -88,13 +88,17 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         if (_centeredWindow < 5)
             CenterWindow();
+        return true;
     }
 
     /// <summary>
     ///     Draw the settings change suggestion window.
     /// </summary>
-    private void DrawBody()
+    public override void Draw()
     {
+        // Fork: delegate to the approved-style body; the upstream body below is unreachable in practice but kept for merges.
+        if (DrawApproved()) return;
+        PadOutMinimumWidthFor("Gluttony Combo | New Changes");
 
         #region Tanks
 
@@ -173,6 +177,9 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
         }
 
         #endregion
+
+        if (_centeredWindow < 5)
+            CenterWindow();
     }
 
     #region Minimum Width

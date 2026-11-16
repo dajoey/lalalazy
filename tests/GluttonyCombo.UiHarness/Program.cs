@@ -44,6 +44,7 @@ internal static unsafe class Program
         public string Search = "";
         public bool Descriptions = true;
         public bool HoverClose;
+        public bool BodyCard;
     }
 
     public static int Main(string[] args)
@@ -154,7 +155,7 @@ internal static unsafe class Program
             [
                 new Scenario { Name = "shell-pve-jobs", Width = 960, Height = 700, Body = JobGrid(false), Model = () => Model("Combos", UiState.Ready, "PvE Features", "Select a job to see its combos.", "24 jobs", Features("Combos", 0)) },
                 Pve("shell-pve-presets", 960, 700, PresetList),
-                new Scenario { Name = "shell-autorotation-running", Width = 960, Height = 700, Body = AutoRotationPage, Model = () => Model("Automation", UiState.Running, "AutoRotation", "Choose how the rotation picks targets.", "4 auto modes", Features("Automation", 0), stop: "Stop") },
+                new Scenario { Name = "shell-autorotation-running", BodyCard = true, Width = 960, Height = 700, Body = AutoRotationPage, Model = () => Model("Automation", UiState.Running, "AutoRotation", "Choose how the rotation picks targets.", "4 auto modes", Features("Automation", 0), stop: "Stop") },
                 new Scenario { Name = "major-changes", Kind = Kind.Major, Width = 780, Height = 620, Model = () => new ShellModel() },
             ];
         }
@@ -182,16 +183,16 @@ internal static unsafe class Program
                 Model = () => Model("Combos", UiState.Ready, "Paladin", "Presets for the Crystalline Conflict and Frontline.", "3 preset groups",
                     [new("pve", "PvE jobs", false), new("pvp", "PvP jobs", true)], search: true, descriptions: true) },
             // Automation.
-            new() { Name = "main-autorotation-running-1040x720", Body = AutoRotationPage,
+            new() { Name = "main-autorotation-running-1040x720", BodyCard = true, Body = AutoRotationPage,
                 Model = () => Model("Automation", UiState.Running, "AutoRotation", "Choose how the rotation picks targets, heals, and uses actions.", "4 auto modes", Features("Automation", 0), stop: "Stop") },
-            new() { Name = "main-autorotation-blocked-700x640", Width = NarrowW, Height = NarrowH, Body = AutoRotationPage,
+            new() { Name = "main-autorotation-blocked-700x640", BodyCard = true, Width = NarrowW, Height = NarrowH, Body = AutoRotationPage,
                 Model = () => Model("Automation", UiState.Blocked, "AutoRotation", "Choose how the rotation picks targets, heals, and uses actions.", "4 auto modes", Features("Automation", 0), stop: "Stop") },
-            new() { Name = "main-custom-actions-1040x720", Body = CustomActionsPage,
+            new() { Name = "main-custom-actions-1040x720", BodyCard = true, Body = CustomActionsPage,
                 Model = () => Model("Automation", UiState.Ready, "Custom Actions", "Drag bespoke rotation and utility actions to the hotbar.", "8 rotation · 5 utility", Features("Automation", 1)) },
             // System.
-            new() { Name = "main-settings-1040x720", Body = SettingsPage,
+            new() { Name = "main-settings-1040x720", BodyCard = true, Body = SettingsPage,
                 Model = () => Model("System", UiState.Ready, "Settings", "Everything that changes how the combos behave.", "62 settings", Features("System", 0), search: true, hint: "Search settings...") },
-            new() { Name = "main-settings-700x640", Width = NarrowW, Height = NarrowH, Body = SettingsPage,
+            new() { Name = "main-settings-700x640", BodyCard = true, Width = NarrowW, Height = NarrowH, Body = SettingsPage,
                 Model = () => Model("System", UiState.Ready, "Settings", "Everything that changes how the combos behave.", "62 settings", Features("System", 0), search: true, hint: "Search settings...") },
             new() { Name = "main-about-1040x720", Body = AboutPage,
                 Model = () => Model("System", UiState.Ready, "GluttonyCombo", "A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.", "v1.2.3 · 640 job presets", Features("System", 1)) },
@@ -484,7 +485,7 @@ internal static unsafe class Program
                 ImGui.SetNextWindowSize(new Vector2(s.Width, s.Height));
                 ImGui.Begin("GluttonyCombo", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse |
                     ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
-                GluttonyShellView.Draw(model, ref search, ref descriptions, null, s.Body);
+                GluttonyShellView.Draw(model, ref search, ref descriptions, null, s.Body, s.BodyCard);
                 ImGui.End();
                 break;
             case Kind.Major:
@@ -574,6 +575,24 @@ internal static unsafe class Program
         RightEdgeByScenario[s.Name] = right;
         Check(right >= w - g - 2 && right <= w - g, $"{s.Name}: body content ends at the gutter (right edge {right}, expected {w - g - 1}..{w - g}).");
         SearchWidthByScenario[s.Name] = GluttonyShellView.LastSearchWidth;
+        var rules = RulesByScenario[s.Name];
+        if (s.BodyCard)
+        {
+            var card = Px(f, w, g + 6, 300);
+            Check(Near(card, Theme.Surface, 6) && Math.Abs(Px(f, w, 4, 300).R - bg.R) <= 6, $"{s.Name}: the loose page sits on one shared card ({card.R},{card.G},{card.B}).");
+        }
+        if (s.Name.StartsWith("main-first-run-pve-jobs") || s.Name.StartsWith("main-pve-job-presets"))
+        {
+            // Content that runs on below the footer fades into the window background instead of being sliced.
+            var footerTop = rules[^1];
+            var worst = 0;
+            for (var x = g + 8; x < w - g - 14; x++)
+            {
+                var c = Px(f, w, x, footerTop - 3);
+                worst = Math.Max(worst, Math.Max(Math.Abs(c.R - bg.R), Math.Max(Math.Abs(c.G - bg.G), Math.Abs(c.B - bg.B))));
+            }
+            Check(worst <= 45, $"{s.Name}: the last rows above the footer fade out (largest difference from the window background {worst}).");
+        }
     }
 
     private static void VerifyConsistency()
@@ -630,6 +649,49 @@ internal static unsafe class Program
             GluttonyChrome.Toggle("Interaction setting", ref v);
         }, () => center);
         Check(v, "A real press and release changes the drawn toggle value.");
+
+        // A page that throws inside a half-drawn preset card leaves the frame usable once the body is closed.
+        var frames = 0;
+        ClickLoop(step =>
+        {
+            try
+            {
+                GluttonyChrome.BeginBody(new Vector2(400, 100), 16, "##throwing");
+                try
+                {
+                    GluttonyChrome.InfoBoxBegin(false);
+                    throw new InvalidOperationException("sample page failure");
+                }
+                finally
+                {
+                    GluttonyChrome.EndBody();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                frames++;
+            }
+        }, () => Vector2.Zero);
+        Check(frames == 4, "Four frames in a row survive a page that throws inside an open preset card.");
+
+        // The label toggles too, and the row's last item is the label, so a marker that follows sits beside the text.
+        var w = false;
+        var labelPoint = Vector2.Zero;
+        float lastItemWidth = 0, markerX = 0, labelLeft = 0;
+        ClickLoop(step =>
+        {
+            ImGui.SetCursorPos(new Vector2(20, 20));
+            if (step == 0)
+                labelPoint = ImGui.GetCursorScreenPos() + new Vector2(10, 12);
+            labelLeft = ImGui.GetCursorScreenPos().X;
+            GluttonyChrome.Toggle("Interaction setting", ref w);
+            lastItemWidth = ImGui.GetItemRectMax().X - ImGui.GetItemRectMin().X;
+            ImGui.SameLine();
+            markerX = ImGui.GetCursorScreenPos().X;
+            ImGui.TextDisabled("(?)");
+        }, () => labelPoint);
+        Check(w, "A press on the label text also changes the toggle value.");
+        Check(lastItemWidth < 200 && markerX - labelLeft < 220, $"A marker drawn after a toggle sits beside the label, not at the row's far edge (marker at +{markerX - labelLeft:F0} px).");
     }
 
     private static void VerifyCloseInteraction()
