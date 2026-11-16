@@ -29,6 +29,9 @@ internal static class Scenarios
         new("empty-awaiting-progress-1180x760",
             "Empty: logged in but no progress report yet; 'press Refresh progress' info box and footer reason",
             DefaultWidth, DefaultHeight, AwaitingProgress),
+        new("blocked-hook-offline-1180x760",
+            "Blocked: logged in but the progress hook never started; 'tracking offline' pill, notice and footer reason instead of empty bars",
+            DefaultWidth, DefaultHeight, HookOffline),
         new("running-populated-1180x760",
             "Running: typical mid-collection state at first-use size; mixed done/partial/idle/missing rows, bag points projected, top of the list",
             DefaultWidth, DefaultHeight, Populated),
@@ -78,6 +81,7 @@ internal static class Scenarios
     {
         Plugin.ProgressCache.Clear();
         Plugin.Completed.Clear();
+        Plugin.IsTracking = true;
         InventoryScanner.Projections.Clear();
         Plugin.ClientState.IsLoggedIn = loggedIn;
     }
@@ -85,6 +89,12 @@ internal static class Scenarios
     private static void LoggedOut() => Reset(false);
 
     private static void AwaitingProgress() => Reset(true);
+
+    private static void HookOffline()
+    {
+        AwaitingProgress();
+        Plugin.IsTracking = false;
+    }
 
     private static void LoggedOutCached()
     {

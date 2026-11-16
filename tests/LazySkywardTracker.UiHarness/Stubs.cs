@@ -50,7 +50,17 @@ namespace LazySkywardTracker
         /// <summary>Achievement ids the fake game reports as completed (the real one reads a bitfield).</summary>
         public static readonly HashSet<uint> Completed = new();
 
-        public static bool IsAchievementCompleted(uint achievementId) => Completed.Contains(achievementId);
+        /// <summary>False when the progress hook never came up; the real value is set by Plugin.cs, scenarios set it here.</summary>
+        public static bool IsTracking { get; set; } = true;
+
+        /// <summary>How many times the window asked for an achievement's completion; the window must read each job once per frame.</summary>
+        public static int CompletedReads { get; private set; }
+
+        public static bool IsAchievementCompleted(uint achievementId)
+        {
+            CompletedReads++;
+            return Completed.Contains(achievementId);
+        }
 
         public InventoryScanner Scanner { get; } = new();
 

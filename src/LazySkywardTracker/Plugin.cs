@@ -112,6 +112,7 @@ public sealed class Plugin : IDalamudPlugin
                     ReceiveAchievementProgressDetour
                 );
                 _receiveAchievementProgressHook.Enable();
+                IsTracking = true;
             }
         }
         catch (Exception ex)
@@ -153,6 +154,9 @@ public sealed class Plugin : IDalamudPlugin
             PluginLog.Error(ex, "Failed to request achievement progress");
         }
     }
+
+    /// <summary>False when the progress hook never came up (for example a broken signature after a game patch); the window then says tracking is offline instead of showing empty bars.</summary>
+    public static bool IsTracking { get; private set; }
 
     public static unsafe bool IsAchievementCompleted(uint achievementId)
     {
@@ -204,6 +208,7 @@ public sealed class Plugin : IDalamudPlugin
         _receiveAchievementProgressHook?.Disable();
         InFlight.Drain("LazySkywardTracker.ReceiveAchievementProgress", static m => PluginLog.Error(m));
         _receiveAchievementProgressHook = null;
+        IsTracking = false;
     }
 
     private void ToggleWindow() => _mainWindow.IsOpen = !_mainWindow.IsOpen;
