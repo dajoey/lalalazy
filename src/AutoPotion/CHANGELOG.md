@@ -1,3 +1,6 @@
+## v0.2.5.9 (2026-11-16) [testing]
+- `/autopotion debug` now prints a one-line state summary in chat.
+
 ## v0.2.5.8 (2026-11-15) [testing]
 ### Changed
 - The HP, MP and regen threshold sliders accept a typed value again (Ctrl+click).
