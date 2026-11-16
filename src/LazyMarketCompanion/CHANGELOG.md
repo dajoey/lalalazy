@@ -1,4 +1,15 @@
-﻿## v0.2.8.24 (2026-11-15) [testing]
+﻿## v0.2.8.25 (2026-11-15) [testing]
+### Changed
+- The Auto-Market panel docked beside the inventory window now lists only the marketable bag stacks, each with its existing per-row controls (list switch, Add/Remove, Stack, Keep, Skip category routing), under a title line with a close button. The statistics cards, the placement card, the filter and search card, the bulk buttons, the Auto-Market settings card and the state footer are gone from the panel (Windows/AutoMarketPanelWindow.cs, DrawFrame).
+- The main window's Auto-Market page has a new "Inventory panel" card with "Dock to inventory", "Stay open when the inventory closes", the Status and Category filters that narrow the panel's list, the On list / Not listed / Excluded counts, and the "Add all marketable stacks in bags" and "Remove all" actions, each still confirming first (Windows/ConfigWindow.cs, DrawInventoryPanelCard). The saved settings keep their names, so existing choices carry over.
+- While a status or category filter is set, the bulk actions read "Add all shown" and "Remove all shown" and only touch the stacks the panel lists (AutoMarket/AutoMarketPanelModel.cs, PanelRows and PlanSettingsBulk).
+### Removed
+- The panel's search box, its "Show unmarketable" switch (unmarketable stacks are no longer listed), its docked or floating status line, its Stop button and its "Turn Auto-Market on?" confirmation. Every Auto-Market setting the panel repeated is on the main window's Auto-Market page, whose footer Stop and the /lmc cancel command still stop a running action. "Enable Auto-Market" switches on from the main window without a confirmation, as it already did there.
+### Notes
+- Untried build: tested offline, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
+## v0.2.8.24 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The window has a new look with a header showing the plugin name, a status pill and a close button, sub-pages as pill tabs, and a status footer that shows the current state and a Stop button while an action runs.
 - Settings are grouped into cards, and the Auto-Market panel and the entries list show each item as its own card with its full name, switch, stack and keep fields. Long item names are shortened in the middle so the "(HQ)" marker always stays visible, and hovering shows the full name.
