@@ -49,6 +49,11 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
 
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
+        // Safe mode uses the same native header Close path; no second content button and no change to the recovery lifecycle.
+        DisableClose = false;
+        if (WindowNode is KamiToolKit.Nodes.WindowNode nativeWindow)
+            nativeWindow.ShowCloseButton = true;
+
         _generation++;
         _rows.Clear();
         _showPlugins = true;

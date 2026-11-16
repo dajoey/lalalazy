@@ -192,6 +192,11 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
     protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
+        // The native header owns the only Close control; keep it enabled and visible instead of adding a duplicate content X.
+        DisableClose = false;
+        if (WindowNode is KamiToolKit.Nodes.WindowNode nativeWindow)
+            nativeWindow.ShowCloseButton = true;
+
         try { BuildWindow(); }
         catch (Exception ex) { log.Error(ex, "Hub window setup failed"); }
     }
