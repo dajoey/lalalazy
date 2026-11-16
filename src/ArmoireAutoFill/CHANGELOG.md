@@ -1,4 +1,7 @@
-﻿## v0.5.7.3 (2026-11-15) [testing]
+﻿## v0.5.7.4 (2026-11-15) [testing]
+- The Collection and Settings windows now have a custom close button in the header, and long content scrolls inside each window's body instead of behind a second outer scrollbar. Collection, shopping, storage automation, import and export, and settings are unchanged.
+
+## v0.5.7.3 (2026-11-15) [testing]
 - The Collection, Shopping, Auto-store and Settings windows now use custom headers instead of the native title bar, with responsive card layouts, live collection and shopping counts, and persistent storage controls. Item data, ownership scans, storage automation, import and export, and settings are unchanged.
 
 ## v0.5.7.2 (2026-11-14) [testing]
