@@ -1,4 +1,7 @@
-﻿## v0.1.9.24 (2026-11-15) [testing]
+﻿## v0.1.9.25 (2026-11-16) [testing]
+- The suggestion note now stays on screen at the screen edges.
+
+## v0.1.9.24 (2026-11-15) [testing]
 - Time-critical notices (incoming cast, AutoDuty standby, conflict and low HP) stay pinned above the scrolling page in both windows.
 - Both windows can be made small again, with a compact header and footer at short sizes.
 - The Run roster card shows the plain count again, and help text on the Treasure and Display pages is back.
