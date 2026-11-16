@@ -1,4 +1,11 @@
-﻿## v0.1.5.4 (2026-11-15) [testing]
+﻿## v0.1.5.5 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The settings window scrolls as one page with even side margins, so toggles, buttons and values sit well inside their cards.
+- On wide windows the two columns are balanced: Diagnostics sits under Food selection, leaving no large empty card at the end of the page.
+- Job and food pickers are bordered fields with a chevron; the list opens with the search box, then None or Default, then the entries.
+- The title bar has a bordered brand chip, a fixed-width status pill showing only the state word and a drawn close button with a tooltip; the footer Stop button is red-tinted.
+
+## v0.1.5.4 (2026-11-15) [testing]
 - The settings window has been redesigned as a responsive card layout: a custom header with a close button instead of the native title bar, no outer scrollbar, switch-style toggles, live requirements and counts, cards that adapt to the window size, and a persistent footer with the live state and a Stop button that only turns the automation off. Food selection, fallback behavior, saved settings and automation are unchanged.
 
 ## v0.1.5.3 (2026-11-14) [testing]
