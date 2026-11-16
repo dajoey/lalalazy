@@ -1,4 +1,8 @@
-﻿## v0.1.9.21 (2026-11-15) [testing]
+﻿## v0.1.9.22 (2026-11-15) [testing]
+- LazyCrucible now uses the approved custom shell with pink navigation and track toggles, responsive cards, aligned battle-plan and guide columns, and persistent footer actions.
+- Main and guide windows now open at 1280×840 on first use, without the native title bar and with a drawn close button.
+
+## v0.1.9.21 (2026-11-15) [testing]
 - LazyCrucible's settings and fight guide now use card-based panels, a structured battle plan, and clearer grouped requirements.
 - Main-window guide pages follow the actual focused fight and incoming casts, with persistent footer actions and improved narrow-window wrapping.
 
