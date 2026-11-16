@@ -53,7 +53,7 @@ public class FateToolKitWindow : MinimisableWindow
             .OrderBy(p => p.Name)];
     }
 
-    public FateToolKitWindow(FateToolKit tweak) : base($"Fate Tracker##{nameof(FateToolKitWindow)}")
+    public FateToolKitWindow(FateToolKit tweak) : base($"Fate Tracker##{nameof(FateToolKitWindow)}", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         _tweak = tweak;
         Size = new Vector2(1120, 760);
@@ -167,14 +167,17 @@ public class FateToolKitWindow : MinimisableWindow
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(Copy.Word(state)).X + 43), FateChrome.ControlHeight);
         var settingsSize = new Vector2(92, FateChrome.ControlHeight);
         var minimiseSize = new Vector2(96, FateChrome.ControlHeight);
-        var totalWidth = brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X
-            + groupSizes.Sum(size => size.X) + ((groups.Length + 3) * gap);
+        var closeSize = new Vector2(FateChrome.ControlHeight);
+        var totalWidth = brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + closeSize.X
+            + groupSizes.Sum(size => size.X) + ((groups.Length + 4) * gap);
         var singleRow = width >= totalWidth;
-        var brandWithControls = !singleRow && width >= brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + (3 * gap);
+        var brandWithControls = !singleRow && width >= brandSize.X + statusSize.X + settingsSize.X + minimiseSize.X + closeSize.X + (4 * gap);
         float controlsY = singleRow || brandWithControls ? 16 : 62;
         float groupY = singleRow ? 16 : brandWithControls ? 62 : 104;
         var brandPos = new Vector2(0, 12);
         var right = width;
+        var closePos = new Vector2(right - closeSize.X, controlsY);
+        right -= closeSize.X + gap;
         var minimisePos = new Vector2(right - minimiseSize.X, controlsY);
         right -= minimiseSize.X + gap;
         var settingsPos = new Vector2(right - settingsSize.X, controlsY);
@@ -214,8 +217,17 @@ public class FateToolKitWindow : MinimisableWindow
             ToggleMinimised();
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(MinimiseTooltipText);
+        DrawCloseButton("header_close", origin + closePos, closeSize);
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    private void DrawCloseButton(string id, Vector2 pos, Vector2 size)
+    {
+        if (FateChrome.OutlineButton(ImGui.GetWindowDrawList(), id, "×", pos, size))
+            IsOpen = false;
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Close");
     }
 
     private bool DrawSettingsButton(string id, Vector2 pos, Vector2 size)
@@ -494,11 +506,14 @@ public class FateToolKitWindow : MinimisableWindow
         var statusSize = new Vector2(82, FateChrome.ControlHeight);
         var settingsSize = new Vector2(92, FateChrome.ControlHeight);
         var restoreSize = new Vector2(84, FateChrome.ControlHeight);
+        var closeSize = new Vector2(FateChrome.ControlHeight);
         draw.AddRectFilled(origin, origin + new Vector2(width, 50), Theme.Pack(Theme.ShellBar));
         draw.AddLine(origin + new Vector2(0, 50), origin + new Vector2(width, 50), Theme.Pack(Theme.SurfaceBorder));
         if (FateChrome.BrandButton(draw, origin + new Vector2(0, 4), brandSize))
             _currentPage = LivePage;
         var right = width;
+        var closePos = new Vector2(right - closeSize.X, 8);
+        right -= closeSize.X + gap;
         var restorePos = new Vector2(right - restoreSize.X, 8);
         right -= restoreSize.X + gap;
         var settingsPos = new Vector2(right - settingsSize.X, 8);
@@ -511,6 +526,7 @@ public class FateToolKitWindow : MinimisableWindow
             ToggleMinimised();
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(ExpandTooltipText);
+        DrawCloseButton("compact_close", origin + closePos, closeSize);
 
         var runSize = new Vector2(82, FateChrome.ControlHeight);
         var modeSize = new Vector2(132, FateChrome.ControlHeight);
