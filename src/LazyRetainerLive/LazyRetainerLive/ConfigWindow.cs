@@ -18,7 +18,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("LazyRetainerLive##cfg")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(980, 680);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -71,17 +71,20 @@ internal class ConfigWindow : Window
         _ => UiState.Idle,
     };
 
-    private static void DrawTopBar(UiState state)
+    private void DrawTopBar(UiState state)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
+        var gap = 2 * Theme.Unit;
         var brandSize = new Vector2(232, 42);
+        var closeSize = new Vector2(ControlHeight);
+        var closePos = new Vector2(width - closeSize.X, (66 - ControlHeight) / 2f);
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(92, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
-        var singleRow = width >= brandSize.X + statusSize.X + (3 * Theme.Unit);
+        var singleRow = width >= brandSize.X + statusSize.X + closeSize.X + (2 * gap);
         var statusPos = singleRow
-            ? new Vector2(width - statusSize.X, (66 - ControlHeight) / 2f)
+            ? new Vector2(closePos.X - gap - statusSize.X, closePos.Y)
             : new Vector2(width - statusSize.X, 62);
         var barHeight = singleRow ? 66f : 108f;
 
@@ -89,6 +92,8 @@ internal class ConfigWindow : Window
         draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
         RetainerLiveChrome.Brand(draw, origin + new Vector2(0, 12), brandSize);
         RetainerLiveChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (RetainerLiveChrome.CloseButton(draw, origin + closePos, closeSize))
+            IsOpen = false;
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
