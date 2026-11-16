@@ -23,64 +23,92 @@ public sealed class IngredientTree
             _qty = 1;
         }
         DrawSummary(row, hq);
+        DrawIngredients(row);
+        DrawEconomics(row, hq);
+    }
 
-        if (row.Leaves.Count == 0)
+    private void DrawIngredients(CatalogRow row)
+    {
+        CrafterChrome.Card("recipe_ingredients", () =>
         {
-            Widgets.InfoBox("Empty — this recipe has no ingredient leaves to display.", UiState.Empty);
-            return;
-        }
+            CrafterChrome.Section("Ingredients", null, row.Leaves.Count == 0 ? null : $"{row.Leaves.Count} items");
+            if (row.Leaves.Count == 0)
+            {
+                CrafterChrome.Paragraph("This recipe has no ingredient leaves to display.");
+                return;
+            }
 
-        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
-        var height = MathF.Max(240, ImGui.GetContentRegionAvail().Y);
-        if (!ImGui.BeginTable("##crafter_ingredients", 5, flags, new System.Numerics.Vector2(0, height)))
-            return;
-        ImGui.TableSetupScrollFreeze(1, 1);
-        ImGui.TableSetupColumn("Ingredient", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Have/Need", ImGuiTableColumnFlags.WidthFixed, 82);
-        ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthFixed, 116);
-        ImGui.TableSetupColumn("Unit", ImGuiTableColumnFlags.WidthFixed, 70);
-        ImGui.TableSetupColumn("Fulfil", ImGuiTableColumnFlags.WidthFixed, 174);
-        ImGui.TableHeadersRow();
-        foreach (var node in Core.IngredientTree.Build(row.Leaves))
-            DrawNode(node, 0, row.JobId);
-        ImGui.EndTable();
+            var flags = ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp;
+            var width = CrafterChrome.Avail();
+            if (!ImGui.BeginTable("##crafter_ingredients", 2, flags, new System.Numerics.Vector2(width, 0)))
+                return;
+            ImGui.PushTextWrapPos(0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new System.Numerics.Vector2(Theme.Unit, Theme.Unit / 2f));
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new System.Numerics.Vector2(0, Theme.Unit * 1.5f));
+            ImGui.TableSetupColumn("Ingredient", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Have/Need", ImGuiTableColumnFlags.WidthFixed, MathF.Max(CrafterChrome.TextWidth("888/888"), CrafterChrome.TextWidth("Have/Need", Theme.CaptionScale)) + (2 * Theme.Unit));
+            DrawHeader();
+            foreach (var node in Core.IngredientTree.Build(row.Leaves))
+                DrawNode(node, 0, row.JobId);
+            ImGui.PopStyleVar(2);
+            ImGui.PopTextWrapPos();
+            ImGui.EndTable();
+        });
+    }
+
+    private static void DrawHeader()
+    {
+        ImGui.TableNextRow();
+        ImGui.TableNextColumn();
+        Widgets.Caption("Ingredient · source · unit price");
+        ImGui.TableNextColumn();
+        var text = "Have/Need";
+        var avail = ImGui.GetContentRegionAvail().X;
+        var width = CrafterChrome.TextWidth(text, Theme.CaptionScale);
+        if (avail > width)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + avail - width - 1);
+        ImGui.PushTextWrapPos(-1f);
+        Widgets.Caption(text);
+        ImGui.PopTextWrapPos();
     }
 
     private void DrawSummary(CatalogRow row, bool hq)
     {
-        var estimate = row.Est(hq);
         CrafterChrome.Card("recipe_summary", () =>
         {
-            Widgets.Title(row.Name);
-            Widgets.Caption($"{row.Job} {row.Level} · x{row.ResultAmount}/craft · {(row.LogComplete ? "in crafting log" : "not yet crafted")}");
-            Widgets.StateText(Fmt.TierName(row.Tier), row.Tier == EffortTier.Now ? UiState.Ready : row.Tier == EffortTier.Blocked ? UiState.Blocked : UiState.Idle);
-            ImGui.SameLine();
-            Widgets.Secondary(row.HowMany > 0 ? $"Can craft {row.HowMany}" : "Cannot craft yet");
+            var draw = ImGui.GetWindowDrawList();
+            var pos = ImGui.GetCursorScreenPos();
+            var width = CrafterChrome.Avail();
+            var title = CrafterChrome.ClampLines(row.Name, width, Theme.TitleScale, 2);
+            var used = CrafterChrome.DrawWrapped(draw, pos, title, width, Theme.TextPrimary, Theme.TitleScale);
+            if (title != row.Name && ImGui.IsMouseHoveringRect(pos, pos + new System.Numerics.Vector2(width, used)))
+                ImGui.SetTooltip(row.Name);
+            var y = used + Theme.Unit;
+            CrafterChrome.DrawFitted(draw, pos + new System.Numerics.Vector2(0, y),
+                $"{row.Job} {row.Level} · x{row.ResultAmount}/craft · {(row.LogComplete ? "in crafting log" : "not yet crafted")}", width, Theme.TextSecondary, Theme.SecondaryScale);
+            y += CrafterChrome.LineHeight(Theme.SecondaryScale) + (2 * Theme.Unit);
+            var tierState = row.Tier == EffortTier.Now ? UiState.Ready : row.Tier == EffortTier.Blocked ? UiState.Blocked : UiState.Idle;
+            var tierName = Fmt.TierName(row.Tier);
+            var tierColor = tierState == UiState.Idle ? Theme.TextPrimary : Copy.MarkColor(tierState);
+            CrafterChrome.DrawText(draw, pos + new System.Numerics.Vector2(0, y), tierName, tierColor);
+            CrafterChrome.DrawFitted(draw, pos + new System.Numerics.Vector2(CrafterChrome.TextWidth(tierName) + (2 * Theme.Unit), y),
+                row.HowMany > 0 ? $"Can craft {row.HowMany}" : "Cannot craft yet", width - CrafterChrome.TextWidth(tierName) - (2 * Theme.Unit), Theme.TextSecondary);
+            y += CrafterChrome.LineHeight() + (3 * Theme.Unit);
+            CrafterChrome.Advance(pos, width, y, 0);
 
-            if (estimate is not null)
-            {
-                Widgets.SecondaryWrapped($"Revenue {(estimate.RevenueKnown ? Fmt.Gil((hq ? estimate.RevenueHq : estimate.RevenueNq)!.Value) : "?")} · tax {Fmt.Gil(estimate.Tax)} · cash cost {(estimate.CostComplete ? "" : ">")}{Fmt.Gil(estimate.CashCost)} · market {Fmt.Gil(estimate.MarketCost)}");
-                Widgets.SecondaryWrapped($"Margin cash {(estimate.MarginCash is { } cash ? Fmt.Gil(cash) : "?")} · market {(estimate.MarginMarket is { } market ? Fmt.Gil(market) : "?")} · /day {Fmt.Gil((long)Math.Round(estimate.PerDay))} · velocity {estimate.Velocity:0.#} · listings {estimate.Listings}");
-                if (!estimate.CostComplete)
-                    Widgets.Caption("Unpriced: " + string.Join(", ", estimate.UnpricedItems.Take(4).Select(Name)) +
-                        (estimate.UnpricedItems.Count > 4 ? $" +{estimate.UnpricedItems.Count - 4}" : ""));
-            }
-            else if (!row.Marketable)
-            {
-                Widgets.InfoBox("Untradeable — no market value is estimated for this result.", UiState.Idle);
-            }
             if (row.Scrip > 0)
-                Widgets.Caption($"{row.Scrip} scrip per turn-in at maximum collectability");
+                CrafterChrome.Paragraph($"{row.Scrip} scrip per turn-in at maximum collectability", Theme.SecondaryScale);
 
-            ImGui.SetNextItemWidth(76);
+            ImGui.Dummy(new System.Numerics.Vector2(0, Theme.Unit));
+            ImGui.SetNextItemWidth(88);
             ImGui.InputInt("##crafter_recipe_quantity", ref _qty);
             if (_qty < 1)
                 _qty = 1;
-            CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Add to cart"));
-            if (ImGui.Button("Add to cart"))
+            CrafterChrome.WrapNext(CrafterChrome.ButtonWidth("Add to cart"));
+            if (CrafterChrome.Button("add", "Add to cart", CrafterChrome.ButtonKind.Primary))
                 _plugin.Catalog.AddToCart(row.RecipeId, _qty);
-            CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Copy TeamCraft link"));
-            if (ImGui.Button("Copy TeamCraft link"))
+            CrafterChrome.WrapNext(CrafterChrome.ButtonWidth("Copy TeamCraft link"));
+            if (CrafterChrome.Button("link", "Copy TeamCraft link"))
             {
                 var link = TeamcraftExport.Link([new TeamcraftExport.Line(row.ResultItemId, row.RecipeId, _qty * row.ResultAmount)]);
                 if (link is not null)
@@ -92,33 +120,76 @@ public sealed class IngredientTree
         });
     }
 
+    private void DrawEconomics(CatalogRow row, bool hq)
+    {
+        var estimate = row.Est(hq);
+        if (estimate is null && row.Marketable)
+            return;
+        CrafterChrome.Card("recipe_economics", () =>
+        {
+            CrafterChrome.Section("Market");
+            if (estimate is null)
+            {
+                CrafterChrome.Notice("Untradeable", "No market value is estimated for this result.", UiState.Idle);
+                return;
+            }
+            string Gil(long? value) => value is { } v ? Fmt.Gil(v) : "?";
+            var revenue = estimate.RevenueKnown ? Fmt.Gil((hq ? estimate.RevenueHq : estimate.RevenueNq)!.Value) : "?";
+            CrafterChrome.KeyValue("Revenue", $"{revenue} (tax {Fmt.Gil(estimate.Tax)})", false);
+            CrafterChrome.KeyValue("Cost", $"{(estimate.CostComplete ? "" : ">")}{Fmt.Gil(estimate.CashCost)} cash · {Fmt.Gil(estimate.MarketCost)} market");
+            CrafterChrome.KeyValue("Margin", $"{Gil(estimate.MarginCash)} cash · {Gil(estimate.MarginMarket)} market",
+                true, estimate.MarginCash < 0 ? Theme.StateRed : null);
+            CrafterChrome.KeyValue("Per day", Fmt.Gil((long)Math.Round(estimate.PerDay)));
+            CrafterChrome.KeyValue("Demand", $"{estimate.Velocity:0.#}/day · {estimate.Listings} listings");
+            if (!estimate.CostComplete)
+                CrafterChrome.Paragraph("Unpriced: " + string.Join(", ", estimate.UnpricedItems.Take(4).Select(Name)) +
+                    (estimate.UnpricedItems.Count > 4 ? $" +{estimate.UnpricedItems.Count - 4}" : ""), Theme.CaptionScale, gap: 0);
+        });
+    }
+
     private void DrawNode(Core.IngredientTree.Node node, int depth, uint parentJob)
     {
         var leaf = node.Leaf;
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.PushID((int)leaf.ItemId + (depth * 1_000_000));
-        var flags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.DefaultOpen;
+        var flags = ImGuiTreeNodeFlags.DefaultOpen;
         if (node.Children.Count == 0)
             flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.Bullet;
         var color = leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Fmt.TierColor(leaf.Tier);
+        var labelOffset = ImGui.GetFontSize() + (2 * Theme.Unit);
+        var name = Name(leaf.ItemId);
+        var nodeWidth = ImGui.GetContentRegionAvail().X - labelOffset;
         ImGui.PushStyleColor(ImGuiCol.Text, color);
-        var open = ImGui.TreeNodeEx(Name(leaf.ItemId), flags);
+        var open = ImGui.TreeNodeEx(CrafterChrome.Fit(name, nodeWidth) + "###node", flags);
         ImGui.PopStyleColor();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"item {leaf.ItemId}\n{string.Join(", ", leaf.Sources.Select(Fmt.SourceName))}");
+            ImGui.SetTooltip($"{name}\nitem {leaf.ItemId}\n{string.Join(", ", leaf.Sources.Select(Fmt.SourceName))}");
+
+        // Source and unit price sit under the name, aligned with the label text.
+        var left = ImGui.GetCursorPosX() + labelOffset;
+        var source = leaf.Missing == 0 ? "on hand" : string.Join(", ", leaf.Sources.Where(s => s != SourceKind.OnHand).Select(Fmt.SourceName));
+        var unit = _plugin.Catalog.UnitCost(leaf.ItemId) is { } cost ? Fmt.Gil(cost) + " gil each" : "no price";
+        ImGui.SetCursorPosX(left);
+        ImGui.SetWindowFontScale(Theme.SecondaryScale);
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextSecondary);
+        ImGui.PushTextWrapPos(0f);
+        ImGui.TextUnformatted(source.Length == 0 ? unit : $"{source} · {unit}");
+        ImGui.PopTextWrapPos();
+        ImGui.PopStyleColor();
+        ImGui.SetWindowFontScale(1f);
+        ImGui.SetCursorPosX(left);
+        DrawFulfil(leaf, parentJob);
 
         ImGui.TableNextColumn();
-        ImGui.TextColored(leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Theme.TextPrimary, $"{leaf.Have}/{leaf.Need}");
-        ImGui.TableNextColumn();
-        ImGui.TextUnformatted(leaf.Missing == 0 ? "on hand" : string.Join(", ", leaf.Sources.Where(source => source != SourceKind.OnHand).Select(Fmt.SourceName)));
-        ImGui.TableNextColumn();
-        if (_plugin.Catalog.UnitCost(leaf.ItemId) is { } unit)
-            ImGui.TextUnformatted(Fmt.Gil(unit));
-        else
-            ImGui.TextDisabled("-");
-        ImGui.TableNextColumn();
-        DrawFulfil(leaf, parentJob);
+        var haveNeed = $"{leaf.Have}/{leaf.Need}";
+        var avail = ImGui.GetContentRegionAvail().X;
+        var needWidth = ImGui.CalcTextSize(haveNeed).X;
+        if (avail > needWidth)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + avail - needWidth - 1);
+        ImGui.PushTextWrapPos(-1f);
+        ImGui.TextColored(leaf.Missing == 0 ? Copy.MarkColor(UiState.Ready) : Theme.TextPrimary, haveNeed);
+        ImGui.PopTextWrapPos();
 
         if (open && node.Children.Count > 0)
         {
@@ -139,29 +210,25 @@ public sealed class IngredientTree
         var reachable = outside.Where(place => place.Fetchable).ToList();
         var needed = Math.Max(0, leaf.Need - _plugin.Inventory.CountInBags(leaf.ItemId));
         var fetchable = Math.Min(needed, reachable.Sum(place => place.Quantity));
+        var startX = ImGui.GetCursorPosX();
+        var placed = false;
         if (fetchable > 0)
         {
-            if (running)
-                ImGui.BeginDisabled();
-            if (ImGui.SmallButton("Retrieve"))
+            if (CrafterChrome.SmallButton("retrieve", "Retrieve", running))
             {
                 var itemId = leaf.ItemId;
                 var quantity = fetchable;
                 Plugin.Framework.RunOnFrameworkThread(() => dispatch.RetrieveOne(itemId, quantity));
             }
-            if (running)
-                ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(running
                     ? $"Dispatch running: {dispatch.Status}"
                     : $"Fetch {fetchable} from {Places(DispatchPlan.PlacesFor(reachable, fetchable))} into bags at a summoning bell.");
-            if (leaf.Missing > 0)
-                ImGui.SameLine();
+            placed = true;
         }
 
         if (leaf.Missing == 0)
             return;
-        var first = true;
         var shown = new HashSet<string>();
         foreach (var source in leaf.Sources)
         {
@@ -176,13 +243,16 @@ public sealed class IngredientTree
             };
             if (label.Length == 0 || !shown.Add(label))
                 continue;
-            if (!first)
-                ImGui.SameLine();
-            first = false;
+            if (placed)
+            {
+                if (ImGui.GetItemRectMax().X + Theme.ItemSpacing.X + CrafterChrome.SmallButtonWidth(label) > ImGui.GetCursorScreenPos().X + ImGui.GetContentRegionAvail().X)
+                    ImGui.SetCursorPosX(startX);
+                else
+                    ImGui.SameLine();
+            }
+            placed = true;
             var disabled = running && label != "Vendor" && label != "Buy";
-            if (disabled)
-                ImGui.BeginDisabled();
-            if (ImGui.SmallButton(label))
+            if (CrafterChrome.SmallButton("fulfil_" + label, label, disabled))
             {
                 var itemId = leaf.ItemId;
                 var quantity = leaf.Missing;
@@ -208,8 +278,6 @@ public sealed class IngredientTree
                     }
                 });
             }
-            if (disabled)
-                ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(disabled ? $"Dispatch running: {dispatch.Status}" : tooltip);
         }

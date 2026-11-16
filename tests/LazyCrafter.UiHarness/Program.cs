@@ -430,10 +430,13 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                // The window's own PreDraw/PostDraw run around Begin/End exactly as Dalamud's window system does.
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags |
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 

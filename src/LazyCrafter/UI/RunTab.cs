@@ -59,26 +59,30 @@ public sealed class RunTab
             CrafterChrome.Card("run_empty", () =>
             {
                 CrafterChrome.Section("No active run");
-                Widgets.InfoBox("Idle — " + RunReport.Headline(snapshot) + " Build or reopen the saved cart to dispatch a plan.", UiState.Idle);
-                if (ImGui.Button("Open cart"))
-                    _main.OpenCart();
-            });
+                CrafterChrome.EmptyState("Nothing is running", Capitalize(RunReport.Headline(snapshot)) + " Build or reopen the saved cart to dispatch a plan.");
+            }, minHeight: 240);
             return;
         }
 
         DrawSummary(snapshot);
         DrawToolbar(dispatch, snapshot, elapsed);
-        CrafterChrome.TwoColumns("run", 0.70f,
-            () => DrawSteps(snapshot),
+        CrafterChrome.Columns("run", () => DrawSteps(snapshot),
             () =>
             {
-                DrawRunDetails(snapshot);
                 if (snapshot.State == RunState.Blocked && snapshot.Blocked.Count > 0)
+                {
                     DrawBlocked(snapshot);
+                    DrawRunDetails(snapshot);
+                }
                 else
+                {
+                    DrawRunDetails(snapshot);
                     DrawNextAction(snapshot);
-            });
+                }
+            }, railFraction: 0.68f);
     }
+
+    private static string Capitalize(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     private void DrawSummary(RunSnapshot snapshot)
     {
@@ -87,51 +91,47 @@ public sealed class RunTab
         {
             if (!string.IsNullOrEmpty(what))
             {
-                CrafterChrome.Section("Current cart");
-                Widgets.SecondaryWrapped(what);
+                CrafterChrome.Section("Current cart", what);
             }
             if (!string.IsNullOrEmpty(snapshot.Status))
-                Widgets.InfoBox(snapshot.Status, snapshot.State == RunState.Failed ? UiState.Failed : RunUiState(snapshot.State));
+                Banner(snapshot.Status, snapshot.State == RunState.Failed ? UiState.Failed : RunUiState(snapshot.State));
             if (!string.IsNullOrEmpty(snapshot.StoppedReason) && !string.Equals(snapshot.StoppedReason, snapshot.Status, StringComparison.Ordinal))
-                Widgets.InfoBox(snapshot.StoppedReason, snapshot.State == RunState.Blocked ? UiState.Blocked : UiState.Failed);
-        }, snapshot.State is RunState.Running or RunState.Blocked ? CrafterChrome.CardTone.Attention : CrafterChrome.CardTone.Surface);
+                Banner(snapshot.StoppedReason, snapshot.State == RunState.Blocked ? UiState.Blocked : UiState.Failed);
+        });
+    }
+
+    private static void Banner(string text, UiState state)
+    {
+        var split = text.IndexOf(':');
+        if (split > 0 && split < 40)
+            CrafterChrome.Notice(text[..split], text[(split + 1)..].Trim(), state);
+        else
+            CrafterChrome.Notice("", text, state);
     }
 
     private void DrawToolbar(DispatchService dispatch, RunSnapshot snapshot, TimeSpan elapsed)
     {
-        if (snapshot.State == RunState.Running)
-        {
-            if (Widgets.StopButton("Stop"))
-                dispatch.Stop();
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Abort the run while keeping its plan for Resume.");
-        }
-        else
-        {
-            ImGui.BeginDisabled();
-            ImGui.Button("Stop");
-            ImGui.EndDisabled();
-        }
+        var origin = ImGui.GetCursorScreenPos();
+        var width = CrafterChrome.Avail();
+        var running = snapshot.State == RunState.Running;
+        if (CrafterChrome.Button("stop", "Stop", disabled: !running))
+            dispatch.Stop();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled) && running)
+            ImGui.SetTooltip("Abort the run while keeping its plan for Resume.");
 
-        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Resume"));
-        if (snapshot.CanResume)
+        CrafterChrome.WrapNext(CrafterChrome.ButtonWidth("Resume"));
+        if (CrafterChrome.Button("resume", "Resume", snapshot.CanResume ? CrafterChrome.ButtonKind.Primary : CrafterChrome.ButtonKind.Normal, !snapshot.CanResume))
+            dispatch.Resume();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
-            if (ImGui.Button("Resume"))
-                dispatch.Resume();
-            if (ImGui.IsItemHovered())
+            if (snapshot.CanResume)
                 ImGui.SetTooltip("Re-plan from current bags and continue the same cart.");
-        }
-        else
-        {
-            ImGui.BeginDisabled();
-            ImGui.Button("Resume");
-            ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            else
                 ImGui.SetTooltip(snapshot.State == RunState.Running ? "Resume is for a stopped run." : "Nothing to resume. Dispatch the cart again.");
         }
 
-        CrafterChrome.SameLineWrapped(CrafterChrome.ButtonWidth("Copy report"));
-        if (ImGui.Button("Copy report"))
+        CrafterChrome.WrapNext(CrafterChrome.ButtonWidth("Copy report"));
+        if (CrafterChrome.Button("copy", "Copy report"))
         {
             ImGui.SetClipboardText(RunReport.Render(snapshot, elapsed));
             _copiedAt = DateTime.UtcNow;
@@ -141,9 +141,12 @@ public sealed class RunTab
         if ((DateTime.UtcNow - _copiedAt).TotalSeconds < 3)
         {
             ImGui.SameLine();
-            Widgets.StateText("Copied", UiState.Ready);
+            var pos = ImGui.GetCursorScreenPos();
+            var draw = ImGui.GetWindowDrawList();
+            CrafterChrome.DrawText(draw, pos + new System.Numerics.Vector2(Theme.Unit, (CrafterChrome.ControlHeight - CrafterChrome.LineHeight()) / 2f), "Copied", Theme.StateGreen);
+            ImGui.Dummy(new System.Numerics.Vector2(CrafterChrome.TextWidth("Copied") + Theme.Unit, CrafterChrome.ControlHeight));
         }
-        ImGui.Dummy(new System.Numerics.Vector2(0, Theme.Unit));
+        CrafterChrome.Advance(origin, width, ImGui.GetItemRectMax().Y - origin.Y, CrafterChrome.Gap);
     }
 
     private void DrawRunDetails(RunSnapshot snapshot)
@@ -151,14 +154,16 @@ public sealed class RunTab
         CrafterChrome.Card("run_details", () =>
         {
             CrafterChrome.Section("Run details");
-            CrafterChrome.Requirement("State", Copy.Word(RunUiState(snapshot.State)), RunUiState(snapshot.State));
+            var state = RunUiState(snapshot.State);
+            CrafterChrome.KeyValue("State", Copy.Word(state), false, Copy.MarkColor(state));
             if (snapshot.StartedAt != DateTime.MinValue)
-                Widgets.Caption($"Started {snapshot.StartedAt.ToLocalTime():HH:mm:ss}");
+                CrafterChrome.KeyValue("Started", snapshot.StartedAt.ToLocalTime().ToString("HH:mm:ss"));
             if (snapshot.EndedAt is { } end)
-                Widgets.Caption($"Ended {end.ToLocalTime():HH:mm:ss}");
+                CrafterChrome.KeyValue("Ended", end.ToLocalTime().ToString("HH:mm:ss"));
             if (snapshot.Pass > 1)
-                Widgets.Caption($"Pass {snapshot.Pass}");
-            Widgets.Caption($"{snapshot.CartNames.Count} cart item(s) · {snapshot.Blocked.Count} blocked item(s)");
+                CrafterChrome.KeyValue("Pass", snapshot.Pass.ToString());
+            CrafterChrome.KeyValue("Cart items", snapshot.CartNames.Count.ToString());
+            CrafterChrome.KeyValue("Blocked items", snapshot.Blocked.Count.ToString());
         });
     }
 
@@ -170,19 +175,60 @@ public sealed class RunTab
             switch (snapshot.State)
             {
                 case RunState.Done:
-                    Widgets.InfoBox("Ready — the run finished. The report remains available until the next dispatch.", UiState.Ready);
+                    CrafterChrome.Notice("Run finished", "The report remains available until the next dispatch.", UiState.Ready);
                     break;
                 case RunState.Failed:
-                    Widgets.InfoBox("Failed — read the failed step and reason, then copy the report or resume when the cause is fixed.", UiState.Failed);
+                    CrafterChrome.Notice("Run failed", "Read the failed step and reason, then copy the report or resume when the cause is fixed.", UiState.Failed);
                     break;
                 case RunState.Running:
-                    Widgets.InfoBox("Running — the dispatcher is following the current plan. Stop remains available in the footer.", UiState.Running);
+                    CrafterChrome.Notice("Dispatcher running", "It is following the current plan. Stop remains available in the footer.", UiState.Running);
                     break;
                 default:
-                    Widgets.InfoBox("Blocked — resolve the named step, then use Resume when the plan can continue.", UiState.Blocked);
+                    CrafterChrome.Notice("Run blocked", "Resolve the named step, then use Resume when the plan can continue.", UiState.Blocked);
                     break;
             }
         });
+    }
+
+    // ---- the "Required before Resume" ledger: one nested card per stop, action on the right of its heading ----
+
+    private bool GroupHeader(string id, string title, string? sub, string? action, string? tooltip)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = CrafterChrome.Avail();
+        var buttonWidth = action is null ? 0 : CrafterChrome.SmallButtonWidth(action);
+        var textWidth = width - (buttonWidth > 0 ? buttonWidth + CrafterChrome.Gap : 0);
+        CrafterChrome.DrawFitted(draw, pos, title, textWidth, Theme.TextPrimary);
+        var height = CrafterChrome.LineHeight();
+        if (!string.IsNullOrEmpty(sub))
+        {
+            height += Theme.Unit;
+            height += CrafterChrome.DrawWrapped(draw, pos + new System.Numerics.Vector2(0, height), sub, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        }
+        var clicked = false;
+        if (action is not null)
+        {
+            ImGui.SetCursorScreenPos(pos + new System.Numerics.Vector2(width - buttonWidth, 0));
+            clicked = CrafterChrome.SmallButton(id, action);
+            if (tooltip is not null && ImGui.IsItemHovered())
+                ImGui.SetTooltip(tooltip);
+        }
+        CrafterChrome.Advance(pos, width, height, 2 * Theme.Unit);
+        return clicked;
+    }
+
+    private static void ItemRow(string name, string? right)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = CrafterChrome.Avail();
+        var rightWidth = string.IsNullOrEmpty(right) ? 0 : MathF.Min(width * 0.5f, CrafterChrome.TextWidth(right, Theme.SecondaryScale));
+        if (rightWidth > 0)
+            CrafterChrome.DrawFittedRight(draw, pos.X + width, pos.Y + ((CrafterChrome.LineHeight() - CrafterChrome.LineHeight(Theme.SecondaryScale)) / 2f), right!, rightWidth + 1, Theme.TextSecondary, Theme.SecondaryScale);
+        var used = CrafterChrome.WrappedHeight(name, width - rightWidth - CrafterChrome.Gap);
+        CrafterChrome.DrawWrapped(draw, pos, name, width - rightWidth - CrafterChrome.Gap, Theme.TextPrimary);
+        CrafterChrome.Advance(pos, width, used, Theme.Unit);
     }
 
     private void DrawBlocked(RunSnapshot snapshot)
@@ -199,8 +245,7 @@ public sealed class RunTab
 
         CrafterChrome.Card("run_blocked", () =>
         {
-            CrafterChrome.Section("Required before Resume");
-            Widgets.InfoBox("Blocked — complete the named shopping or retrieval steps, then resume the same cart.", UiState.Blocked);
+            CrafterChrome.Section("Required before Resume", "Complete the named shopping or retrieval steps, then resume the same cart.");
 
             if (_marketItems.Count > 0)
             {
@@ -213,48 +258,59 @@ public sealed class RunTab
                     else
                         complete = false;
                 }
-                Widgets.Body($"Market board · est. {(complete ? "" : ">")}{total:N0} gil");
-                if (ImGui.SmallButton("Open market board##market"))
-                    _plugin.Dispatch.Lifestream.GoToMarket(_marketItems.Select(item => (item.ItemId, item.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost);
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Print the list and use the existing Lifestream market-board route.");
-                foreach (var item in _marketItems)
-                    Widgets.SecondaryWrapped($"{item.Name} x{item.Quantity}{(item.EstimatedGil is { } estimate ? $" · ~{estimate:N0} gil" : "")}");
+                CrafterChrome.Card("blocked_market", () =>
+                {
+                    if (GroupHeader("market", "Market board", $"Estimated {(complete ? "" : ">")}{total:N0} gil", "Open market board",
+                            "Print the list and use the existing Lifestream market-board route."))
+                        _plugin.Dispatch.Lifestream.GoToMarket(_marketItems.Select(item => (item.ItemId, item.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost);
+                    foreach (var item in _marketItems)
+                        ItemRow($"{item.Name} x{item.Quantity}", item.EstimatedGil is { } estimate ? $"~{estimate:N0} gil" : null);
+                }, CrafterChrome.CardTone.Row);
             }
 
             var vendorIndex = 0;
             foreach (var (where, items) in _vendorGroups)
             {
-                Widgets.Body(string.IsNullOrEmpty(where) ? "Gil vendor · no placed vendor found" : "Gil vendor · " + where);
-                if (!string.IsNullOrEmpty(where))
+                var index = vendorIndex++;
+                CrafterChrome.Card("blocked_vendor_" + index, () =>
                 {
-                    if (ImGui.SmallButton($"Flag on map##vendor{vendorIndex}"))
+                    var placed = !string.IsNullOrEmpty(where);
+                    if (GroupHeader("vendor" + index, "Gil vendor", placed ? where : "No placed vendor found", placed ? "Flag on map" : null,
+                            "Set the map flag and print the shopping list. No teleport."))
                         FlagVendor(items);
-                    if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip("Set the map flag and print the shopping list. No teleport.");
-                }
-                foreach (var item in items)
-                    Widgets.SecondaryWrapped($"{item.Name} x{item.Quantity}");
-                vendorIndex++;
+                    foreach (var item in items)
+                        ItemRow($"{item.Name} x{item.Quantity}", null);
+                }, CrafterChrome.CardTone.Row);
             }
 
             var currencyIndex = 0;
             foreach (var item in snapshot.Blocked.Where(item => item.Kind == StepKind.CurrencyShop))
             {
-                Widgets.SecondaryWrapped($"Trade for {item.Name} x{item.Quantity} at {item.Where}");
-                if (ImGui.SmallButton($"Flag on map##currency{currencyIndex}"))
-                    FlagCurrencyShop(item);
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Set the map flag and print the price. No teleport or automatic trade.");
-                currencyIndex++;
+                var index = currencyIndex++;
+                var captured = item;
+                CrafterChrome.Card("blocked_currency_" + index, () =>
+                {
+                    if (GroupHeader("currency" + index, "Currency shop", $"Trade for {captured.Name} x{captured.Quantity} at {captured.Where}", "Flag on map",
+                            "Set the map flag and print the price. No teleport or automatic trade."))
+                        FlagCurrencyShop(captured);
+                }, CrafterChrome.CardTone.Row);
             }
 
-            foreach (var item in snapshot.Blocked.Where(item => item.Kind is not (StepKind.Market or StepKind.Vendor or StepKind.CurrencyShop)))
-                Widgets.SecondaryWrapped($"{RunReport.KindName(item.Kind)}: {item.Name} x{item.Quantity}{(string.IsNullOrEmpty(item.Where) ? "" : " — " + item.Where)}");
+            var others = snapshot.Blocked.Where(item => item.Kind is not (StepKind.Market or StepKind.Vendor or StepKind.CurrencyShop)).ToList();
+            foreach (var group in others.GroupBy(item => item.Kind))
+            {
+                var kind = group.Key;
+                CrafterChrome.Card("blocked_other_" + kind, () =>
+                {
+                    GroupHeader("other" + kind, Capitalize(RunReport.KindName(kind)), null, null, null);
+                    foreach (var item in group)
+                        ItemRow($"{item.Name} x{item.Quantity}", string.IsNullOrEmpty(item.Where) ? null : item.Where);
+                }, CrafterChrome.CardTone.Row);
+            }
 
             if (snapshot.CanResume)
-                Widgets.Caption("Then press Resume or use /lcraft resume.");
-        }, CrafterChrome.CardTone.Attention);
+                CrafterChrome.Paragraph("Then press Resume or use /lcraft resume.", Theme.SecondaryScale);
+        });
     }
 
     private void FlagVendor(List<BlockedItem> items)
@@ -294,59 +350,55 @@ public sealed class RunTab
     {
         CrafterChrome.Card("run_steps", () =>
         {
-            CrafterChrome.Section("Steps", "Every dispatch step, its current state and the latest reason.");
+            CrafterChrome.Section("Steps", "Every dispatch step, its current state and the latest reason.", $"{snapshot.Steps.Count} steps");
             if (snapshot.Steps.Count == 0)
             {
-                Widgets.InfoBox("Empty — no steps have been recorded for this run.", UiState.Empty);
+                CrafterChrome.Paragraph("No steps have been recorded for this run.");
                 return;
             }
-            var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollX | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
-            var height = MathF.Max(220, ImGui.GetContentRegionAvail().Y);
-            if (!ImGui.BeginTable("##crafter_run_steps", 5, flags, new System.Numerics.Vector2(0, height)))
+            var flags = ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp;
+            var width = CrafterChrome.Avail();
+            if (!ImGui.BeginTable("##crafter_run_steps", 5, flags, new System.Numerics.Vector2(width, 0)))
                 return;
-            ImGui.TableSetupScrollFreeze(0, 1);
-            ImGui.TableSetupColumn("Step", ImGuiTableColumnFlags.WidthFixed, 76);
-            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2f);
-            ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 48);
-            ImGui.TableSetupColumn("State", ImGuiTableColumnFlags.WidthFixed, 76);
-            ImGui.TableSetupColumn("Reason / status", ImGuiTableColumnFlags.WidthStretch, 4f);
+            ImGui.PushTextWrapPos(0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new System.Numerics.Vector2(Theme.Unit * 2, Theme.Unit * 2));
+            var kindWidth = snapshot.Steps.Max(step => CrafterChrome.TextWidth(Capitalize(RunReport.KindName(step.Kind)))) + (3 * Theme.Unit);
+            ImGui.TableSetupColumn("Step", ImGuiTableColumnFlags.WidthFixed, MathF.Max(kindWidth, CrafterChrome.TextWidth("Step") + 16));
+            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 1.5f);
+            ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("888") + (4 * Theme.Unit));
+            ImGui.TableSetupColumn("State", ImGuiTableColumnFlags.WidthFixed, CrafterChrome.TextWidth("Pending") + (4 * Theme.Unit));
+            ImGui.TableSetupColumn("Reason / status", ImGuiTableColumnFlags.WidthStretch, 3f);
             ImGui.TableHeadersRow();
             var index = 0;
             foreach (var step in snapshot.Steps)
             {
                 ImGui.TableNextRow();
                 if (step.State == StepState.Running)
-                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.ColorConvertFloat4ToU32(Theme.StateAmber with { W = 0.25f }));
+                    ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.ColorConvertFloat4ToU32(Theme.StateAmber with { W = 0.14f }));
                 ImGui.PushID(index++);
                 ImGui.TableNextColumn();
-                ImGui.TextUnformatted(RunReport.KindName(step.Kind));
+                ImGui.TextUnformatted(Capitalize(RunReport.KindName(step.Kind)));
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(step.Name);
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(step.Quantity.ToString());
                 ImGui.TableNextColumn();
-                ImGui.TextColored(StateColor(step.State), RunReport.StateName(step.State));
+                ImGui.TextColored(StateColor(step.State), Capitalize(RunReport.StateName(step.State)));
                 ImGui.TableNextColumn();
                 var reason = step.Reason ?? "";
                 var external = step.ExternalStatus ?? "";
                 if (reason.Length > 0)
-                {
                     ImGui.TextColored(step.State == StepState.Failed ? Copy.MarkColor(UiState.Failed) : step.State == StepState.Blocked ? Copy.MarkColor(UiState.Blocked) : Theme.TextSecondary, reason);
-                    if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip(reason);
-                }
                 if (external.Length > 0)
-                {
-                    if (reason.Length > 0)
-                        ImGui.SameLine();
                     ImGui.TextColored(Copy.MarkColor(UiState.Blocked), external);
-                }
                 if (reason.Length == 0 && external.Length == 0)
                     ImGui.TextDisabled("-");
                 ImGui.PopID();
             }
+            ImGui.PopStyleVar();
+            ImGui.PopTextWrapPos();
             ImGui.EndTable();
-        });
+        }, fill: true);
     }
 
     private static UiState RunUiState(RunState state) => state switch
