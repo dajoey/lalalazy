@@ -1,4 +1,10 @@
-﻿## v0.5.7.4 (2026-11-15) [testing]
+﻿## v0.5.7.5 (2026-11-15) [testing]
+- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The window header fits on one row at the default size, with the brand chip, tabs, a state pill and a close button whose tooltip appears below the button.
+- Page titles carry a plain description line, with the owned count and snapshot note aligned to the right.
+- Stat cards without a real ratio no longer draw an empty progress bar, the Stop button is a dark red filled button with a white label, and item tooltips open below their row instead of covering neighbouring entries.
+
+## v0.5.7.4 (2026-11-15) [testing]
 - The Collection and Settings windows now have a custom close button in the header, and long content scrolls inside each window's body instead of behind a second outer scrollbar. Collection, shopping, storage automation, import and export, and settings are unchanged.
 
 ## v0.5.7.3 (2026-11-15) [testing]
