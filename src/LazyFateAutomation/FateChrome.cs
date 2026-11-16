@@ -594,6 +594,16 @@ internal static class FateChrome
         Space(8);
     }
 
+    /// <summary>Screen Y of the footer's top edge for the current frame; popups never extend below it.</summary>
+    internal static float FooterTopY = float.MaxValue;
+
+    /// <summary>Caps the next popup's height so it stays above the footer (the list scrolls when it does not fit).</summary>
+    internal static void LimitPopupHeight(float popupTop)
+    {
+        var max = MathF.Max(120, FooterTopY - popupTop - 4);
+        ImGui.SetNextWindowSizeConstraints(new Vector2(0, 0), new Vector2(float.MaxValue, max));
+    }
+
     internal static float PopupWidth(IEnumerable<string> labels, float minWidth)
         => MathF.Max(minWidth, labels.Max(label => TextWidth(label)) + 24 + 16 + 12);
 

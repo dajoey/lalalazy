@@ -95,6 +95,7 @@ public class FateToolKitWindow : MinimisableWindow
             var winSize = ImGui.GetWindowSize();
             var gutter = FateChrome.Gutter(winSize.X);
 
+            FateChrome.FooterTopY = winPos.Y + winSize.Y - FooterHeight(winSize.X);
             var y = DrawTopBar(state, winPos, winSize.X, gutter);
             if (Current.Group == "Settings")
                 y += DrawFeatureBar(y, winPos, winSize.X, gutter);
@@ -305,6 +306,7 @@ public class FateToolKitWindow : MinimisableWindow
         FateChrome.Chevron(draw, fieldPos + new Vector2(fieldSize.X - 20, fieldSize.Y / 2f));
         ImGui.SetNextWindowPos(fieldPos + new Vector2(0, fieldSize.Y + 4), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(fieldSize.X, 0));
+        FateChrome.LimitPopupHeight(fieldPos.Y + fieldSize.Y + 4);
         using var style = FateChrome.PopupStyle();
         using var popup = ImRaii.Popup("###FateFeatureMenu");
         if (popup)
@@ -571,6 +573,7 @@ public class FateToolKitWindow : MinimisableWindow
 
         ImGui.SetNextWindowPos(new Vector2(pos.X, pos.Y + size.Y + 4), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(FateChrome.PopupWidth(FateGrindModes.All.Select(mode => mode.DisplayName), MathF.Max(size.X, 240)), 0));
+        FateChrome.LimitPopupHeight(pos.Y + size.Y + 4);
         using var style = FateChrome.PopupStyle();
         using var popup = ImRaii.Popup("###GrindModePopup");
         if (!popup)
@@ -1273,6 +1276,7 @@ public class FateToolKitWindow : MinimisableWindow
         {
             ImGui.SetNextWindowPos(new Vector2(anchor.Pos.X, anchor.Pos.Y + anchor.Size.Y + 4), ImGuiCond.Always);
             ImGui.SetNextWindowSize(new Vector2(FateChrome.PopupWidth(Enum.GetValues<FateSortCriteria>().Select(c => FateChrome.Humanize(c.ToString())), 240), 0));
+            FateChrome.LimitPopupHeight(anchor.Pos.Y + anchor.Size.Y + 4);
         }
         using var style = FateChrome.PopupStyle();
         using var popup = ImRaii.Popup("###AddSortCriteria");
