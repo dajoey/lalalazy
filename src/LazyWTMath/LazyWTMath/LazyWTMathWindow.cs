@@ -352,7 +352,7 @@ internal sealed unsafe class LazyWTMathWindow : Window
         if ((titleCut || descCut) && ImGui.IsMouseHoveringRect(textPos, textPos + new Vector2(textWidth, block)))
             ImGui.SetTooltip(title + "\n" + Description);
 
-        return 4 + height + 8 + SectionGap;
+        return height + 8 + SectionGap;
     }
 
     // ------------------------------------------------------------------ left column
