@@ -20,7 +20,7 @@ internal sealed class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("AutoPotion##cfg")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(1080f, 780f);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -125,7 +125,7 @@ internal sealed class ConfigWindow : Window
 
     private static float FooterHeight(float width) => width < 620f ? NarrowFooterHeight : WideFooterHeight;
 
-    private static void DrawTopBar(UiState state)
+    private void DrawTopBar(UiState state)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
@@ -133,13 +133,16 @@ internal sealed class ConfigWindow : Window
         const float barHeight = 66f;
         var gap = 2f * Theme.Unit;
         var statusSize = AutoPotionChrome.StatusSize(state);
-        var brandSize = new Vector2(MathF.Min(190f, MathF.Max(120f, width - statusSize.X - gap)), 42f);
+        var closeSize = new Vector2(ControlHeight);
+        var brandSize = new Vector2(MathF.Min(190f, MathF.Max(120f, width - statusSize.X - closeSize.X - (2f * gap))), 42f);
         var controlY = (barHeight - ControlHeight) / 2f;
 
         draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
         draw.AddLine(origin + new Vector2(0f, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
         AutoPotionChrome.Brand(draw, origin + new Vector2(0f, 12f), brandSize);
-        AutoPotionChrome.StatusPill(draw, origin + new Vector2(width - statusSize.X, controlY), statusSize, state);
+        AutoPotionChrome.StatusPill(draw, origin + new Vector2(width - closeSize.X - gap - statusSize.X, controlY), statusSize, state);
+        if (AutoPotionChrome.CloseButton(draw, origin + new Vector2(width - closeSize.X, controlY), closeSize))
+            IsOpen = false;
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }

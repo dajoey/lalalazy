@@ -54,6 +54,22 @@ internal static class AutoPotionChrome
         return clicked;
     }
 
+    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##autopotion_close", size);
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), 2f * Theme.Unit);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 2f * Theme.Unit);
+        var center = pos + (size / 2f);
+        var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextPrimary);
+        draw.AddLine(center + new Vector2(-6f, -6f), center + new Vector2(6f, 6f), color, 1.5f);
+        draw.AddLine(center + new Vector2(-6f, 6f), center + new Vector2(6f, -6f), color, 1.5f);
+        if (hovered)
+            ImGui.SetTooltip("Close");
+        return clicked;
+    }
+
     internal static Vector2 StatusSize(UiState state)
     {
         var label = Copy.Word(state);
