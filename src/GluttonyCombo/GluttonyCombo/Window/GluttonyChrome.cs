@@ -166,6 +166,66 @@ internal static class GluttonyChrome
             Theme.Pack(value ? Theme.Surface : Theme.TextSecondary));
     }
 
+    internal static IDisposable BeginCard(float minHeight = 0)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        const float padding = 12;
+        var topLevel = _cardDepth == 0;
+        if (topLevel)
+        {
+            _cardDepth++;
+            draw.ChannelsSplit(3);
+        }
+        draw.ChannelsSetCurrent(2);
+        ImGui.SetCursorScreenPos(origin + new Vector2(padding, padding));
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + MathF.Max(1, width - (2 * padding)));
+        ImGui.BeginGroup();
+        return new CardScope(draw, origin, width, minHeight, padding, topLevel);
+    }
+
+    private sealed class CardScope : IDisposable
+    {
+        private readonly ImDrawListPtr _draw;
+        private readonly Vector2 _origin;
+        private readonly float _width;
+        private readonly float _minHeight;
+        private readonly float _padding;
+        private readonly bool _topLevel;
+
+        internal CardScope(ImDrawListPtr draw, Vector2 origin, float width, float minHeight, float padding, bool topLevel)
+        {
+            _draw = draw;
+            _origin = origin;
+            _width = width;
+            _minHeight = minHeight;
+            _padding = padding;
+            _topLevel = topLevel;
+        }
+
+        public void Dispose()
+        {
+            ImGui.PopTextWrapPos();
+            ImGui.EndGroup();
+            var contentBottom = ImGui.GetCursorScreenPos().Y;
+            var height = MathF.Max(_minHeight, contentBottom - _origin.Y + _padding);
+            _draw.ChannelsSetCurrent(_topLevel ? 0 : 1);
+            _draw.AddRectFilled(_origin, _origin + new Vector2(_width, height), Theme.Pack(Theme.Surface), 2 * Theme.Unit);
+            _draw.AddRect(_origin, _origin + new Vector2(_width, height), Theme.Pack(Theme.SurfaceBorder), 2 * Theme.Unit);
+            if (_topLevel)
+            {
+                _draw.ChannelsMerge();
+                _cardDepth--;
+            }
+            else
+            {
+                _draw.ChannelsSetCurrent(2);
+            }
+            ImGui.SetCursorScreenPos(_origin + new Vector2(0, height + _padding));
+        }
+    }
+
     internal static void Card(string id, Action content, float minHeight = 0)
     {
         var draw = ImGui.GetWindowDrawList();

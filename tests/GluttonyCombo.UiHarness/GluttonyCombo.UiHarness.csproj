@@ -21,6 +21,6 @@
     <Compile Include="$(LalaSourceRoot)\src\GluttonyCombo\GluttonyCombo\Window\GluttonyChrome.cs" Link="Real\GluttonyChrome.cs" />
     <Compile Include="$(LalaSourceRoot)\src\GluttonyCombo\GluttonyCombo\Window\GluttonyShellNavigation.cs" Link="Real\GluttonyShellNavigation.cs" />
     <Compile Include="$(LalaSourceRoot)\src\Shared\LalaUiKit\**\*.cs" Link="Real\LalaUiKit\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(LalaSourceRoot)\tests\LazyCrucible.UiHarness\Rasterizer.cs" Link="Real\Rasterizer.cs" />
+    <Compile Include="$(LalaSourceRoot)\tests\HarnessShared\UiRender\Rasterizer.cs" Link="Real\Rasterizer.cs" />
   </ItemGroup>
 </Project>

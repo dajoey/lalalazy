@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using GluttonyCombo.Window;
 using LalaUiKit;
-using RenderProbe;
+using Lala.UiRender;
 
 namespace GluttonyCombo.UiHarness;
 
