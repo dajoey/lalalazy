@@ -27,6 +27,7 @@ internal static class Program
         LineFormat();
         LocaleSafety();
         Truncation();
+        StatusLineText();
         GateBehaviour();
         ReplayRealTrace(args.Length > 0 ? args[0] : null);
 
@@ -124,6 +125,18 @@ internal static class Program
     }
 
     // ---------------------------------------------------------------- locale safety
+
+    private static void StatusLineText()
+    {
+        // The one-line summary /autopotion debug prints in chat: master switch, then the last tick's reason.
+        var on = PotionTelemetryFormat.StatusLine(true, "x");
+        Check("StatusLine: master switch on", on == "enabled, last: x", on);
+        var off = PotionTelemetryFormat.StatusLine(false, "x");
+        Check("StatusLine: master switch off", off == "disabled, last: x", off);
+        var real = PotionTelemetryFormat.StatusLine(true, "OnlyInCombat=true and not InCombat");
+        Check("StatusLine: keeps the reason text as is", real == "enabled, last: OnlyInCombat=true and not InCombat", real);
+        Check("StatusLine is not a telemetry line", !on.StartsWith(PotionTelemetryFormat.Prefix, StringComparison.Ordinal));
+    }
 
     private static void LocaleSafety()
     {

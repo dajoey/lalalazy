@@ -374,6 +374,9 @@ internal class PotionService
         return row.ContentFinderCondition.Value.ContentType.RowId == DeepDungeonContentType;
     }
 
+    /// <summary>One-line state for the chat echo of <c>/autopotion debug</c>.</summary>
+    public string StatusLine => PotionTelemetryFormat.StatusLine(_plugin.Config.MasterEnable, _lastSkipReason);
+
     public void LogDebugState()
     {
         var cfg = _plugin.Config;
