@@ -18,14 +18,11 @@ internal class ConfigTabWindow : Window
     }
 
     private Section _section = Section.Settings;
+    private readonly CurrencyChrome.ShellControls _controls;
 
-    public ConfigTabWindow() : base("ConfigTabWindow")
+    public ConfigTabWindow() : base("ConfigTabWindow", ImGuiWindowFlags.NoTitleBar)
     {
-        SizeConstraints = new()
-        {
-            MinimumSize = new(520, 360),
-            MaximumSize = new(9999, 9999),
-        };
+        _controls = new(this, new Vector2(520, 360), new Vector2(9999, 9999));
         P.ws.AddWindow(this);
     }
 
@@ -36,12 +33,15 @@ internal class ConfigTabWindow : Window
 
     public override void Draw()
     {
+        var minimized = _controls.PrepareDraw();
         CurrencyChrome.PushFrame();
         try
         {
             if (!C.Debug && _section == Section.Debug)
                 _section = Section.Settings;
-            CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle);
+            CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle, controls: _controls);
+            if (minimized)
+                return;
             string[] sections = C.Debug
                 ? ["Settings", "Currencies", "Items", "Changelog", "About", "Debug"]
                 : ["Settings", "Currencies", "Items", "Changelog", "About"];

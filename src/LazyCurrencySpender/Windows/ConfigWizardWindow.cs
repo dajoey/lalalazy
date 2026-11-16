@@ -10,6 +10,7 @@ internal class ConfigWizardWindow : Window
     private static int MaxSteps = 0;
     public static string Version = "0.0.0";
     private bool _resetScroll;
+    private readonly CurrencyChrome.ShellControls _controls;
 
     private static readonly Dictionary<string, Action<int>> VersionSteps = new()
     {
@@ -20,13 +21,9 @@ internal class ConfigWizardWindow : Window
         { "1.2.4", DrawVersion1_2_4Steps },
     };
 
-    public ConfigWizardWindow() : base("ConfigWizardWindow")
+    public ConfigWizardWindow() : base("ConfigWizardWindow", ImGuiWindowFlags.NoTitleBar)
     {
-        SizeConstraints = new()
-        {
-            MinimumSize = new Vector2(520, 420),
-            MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
-        };
+        _controls = new(this, new Vector2(520, 420), new Vector2(float.MaxValue, float.MaxValue));
         CalculateSteps();
         P.ws.AddWindow(this);
     }
@@ -38,10 +35,13 @@ internal class ConfigWizardWindow : Window
 
     public override void Draw()
     {
+        var minimized = _controls.PrepareDraw();
         CurrencyChrome.PushFrame();
         try
         {
-            CurrencyChrome.TopBar("Configuration wizard", UiState.NeedsSetup);
+            CurrencyChrome.TopBar("Configuration wizard", UiState.NeedsSetup, controls: _controls);
+            if (minimized)
+                return;
             CurrencyChrome.PageHeader(Step == 0 ? "Welcome" : "Configuration updates",
                 "Review options introduced since the last configured version; every option remains available in settings.",
                 Step == 0 ? $"{MaxSteps} steps" : $"Step {Step} of {MaxSteps}");

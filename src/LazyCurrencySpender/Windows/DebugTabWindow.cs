@@ -8,13 +8,11 @@ namespace CurrencySpender.Windows;
 
 internal class DebugTabWindow : Window
 {
-    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow")
+    private readonly CurrencyChrome.ShellControls _controls;
+
+    public DebugTabWindow() : base($"{P.Name} Debug {P.Version}###DebugTabWindow", ImGuiWindowFlags.NoTitleBar)
     {
-        SizeConstraints = new()
-        {
-            MinimumSize = new(520, 320),
-            MaximumSize = new(9999, 9999),
-        };
+        _controls = new(this, new Vector2(520, 320), new Vector2(9999, 9999));
         P.ws.AddWindow(this);
     }
 
@@ -25,10 +23,13 @@ internal class DebugTabWindow : Window
 
     public override void Draw()
     {
+        var minimized = _controls.PrepareDraw();
         CurrencyChrome.PushFrame();
         try
         {
-            CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle);
+            CurrencyChrome.TopBar("LazyCurrencySpender", UiState.Idle, controls: _controls);
+            if (minimized)
+                return;
             ImGui.BeginChild("##currency_debug_body", Vector2.Zero, false);
             CurrencyChrome.PageHeader("Debug data",
                 "Generated shop data and unlock states for diagnosis.",

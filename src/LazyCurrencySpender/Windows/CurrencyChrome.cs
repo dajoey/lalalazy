@@ -63,7 +63,8 @@ internal static class CurrencyChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
-    internal static void TopBar(string title, UiState state, string? actionLabel = null, Action? action = null)
+    internal static void TopBar(string title, UiState state, string? actionLabel = null, Action? action = null,
+        ShellControls? controls = null, string? utilityLabel = null, Action? utilityAction = null, string? utilityTooltip = null)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
@@ -72,8 +73,11 @@ internal static class CurrencyChrome
         var brandWidth = MathF.Min(width, MathF.Max(180, (ImGui.CalcTextSize(title).X * Theme.TitleScale) + 66));
         var stateLabel = Copy.Word(state);
         var statusWidth = MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43);
-        var actionWidth = actionLabel is null ? 0 : MathF.Max(82, ImGui.CalcTextSize(actionLabel).X + 30);
-        var required = brandWidth + statusWidth + (2 * gap) + (actionLabel is null ? 0 : actionWidth + gap);
+        var actionWidth = actionLabel is null || action is null ? 0 : MathF.Max(82, ImGui.CalcTextSize(actionLabel).X + 30);
+        var utilityWidth = utilityLabel is null || utilityAction is null ? 0 : MathF.Max(76, ImGui.CalcTextSize(utilityLabel).X + 30);
+        var windowControlsWidth = controls is null ? 0 : 60 + gap;
+        var required = brandWidth + statusWidth + windowControlsWidth + (2 * gap)
+            + (actionWidth > 0 ? actionWidth + gap : 0) + (utilityWidth > 0 ? utilityWidth + gap : 0);
         var singleRow = width >= required;
         var barHeight = singleRow ? 66f : 112f;
         var brandSize = new Vector2(brandWidth, 42);
@@ -87,16 +91,112 @@ internal static class CurrencyChrome
         DrawText(draw, brandPos + new Vector2(48, 11), FitText(title, brandWidth - 58, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
 
         var rowY = singleRow ? origin.Y + ((barHeight - ControlHeight) / 2f) : origin.Y + 66;
-        var statusPos = new Vector2(origin.X + width - statusWidth, rowY);
+        var right = origin.X + width;
+        Vector2 closePos = default;
+        Vector2 minimizePos = default;
+        if (controls is not null)
+        {
+            closePos = new Vector2(right - 30, rowY);
+            minimizePos = new Vector2(closePos.X - gap - 30, rowY);
+            right = minimizePos.X;
+        }
+        var statusPos = new Vector2(right - gap - statusWidth, rowY);
+        right = statusPos.X;
+        Vector2 utilityPos = default;
+        if (utilityWidth > 0)
+        {
+            utilityPos = new Vector2(right - gap - utilityWidth, rowY);
+            right = utilityPos.X;
+        }
         if (actionLabel is not null && action is not null)
         {
-            var actionPos = new Vector2(statusPos.X - gap - actionWidth, rowY);
+            var actionPos = new Vector2(right - gap - actionWidth, rowY);
             if (OutlineButton(draw, "top_" + actionLabel, actionLabel, actionPos, new Vector2(actionWidth, ControlHeight)))
                 action();
         }
+        if (utilityLabel is not null && utilityAction is not null)
+        {
+            if (OutlineButton(draw, "shell_utility_" + utilityLabel, utilityLabel, utilityPos, new Vector2(utilityWidth, ControlHeight)))
+                utilityAction();
+            if (utilityTooltip is not null && ImGui.IsItemHovered())
+                ImGui.SetTooltip(utilityTooltip);
+        }
         StatusPill(draw, statusPos, new Vector2(statusWidth, ControlHeight), stateLabel, state);
+        if (controls is not null)
+        {
+            if (OutlineButton(draw, "shell_minimize", controls.Minimized ? "□" : "–", minimizePos, new Vector2(30, ControlHeight)))
+                controls.ToggleMinimize();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(controls.Minimized ? "Restore" : "Minimize");
+            if (OutlineButton(draw, "shell_close", "×", closePos, new Vector2(30, ControlHeight)))
+                controls.Close();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Close");
+        }
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    /// <summary>Owns custom-shell close and minimize state without changing window registration identity.</summary>
+    internal sealed class ShellControls
+    {
+        private const float MinimizedHeight = 152f;
+        private readonly Dalamud.Interface.Windowing.Window _window;
+        private readonly ImGuiWindowFlags _expandedFlags;
+        private readonly Vector2 _minimumSize;
+        private readonly Vector2 _maximumSize;
+        private Vector2? _savedSize;
+
+        internal ShellControls(Dalamud.Interface.Windowing.Window window, Vector2 minimumSize, Vector2 maximumSize)
+        {
+            _window = window;
+            _expandedFlags = window.Flags | ImGuiWindowFlags.NoTitleBar;
+            _minimumSize = minimumSize;
+            _maximumSize = maximumSize;
+            _window.Flags = _expandedFlags;
+            _window.SizeConstraints = new() { MinimumSize = minimumSize, MaximumSize = maximumSize };
+        }
+
+        internal bool Minimized { get; private set; }
+
+        internal bool PrepareDraw()
+        {
+            if (Minimized)
+            {
+                var width = MathF.Max(_minimumSize.X, _savedSize?.X ?? ImGui.GetWindowSize().X);
+                _window.SizeConstraints = new()
+                {
+                    MinimumSize = new Vector2(_minimumSize.X, MinimizedHeight),
+                    MaximumSize = new Vector2(_maximumSize.X, MinimizedHeight),
+                };
+                _window.Size = new Vector2(width, MinimizedHeight);
+                _window.SizeCondition = ImGuiCond.Always;
+                _window.Flags = _expandedFlags | ImGuiWindowFlags.NoResize;
+                return true;
+            }
+
+            _window.SizeConstraints = new() { MinimumSize = _minimumSize, MaximumSize = _maximumSize };
+            _window.Flags = _expandedFlags;
+            _window.SizeCondition = ImGuiCond.FirstUseEver;
+            _savedSize = ImGui.GetWindowSize();
+            return false;
+        }
+
+        internal void ToggleMinimize()
+        {
+            Minimized = !Minimized;
+            if (Minimized)
+                return;
+            _window.SizeConstraints = new() { MinimumSize = _minimumSize, MaximumSize = _maximumSize };
+            _window.Flags = _expandedFlags;
+            if (_savedSize is { } saved)
+            {
+                _window.Size = saved;
+                _window.SizeCondition = ImGuiCond.Always;
+            }
+        }
+
+        internal void Close() => _window.IsOpen = false;
     }
 
     internal static int FeatureRow(string id, IReadOnlyList<string> labels, int selected)

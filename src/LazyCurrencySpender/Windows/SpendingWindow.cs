@@ -14,28 +14,11 @@ internal class SpendingWindow : Window
     internal static List<ShopItem>? SellableItems;
     internal static List<ShopItem>? ItemsOfInterest;
     internal static List<ShopItem>? GeneralItems;
+    private readonly CurrencyChrome.ShellControls _controls;
 
-    public SpendingWindow() : base("SpendingWindow")
+    public SpendingWindow() : base("SpendingWindow", ImGuiWindowFlags.NoTitleBar)
     {
-        SizeConstraints = new()
-        {
-            MinimumSize = new(720, 360),
-            MaximumSize = new(float.MaxValue, float.MaxValue),
-        };
-        if (C.Debug)
-        {
-            TitleBarButtons.Add(new()
-            {
-                Click = (m) =>
-                {
-                    if (m == ImGuiMouseButton.Left && Currency != null)
-                        P.TaskManager.Enqueue(() => WebHelper.CheckAll(Currency.ItemId, true));
-                },
-                Icon = FontAwesomeIcon.Sync,
-                IconOffset = new(2, 2),
-                ShowTooltip = () => ImGui.SetTooltip("Force refresh Universalis"),
-            });
-        }
+        _controls = new(this, new Vector2(720, 360), new Vector2(float.MaxValue, float.MaxValue));
         P.ws.AddWindow(this);
     }
 
@@ -48,11 +31,16 @@ internal class SpendingWindow : Window
     {
         if (Currency == null)
             return;
+        var minimized = _controls.PrepareDraw();
         CurrencyChrome.PushFrame();
         try
         {
             var sectionCount = VisibleSectionCount();
-            CurrencyChrome.TopBar("Spending guide", sectionCount > 0 ? UiState.Ready : UiState.Empty);
+            CurrencyChrome.TopBar("Spending guide", sectionCount > 0 ? UiState.Ready : UiState.Empty,
+                controls: _controls, utilityLabel: C.Debug ? "Refresh" : null,
+                utilityAction: C.Debug ? RefreshPrices : null, utilityTooltip: "Force refresh Universalis");
+            if (minimized)
+                return;
             CurrencyChrome.PageHeader(Currency.Name,
                 "Compare available purchases and open vendor travel actions.",
                 $"{StringHelper.FormatString(Currency.CurrentCount.ToString())} available");
@@ -116,6 +104,12 @@ internal class SpendingWindow : Window
         {
             CurrencyChrome.PopFrame();
         }
+    }
+
+    private static void RefreshPrices()
+    {
+        if (Currency != null)
+            P.TaskManager.Enqueue(() => WebHelper.CheckAll(Currency.ItemId, true));
     }
 
     private static int VisibleSectionCount()
