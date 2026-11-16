@@ -17,13 +17,15 @@ public sealed class WondrousTailsSolverPlugin : IDalamudPlugin {
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
+    // Fork: Share one WindowSystem between the existing changelog and the refreshed probability window.
     // Upstream EzWondrousTails has no WindowSystem, no configuration and no command at all - the whole
     // plugin is a native node bolted onto the WeeklyBingo addon. The shared "What's new" popup needs a
-    // WindowSystem to live in, so this fork creates a one-window system of its own and draws it. The popup reopens from the
-    // Dalamud installer's Open action; there is deliberately no slash command. Seen-version goes to a sidecar json (SidecarSeenStore), never to a
-    // config class, so upstream merges stay clean.
+    // WindowSystem to live in, so this fork creates a window system of its own and draws it. There is deliberately no slash command.
+    // Seen-version goes to a sidecar json (SidecarSeenStore), never to a config class, so upstream merges stay clean.
     private readonly WindowSystem _windows = new("LazyWTMath");
     private readonly ChangelogGate _changelog;
+    // Fork: Host the plugin-local probability window beside the shared changelog window.
+    private readonly LazyWTMathWindow _mainWindow;
 
     public WondrousTailsSolverPlugin(IDalamudPluginInterface pluginInterface) {
         pluginInterface.Inject(this);
@@ -55,16 +57,25 @@ public sealed class WondrousTailsSolverPlugin : IDalamudPlugin {
             SeenStore = new SidecarSeenStore(pluginInterface, (ex, msg) => Log.Warning(ex, msg)),
         });
 
+        // Fork: Add the refreshed read-only UI while retaining the changelog's existing update gate.
+        _mainWindow = new LazyWTMathWindow(_changelog.ShowNow);
+        _windows.AddWindow(_mainWindow);
+
         pluginInterface.UiBuilder.Draw += _windows.Draw;
-        pluginInterface.UiBuilder.OpenMainUi += _changelog.ShowNow;
-        pluginInterface.UiBuilder.OpenConfigUi += _changelog.ShowNow;
+        // Fork: Dalamud's Open actions show the probability window; its top bar retains manual changelog access.
+        pluginInterface.UiBuilder.OpenMainUi += OpenMainWindow;
+        pluginInterface.UiBuilder.OpenConfigUi += OpenMainWindow;
 
     }
 
+    // Fork: Open the same single main window from either Dalamud entry point.
+    private void OpenMainWindow() => _mainWindow.IsOpen = true;
+
     public void Dispose() {
         Pi.UiBuilder.Draw -= _windows.Draw;
-        Pi.UiBuilder.OpenMainUi -= _changelog.ShowNow;
-        Pi.UiBuilder.OpenConfigUi -= _changelog.ShowNow;
+        // Fork: Unsubscribe the refreshed window handlers during teardown.
+        Pi.UiBuilder.OpenMainUi -= OpenMainWindow;
+        Pi.UiBuilder.OpenConfigUi -= OpenMainWindow;
         System.AddonWeeklyBingoController.Dispose();
         _changelog.Dispose();
         _windows.RemoveAllWindows();
