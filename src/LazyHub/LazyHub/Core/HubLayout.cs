@@ -53,7 +53,7 @@ public static class HubLayout
     public const float ButtonHeight = 32f;
     public const float ButtonMinWidth = 96f;
     public const float SmallButtonWidth = 72f;
-    public const float StepButtonWidth = 40f;
+    public const float StepButtonWidth = 48f;
     public const float ValueWidth = 104f;
     public const float ToggleWidth = 44f;
     public const float ToggleHeight = 24f;
