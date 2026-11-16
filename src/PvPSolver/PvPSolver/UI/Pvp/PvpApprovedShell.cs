@@ -108,7 +108,7 @@ internal sealed class PvpApprovedShell
 
         float brandScale = Theme.TitleScale;
         float brandWidth = PvpApprovedChrome.BrandWidth(brandScale);
-        bool singleRow = brandWidth + 12 + groupsWidth + rest <= inner;
+        bool singleRow = brandWidth + 16 + groupsWidth + rest <= inner;
         if (!singleRow && brandWidth + rest > inner)
         {
             brandScale = 1f;
@@ -133,7 +133,7 @@ internal sealed class PvpApprovedShell
         }
 
         float navY = singleRow ? closePos.Y : pad + brandHeight + gap;
-        float x = gutter + brandWidth + 12;
+        float x = gutter + brandWidth + 16;
         for (int i = 0; i < groups.Length; i++)
         {
             float w = groupWidths[i];
@@ -330,7 +330,7 @@ internal sealed class PvpApprovedShell
         }
     }
 
-    // Fades where more content scrolls in, so nothing looks cut by the header or the footer.
+    // A short fade above the footer where more content scrolls in. The pinned header edge is a plain clip, like the other windows.
     private static void DrawScrollFades(float width, float height)
     {
         if (ImGui.GetScrollMaxY() <= 0)
@@ -348,12 +348,6 @@ internal sealed class PvpApprovedShell
         {
             float bottom = min.Y + height - 1;
             draw.AddRectFilledMultiColor(new Vector2(min.X, bottom - 12), new Vector2(right, bottom), clear, clear, solid, solid);
-        }
-
-        if (ImGui.GetScrollY() > 1)
-        {
-            draw.AddRectFilled(new Vector2(min.X, min.Y + 1), new Vector2(right, min.Y + 5), solid);
-            draw.AddRectFilledMultiColor(new Vector2(min.X, min.Y + 5), new Vector2(right, min.Y + 15), solid, solid, clear, clear);
         }
     }
 

@@ -135,7 +135,11 @@ internal static class PvpUi
             changed = PvpApprovedChrome.Field(() =>
             {
                 ImGui.SetNextItemWidth(SliderWidth);
-                return ImGui.SliderInt("##value", ref value, min, max, string.Empty);
+
+                // The readout is drawn beside the track, so the in-track text is transparent. The format stays "%d%%" so that
+                // Ctrl+click keyboard entry opens with the current value; the typed text is shown while a text box is active.
+                using var hideText = ImRaii.PushColor(ImGuiCol.Text, 0u, !ImGui.GetIO().WantTextInput);
+                return ImGui.SliderInt("##value", ref value, min, max, "%d%%");
             });
             SaveOnRelease();
             string readout = value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%";
