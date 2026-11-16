@@ -265,5 +265,123 @@ Check("row height preserves leading content", HubLayout.RowsHeight(1, 2, 60, lea
 Check("empty content keeps only its leading height", HubLayout.RowsHeight(0, 2, 60, leading: 200) == 200);
 Check("column widths never become negative", HubLayout.ColumnWidth(0, 2) == 40);
 
+// ---- native hub geometry: alignment, fit, grid, panels ------------------------------------------------
+{
+    const float W = 1068f;
+    var g = HubLayout.Gutter(W);
+    var inner = HubLayout.InnerWidth(W);
+    var cols = HubLayout.Columns(inner);
+    bool OnGrid(float v) => v % 1f == 0f;
+    bool OnGrid4(float v) => v % 4f == 0f;
+
+    // two columns align at both edges, rows are equal height, nothing overlaps
+    var cells = Enumerable.Range(0, 8).Select(i => HubLayout.Cell(i, inner, cols, HubLayout.RowHeight, HubLayout.ColumnGap, HubLayout.TrayLeading, g, HubLayout.RowGap)).ToList();
+    Check("columns start at the left gutter and end at the right gutter",
+        cells.Where((_, i) => i % 2 == 0).All(c => c.X == g) && cells.Where((_, i) => i % 2 == 1).All(c => c.X + c.Width == W - g));
+    Check("every row cell has the same size", cells.All(c => c.Width == cells[0].Width && c.Height == HubLayout.RowHeight));
+    Check("row cells never overlap",
+        cells.Select((c, i) => (c, i)).All(a => cells.Select((d, j) => (d, j)).Where(b => b.j > a.i).All(b =>
+            !new HubRect(a.c.X, a.c.Y, a.c.Width, a.c.Height).Overlaps(new HubRect(b.d.X, b.d.Y, b.d.Width, b.d.Height)))));
+    Check("row cells sit on whole units and the 4 grid vertically",
+        cells.All(c => OnGrid(c.X) && OnGrid(c.Width) && OnGrid4(c.Y) && OnGrid4(c.Height)));
+    // odd widths still end flush
+    var odd = Enumerable.Range(0, 2).Select(i => HubLayout.Cell(i, 1001f, 2, 60)).ToList();
+    Check("columns end flush even for an odd width", odd[1].X + odd[1].Width == 1001f && odd[0].Width == odd[1].Width);
+
+    // the Quick page fits the window it asks for, with no leftover blank body
+    var windowH = HubLayout.WindowHeightForQuick(8);
+    var bodyH = HubLayout.BodyHeight(windowH - HubLayout.FrameOverheadY);
+    var contentH = HubLayout.RowsHeight(8, cols, HubLayout.RowHeight, HubLayout.ColumnGap, HubLayout.TrayLeading, HubLayout.RowGap) + HubLayout.ScrollPadBottom;
+    Check("content height equals the body height for the Quick page", contentH == bodyH, $"content={contentH} body={bodyH}");
+    Check("the window height is on the 4 grid", OnGrid4(windowH), windowH.ToString());
+
+    // shell bands stack on the 4 grid
+    Check("shell bands and page header sit on the 4 grid",
+        new[] { HubLayout.HeaderHeight, HubLayout.NavHeight, HubLayout.PageTop, HubLayout.BodyTop, HubLayout.FooterHeight, HubLayout.TrayHeight, HubLayout.RowHeight, HubLayout.ButtonHeight, HubLayout.TileSize, HubLayout.ToggleWidth, HubLayout.ToggleHeight }.All(OnGrid4));
+    Check("the nav pills sit inside the nav band", HubLayout.NavPill(0, W).Y >= HubLayout.HeaderHeight && HubLayout.NavPill(0, W).Bottom <= HubLayout.HeaderHeight + HubLayout.NavHeight);
+    Check("the nav pills do not overlap each other", !HubLayout.NavPill(0, W).Overlaps(HubLayout.NavPill(1, W)));
+    Check("the status pill sits inside the header band on the right gutter",
+        HubLayout.StatusPill(W).Right == W - g && HubLayout.StatusPill(W).Y >= 0 && HubLayout.StatusPill(W).Bottom <= HubLayout.HeaderHeight && !HubLayout.StatusPill(W).Overlaps(HubLayout.Brand(W)));
+    Check("the page header starts below the nav band", HubLayout.PageTile(W).Y > HubLayout.HeaderHeight + HubLayout.NavHeight);
+    Check("the page title and the meta do not overlap", !HubLayout.PageTitle(W).Overlaps(HubLayout.PageMeta(W)));
+    Check("the page header ends before the scrolling body begins", HubLayout.PageTile(W).Bottom <= HubLayout.BodyTop && HubLayout.PageDescription(W).Bottom <= HubLayout.BodyTop);
+    Check("the footer sits at the bottom, below the body", HubLayout.Footer(W, 748f).Bottom == 748f && HubLayout.Footer(W, 748f).Y == HubLayout.BodyTop + HubLayout.BodyHeight(748f));
+
+    // labels fit their buttons
+    foreach (var label in new[] { "Settings", "Open", "Confirm?", "Run", "-", "+", "<", ">" })
+    {
+        var width = label.Length <= 1 ? HubLayout.StepButtonWidth : HubLayout.ButtonWidth(label, label == "Open" ? HubLayout.SmallButtonWidth : HubLayout.ButtonMinWidth);
+        Check($"the '{label}' label fits its button", HubLayout.LabelFits(label, width), $"width={width}");
+    }
+    Check("Settings is not truncated in the Quick row or the library row",
+        HubLayout.LabelFits("Settings", HubLayout.MasterRow(cells[0]).ButtonA.Width) && HubLayout.LabelFits("Settings", HubLayout.LibraryRow(cells[0]).ButtonA.Width));
+    Check("a long label widens its button on the 4 grid", HubLayout.ButtonWidth("Quick controls extra") % 4f == 0f && HubLayout.LabelFits("Quick controls extra", HubLayout.ButtonWidth("Quick controls extra")));
+
+    // row interiors: inside the card, no overlaps, vertically centred
+    var cell = cells[0];
+    var card = new HubRect(cell.X, cell.Y, cell.Width, cell.Height);
+    foreach (var (name, parts) in new[] { ("master", HubLayout.MasterRow(cell)), ("library", HubLayout.LibraryRow(cell)) })
+    {
+        var rects = new[] { parts.Icon, parts.Text, parts.ButtonA, parts.ButtonB };
+        Check($"{name} row parts sit inside the card", rects.All(r => card.Contains(r)));
+        Check($"{name} row parts do not overlap", rects.Select((a, i) => (a, i)).All(a => rects.Select((b, j) => (b, j)).Where(b => b.j > a.i).All(b => !a.a.Overlaps(b.b))));
+        Check($"{name} row controls share the row's middle line",
+            Math.Abs((parts.ButtonA.Y + (parts.ButtonA.Height / 2f)) - (card.Y + (card.Height / 2f))) <= 1f &&
+            Math.Abs((parts.ButtonB.Y + (parts.ButtonB.Height / 2f)) - (card.Y + (card.Height / 2f))) <= 1f &&
+            Math.Abs((parts.Icon.Y + (parts.Icon.Height / 2f)) - (card.Y + (card.Height / 2f))) <= 1f);
+    }
+    foreach (var (name, parts) in new[] { ("toggle", HubLayout.ToggleRow(cell)), ("step", HubLayout.StepRow(cell)), ("action", HubLayout.ActionRow(cell)) })
+    {
+        var rects = new[] { parts.Text, parts.ButtonA, parts.Value, parts.ButtonB }.Where(r => r.Width > 0).ToArray();
+        Check($"{name} row parts sit inside the card and do not overlap", rects.All(r => card.Contains(r)) &&
+            rects.Select((a, i) => (a, i)).All(a => rects.Select((b, j) => (b, j)).Where(b => b.j > a.i).All(b => !a.a.Overlaps(b.b))));
+    }
+    var (labelRect, infoRect) = HubLayout.TextLines(HubLayout.MasterRow(cell).Text, true);
+    Check("a name and a note stack without overlap inside the row", !labelRect.Overlaps(infoRect) && card.Contains(labelRect) && card.Contains(infoRect));
+    Check("a lone name is centred over the whole row height", HubLayout.TextLines(HubLayout.MasterRow(cell).Text, false).Label.Height == HubLayout.RowHeight);
+
+    // the tray: four equal columns ending on the card's inner edge, inside the card, above the first plugin row
+    var tray = Enumerable.Range(0, 7).Select(i => HubLayout.TrayButton(i, W)).ToList();
+    Check("tray buttons are equal width and end on the card's inner edge",
+        tray.Take(4).All(r => r.Width == tray[0].Width) && tray[3].Right == W - g - HubLayout.CardPad && tray[0].X == g + HubLayout.CardPad);
+    Check("tray buttons do not overlap and stay inside the tray",
+        tray.Select((a, i) => (a, i)).All(a => tray.Select((b, j) => (b, j)).Where(b => b.j > a.i).All(b => !a.a.Overlaps(b.b))) &&
+        tray.All(r => r.Bottom + HubLayout.CardPad <= HubLayout.TrayHeight));
+    Check("the first plugin row starts below the tray", cells[0].Y >= HubLayout.TrayHeight);
+    Check("tray labels fit the tray buttons", new[] { "Single Target DPS", "Auto-Rotation Toggle" }.All(l => HubLayout.LabelFits(l, tray[0].Width)));
+
+    // the switch: the knob stays inside the track in both positions
+    Check("the knob fits the track at both ends",
+        HubLayout.KnobInset + HubLayout.KnobSize + HubLayout.KnobInset == HubLayout.ToggleHeight &&
+        HubLayout.ToggleWidth - HubLayout.KnobInset - HubLayout.KnobSize > HubLayout.KnobInset);
+
+    // gutters step down with the window width and cards still fit
+    Check("the gutter steps 24 / 16 / 12", HubLayout.Gutter(1080) == 24 && HubLayout.Gutter(700) == 16 && HubLayout.Gutter(400) == 12);
+}
+
+// ---- panel rasteriser: crisp corners at the exact size -------------------------------------------------
+{
+    var fill = new System.Numerics.Vector4(0.1f, 0.2f, 0.3f, 1f);
+    var edge = new System.Numerics.Vector4(0.9f, 0.8f, 0.7f, 1f);
+    byte[] Px(byte[] b, int w, int x, int y) => b.Skip(((y * w) + x) * 4).Take(4).ToArray();
+    var tex = PanelRaster.Render(200, 40, fill, edge, 8f);
+    Check("raster: buffer is width x height x 4", tex.Length == 200 * 40 * 4);
+    Check("raster: the outer corner pixel is transparent", Px(tex, 200, 0, 0)[3] == 0);
+    Check("raster: the middle is the fill, fully opaque", Px(tex, 200, 100, 20) is { } m && m[3] == 255 && Math.Abs(m[2] - 26) <= 1 && Math.Abs(m[1] - 51) <= 1 && Math.Abs(m[0] - 77) <= 1);
+    Check("raster: the straight edge is the border colour, opaque", Px(tex, 200, 100, 0) is { } e && e[3] == 255 && Math.Abs(e[2] - 230) <= 1 && Math.Abs(e[1] - 204) <= 1 && Math.Abs(e[0] - 179) <= 1);
+    Check("raster: the same corner looks the same on a wide and a narrow panel",
+        Px(PanelRaster.Render(40, 40, fill, edge, 8f), 40, 1, 1).SequenceEqual(Px(tex, 200, 1, 1)) &&
+        Px(PanelRaster.Render(40, 40, fill, edge, 8f), 40, 4, 1).SequenceEqual(Px(tex, 200, 4, 1)));
+    Check("raster: the corner stays within its radius (no smear)",
+        Enumerable.Range(0, 40).All(x => Px(tex, 200, x, 20)[3] == 255 || x == 0) && Px(tex, 200, 9, 0)[3] == 255);
+    Check("raster: left-right symmetric", Px(tex, 200, 2, 3).SequenceEqual(Px(tex, 200, 197, 3)));
+    var flat = PanelRaster.Render(4, 4, fill, null, 0f);
+    Check("raster: a flat fill is uniform", Enumerable.Range(0, 16).All(i => flat[(i * 4) + 3] == 255));
+    var pill = PanelRaster.Render(44, 24, fill, edge, 12f);
+    Check("raster: a pill has transparent corners and opaque ends", Px(pill, 44, 0, 0)[3] == 0 && Px(pill, 44, 0, 12)[3] >= 240);
+    Check("raster: a translucent fill keeps its alpha", PanelRaster.Render(40, 40, fill with { W = 0.14f }, null, 8f) is { } t && Px(t, 40, 20, 20)[3] == 36);
+    Check("raster: sizes are clamped", PanelRaster.Clamp(0f) == 1 && PanelRaster.Clamp(99999f) == PanelRaster.MaxSide);
+}
+
 Console.WriteLine($"LazyHub.Harness: {pass} pass, {fail} fail");
 return fail == 0 ? 0 : 1;

@@ -21,7 +21,8 @@ namespace LazyHub;
 /// - Nodes are created once in <see cref="OnSetup"/> from fixed pools and afterwards only re-bound. Clicks queue effects
 ///   for the next update; no hub IPC write runs inside a native click callback.
 /// - Hub IPC is polled only while this window is open, and asynchronous icon loads check the setup generation.
-/// - Rounded cards, selection outlines and track toggles use the same proven image, text and button node types.
+/// - Rounded cards, selection outlines and track toggles use the same proven image, text and button node types. Each
+///   panel's texture is drawn at the panel's own pixel size, so the image node never stretches it.
 /// - The toolkit scrolling container clips overflow instead of hiding controls or covering the footer.
 /// </summary>
 internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, IconLoader icons, ITextureProvider textures, IPluginLog log) : NativeAddon
@@ -32,29 +33,110 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private const string HotbarGroup = "Hotbar buttons";
     private const string GluttonyName = "GluttonyCombo";
     private const int PoolSize = 40;
-    private const float ChromeH = 152f;
-    private const float FlashH = 44f;
-    private const float RowH = 60f;
-    private const float GroupH = 32f;
-    private const float TrayH = 188f;
     private const long FlashMs = 5000;
     private const long PollMs = 1000;
-    private static readonly Vector2 ToggleSize = new(52f, 26f);
+    private const float DisabledAlpha = 0.45f;
+    private static readonly Vector2 ToggleSize = new(HubLayout.ToggleWidth, HubLayout.ToggleHeight);
+
+    /// <summary>
+    /// A rounded (or flat) rectangle drawn by one image node. The texture is rasterised at the panel's exact whole-pixel
+    /// size and replaced only when that size changes, so corners and borders stay crisp and nothing is stretched.
+    /// </summary>
+    private sealed class Panel
+    {
+        private readonly ITextureProvider _textures;
+        private readonly Vector4 _fill;
+        private readonly Vector4? _border;
+        private readonly float _radius;
+        private int _width;
+        private int _height;
+
+        public readonly ImGuiImageNode Node;
+
+        public Panel(ITextureProvider textures, Vector4 fill, Vector4? border, float radius)
+        {
+            _textures = textures;
+            _fill = fill;
+            _border = border;
+            _radius = radius;
+            Node = new ImGuiImageNode
+            {
+                Size = new Vector2(4f, 4f),
+                TextureSize = new Vector2(4f, 4f),
+                FitTexture = true,
+            };
+        }
+
+        private bool Flat => _radius <= 0f && _border is null;
+
+        public bool IsVisible
+        {
+            get => Node.IsVisible;
+            set => Node.IsVisible = value;
+        }
+
+        public float Alpha
+        {
+            set => Node.Alpha = value;
+        }
+
+        public Vector2 Position
+        {
+            get => Node.Position;
+            set => Node.Position = value;
+        }
+
+        public void Place(Vector2 position, Vector2 size)
+        {
+            Node.Position = position;
+            Fit(size);
+        }
+
+        public void Fit(Vector2 size)
+        {
+            if (size.X < 1f || size.Y < 1f) return;
+            var w = PanelRaster.Clamp(size.X);
+            var h = PanelRaster.Clamp(size.Y);
+            Node.Size = new Vector2(w, h);
+            if (w == _width && h == _height) return;
+            if (Flat && _width != 0)
+            {
+                _width = w;
+                _height = h;
+                return;
+            }
+
+            _width = w;
+            _height = h;
+            var tw = Flat ? 4 : w;
+            var th = Flat ? 4 : h;
+            var bgra = PanelRaster.Render(tw, th, _fill, _border, _radius);
+            Node.TextureSize = new Vector2(tw, th);
+            Node.LoadTexture(_textures.CreateFromRaw(RawImageSpecification.Bgra32(tw, th), bgra, "LazyHubPanel"));
+        }
+    }
 
     private sealed class ToggleVisual
     {
-        public required ImGuiImageNode OnTrack;
-        public required ImGuiImageNode OffTrack;
-        public required ImGuiImageNode PendingTrack;
-        public required ImGuiImageNode Knob;
+        public required Panel OnTrack;
+        public required Panel OffTrack;
+        public required Panel PendingTrack;
+        public required Panel Knob;
+        public required Panel KnobOn;
 
-        public void Reset(TextButtonNode button)
+        public void HideAll()
         {
-            button.BackgroundNode.IsVisible = true;
             OnTrack.IsVisible = false;
             OffTrack.IsVisible = false;
             PendingTrack.IsVisible = false;
             Knob.IsVisible = false;
+            KnobOn.IsVisible = false;
+        }
+
+        public void Reset(TextButtonNode button)
+        {
+            button.BackgroundNode.IsVisible = false;
+            HideAll();
         }
 
         public void Bind(bool pending, bool on, bool enabled, TextButtonNode button)
@@ -63,19 +145,27 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             OnTrack.IsVisible = !pending && on;
             OffTrack.IsVisible = !pending && !on;
             PendingTrack.IsVisible = pending;
-            Knob.IsVisible = true;
-            Knob.Position = new Vector2(on ? 32f : 4f, 5f);
-            var alpha = enabled ? 1f : 0.45f;
+            var darkKnob = !pending && on;
+            KnobOn.IsVisible = darkKnob;
+            Knob.IsVisible = !darkKnob;
+            var knobX = on ? HubLayout.ToggleWidth - HubLayout.KnobInset - HubLayout.KnobSize : HubLayout.KnobInset;
+            var knobPosition = new Vector2(knobX, HubLayout.KnobInset);
+            Knob.Position = knobPosition;
+            KnobOn.Position = knobPosition;
+            var alpha = enabled ? 1f : DisabledAlpha;
             OnTrack.Alpha = alpha;
             OffTrack.Alpha = alpha;
             PendingTrack.Alpha = alpha;
             Knob.Alpha = alpha;
+            KnobOn.Alpha = alpha;
         }
     }
 
     private sealed class Row
     {
-        public required ImGuiImageNode Background;
+        public required Panel Background;
+        public required Panel Skin1;
+        public required Panel Skin2;
         public required ImGuiImageNode Icon;
         public required TextNode Label;
         public required TextNode Info;
@@ -84,6 +174,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         public required TextNode Val;
         public required TextButtonNode B2;
         public RowKind Kind;
+        public HubRect Text;
+        public bool HasInfo;
+        public bool UseSkin1;
+        public bool UseSkin2;
         public string? IconFile;
         public Action? On1;
         public Action? On2;
@@ -93,7 +187,12 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             Kind = RowKind.Hidden;
             On1 = null;
             On2 = null;
+            HasInfo = false;
+            UseSkin1 = false;
+            UseSkin2 = false;
             Background.IsVisible = false;
+            Skin1.IsVisible = false;
+            Skin2.IsVisible = false;
             Icon.IsVisible = false;
             Label.IsVisible = false;
             Info.IsVisible = false;
@@ -103,15 +202,16 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             Toggle1.Reset(B1);
             B1.String = "";
             B2.String = "";
-            B1.LabelNode.TextColor = HubTheme.White;
-            B2.LabelNode.TextColor = HubTheme.White;
+            B1.LabelNode.TextColor = HubTheme.Grey;
+            B2.LabelNode.TextColor = HubTheme.Grey;
             Val.AlignmentType = AlignmentType.Center;
         }
     }
 
     private sealed class Tray
     {
-        public ImGuiImageNode Bg = null!;
+        public Panel Bg = null!;
+        public Panel Rule = null!;
         public TextNode Title = null!;
         public TextNode AutoLabel = null!;
         public TextButtonNode AutoToggle = null!;
@@ -121,6 +221,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         public TextNode Hint = null!;
         public TextNode Missing = null!;
         public readonly List<TextButtonNode> Buttons = new();
+        public readonly List<Panel> Skins = new();
         public PluginLink? Link;
         public ParsedControl? Master;
         public readonly List<ParsedControl> Picks = new();
@@ -130,14 +231,12 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         public void SetVisible(bool visible)
         {
             Bg.IsVisible = visible;
+            Rule.IsVisible = visible;
             Title.IsVisible = visible;
             if (visible) return;
             AutoLabel.IsVisible = false;
             AutoToggle.IsVisible = false;
-            AutoVisual.OnTrack.IsVisible = false;
-            AutoVisual.OffTrack.IsVisible = false;
-            AutoVisual.PendingTrack.IsVisible = false;
-            AutoVisual.Knob.IsVisible = false;
+            AutoVisual.HideAll();
             AutoValue.IsVisible = false;
             AutoWhy.IsVisible = false;
             Hint.IsVisible = false;
@@ -153,29 +252,40 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
     private ScrollingNode<ResNode>? _scroll;
     private Tray? _tray;
-    private ImGuiImageNode? _topBar;
-    private ImGuiImageNode? _navBar;
-    private ImGuiImageNode? _statusBg;
+    private Panel? _backdrop;
+    private Panel? _headerBand;
+    private Panel? _headerRule;
+    private Panel? _navBand;
+    private Panel? _navRule;
+    private Panel? _brandChip;
+    private Panel? _statusBg;
     private TextNode? _brandMark;
     private TextNode? _brand;
     private TextNode? _status;
-    private ImGuiImageNode? _quickBase;
-    private ImGuiImageNode? _pluginsBase;
-    private ImGuiImageNode? _quickSelected;
-    private ImGuiImageNode? _pluginsSelected;
+    private Panel? _quickBase;
+    private Panel? _pluginsBase;
+    private Panel? _quickSelected;
+    private Panel? _pluginsSelected;
+    private Panel? _backSkin;
     private TextButtonNode? _tabQuick;
     private TextButtonNode? _tabPlugins;
     private TextButtonNode? _back;
+    private Panel? _pageTile;
     private TextNode? _pageMark;
     private TextNode? _pageTitle;
     private TextNode? _pagePurpose;
     private TextNode? _pageCount;
     private TextNode? _empty;
+    private Panel? _footerBand;
+    private Panel? _footerRule;
+    private TextNode? _footerMark;
+    private TextNode? _footerLine;
     private TextNode? _flash;
 
     private Vector2 _origin;
     private Vector2 _lastContentSize;
     private float _width;
+    private float _contentHeight;
     private float _height;
     private int _generation;
     private Page _page = Page.Quick;
@@ -186,7 +296,8 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private bool _tintFailed;
 
     private static long Now => Environment.TickCount64;
-    private float ContentWidth => MathF.Max(120f, _width - 12f);
+    private float Gutter => HubLayout.Gutter(_width);
+    private float InnerWidth => HubLayout.InnerWidth(_width);
 
     // ===== lifecycle ====================================================================================
 
@@ -219,35 +330,41 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         var c = ContentSize;
         _lastContentSize = c;
         _width = c.X;
-        _height = Math.Max(c.Y - ChromeH - FlashH, 120f);
-        _origin = o + new Vector2(0f, ChromeH);
+        _contentHeight = c.Y;
+        _height = HubLayout.BodyHeight(c.Y);
+        _origin = o + new Vector2(0f, HubLayout.BodyTop);
 
-        _topBar = MakePanel(o, new Vector2(_width, 40f), HubTheme.Backdrop, HubTheme.Border, true);
-        _brandMark = MakeText(o + new Vector2(12f, 5f), new Vector2(30f, 30f), 24, HubTheme.Accent, "◆");
-        _brand = MakeText(o + new Vector2(46f, 9f), new Vector2(210f, 24f), HubTheme.FontTitle, HubTheme.White, "Lazy Hub");
-        _statusBg = MakePanel(o + new Vector2(_width - 174f, 8f), new Vector2(162f, 24f), HubTheme.Tray, HubTheme.Border, true);
-        _status = MakeText(o + new Vector2(_width - 164f, 11f), new Vector2(142f, 18f), HubTheme.FontSecondary, HubTheme.Grey, "");
+        // Back to front: one opaque backdrop over the whole content area first, so the game's window skin never shows between panels.
+        _backdrop = MakePanel(HubTheme.Shell, null, 0f);
+        _headerBand = MakePanel(HubTheme.Shell, null, 0f);
+        _navBand = MakePanel(HubTheme.Shell, null, 0f);
+        _headerRule = MakePanel(HubTheme.Border, null, 0f);
+        _navRule = MakePanel(HubTheme.Border, null, 0f);
+        _brandChip = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius);
+        _brandMark = MakeText(24, HubTheme.Accent, "◆", AlignmentType.Center);
+        _brand = MakeText(HubTheme.FontTitle, HubTheme.White, "Lazy Hub", AlignmentType.Left);
+        _statusBg = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Control / 2f);
+        _status = MakeText(HubTheme.FontSecondary, HubTheme.Grey, "", AlignmentType.Center);
 
-        _navBar = MakePanel(o + new Vector2(0f, 48f), new Vector2(_width, 36f), HubTheme.Backdrop);
-        _quickBase = MakePanel(o + new Vector2(0f, 52f), new Vector2(160f, 28f), HubTheme.Tray, HubTheme.Border, true);
-        _pluginsBase = MakePanel(o + new Vector2(168f, 52f), new Vector2(160f, 28f), HubTheme.Tray, HubTheme.Border, true);
-        _quickSelected = MakePanel(o + new Vector2(0f, 52f), new Vector2(160f, 28f), HubTheme.Selected, HubTheme.Accent, true);
-        _pluginsSelected = MakePanel(o + new Vector2(168f, 52f), new Vector2(160f, 28f), HubTheme.Selected, HubTheme.Accent, true);
-        _tabQuick = MakeButton(o + new Vector2(0f, 52f), new Vector2(160f, 28f), "Quick controls", () => _nextPage = Page.Quick);
-        _tabPlugins = MakeButton(o + new Vector2(168f, 52f), new Vector2(160f, 28f), "Plugin library", () => _nextPage = Page.Plugins);
-        _tabQuick.BackgroundNode.IsVisible = false;
-        _tabPlugins.BackgroundNode.IsVisible = false;
-        _back = MakeButton(o + new Vector2(_width - 120f, 52f), new Vector2(120f, 28f), "< Plugin library", () => _nextPage = Page.Plugins);
+        _quickBase = MakePanel(HubTheme.Tray, HubTheme.BorderSoft, HubLayout.Radius);
+        _pluginsBase = MakePanel(HubTheme.Tray, HubTheme.BorderSoft, HubLayout.Radius);
+        _quickSelected = MakePanel(HubTheme.Selected, HubTheme.Accent, HubLayout.Radius);
+        _pluginsSelected = MakePanel(HubTheme.Selected, HubTheme.Accent, HubLayout.Radius);
+        _backSkin = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius);
+        _tabQuick = MakeButton("Quick controls", () => _nextPage = Page.Quick);
+        _tabPlugins = MakeButton("Plugin library", () => _nextPage = Page.Plugins);
+        _back = MakeButton("< Plugin library", () => _nextPage = Page.Plugins);
 
-        _pageMark = MakeText(o + new Vector2(4f, 92f), new Vector2(34f, 32f), 22, HubTheme.Accent, "◆");
-        _pageTitle = MakeText(o + new Vector2(44f, 90f), new Vector2(_width * 0.56f, 26f), HubTheme.FontTitle, HubTheme.White, "");
-        _pagePurpose = MakeText(o + new Vector2(44f, 118f), new Vector2(_width * 0.58f, 20f), HubTheme.FontSecondary, HubTheme.Grey, "");
-        _pageCount = MakeText(o + new Vector2(_width * 0.62f, 99f), new Vector2((_width * 0.38f) - 8f, 20f), HubTheme.FontSecondary, HubTheme.Grey, "");
-        _pageCount.AlignmentType = AlignmentType.Right;
+        _pageTile = MakePanel(HubTheme.Selected, null, HubLayout.Radius);
+        _pageMark = MakeText(22, HubTheme.Accent, "◆", AlignmentType.Center);
+        _pageTitle = MakeText(HubTheme.FontPage, HubTheme.White, "", AlignmentType.Left);
+        _pagePurpose = MakeText(HubTheme.FontSecondary, HubTheme.Grey, "", AlignmentType.Left);
+        _pageCount = MakeText(HubTheme.FontSecondary, HubTheme.Grey, "", AlignmentType.Right);
         _pageTitle.TextFlags = TextFlags.Ellipsis;
         _pagePurpose.TextFlags = TextFlags.Ellipsis;
         _pageCount.TextFlags = TextFlags.Ellipsis;
         _status.TextFlags = TextFlags.Ellipsis;
+        _brand.TextFlags = TextFlags.Ellipsis;
 
         _scroll = new ScrollingNode<ResNode>
         {
@@ -257,15 +374,21 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             ScrollSpeed = 48,
         };
         _scroll.AttachNode(this);
-        _scroll.ContentNode.Size = new Vector2(ContentWidth, _height);
+        _scroll.ContentNode.Size = new Vector2(_width, _height);
 
         _tray = BuildTray(_scroll.ContentNode);
         for (var i = 0; i < PoolSize; i++) _rows.Add(MakeRow(_scroll.ContentNode));
-        _empty = MakeText(Vector2.Zero, new Vector2(ContentWidth - 16f, 48f), HubTheme.FontSecondary, HubTheme.Dim, "", _scroll.ContentNode);
+        _empty = MakeText(HubTheme.FontSecondary, HubTheme.Dim, "", AlignmentType.TopLeft, _scroll.ContentNode);
         _empty.TextFlags = TextFlags.WordWrap | TextFlags.MultiLine;
 
-        _flash = MakeText(_origin + new Vector2(4f, _height + 6f), new Vector2(_width - 8f, FlashH - 8f), HubTheme.FontCaption, HubTheme.Amber, "");
-        _flash.TextFlags = TextFlags.WordWrap | TextFlags.MultiLine;
+        // The footer sits above the scrolling body: a status line (a mark and a summary) and, for a few seconds after an action, its result.
+        _footerBand = MakePanel(HubTheme.Shell, null, 0f);
+        _footerRule = MakePanel(HubTheme.Border, null, 0f);
+        _footerMark = MakeText(HubTheme.FontCaption, HubTheme.Grey, "●", AlignmentType.Left);
+        _footerLine = MakeText(HubTheme.FontBody, HubTheme.White, "", AlignmentType.Left);
+        _flash = MakeText(HubTheme.FontSecondary, HubTheme.Amber, "", AlignmentType.Left);
+        _footerLine.TextFlags = TextFlags.Ellipsis;
+        _flash.TextFlags = TextFlags.Ellipsis;
 
         LayoutChrome();
         client.ForgetAll();
@@ -310,6 +433,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             {
                 _flashUntil = 0;
                 if (_flash != null) _flash.String = "";
+                PlaceFooter();
             }
 
             if (_sincePoll.ElapsedMilliseconds >= PollMs)
@@ -331,8 +455,12 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         _actions.Clear();
         _scroll = null;
         _tray = null;
-        _topBar = null;
-        _navBar = null;
+        _backdrop = null;
+        _headerBand = null;
+        _headerRule = null;
+        _navBand = null;
+        _navRule = null;
+        _brandChip = null;
         _statusBg = null;
         _brandMark = null;
         _brand = null;
@@ -341,14 +469,20 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         _pluginsBase = null;
         _quickSelected = null;
         _pluginsSelected = null;
+        _backSkin = null;
         _tabQuick = null;
         _tabPlugins = null;
         _back = null;
+        _pageTile = null;
         _pageMark = null;
         _pageTitle = null;
         _pagePurpose = null;
         _pageCount = null;
         _empty = null;
+        _footerBand = null;
+        _footerRule = null;
+        _footerMark = null;
+        _footerLine = null;
         _flash = null;
     }
 
@@ -378,62 +512,24 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
     // ===== node factories ===============================================================================
 
-    private static bool RoundedContains(int x, int y, int size, int inset, int radius)
+    private Panel MakePanel(Vector4 color, Vector4? border, float radius, NodeBase? parent = null, NodePosition? relative = null)
     {
-        if (x < inset || y < inset || x >= size - inset || y >= size - inset) return false;
-        if (radius <= 0) return true;
-        var left = inset + radius;
-        var right = size - inset - radius - 1;
-        var top = inset + radius;
-        var bottom = size - inset - radius - 1;
-        var cx = x < left ? left : x > right ? right : x;
-        var cy = y < top ? top : y > bottom ? bottom : y;
-        var dx = x - cx;
-        var dy = y - cy;
-        return (dx * dx) + (dy * dy) <= radius * radius;
+        var panel = new Panel(textures, color, border, radius);
+        if (parent is null) panel.Node.AttachNode(this);
+        else if (relative is { } relation) panel.Node.AttachNode(parent, relation);
+        else panel.Node.AttachNode(parent);
+        return panel;
     }
 
-    private ImGuiImageNode MakePanel(Vector2 position, Vector2 size, Vector4 color, Vector4? border = null, bool rounded = false,
-        NodeBase? parent = null, NodePosition? relative = null)
-    {
-        const int textureSize = 32;
-        var node = new ImGuiImageNode
-        {
-            Position = position,
-            Size = size,
-            TextureSize = new Vector2(textureSize, textureSize),
-            FitTexture = true,
-        };
-        if (parent is null) node.AttachNode(this);
-        else if (relative is { } relation) node.AttachNode(parent, relation);
-        else node.AttachNode(parent);
-
-        var bgra = new byte[textureSize * textureSize * 4];
-        for (var y = 0; y < textureSize; y++)
-        for (var x = 0; x < textureSize; x++)
-        {
-            if (!RoundedContains(x, y, textureSize, 0, rounded ? 7 : 0)) continue;
-            var isBorder = border.HasValue && !RoundedContains(x, y, textureSize, 1, rounded ? 6 : 0);
-            var c = isBorder ? border!.Value : color;
-            var i = ((y * textureSize) + x) * 4;
-            bgra[i + 0] = (byte)Math.Clamp((int)MathF.Round(c.Z * 255f), 0, 255);
-            bgra[i + 1] = (byte)Math.Clamp((int)MathF.Round(c.Y * 255f), 0, 255);
-            bgra[i + 2] = (byte)Math.Clamp((int)MathF.Round(c.X * 255f), 0, 255);
-            bgra[i + 3] = (byte)Math.Clamp((int)MathF.Round(c.W * 255f), 0, 255);
-        }
-        node.LoadTexture(textures.CreateFromRaw(RawImageSpecification.Bgra32(textureSize, textureSize), bgra, "LazyHubPanel"));
-        return node;
-    }
-
-    private TextNode MakeText(Vector2 position, Vector2 size, uint fontSize, Vector4 color, string text, NodeBase? parent = null)
+    private TextNode MakeText(uint fontSize, Vector4 color, string text, AlignmentType alignment, NodeBase? parent = null)
     {
         var node = new TextNode
         {
-            Position = position,
-            Size = size,
+            Size = new Vector2(40f, 20f),
             FontSize = fontSize,
             FontType = FontType.Axis,
             TextColor = color,
+            AlignmentType = alignment,
             String = text,
         };
         if (parent is null) node.AttachNode(this);
@@ -441,16 +537,20 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         return node;
     }
 
-    private TextButtonNode MakeButton(Vector2 position, Vector2 size, string text, Action onClick, NodeBase? parent = null)
+    /// <summary>
+    /// A native text button whose own blue skin is hidden (the same way the switches hide it): the rounded panel under it
+    /// supplies the look, the native node keeps the click, the pressed label and the disabled dimming.
+    /// </summary>
+    private TextButtonNode MakeButton(string text, Action onClick, NodeBase? parent = null)
     {
         var node = new TextButtonNode
         {
-            Position = position,
-            Size = size,
+            Size = new Vector2(HubLayout.ButtonMinWidth, HubLayout.ButtonHeight),
             String = text,
             OnClick = onClick,
         };
-        node.LabelNode.TextColor = HubTheme.White;
+        node.BackgroundNode.IsVisible = false;
+        node.LabelNode.TextColor = HubTheme.Grey;
         node.LabelNode.TextFlags = TextFlags.Ellipsis;
         if (parent is null) node.AttachNode(this);
         else node.AttachNode(parent);
@@ -460,11 +560,15 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private ToggleVisual MakeToggleVisual(TextButtonNode button)
     {
         button.BackgroundNode.IsVisible = false;
-        var on = MakePanel(Vector2.Zero, ToggleSize, HubTheme.Selected, HubTheme.Accent, true, button.BackgroundNode, NodePosition.AfterTarget);
-        var off = MakePanel(Vector2.Zero, ToggleSize, HubTheme.Tray, HubTheme.Border, true, on, NodePosition.AfterTarget);
-        var pending = MakePanel(Vector2.Zero, ToggleSize, HubTheme.Pending, HubTheme.Amber, true, off, NodePosition.AfterTarget);
-        var knob = MakePanel(new Vector2(4f, 5f), new Vector2(16f, 16f), HubTheme.White, null, true, pending, NodePosition.AfterTarget);
-        var visual = new ToggleVisual { OnTrack = on, OffTrack = off, PendingTrack = pending, Knob = knob };
+        var radius = HubLayout.ToggleHeight / 2f;
+        var on = MakePanel(HubTheme.Accent, HubTheme.Accent, radius, button.BackgroundNode, NodePosition.AfterTarget);
+        var off = MakePanel(HubTheme.TrackOff, HubTheme.Border, radius, on.Node, NodePosition.AfterTarget);
+        var pending = MakePanel(HubTheme.Pending, HubTheme.Amber, radius, off.Node, NodePosition.AfterTarget);
+        var knob = MakePanel(HubTheme.Grey, null, HubLayout.KnobSize / 2f, pending.Node, NodePosition.AfterTarget);
+        var knobOn = MakePanel(HubTheme.Shell, null, HubLayout.KnobSize / 2f, knob.Node, NodePosition.AfterTarget);
+        foreach (var track in new[] { on, off, pending }) track.Place(Vector2.Zero, ToggleSize);
+        foreach (var dot in new[] { knob, knobOn }) dot.Place(new Vector2(HubLayout.KnobInset, HubLayout.KnobInset), new Vector2(HubLayout.KnobSize, HubLayout.KnobSize));
+        var visual = new ToggleVisual { OnTrack = on, OffTrack = off, PendingTrack = pending, Knob = knob, KnobOn = knobOn };
         visual.Reset(button);
         return visual;
     }
@@ -472,25 +576,26 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private Row MakeRow(ResNode parent)
     {
         Row? row = null;
-        var background = MakePanel(Vector2.Zero, new Vector2(300f, RowH), HubTheme.Tray, HubTheme.Border, true, parent);
+        var background = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius, parent);
+        var skin1 = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius, parent);
+        var skin2 = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius, parent);
         var icon = new ImGuiImageNode
         {
-            Size = new Vector2(28f, 28f),
+            Size = new Vector2(HubLayout.IconSize, HubLayout.IconSize),
             TextureSize = new Vector2(64f, 64f),
             FitTexture = true,
         };
         icon.AttachNode(parent);
-        var label = MakeText(Vector2.Zero, new Vector2(240f, 20f), HubTheme.FontBody, HubTheme.White, "", parent);
-        var info = MakeText(Vector2.Zero, new Vector2(200f, 18f), HubTheme.FontCaption, HubTheme.Dim, "", parent);
-        var b1 = MakeButton(Vector2.Zero, new Vector2(100f, 24f), "", () => row?.On1?.Invoke(), parent);
+        var label = MakeText(HubTheme.FontBody, HubTheme.White, "", AlignmentType.Left, parent);
+        var info = MakeText(HubTheme.FontCaption, HubTheme.Dim, "", AlignmentType.Left, parent);
+        var b1 = MakeButton("", () => row?.On1?.Invoke(), parent);
         var toggle1 = MakeToggleVisual(b1);
-        var val = MakeText(Vector2.Zero, new Vector2(120f, 18f), HubTheme.FontBody, HubTheme.White, "", parent);
-        val.AlignmentType = AlignmentType.Center;
-        var b2 = MakeButton(Vector2.Zero, new Vector2(100f, 24f), "", () => row?.On2?.Invoke(), parent);
+        var val = MakeText(HubTheme.FontBody, HubTheme.White, "", AlignmentType.Center, parent);
+        var b2 = MakeButton("", () => row?.On2?.Invoke(), parent);
         label.TextFlags = TextFlags.Ellipsis;
         info.TextFlags = TextFlags.Ellipsis;
         val.TextFlags = TextFlags.Ellipsis;
-        row = new Row { Background = background, Icon = icon, Label = label, Info = info, B1 = b1, Toggle1 = toggle1, Val = val, B2 = b2 };
+        row = new Row { Background = background, Skin1 = skin1, Skin2 = skin2, Icon = icon, Label = label, Info = info, B1 = b1, Toggle1 = toggle1, Val = val, B2 = b2 };
         row.Reset();
         return row;
     }
@@ -498,96 +603,33 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private Tray BuildTray(ResNode parent)
     {
         var tray = new Tray();
-        tray.Bg = MakePanel(Vector2.Zero, new Vector2(ContentWidth, TrayH), HubTheme.Tray, HubTheme.Border, true, parent);
-        tray.Title = MakeText(new Vector2(14f, 10f), new Vector2(300f, 24f), HubTheme.FontTitle, HubTheme.White, "◆ Gluttony Combo", parent);
-        tray.AutoLabel = MakeText(new Vector2(14f, 42f), new Vector2(180f, 22f), HubTheme.FontBody, HubTheme.White, "Auto-Rotation", parent);
-        tray.AutoToggle = MakeButton(Vector2.Zero, ToggleSize, "", () => tray.OnToggle?.Invoke(), parent);
+        tray.Bg = MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius, parent);
+        tray.Rule = MakePanel(HubTheme.Border, null, 0f, parent);
+        tray.Title = MakeText(HubTheme.FontBody, HubTheme.White, "Gluttony Combo", AlignmentType.Left, parent);
+        tray.AutoLabel = MakeText(HubTheme.FontBody, HubTheme.White, "Auto-Rotation", AlignmentType.Left, parent);
+        tray.AutoToggle = MakeButton("", () => tray.OnToggle?.Invoke(), parent);
         tray.AutoVisual = MakeToggleVisual(tray.AutoToggle);
-        tray.AutoValue = MakeText(Vector2.Zero, new Vector2(64f, 20f), HubTheme.FontBody, HubTheme.White, "", parent);
-        tray.AutoValue.AlignmentType = AlignmentType.Right;
-        tray.AutoWhy = MakeText(new Vector2(14f, 68f), new Vector2(ContentWidth - 28f, 18f), HubTheme.FontCaption, HubTheme.Dim, "", parent);
+        tray.AutoValue = MakeText(HubTheme.FontBody, HubTheme.White, "", AlignmentType.Right, parent);
+        tray.AutoWhy = MakeText(HubTheme.FontCaption, HubTheme.Dim, "", AlignmentType.Left, parent);
         tray.AutoWhy.TextFlags = TextFlags.Ellipsis;
-        tray.Hint = MakeText(new Vector2(14f, 92f), new Vector2(ContentWidth - 28f, 18f), HubTheme.FontCaption, HubTheme.Dim,
-            "Hotbar buttons: click one, then click a hotbar slot to place it. Escape cancels.", parent);
+        tray.Hint = MakeText(HubTheme.FontCaption, HubTheme.Dim,
+            "Hotbar buttons: click one, then click a hotbar slot to place it. Escape cancels.", AlignmentType.Left, parent);
         tray.Hint.TextFlags = TextFlags.Ellipsis;
-        tray.Missing = MakeText(new Vector2(14f, 44f), new Vector2(ContentWidth - 28f, 44f), HubTheme.FontSecondary, HubTheme.Dim,
-            "Missing Gluttony Combo controls. Start Gluttony Combo, then reopen Quick controls after it finishes loading.", parent);
+        tray.Missing = MakeText(HubTheme.FontSecondary, HubTheme.Dim,
+            "Missing Gluttony Combo controls. Start Gluttony Combo, then reopen Quick controls after it finishes loading.", AlignmentType.TopLeft, parent);
         tray.Missing.TextFlags = TextFlags.WordWrap | TextFlags.MultiLine;
         for (var i = 0; i < 8; i++)
         {
             var index = i;
-            tray.Buttons.Add(MakeButton(Vector2.Zero, new Vector2(100f, 26f), "", () => tray.OnPick[index]?.Invoke(), parent));
+            tray.Skins.Add(MakePanel(HubTheme.Tray, HubTheme.Border, HubLayout.Radius, parent));
+            tray.Buttons.Add(MakeButton("", () => tray.OnPick[index]?.Invoke(), parent));
         }
-        LayoutTray(tray);
+        LayoutTray(tray, hasWhy: false);
         tray.SetVisible(false);
         return tray;
     }
 
     // ===== layout =======================================================================================
-
-    private void LayoutChrome()
-    {
-        if (_scroll is null || _topBar is null || _navBar is null || _statusBg is null || _brandMark is null || _brand is null ||
-            _status is null || _quickBase is null || _pluginsBase is null || _quickSelected is null || _pluginsSelected is null ||
-            _tabQuick is null || _tabPlugins is null || _back is null || _pageMark is null || _pageTitle is null ||
-            _pagePurpose is null || _pageCount is null || _flash is null) return;
-
-        var o = ContentStartPosition;
-        var c = ContentSize;
-        _width = c.X;
-        _height = Math.Max(c.Y - ChromeH - FlashH, 120f);
-        _origin = o + new Vector2(0f, ChromeH);
-
-        _topBar.Position = o;
-        _topBar.Size = new Vector2(_width, 40f);
-        _brandMark.Position = o + new Vector2(12f, 5f);
-        _brand.Position = o + new Vector2(46f, 9f);
-        _statusBg.Position = o + new Vector2(_width - 174f, 8f);
-        _status.Position = o + new Vector2(_width - 164f, 11f);
-        _navBar.Position = o + new Vector2(0f, 48f);
-        _navBar.Size = new Vector2(_width, 36f);
-        _quickBase.Position = o + new Vector2(0f, 52f);
-        _pluginsBase.Position = o + new Vector2(168f, 52f);
-        _quickSelected.Position = _quickBase.Position;
-        _pluginsSelected.Position = _pluginsBase.Position;
-        _tabQuick.Position = _quickBase.Position;
-        _tabPlugins.Position = _pluginsBase.Position;
-        _back.Position = o + new Vector2(_width - 120f, 52f);
-        _pageMark.Position = o + new Vector2(4f, 92f);
-        _pageTitle.Position = o + new Vector2(44f, 90f);
-        _pageTitle.Size = new Vector2(Math.Max(80f, _width * 0.56f), 26f);
-        _pagePurpose.Position = o + new Vector2(44f, 118f);
-        _pagePurpose.Size = new Vector2(Math.Max(80f, _width * 0.58f), 20f);
-        _pageCount.Position = o + new Vector2(_width * 0.62f, 99f);
-        _pageCount.Size = new Vector2(Math.Max(80f, (_width * 0.38f) - 8f), 20f);
-        _scroll.Position = _origin;
-        _scroll.Size = new Vector2(_width, _height);
-        _flash.Position = _origin + new Vector2(4f, _height + 6f);
-        _flash.Size = new Vector2(_width - 8f, FlashH - 8f);
-        if (_tray is not null) LayoutTray(_tray);
-    }
-
-    private void LayoutTray(Tray tray)
-    {
-        var width = ContentWidth;
-        tray.Bg.Position = Vector2.Zero;
-        tray.Bg.Size = new Vector2(width, TrayH);
-        tray.Title.Size = new Vector2(Math.Max(120f, width - 28f), 24f);
-        tray.AutoToggle.Position = new Vector2(width - 66f, 38f);
-        tray.AutoToggle.Size = ToggleSize;
-        tray.AutoValue.Position = new Vector2(width - 140f, 42f);
-        tray.AutoWhy.Size = new Vector2(width - 28f, 18f);
-        tray.Hint.Size = new Vector2(width - 28f, 18f);
-        tray.Missing.Size = new Vector2(width - 28f, 44f);
-        var bw = (width - 28f - (3f * 8f)) / 4f;
-        for (var i = 0; i < tray.Buttons.Count; i++)
-        {
-            var x = 14f + ((i % 4) * (bw + 8f));
-            var y = 118f + ((i / 4) * 32f);
-            tray.Buttons[i].Position = new Vector2(x, y);
-            tray.Buttons[i].Size = new Vector2(bw, 26f);
-        }
-    }
 
     private static void Put(NodeBase node, float x, float y, float w, float h)
     {
@@ -595,57 +637,211 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         node.Size = new Vector2(w, h);
     }
 
+    private static void Put(NodeBase node, HubRect r) => Put(node, r.X, r.Y, r.Width, r.Height);
+
+    private static void Put(Panel panel, HubRect r) => panel.Place(new Vector2(r.X, r.Y), new Vector2(r.Width, r.Height));
+
+    /// <summary>Puts a node into a rectangle given relative to the content area.</summary>
+    private void PutAt(NodeBase node, HubRect r) => Put(node, r.X + _contentOrigin.X, r.Y + _contentOrigin.Y, r.Width, r.Height);
+
+    private void PutAt(Panel panel, HubRect r) => panel.Place(new Vector2(r.X + _contentOrigin.X, r.Y + _contentOrigin.Y), new Vector2(r.Width, r.Height));
+
+    private Vector2 _contentOrigin;
+
+    private void LayoutChrome()
+    {
+        if (_scroll is null || _backdrop is null || _headerBand is null || _headerRule is null || _navBand is null || _navRule is null ||
+            _brandChip is null || _statusBg is null || _brandMark is null || _brand is null || _status is null ||
+            _quickBase is null || _pluginsBase is null || _quickSelected is null || _pluginsSelected is null || _backSkin is null ||
+            _tabQuick is null || _tabPlugins is null || _back is null || _pageTile is null || _pageMark is null || _pageTitle is null ||
+            _pagePurpose is null || _pageCount is null || _footerBand is null || _footerRule is null || _footerMark is null ||
+            _footerLine is null || _flash is null) return;
+
+        var o = ContentStartPosition;
+        var c = ContentSize;
+        _contentOrigin = o;
+        _width = c.X;
+        _contentHeight = c.Y;
+        _height = HubLayout.BodyHeight(c.Y);
+        _origin = o + new Vector2(0f, HubLayout.BodyTop);
+
+        PutAt(_backdrop, new HubRect(0f, 0f, _width, c.Y));
+        PutAt(_headerBand, new HubRect(0f, 0f, _width, HubLayout.HeaderHeight));
+        PutAt(_headerRule, new HubRect(0f, HubLayout.HeaderHeight - 1f, _width, 1f));
+        PutAt(_navBand, new HubRect(0f, HubLayout.HeaderHeight, _width, HubLayout.NavHeight));
+        PutAt(_navRule, new HubRect(0f, HubLayout.HeaderHeight + HubLayout.NavHeight - 1f, _width, 1f));
+
+        var chip = HubLayout.Brand(_width);
+        PutAt(_brandChip, chip);
+        PutAt(_brandMark, new HubRect(chip.X + 12f, chip.Y, 24f, chip.Height));
+        PutAt(_brand, new HubRect(chip.X + 48f, chip.Y, chip.Width - 48f - 16f, chip.Height));
+
+        var pill = HubLayout.StatusPill(_width);
+        PutAt(_statusBg, pill);
+        PutAt(_status, new HubRect(pill.X + 12f, pill.Y, pill.Width - 24f, pill.Height));
+
+        var quick = HubLayout.NavPill(0, _width);
+        var plugins = HubLayout.NavPill(1, _width);
+        PutAt(_quickBase, quick);
+        PutAt(_pluginsBase, plugins);
+        PutAt(_quickSelected, quick);
+        PutAt(_pluginsSelected, plugins);
+        PutAt(_tabQuick, quick);
+        PutAt(_tabPlugins, plugins);
+        PutAt(_back, HubLayout.NavBack(_width));
+
+        var tile = HubLayout.PageTile(_width);
+        PutAt(_pageTile, tile);
+        PutAt(_pageMark, tile);
+        PutAt(_pageTitle, HubLayout.PageTitle(_width));
+        PutAt(_pagePurpose, HubLayout.PageDescription(_width));
+        PutAt(_pageCount, HubLayout.PageMeta(_width));
+
+        _scroll.Position = _origin;
+        _scroll.Size = new Vector2(_width, _height);
+
+        var footer = HubLayout.Footer(_width, c.Y);
+        PutAt(_footerBand, footer);
+        PutAt(_footerRule, new HubRect(footer.X, footer.Y, footer.Width, 1f));
+        PlaceFooter();
+
+        if (_tray is not null) LayoutTray(_tray, hasWhy: false);
+    }
+
+    private void PlaceFooter()
+    {
+        if (_footerBand is null || _footerMark is null || _footerLine is null || _flash is null) return;
+        var hasSecond = _flashUntil != 0;
+        var footer = HubLayout.Footer(_width, _contentHeight);
+        var (mark, first, second) = HubLayout.FooterLines(footer, _width, hasSecond);
+        PutAt(_footerMark, mark);
+        PutAt(_footerLine, first);
+        PutAt(_flash, second);
+        _flash.IsVisible = hasSecond;
+    }
+
+    private void LayoutTray(Tray tray, bool hasWhy)
+    {
+        var g = Gutter;
+        var inner = InnerWidth;
+        var textX = g + HubLayout.CardPad;
+        var textWidth = Math.Max(120f, inner - (2f * HubLayout.CardPad));
+        Put(tray.Bg, new HubRect(g, 0f, inner, HubLayout.TrayHeight));
+        Put(tray.Rule, new HubRect(textX, 92f, textWidth, 1f));
+        Put(tray.Title, textX, 16f, textWidth, 24f);
+        var toggleX = g + inner - HubLayout.CardPad - HubLayout.ToggleWidth;
+        Put(tray.AutoToggle, toggleX, 52f, HubLayout.ToggleWidth, HubLayout.ToggleHeight);
+        Put(tray.AutoLabel, textX, 44f, Math.Max(80f, toggleX - 12f - textX), hasWhy ? 20f : 40f);
+        Put(tray.AutoValue, toggleX - 80f, 52f, 72f, 20f);
+        Put(tray.AutoWhy, textX, 64f, Math.Max(80f, toggleX - 12f - textX), 18f);
+        Put(tray.Hint, textX, 100f, textWidth, 18f);
+        Put(tray.Missing, textX, 48f, textWidth, 44f);
+        for (var i = 0; i < tray.Buttons.Count; i++)
+        {
+            var r = HubLayout.TrayButton(i, _width);
+            Put(tray.Buttons[i], r);
+        }
+    }
+
     private void Layout(Row row, RowKind kind, HubCell cell)
     {
         row.Kind = kind;
+        row.Background.IsVisible = false;
+        if (kind != RowKind.Group) Put(row.Background, new HubRect(cell.X, cell.Y, cell.Width, cell.Height));
         row.Background.IsVisible = kind != RowKind.Group;
-        row.Background.Position = new Vector2(cell.X, cell.Y);
-        row.Background.Size = new Vector2(cell.Width, cell.Height);
         row.Label.IsVisible = true;
-        var x = cell.X;
-        var y = cell.Y;
-        var w = cell.Width;
+        row.Val.IsVisible = false;
 
         switch (kind)
         {
             case RowKind.Plugin:
-                Put(row.Icon, x + 12, y + 16, 28, 28); row.Icon.IsVisible = true;
-                Put(row.Label, x + 50, y + 9, Math.Max(40, w - 212), 20);
-                Put(row.Info, x + 50, y + 33, Math.Max(40, w - 212), 18); row.Info.IsVisible = true;
-                Put(row.B1, x + w - 152, y + 17, 76, 26); row.B1.IsVisible = true;
-                Put(row.B2, x + w - 68, y + 17, 56, 26); row.B2.IsVisible = true;
+            {
+                var p = HubLayout.LibraryRow(cell);
+                Put(row.Icon, p.Icon); row.Icon.IsVisible = true;
+                row.Text = p.Text;
+                Put(row.B1, p.ButtonA); row.B1.IsVisible = true; row.UseSkin1 = true;
+                Put(row.B2, p.ButtonB); row.B2.IsVisible = true; row.UseSkin2 = true;
                 break;
+            }
             case RowKind.Master:
-                Put(row.Icon, x + 12, y + 16, 28, 28); row.Icon.IsVisible = true;
-                Put(row.Label, x + 50, y + 9, Math.Max(40, w - 272), 20);
-                Put(row.Info, x + 50, y + 33, Math.Max(40, w - 272), 18); row.Info.IsVisible = true;
-                Put(row.B2, x + w - 220, y + 17, 72, 26); row.B2.IsVisible = true;
-                Put(row.Val, x + w - 140, y + 20, 64, 20); row.Val.IsVisible = true; row.Val.AlignmentType = AlignmentType.Right;
-                Put(row.B1, x + w - 66, y + 17, ToggleSize.X, ToggleSize.Y); row.B1.IsVisible = true;
+            {
+                var p = HubLayout.MasterRow(cell);
+                Put(row.Icon, p.Icon); row.Icon.IsVisible = true;
+                row.Text = p.Text;
+                Put(row.B2, p.ButtonA); row.B2.IsVisible = true; row.UseSkin2 = true;
+                Put(row.B1, p.ButtonB); row.B1.IsVisible = true;
                 break;
+            }
             case RowKind.Group:
-                Put(row.Label, x + 4, y + 5, Math.Max(40, w - 8), 22);
+                Put(row.Label, cell.X + 4f, cell.Y + 5f, Math.Max(40f, cell.Width - 8f), 22f);
                 break;
             case RowKind.Toggle:
-                Put(row.Label, x + 14, y + 9, Math.Max(40, w - 176), 20);
-                Put(row.Info, x + 14, y + 33, Math.Max(40, w - 176), 18); row.Info.IsVisible = true;
-                Put(row.Val, x + w - 140, y + 20, 64, 20); row.Val.IsVisible = true; row.Val.AlignmentType = AlignmentType.Right;
-                Put(row.B1, x + w - 66, y + 17, ToggleSize.X, ToggleSize.Y); row.B1.IsVisible = true;
+            {
+                var p = HubLayout.ToggleRow(cell);
+                row.Text = p.Text;
+                Put(row.B1, p.ButtonB); row.B1.IsVisible = true;
                 break;
+            }
             case RowKind.Stepper:
             case RowKind.Choice:
-                Put(row.Label, x + 14, y + 9, Math.Max(40, w - 234), 20);
-                Put(row.Info, x + 14, y + 33, Math.Max(40, w - 234), 18); row.Info.IsVisible = true;
-                Put(row.B1, x + w - 208, y + 17, 32, 26); row.B1.IsVisible = true;
-                Put(row.Val, x + w - 168, y + 20, 124, 20); row.Val.IsVisible = true;
-                Put(row.B2, x + w - 40, y + 17, 32, 26); row.B2.IsVisible = true;
+            {
+                var p = HubLayout.StepRow(cell);
+                row.Text = p.Text;
+                Put(row.B1, p.ButtonA); row.B1.IsVisible = true; row.UseSkin1 = true;
+                Put(row.Val, p.Value); row.Val.IsVisible = true; row.Val.AlignmentType = AlignmentType.Center;
+                Put(row.B2, p.ButtonB); row.B2.IsVisible = true; row.UseSkin2 = true;
                 break;
+            }
             case RowKind.Button:
-                Put(row.Label, x + 14, y + 9, Math.Max(40, w - 112), 20);
-                Put(row.Info, x + 14, y + 33, Math.Max(40, w - 112), 18); row.Info.IsVisible = true;
-                Put(row.B1, x + w - 86, y + 17, 72, 26); row.B1.IsVisible = true;
+            {
+                var p = HubLayout.ActionRow(cell);
+                row.Text = p.Text;
+                Put(row.B1, p.ButtonA); row.B1.IsVisible = true; row.UseSkin1 = true;
                 break;
+            }
         }
+    }
+
+    private static void SetInfo(Row row, string text, Vector4 color)
+    {
+        row.Info.String = text;
+        row.Info.TextColor = color;
+        row.HasInfo = !string.IsNullOrEmpty(text);
+    }
+
+    /// <summary>Places the name and note once the note is known: a lone name is centred in the row.</summary>
+    private static void FinishRow(Row row)
+    {
+        if (row.Kind is RowKind.Hidden or RowKind.Group) return;
+        var (label, info) = HubLayout.TextLines(row.Text, row.HasInfo);
+        Put(row.Label, label);
+        Put(row.Info, info);
+        row.Info.IsVisible = row.HasInfo;
+    }
+
+    private static void SyncSkin(Panel skin, TextButtonNode button, bool wanted)
+    {
+        var show = wanted && button.IsVisible;
+        if (show)
+        {
+            skin.Place(button.Position, button.Size);
+            skin.Alpha = button.IsEnabled ? 1f : DisabledAlpha;
+        }
+        skin.IsVisible = show;
+    }
+
+    /// <summary>Keeps every button's rounded skin under it: same place, same size, hidden with it, dimmed with it.</summary>
+    private void SyncSkins()
+    {
+        foreach (var row in _rows)
+        {
+            SyncSkin(row.Skin1, row.B1, row.UseSkin1);
+            SyncSkin(row.Skin2, row.B2, row.UseSkin2);
+        }
+        if (_tray is not null)
+            for (var i = 0; i < _tray.Buttons.Count; i++)
+                SyncSkin(_tray.Skins[i], _tray.Buttons[i], true);
+        if (_backSkin is not null && _back is not null) SyncSkin(_backSkin, _back, true);
     }
 
     private void SetIcon(Row row, string file)
@@ -659,7 +855,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private void SetContentHeight(float contentHeight)
     {
         if (_scroll is null) return;
-        _scroll.ContentNode.Size = new Vector2(ContentWidth, Math.Max(_height, contentHeight + 8f));
+        _scroll.ContentNode.Size = new Vector2(_width, Math.Max(_height, contentHeight + HubLayout.ScrollPadBottom));
         _scroll.RecalculateSizes();
     }
 
@@ -689,17 +885,22 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             case Page.Plugins: BindPlugins(); break;
             default: BindDetail(); break;
         }
+
+        foreach (var row in _rows) FinishRow(row);
+        SyncSkins();
     }
 
     private void BindShell()
     {
-        if (_pageTitle is null || _pagePurpose is null || _pageCount is null || _status is null) return;
+        if (_pageTitle is null || _pagePurpose is null || _pageCount is null || _status is null || _footerLine is null || _footerMark is null) return;
         var loaded = client.Links.Count(link => link.IsRunning);
         var installed = client.Links.Count(link => link.State != PluginState.NotInstalled);
         var quick = client.Links.Count(link => link.Master is not null);
         var state = OverallState(loaded, installed);
         _status.String = state == UiState.Missing ? "● Missing plugins" : "● " + Copy.Word(state);
         _status.TextColor = Copy.MarkColor(state);
+        _footerMark.TextColor = Copy.MarkColor(state);
+        _footerLine.String = $"{loaded} of {client.Links.Count} plugins loaded";
 
         if (_page == Page.Detail && _detail is { Descriptor: { } descriptor } link)
         {
@@ -745,16 +946,13 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         tray.Master = master;
         tray.Picks.Clear();
         for (var i = 0; i < tray.OnPick.Length; i++) tray.OnPick[i] = null;
+        tray.AutoValue.IsVisible = false;
 
         if (link == null || link.Descriptor == null || master == null)
         {
             tray.AutoLabel.IsVisible = false;
             tray.AutoToggle.IsVisible = false;
-            tray.AutoVisual.OnTrack.IsVisible = false;
-            tray.AutoVisual.OffTrack.IsVisible = false;
-            tray.AutoVisual.PendingTrack.IsVisible = false;
-            tray.AutoVisual.Knob.IsVisible = false;
-            tray.AutoValue.IsVisible = false;
+            tray.AutoVisual.HideAll();
             tray.AutoWhy.IsVisible = false;
             tray.Hint.IsVisible = false;
             tray.Missing.IsVisible = true;
@@ -765,12 +963,13 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         tray.Missing.IsVisible = false;
         tray.AutoLabel.IsVisible = true;
         tray.AutoToggle.IsVisible = true;
-        tray.AutoValue.IsVisible = true;
-        tray.AutoWhy.IsVisible = true;
         var state = link.ValueOf(master.Id);
         BindToggleButton(tray.AutoToggle, tray.AutoVisual, tray.AutoValue, link, master, state);
-        tray.AutoWhy.String = WhyText(link, master, state);
+        var why = WhyText(link, master, state);
+        tray.AutoWhy.String = why;
+        tray.AutoWhy.IsVisible = why.Length > 0;
         tray.AutoWhy.TextColor = state?.Locked == true || _confirm.IsPending(Key(link, master), Now) ? HubTheme.Amber : HubTheme.Dim;
+        LayoutTray(tray, hasWhy: why.Length > 0);
         tray.OnToggle = () => _actions.Enqueue(() => ActToggle(link, master));
 
         foreach (var control in link.Descriptor.Controls)
@@ -796,7 +995,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         var on = state?.Bool == true;
         var usable = IsUsable(link, state);
         button.String = "";
-        button.LabelNode.TextColor = HubTheme.White;
+        button.LabelNode.TextColor = HubTheme.Grey;
         button.IsEnabled = usable;
         visual.Bind(pending, on, usable, button);
         value.String = pending ? "Confirm?" : ControlFormat.ValueText(control, state);
@@ -813,6 +1012,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     {
         BindTray();
         var n = 0;
+        var columns = HubLayout.Columns(InnerWidth);
         foreach (var link in client.Links)
         {
             if (string.Equals(link.Entry.InternalName, GluttonyName, StringComparison.Ordinal)) continue;
@@ -820,30 +1020,27 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             if (master == null || n >= _rows.Count) continue;
             var state = link.ValueOf(master.Id);
             var row = _rows[n];
-            var columns = HubLayout.Columns(ContentWidth);
-            Layout(row, RowKind.Master, HubLayout.Cell(n, ContentWidth, columns, RowH, leading: TrayH + 12f));
+            Layout(row, RowKind.Master, HubLayout.Cell(n, InnerWidth, columns, HubLayout.RowHeight, HubLayout.ColumnGap, HubLayout.TrayLeading, Gutter, HubLayout.RowGap));
             SetIcon(row, link.Entry.IconFile);
             row.Label.String = link.Entry.DisplayName;
             row.Label.TextColor = HubTheme.White;
             BindToggleButton(row.B1, row.Toggle1, row.Val, link, master, state);
             row.B2.String = "Settings";
             row.B2.IsEnabled = link.HasSettings(HotbarGroup);
-            row.Info.String = WhyText(link, master, state);
-            row.Info.TextColor = state?.Locked == true || _confirm.IsPending(Key(link, master), Now) ? HubTheme.Amber : HubTheme.Dim;
+            SetInfo(row, WhyText(link, master, state),
+                state?.Locked == true || _confirm.IsPending(Key(link, master), Now) ? HubTheme.Amber : HubTheme.Dim);
             row.On1 = () => _actions.Enqueue(() => ActToggle(link, master));
             row.On2 = () => GoDetail(link);
             n++;
         }
 
-        var columnsUsed = HubLayout.Columns(ContentWidth);
-        var bottom = HubLayout.RowsHeight(n, columnsUsed, RowH, leading: TrayH + 12f);
+        var bottom = HubLayout.RowsHeight(n, columns, HubLayout.RowHeight, HubLayout.ColumnGap, HubLayout.TrayLeading, HubLayout.RowGap);
         if (n == 0 && _empty != null)
         {
-            _empty.Position = new Vector2(8f, TrayH + 16f);
-            _empty.Size = new Vector2(ContentWidth - 16f, 48f);
+            Put(_empty, Gutter, HubLayout.TrayLeading, InnerWidth, 48f);
             _empty.String = "No other running plugin offers quick switches. Open Plugin library to see all 15 plugins and their live state.";
             _empty.IsVisible = true;
-            bottom = TrayH + 72f;
+            bottom = HubLayout.TrayLeading + 56f;
         }
         SetContentHeight(bottom);
     }
@@ -851,17 +1048,16 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private void BindPlugins()
     {
         var n = 0;
-        var columns = HubLayout.Columns(ContentWidth);
+        var columns = HubLayout.Columns(InnerWidth);
         foreach (var link in client.Links)
         {
             if (n >= _rows.Count) break;
             var row = _rows[n];
-            Layout(row, RowKind.Plugin, HubLayout.Cell(n, ContentWidth, columns, RowH));
+            Layout(row, RowKind.Plugin, HubLayout.Cell(n, InnerWidth, columns, HubLayout.RowHeight, HubLayout.ColumnGap, 0f, Gutter, HubLayout.RowGap));
             SetIcon(row, link.Entry.IconFile);
             row.Label.String = link.Entry.DisplayName;
             row.Label.TextColor = HubTheme.White;
-            row.Info.String = HubTheme.StatusText(link.State);
-            row.Info.TextColor = HubTheme.StateColor(link.State);
+            SetInfo(row, HubTheme.StatusText(link.State), HubTheme.StateColor(link.State));
             row.B1.String = "Settings";
             row.B1.IsEnabled = link.HasSettings(HotbarGroup);
             row.B2.String = "Open";
@@ -871,7 +1067,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             row.On2 = () => _actions.Enqueue(() => monitor.Open(name));
             n++;
         }
-        SetContentHeight(HubLayout.RowsHeight(n, columns, RowH));
+        SetContentHeight(HubLayout.RowsHeight(n, columns, HubLayout.RowHeight, HubLayout.ColumnGap, 0f, HubLayout.RowGap));
     }
 
     private void BindDetail()
@@ -892,10 +1088,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             var row = _rows[n++];
             if (detailRow.IsHeader)
             {
-                Layout(row, RowKind.Group, new HubCell(0, y, ContentWidth, GroupH));
+                Layout(row, RowKind.Group, new HubCell(Gutter, y, InnerWidth, HubLayout.GroupHeight));
                 row.Label.String = "◆ " + detailRow.Header.ToUpperInvariant();
                 row.Label.TextColor = HubTheme.Accent;
-                y += GroupH + 4f;
+                y += HubLayout.GroupHeight + 4f;
                 continue;
             }
 
@@ -909,12 +1105,12 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
                 ControlKind.Choice => RowKind.Choice,
                 _ => RowKind.Button,
             };
-            Layout(row, kind, new HubCell(0, y, ContentWidth, RowH));
-            y += RowH + 8f;
+            Layout(row, kind, new HubCell(Gutter, y, InnerWidth, HubLayout.RowHeight));
+            y += HubLayout.RowHeight + HubLayout.RowGap;
             row.Label.String = control.Label;
             row.Label.TextColor = HubTheme.White;
-            row.Info.String = WhyText(link, control, state);
-            row.Info.TextColor = state?.Locked == true || _confirm.IsPending(Key(link, control), Now) ? HubTheme.Amber : HubTheme.Dim;
+            SetInfo(row, WhyText(link, control, state),
+                state?.Locked == true || _confirm.IsPending(Key(link, control), Now) ? HubTheme.Amber : HubTheme.Dim);
 
             switch (kind)
             {
@@ -944,7 +1140,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
                     break;
                 default:
                     row.B1.String = _confirm.IsPending(Key(link, control), Now) ? "Confirm?" : "Run";
-                    row.B1.LabelNode.TextColor = _confirm.IsPending(Key(link, control), Now) ? HubTheme.Amber : HubTheme.White;
+                    row.B1.LabelNode.TextColor = _confirm.IsPending(Key(link, control), Now) ? HubTheme.Amber : HubTheme.Grey;
                     row.B1.IsEnabled = usable;
                     row.On1 = () => _actions.Enqueue(() => ActInvoke(link, control, ""));
                     break;
@@ -953,8 +1149,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
         if (hidden > 0 && _empty != null)
         {
-            _empty.Position = new Vector2(8f, y + 4f);
-            _empty.Size = new Vector2(ContentWidth - 16f, 48f);
+            Put(_empty, Gutter, y + 4f, InnerWidth, 48f);
             _empty.String = $"{hidden} more controls remain in the plugin's own window. Lazy Hub does not invent replacements for them.";
             _empty.IsVisible = true;
             y += 56f;
@@ -1025,5 +1220,6 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         _flash.String = text;
         _flash.TextColor = color;
         _flashUntil = string.IsNullOrEmpty(text) ? 0 : Now + FlashMs;
+        PlaceFooter();
     }
 }
