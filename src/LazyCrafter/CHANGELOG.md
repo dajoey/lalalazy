@@ -1,4 +1,11 @@
-﻿## v0.1.7.12 (2026-11-15) [testing]
+﻿## v0.1.7.13 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The catalog table keeps its sortable, resizable and reorderable columns and its right-click menu for showing and hiding columns; columns that do not fit start hidden.
+- Numeric column headers line up with the figures beneath them in the catalog, cart, ledger and run tables, and no header is cut mid-word at larger UI scales.
+- Recipe details are organised into summary, ingredient and market cards, with source and unit price under each ingredient and the fulfil buttons beside them.
+- The Settings and Run pages no longer repeat the same warning or state word, and short windows get a compact page header that leaves more room for the table.
+
+## v0.1.7.12 (2026-11-15) [testing]
 - The plugin window now uses a responsive card-based shell for catalog, cart, run and settings, with integrated area navigation, destination search, live page counts, a close button in the header and persistent dispatch and footer actions. Catalog logic, cart editing, dispatch, integrations and saved configuration are unchanged.
 
 ## v0.1.7.11 (2026-11-14) [testing]
