@@ -460,13 +460,21 @@ internal static class FoodUiChrome
         return clicked;
     }
 
+    private static string? _sliderEditId;
+    private static string _sliderEditText = string.Empty;
+    private static int _sliderEditFrame;
+    private static bool _sliderEditFocused;
+
     /// <summary>
     ///     A labelled slider with a visible track: the label on the left, the value on the right, the filled part and
-    ///     the grab in the accent. Values snap to whole steps.
+    ///     the grab in the accent. Values snap to whole steps. Drag to set it; Ctrl+click or double-click to type an exact
+    ///     number (Enter applies, Escape cancels); with keyboard or gamepad navigation on, Left and Right step it by one
+    ///     while it is focused.
     /// </summary>
     internal static bool Slider(string id, string label, ref float value, float min, float max, string valueText, string? help = null)
     {
         var draw = ImGui.GetWindowDrawList();
+        var io = ImGui.GetIO();
         var pos = ImGui.GetCursorScreenPos();
         var width = Avail();
         var lineHeight = LineHeight();
@@ -479,31 +487,77 @@ internal static class FoodUiChrome
         var trackTop = pos.Y + lineHeight + (2 * Theme.Unit);
         var x0 = pos.X + grabRadius;
         var x1 = pos.X + width - grabRadius;
-        ImGui.SetCursorScreenPos(new Vector2(pos.X, trackTop));
-        ImGui.InvisibleButton("##lfb_slider_" + id, new Vector2(MathF.Max(1, width), hitHeight));
-        var active = ImGui.IsItemActive();
-        var hovered = ImGui.IsItemHovered();
         var changed = false;
-        if (active && x1 > x0)
+        var focusRing = false;
+
+        if (_sliderEditId == id)
         {
-            var t = Math.Clamp((ImGui.GetIO().MousePos.X - x0) / (x1 - x0), 0f, 1f);
-            var next = MathF.Round(min + (t * (max - min)));
-            if (MathF.Abs(next - value) > 0.001f)
+            changed = DrawSliderEntry(id, new Vector2(pos.X, trackTop), width, hitHeight, ref value, min, max);
+        }
+        else
+        {
+            ImGui.SetCursorScreenPos(new Vector2(pos.X, trackTop));
+            ImGui.InvisibleButton("##lfb_slider_" + id, new Vector2(MathF.Max(1, width), hitHeight));
+            var active = ImGui.IsItemActive();
+            var hovered = ImGui.IsItemHovered();
+            var openEntry = hovered && ((io.KeyCtrl && ImGui.IsMouseClicked(ImGuiMouseButton.Left)) || ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left));
+            if (openEntry)
             {
-                value = next;
-                changed = true;
+                _sliderEditId = id;
+                _sliderEditText = ((int)MathF.Round(value)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _sliderEditFrame = ImGui.GetFrameCount();
+                _sliderEditFocused = false;
+            }
+            else if (active && x1 > x0)
+            {
+                var t = Math.Clamp((io.MousePos.X - x0) / (x1 - x0), 0f, 1f);
+                var next = MathF.Round(min + (t * (max - min)));
+                if (MathF.Abs(next - value) > 0.001f)
+                {
+                    value = next;
+                    changed = true;
+                }
+            }
+
+            // Keyboard and gamepad: only while navigation is on and this slider holds the focus, so arrow keys the game
+            // uses for movement never change a setting.
+            var navOn = (io.ConfigFlags & (ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavEnableGamepad)) != 0 && io.NavActive;
+            if (navOn && ImGui.IsItemFocused())
+            {
+                focusRing = true;
+                var step = 0;
+                if (ImGui.IsKeyPressed(ImGuiKey.LeftArrow, true) || ImGui.IsKeyPressed(ImGuiKey.GamepadDpadLeft, true))
+                    step = -1;
+                else if (ImGui.IsKeyPressed(ImGuiKey.RightArrow, true) || ImGui.IsKeyPressed(ImGuiKey.GamepadDpadRight, true))
+                    step = 1;
+                if (step != 0)
+                {
+                    var next = Math.Clamp(MathF.Round(value) + step, min, max);
+                    if (MathF.Abs(next - value) > 0.001f)
+                    {
+                        value = next;
+                        changed = true;
+                    }
+                }
             }
         }
 
-        var fraction = max > min ? Math.Clamp((value - min) / (max - min), 0f, 1f) : 0f;
-        var centerY = trackTop + (hitHeight / 2f);
-        var grabX = x0 + ((x1 - x0) * fraction);
-        draw.AddRectFilled(new Vector2(pos.X, centerY - 2), new Vector2(pos.X + width, centerY + 2), Theme.Pack(Theme.SurfaceBorder), 2f);
-        if (grabX > pos.X)
-            draw.AddRectFilled(new Vector2(pos.X, centerY - 2), new Vector2(grabX, centerY + 2), Theme.Pack(Theme.Accent), 2f);
-        if (hovered || active)
-            draw.AddCircleFilled(new Vector2(grabX, centerY), grabRadius + 4, Theme.Pack(Theme.Accent with { W = 0.20f }));
-        draw.AddCircleFilled(new Vector2(grabX, centerY), grabRadius, Theme.Pack(Theme.Accent));
+        // While an exact value is being typed, the entry field stands in for the track.
+        if (_sliderEditId != id)
+        {
+            var hot = ImGui.IsItemHovered() || ImGui.IsItemActive();
+            var fraction = max > min ? Math.Clamp((value - min) / (max - min), 0f, 1f) : 0f;
+            var centerY = trackTop + (hitHeight / 2f);
+            var grabX = x0 + ((x1 - x0) * fraction);
+            draw.AddRectFilled(new Vector2(pos.X, centerY - 2), new Vector2(pos.X + width, centerY + 2), Theme.Pack(Theme.SurfaceBorder), 2f);
+            if (grabX > pos.X)
+                draw.AddRectFilled(new Vector2(pos.X, centerY - 2), new Vector2(grabX, centerY + 2), Theme.Pack(Theme.Accent), 2f);
+            if (hot)
+                draw.AddCircleFilled(new Vector2(grabX, centerY), grabRadius + 4, Theme.Pack(Theme.Accent with { W = 0.20f }));
+            draw.AddCircleFilled(new Vector2(grabX, centerY), grabRadius, Theme.Pack(Theme.Accent));
+            if (focusRing)
+                draw.AddCircle(new Vector2(grabX, centerY), grabRadius + 4, Theme.Pack(Theme.Accent), 0, 1.5f);
+        }
 
         var height = lineHeight + (2 * Theme.Unit) + hitHeight;
         if (!string.IsNullOrWhiteSpace(help))
@@ -512,6 +566,46 @@ internal static class FoodUiChrome
             height += DrawWrapped(draw, new Vector2(pos.X, pos.Y + height), help, width, Theme.TextSecondary, Theme.SecondaryScale);
         }
         Advance(pos, width, height, 0);
+        return changed;
+    }
+
+    /// <summary>The typed-entry field that replaces a slider track while an exact value is being typed.</summary>
+    private static bool DrawSliderEntry(string id, Vector2 at, float width, float height, ref float value, float min, float max)
+    {
+        ImGui.SetCursorScreenPos(at);
+        ImGui.SetNextItemWidth(MathF.Max(1, width));
+        PushField();
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(Gap, MathF.Max(1, (height - ImGui.GetTextLineHeight()) / 2f)));
+        if (!_sliderEditFocused)
+        {
+            ImGui.SetKeyboardFocusHere(0);
+            _sliderEditFocused = true;
+        }
+        var entered = ImGui.InputText("##lfb_slider_edit_" + id, ref _sliderEditText, 8,
+            ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+        var active = ImGui.IsItemActive();
+        ImGui.PopStyleVar();
+        PopField();
+
+        var changed = false;
+        if (entered)
+        {
+            if (float.TryParse(_sliderEditText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var typed))
+            {
+                var next = Math.Clamp(MathF.Round(typed), min, max);
+                if (MathF.Abs(next - value) > 0.001f)
+                {
+                    value = next;
+                    changed = true;
+                }
+            }
+            _sliderEditId = null;
+        }
+        else if (!active && ImGui.GetFrameCount() - _sliderEditFrame > 2)
+        {
+            // Escape or a click elsewhere leaves the value as it was.
+            _sliderEditId = null;
+        }
         return changed;
     }
 

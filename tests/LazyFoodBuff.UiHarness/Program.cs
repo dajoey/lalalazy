@@ -52,6 +52,9 @@ internal static class Program
 
         public int ImageHeight => CanvasHeight ?? Height;
 
+        /// <summary>Opens typed entry on this threshold slider (0 refresh, 1 low-food count) and types a number.</summary>
+        public int? EditSlider { get; init; }
+
         /// <summary>Overrides the global UI scale (evidence renders only).</summary>
         public float? Scale { get; init; }
     }
@@ -89,6 +92,7 @@ internal static class Program
         yield return new(N("narrow-first-run-empty", MinWidth, MinHeight), MinWidth, MinHeight, FirstRun);
         yield return new(N("narrow-manual-missing-stock-scrolled", MinWidth, 760), MinWidth, 760, ManualMissingStock) { SelectedJob = 37, ScrollNotches = 8 };
         yield return new(N("scale150-ready-fed", W, H), W, H, ReadyFed) { Scale = 1.5f };
+        yield return new(N("slider-typing", W, H), W, H, ReadyFed) { ScrollToEnd = true, EditSlider = 0 };
     }
 
     private static bool IsGameOnly(Scenario s) => s.Width != DefaultWidth || s.Scale is not null;
@@ -232,6 +236,7 @@ internal static class Program
                 Console.WriteLine($"{scenario.Name}: {Path.GetRelativePath(ProjectRoot, result.Path).Replace('\\', '/')} | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
             }
             Console.WriteLine($"Rendered {scenarios.Count} real-source UI states ({hashes.Count} distinct). No window or game process was created.");
+            RunInteractionChecks();
             if (_missingGlyphs && _strictGlyphs)
                 throw new InvalidOperationException("--strict-glyphs: text the window draws contains characters the game font lacks.");
             return 0;
@@ -253,6 +258,10 @@ internal static class Program
             typeof(ConfigWindow).GetField("_selectedJobId", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new InvalidOperationException("ConfigWindow._selectedJobId was not found; update the harness.");
 
+        private static readonly FieldInfo SliderEditField =
+            typeof(FoodUiChrome).GetField("_sliderEditId", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("FoodUiChrome._sliderEditId was not found; update the harness.");
+
         private readonly Scenario _scenario;
         private readonly Plugin _plugin = new();
         private readonly ConfigWindow _window;
@@ -261,6 +270,7 @@ internal static class Program
         public Session(Scenario scenario)
         {
             _scenario = scenario;
+            SliderEditField.SetValue(null, null);
             _window = new ConfigWindow(_plugin);
             _context = ImGui.CreateContext();
             var io = ImGui.GetIO();
@@ -358,6 +368,22 @@ internal static class Program
             Idle(2);
         }
 
+        /// <summary>Holds or releases a keyboard key for the next frames.</summary>
+        public static void Key(ImGuiKey key, bool down) => ImGui.GetIO().AddKeyEvent(key, down);
+
+        /// <summary>A key tap: pressed in one frame, released in the next, with the pointer away.</summary>
+        public void Tap(ImGuiKey key)
+        {
+            Key(key, true);
+            Frame(new Vector2(-10000, -10000), false);
+            Key(key, false);
+            Frame(new Vector2(-10000, -10000), false);
+        }
+
+        public static string? EditingSlider => (string?)SliderEditField.GetValue(null);
+
+        public Configuration Config => _plugin.Config;
+
         public static bool AnyPopupOpen() => ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId | ImGuiPopupFlags.AnyPopupLevel);
 
         public void DismissPopups()
@@ -437,6 +463,8 @@ internal static class Program
             _ => null,
         };
 
+        var sliderAt = scenario.EditSlider is { } editIndex ? (Vector2?)FindSlider(editIndex) : null;
+
         using var session = new Session(scenario);
         if (!_lookReported)
         {
@@ -455,6 +483,17 @@ internal static class Program
                 throw new InvalidOperationException($"{scenario.Name}: the combo popup did not open.");
         }
 
+        if (scenario.EditSlider is { } sliderIndex)
+        {
+            Session.Key(ImGuiKey.ModCtrl, true);
+            session.Click(sliderAt!.Value);
+            Session.Key(ImGuiKey.ModCtrl, false);
+            session.Idle(2);
+            ImGui.GetIO().AddInputCharacter('1');
+            ImGui.GetIO().AddInputCharacter('2');
+            session.Idle(3);
+        }
+
         var frame = new byte[scenario.Width * scenario.ImageHeight * 4];
         for (var i = 0; i < frame.Length; i += 4)
         {
@@ -470,6 +509,152 @@ internal static class Program
         var path = Path.Combine(OutputDirectory, scenario.Name + ".png");
         PngWriter.Write(path, frame, scenario.Width, scenario.ImageHeight);
         return new RenderResult(path, new FileInfo(path).Length, stats.Triangles);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Interaction checks: the two threshold sliders keep typed entry and keyboard adjustment.
+    // ---------------------------------------------------------------------------------------------------------------
+
+    private static readonly Scenario SliderScenario = new(
+        "slider-interaction", DefaultWidth, DefaultHeight, ReadyFed) { ScrollToEnd = true };
+
+    /// <summary>Finds the sliders by pressing down the rail: Ctrl+click opens typed entry only on a slider.</summary>
+    private static Vector2 FindSlider(int index)
+    {
+        using var probe = new Session(SliderScenario);
+        var hits = new List<float>();
+        var x = DefaultWidth - 24 - 150f;
+        for (var y = 40f; y < DefaultHeight - 60; y += 4)
+        {
+            probe.ResetState();
+            probe.Prepare();
+            Session.Key(ImGuiKey.ModCtrl, true);
+            probe.Click(new Vector2(x, y));
+            Session.Key(ImGuiKey.ModCtrl, false);
+            probe.Idle(2);
+            if (Session.EditingSlider is not null)
+            {
+                hits.Add(y);
+                probe.Tap(ImGuiKey.Escape);
+                probe.Idle(4);
+            }
+        }
+        var clusters = new List<List<float>>();
+        foreach (var y in hits)
+        {
+            if (clusters.Count > 0 && y - clusters[^1][^1] <= 8)
+                clusters[^1].Add(y);
+            else
+                clusters.Add([y]);
+        }
+        if (index >= clusters.Count)
+            throw new InvalidOperationException($"slider #{index} was not found ({clusters.Count} slider(s) respond to Ctrl+click at x={x}).");
+        return new Vector2(x, clusters[index][clusters[index].Count / 2]);
+    }
+
+    private static void Expect(bool ok, string what)
+    {
+        if (!ok)
+            throw new InvalidOperationException("Interaction check failed: " + what);
+        Console.WriteLine("Interaction check passed: " + what);
+    }
+
+    private static void TypeNumber(Session s, string digits)
+    {
+        foreach (var ch in digits)
+            ImGui.GetIO().AddInputCharacter(ch);
+        s.Idle(1);
+        s.Tap(ImGuiKey.Enter);
+        s.Idle(2);
+    }
+
+    private static void RunInteractionChecks()
+    {
+        var sliders = new[]
+        {
+            (Index: 0, Name: "Refresh threshold", Min: 0f, Max: 29f, Read: (Func<Configuration, float>)(c => c.RefreshThresholdMinutes)),
+            (Index: 1, Name: "Low-food warning count", Min: 1f, Max: 20f, Read: c => (float)c.WarningThresholdCount),
+        };
+        foreach (var slider in sliders)
+        {
+            var at = FindSlider(slider.Index);
+
+            // Ctrl+click, type, Enter.
+            using (var s = new Session(SliderScenario))
+            {
+                s.Prepare();
+                Session.Key(ImGuiKey.ModCtrl, true);
+                s.Click(at);
+                Session.Key(ImGuiKey.ModCtrl, false);
+                s.Idle(2);
+                Expect(Session.EditingSlider is not null, $"{slider.Name}: Ctrl+click opens typed entry");
+                var target = slider.Index == 0 ? "12" : "7";
+                TypeNumber(s, target);
+                Expect(Session.EditingSlider is null, $"{slider.Name}: Enter closes typed entry");
+                Expect(Math.Abs(slider.Read(s.Config) - float.Parse(target)) < 0.01f, $"{slider.Name}: typed {target} is applied (now {slider.Read(s.Config)})");
+            }
+
+            // Double-click, type a value past the end: it clamps to the range.
+            using (var s = new Session(SliderScenario))
+            {
+                s.Prepare();
+                s.Frame(at, false);
+                s.Frame(at, true);
+                s.Frame(at, false);
+                s.Frame(at, true);
+                s.Frame(at, false);
+                s.Frame(new Vector2(-10000, -10000), false);
+                s.Idle(2);
+                Expect(Session.EditingSlider is not null, $"{slider.Name}: double-click opens typed entry");
+                TypeNumber(s, "99");
+                Expect(Math.Abs(slider.Read(s.Config) - slider.Max) < 0.01f, $"{slider.Name}: typed 99 clamps to {slider.Max} (now {slider.Read(s.Config)})");
+            }
+
+            // Escape leaves the value alone.
+            using (var s = new Session(SliderScenario))
+            {
+                s.Prepare();
+                var before = slider.Read(s.Config);
+                Session.Key(ImGuiKey.ModCtrl, true);
+                s.Click(at);
+                Session.Key(ImGuiKey.ModCtrl, false);
+                s.Idle(2);
+                ImGui.GetIO().AddInputCharacter('9');
+                s.Idle(1);
+                s.Tap(ImGuiKey.Escape);
+                s.Idle(4);
+                Expect(Session.EditingSlider is null, $"{slider.Name}: Escape closes typed entry");
+                Expect(Math.Abs(slider.Read(s.Config) - before) < 0.01f, $"{slider.Name}: Escape keeps the value (still {slider.Read(s.Config)})");
+            }
+
+            // Keyboard navigation on: Left and Right step the focused slider by one.
+            using (var s = new Session(SliderScenario))
+            {
+                ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
+                s.Prepare();
+                s.Click(new Vector2(at.X + 60, at.Y));
+                s.Idle(2);
+                var start = slider.Read(s.Config);
+                s.Tap(ImGuiKey.RightArrow);
+                s.Tap(ImGuiKey.RightArrow);
+                var up = slider.Read(s.Config);
+                Expect(Math.Abs(up - (start + 2)) < 0.01f, $"{slider.Name}: two Right presses step +2 ({start} to {up})");
+                s.Tap(ImGuiKey.LeftArrow);
+                var down = slider.Read(s.Config);
+                Expect(Math.Abs(down - (start + 1)) < 0.01f, $"{slider.Name}: Left steps back by one (now {down})");
+            }
+
+            // Navigation off (the game's normal state): arrow keys never touch the setting.
+            using (var s = new Session(SliderScenario))
+            {
+                s.Prepare();
+                s.Click(new Vector2(at.X + 60, at.Y));
+                s.Idle(2);
+                var start = slider.Read(s.Config);
+                s.Tap(ImGuiKey.RightArrow);
+                Expect(Math.Abs(slider.Read(s.Config) - start) < 0.01f, $"{slider.Name}: arrow keys are ignored while navigation is off");
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------------

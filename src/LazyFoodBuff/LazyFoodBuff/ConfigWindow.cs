@@ -86,8 +86,6 @@ internal class ConfigWindow : Window
         }
     }
 
-    private static string Sentence(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
-
     private static Live DeriveLive(Configuration c)
     {
         var fed = FoodService.TryGetWellFedStatus(out var rowId, out var left);
@@ -357,6 +355,8 @@ internal class ConfigWindow : Window
             }
             if (!c.MasterEnable)
                 FoodUiChrome.Notice("Idle", "Nothing is eaten while automation is off.", UiState.Idle, 0);
+            else
+                FoodUiChrome.Paragraph("Eating follows the live state shown in the footer.", gap: 0);
         });
 
         var job = _selectedJobId == 0 ? c.DefaultJob : c.GetOrCreateJobSettings(_selectedJobId);
@@ -461,7 +461,7 @@ internal class ConfigWindow : Window
             FoodUiChrome.CardHeader("Diagnostics", "Optional decision logging does not change food selection or automation.", Theme.Unit);
             var telemetry = c.DecisionTelemetry;
             if (FoodUiChrome.Toggle("Log food decisions", ref telemetry,
-                    "Writes local log lines with the selected food, score, and runner-ups. Nothing is sent anywhere."))
+                    $"Writes local {FoodTelemetry.Prefix} lines with the selected food, score, and runner-ups. Nothing is sent anywhere."))
             {
                 c.DecisionTelemetry = telemetry;
                 if (telemetry)
