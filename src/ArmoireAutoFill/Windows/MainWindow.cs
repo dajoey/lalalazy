@@ -301,7 +301,7 @@ public class MainWindow : Window
                 ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + levelX, captionY), "Level", Theme.TextSecondary, Theme.CaptionScale);
                 ArmoireChrome.DrawTextRight(draw, headerPos.X + itemsRight, captionY, "Items", Theme.TextSecondary, Theme.CaptionScale);
                 ArmoireChrome.DrawTextRight(draw, headerPos.X + missingRight, captionY, "Missing", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + stateX, captionY), "Status", Theme.TextSecondary, Theme.CaptionScale);
+                ArmoireChrome.DrawTextRight(draw, headerPos.X + stateX + stateWidth, captionY, "Status", Theme.TextSecondary, Theme.CaptionScale);
                 ArmoireChrome.Advance(headerPos, inner, captionHeight, 2 * Theme.Unit);
             }
 
@@ -336,8 +336,10 @@ public class MainWindow : Window
                     ArmoireChrome.DrawTextRight(draw, pos.X + itemsRight, textY, dungeon.Items.Count.ToString(), Theme.TextSecondary);
                     ArmoireChrome.DrawTextRight(draw, pos.X + missingRight, textY, dungeon.MissingCount.ToString(),
                         dungeon.MissingCount > 0 ? Copy.MarkColor(UiState.Missing) : Theme.TextSecondary);
-                    draw.AddCircleFilled(new Vector2(pos.X + stateX + Theme.DotRadius, textY + (lineHeight / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
-                    ArmoireChrome.DrawText(draw, new Vector2(pos.X + stateX + (2 * Theme.DotRadius) + (2 * Theme.Unit), textY), StateText(dungeon), stateColor);
+                    var stateRight = pos.X + stateX + stateWidth;
+                    var stateLeft = MathF.Round(stateRight - ArmoireChrome.TextWidth(StateText(dungeon)));
+                    draw.AddCircleFilled(new Vector2(stateLeft - (2 * Theme.Unit) - Theme.DotRadius, textY + (lineHeight / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
+                    ArmoireChrome.DrawTextRight(draw, stateRight, textY, StateText(dungeon), stateColor);
                 }
                 else
                 {
@@ -386,7 +388,10 @@ public class MainWindow : Window
         var badges = new[] { "Inventory", "Armoire", "Missing" };
         var badgeWidth = badges.Max(b => ArmoireChrome.TextWidth(b, Theme.SecondaryScale));
         var slotWidth = itemsToShow.Max(i => i.Slot == GearSlot.Unknown ? 0 : ArmoireChrome.TextWidth(i.Slot.ToString(), Theme.SecondaryScale));
-        var columns = Math.Clamp((int)(innerWidth / 340f), 1, 3);
+        var slotGap = 3 * Theme.Unit;
+        var nameNeed = itemsToShow.Max(i => ArmoireChrome.TextWidth(i.Name));
+        var cellNeed = (5 * Theme.Unit) + slotWidth + slotGap + nameNeed + (3 * Theme.Unit) + badgeWidth + Theme.Unit;
+        var columns = Math.Clamp((int)((innerWidth + pad) / (cellNeed + pad)), 1, 3);
         var cellWidth = (innerWidth - ((columns - 1) * pad)) / columns;
         var pitch = lineHeight + (2 * Theme.Unit);
         var rows = (itemsToShow.Count + columns - 1) / columns;
@@ -410,11 +415,11 @@ public class MainWindow : Window
             var textY = cellMin.Y + Theme.Unit;
             var color = Copy.MarkColor(state);
             draw.AddCircleFilled(new Vector2(cellMin.X + (2 * Theme.Unit), textY + (lineHeight / 2f)), 2.5f, Theme.Pack(color));
-            var slotX = cellMin.X + (4 * Theme.Unit);
+            var slotX = cellMin.X + (5 * Theme.Unit);
             if (item.Slot != GearSlot.Unknown)
                 ArmoireChrome.DrawText(draw, new Vector2(slotX, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f)),
                     item.Slot.ToString(), Theme.TextSecondary, Theme.SecondaryScale);
-            var nameX = slotX + slotWidth + (2 * Theme.Unit);
+            var nameX = slotX + slotWidth + slotGap;
             var nameWidth = cellMax.X - nameX - badgeWidth - (3 * Theme.Unit);
             ArmoireChrome.DrawFitted(draw, new Vector2(nameX, textY), item.Name, nameWidth, Theme.TextPrimary);
             ArmoireChrome.DrawTextRight(draw, cellMax.X - Theme.Unit, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f),
@@ -422,7 +427,10 @@ public class MainWindow : Window
 
             if (hovered)
             {
-                ArmoireChrome.BeginTooltip();
+                var tipHeight = (4 * lineHeight) + (4 * Theme.Unit) + 8;
+                var below = cellMax.Y + Theme.Unit + tipHeight <= ImGui.GetIO().DisplaySize.Y;
+                ArmoireChrome.BeginTooltip(new Vector2(cellMin.X + (5 * Theme.Unit), below ? cellMax.Y + Theme.Unit : cellMin.Y - Theme.Unit),
+                    below ? Vector2.Zero : new Vector2(0f, 1f));
                 ImGui.Text($"Item ID: {item.ItemId}");
                 ImGui.Text($"Slot: {item.Slot}");
                 ImGui.Text($"Source: {item.DungeonName ?? "Unknown"}");

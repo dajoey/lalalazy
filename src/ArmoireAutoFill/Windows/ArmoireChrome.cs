@@ -94,7 +94,7 @@ internal static class ArmoireChrome
     }
 
     public static void DrawTextRight(ImDrawListPtr draw, float right, float y, string text, Vector4 color, float scale = 1f)
-        => DrawText(draw, new Vector2(right - TextWidth(text, scale), y), text, color, scale);
+        => DrawText(draw, new Vector2(MathF.Round(right - TextWidth(text, scale)), y), text, color, scale);
 
     public static float WrappedHeight(string text, float width, float scale = 1f)
         => text.Length == 0 ? 0 : MathF.Max(LineHeight(scale), Measure(scale, () => ImGui.CalcTextSize(text, false, MathF.Max(8, width)).Y));
@@ -716,8 +716,10 @@ internal static class ArmoireChrome
     // ---- tooltips ----
 
     /// <summary>Begin a tooltip on an opaque raised surface with a border and padding. Pair with <see cref="EndTooltip"/>.</summary>
-    internal static void BeginTooltip()
+    internal static void BeginTooltip(Vector2? anchor = null, Vector2? pivot = null)
     {
+        if (anchor.HasValue)
+            ImGui.SetNextWindowPos(anchor.Value, ImGuiCond.Always, pivot ?? Vector2.Zero);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(3 * Theme.Unit, 2 * Theme.Unit));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
