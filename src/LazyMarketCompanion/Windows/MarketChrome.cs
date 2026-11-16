@@ -44,6 +44,9 @@ internal static class MarketChrome
     finally { ImGui.SetWindowFontScale(1f); }
   }
 
+  /// <summary>Short windows (under 520 px tall) trade band padding for body room.</summary>
+  internal static bool Short => ImGui.GetWindowHeight() < 520;
+
   internal static float TextWidth(string text, float scale = 1f) => Measure(scale, () => ImGui.CalcTextSize(text).X);
 
   internal static float LineHeight(float scale = 1f) => Measure(scale, () => ImGui.GetTextLineHeight());
@@ -166,7 +169,7 @@ internal static class MarketChrome
   }
 
   /// <summary>Greedy word wrap into at most maxLines lines at the draw size; the last line is elided.</summary>
-  private static List<string> WrapText(string text, float width, float scale, int maxLines)
+  internal static List<string> WrapText(string text, float width, float scale, int maxLines)
   {
     var lines = new List<string>();
     if (text.Length == 0 || width <= 0)
@@ -259,7 +262,8 @@ internal static class MarketChrome
     var width = ImGui.GetWindowWidth();
     var draw = ImGui.GetWindowDrawList();
     var g = Gutter(width);
-    const float pad = 14, brandH = 40;
+    var pad = Short ? 8f : 14f;
+    var brandH = Short ? 36f : 40f;
     var pillSize = new Vector2(PillWidth(), Control);
     var closeSize = new Vector2(Control);
     var rightWidth = pillSize.X + Gap + closeSize.X;
@@ -267,7 +271,7 @@ internal static class MarketChrome
     var navWidths = nav.Select(n => MathF.Max(72, TextWidth(n.Label) + 32)).ToArray();
     var navTotal = navWidths.Sum() + (Gap * MathF.Max(0, nav.Length - 1));
     var singleRow = nav.Length == 0 || g + naturalBrand + 16 + navTotal + 16 + rightWidth + g <= width;
-    var bar = singleRow ? pad + brandH + pad : pad + brandH + 8 + Control + 12;
+    var bar = singleRow ? pad + brandH + pad : pad + brandH + 6 + Control + (Short ? 8 : 12);
 
     draw.PushClipRect(win, win + new Vector2(width, bar + 1), false);
     draw.AddRectFilled(win, win + new Vector2(width, bar), Theme.Pack(Theme.ShellBar));
@@ -305,7 +309,7 @@ internal static class MarketChrome
         var each = (inner - (Gap * (nav.Length - 1))) / nav.Length;
         widths = nav.Select(_ => each).ToArray();
         x = win.X + g;
-        y = win.Y + pad + brandH + 8;
+        y = win.Y + pad + brandH + 6;
       }
       for (var i = 0; i < nav.Length; i++)
       {
@@ -342,7 +346,8 @@ internal static class MarketChrome
     var width = ImGui.GetWindowWidth();
     var draw = ImGui.GetWindowDrawList();
     var g = Gutter(width);
-    const float band = 56;
+    var band = Short ? 44f : 56f;
+    var pillH = Short ? 28f : 32f;
     var origin = win + new Vector2(0, top);
     draw.PushClipRect(origin, origin + new Vector2(width, band + 1), false);
     draw.AddRectFilled(origin, origin + new Vector2(width, band), Theme.Pack(Theme.ShellBar));
@@ -351,8 +356,8 @@ internal static class MarketChrome
     var x = origin.X + g;
     for (var i = 0; i < labels.Length; i++)
     {
-      var size = new Vector2(16 + 12 + 8 + TextWidth(labels[i], Theme.SecondaryScale) + 16 + 1, 32);
-      var pos = new Vector2(x, origin.Y + 12);
+      var size = new Vector2(16 + 12 + 8 + TextWidth(labels[i], Theme.SecondaryScale) + 16 + 1, pillH);
+      var pos = new Vector2(x, origin.Y + ((band - pillH) / 2f));
       ImGui.SetCursorScreenPos(pos);
       if (ImGui.InvisibleButton("##lmc_sub_" + i, size))
         clicked = i;
@@ -382,12 +387,13 @@ internal static class MarketChrome
     var draw = ImGui.GetWindowDrawList();
     var compact = ImGui.GetWindowHeight() < 520;
     var wide = width >= 760;
-    const float tile = 44, titleScale = 1.35f;
-    var padTop = compact ? 12f : 20f;
-    var textX = g + 60;
+    var tile = compact ? 32f : 44f;
+    const float titleScale = 1.35f;
+    var padTop = compact ? 10f : 20f;
+    var textX = g + (compact ? 46 : 60);
     var origin = win + new Vector2(g, top + padTop);
     draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), Radius);
-    Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
+    Diamond(draw, origin + new Vector2(tile / 2f), compact ? 8 : 10, Theme.Pack(Theme.Accent));
 
     var titleH = LineHeight(titleScale);
     var descH = LineHeight(Theme.SecondaryScale);
@@ -417,7 +423,7 @@ internal static class MarketChrome
         block += 4 + descH;
       }
     }
-    var height = padTop + MathF.Max(tile, block) + 8;
+    var height = padTop + MathF.Max(tile, block) + (compact ? 6 : 8);
     ImGui.SetCursorPos(new Vector2(0, top + height));
     return height;
   }
@@ -426,12 +432,14 @@ internal static class MarketChrome
   // shell: footer
   // =====================================================================================
 
+  /// <summary>Short windows with nothing to stop show the status line only; a running action keeps its note.</summary>
+  private static bool OneLineFooter(bool hasAction) => Short && !hasAction;
+
   internal static float FooterHeight(float width, bool hasAction)
   {
     _ = width;
-    _ = hasAction;
-    var block = LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
-    return 12 + MathF.Max(block, Control) + 12;
+    var block = OneLineFooter(hasAction) ? LineHeight() : LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
+    return (Short ? 10 : 12) + MathF.Max(block, Control) + (Short ? 10 : 12);
   }
 
   /// <summary>Footer band, drawn from the window's bottom edge. The action button sits on the status row when it fits.</summary>
@@ -454,16 +462,18 @@ internal static class MarketChrome
     var buttonLeft = hasStop ? width - g - stopWidth : width - g;
     var textX = g + 16;
     var textRoom = (hasStop ? buttonLeft - 16 : buttonLeft) - textX;
-    var block = LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
+    var oneLine = OneLineFooter(hasStop);
+    var block = oneLine ? LineHeight() : LineHeight() + 4 + LineHeight(Theme.SecondaryScale);
     var textTop = origin.Y + ((height - block) / 2f);
     var line1 = $"{Copy.Word(state)} · {action}";
     var shown1 = FitText(line1, textRoom);
     var shown2 = FitText(detail, textRoom, Theme.SecondaryScale);
     draw.AddCircleFilled(new Vector2(win.X + g + 4, textTop + (LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
     DrawText(draw, new Vector2(win.X + textX, textTop), shown1, Theme.TextPrimary);
-    DrawText(draw, new Vector2(win.X + textX, textTop + LineHeight() + 4), shown2, Theme.TextSecondary, Theme.SecondaryScale);
+    if (!oneLine)
+      DrawText(draw, new Vector2(win.X + textX, textTop + LineHeight() + 4), shown2, Theme.TextSecondary, Theme.SecondaryScale);
     var mouse = ImGui.GetMousePos();
-    if ((shown1 != line1 || shown2 != detail) && mouse.X >= win.X + textX && mouse.X <= win.X + textX + textRoom && mouse.Y >= textTop && mouse.Y <= textTop + block)
+    if ((shown1 != line1 || (!oneLine && shown2 != detail) || oneLine) && mouse.X >= win.X + textX && mouse.X <= win.X + textX + textRoom && mouse.Y >= textTop && mouse.Y <= textTop + block)
       ImGui.SetTooltip(line1 + "\n" + detail);
 
     if (hasStop)
@@ -1055,7 +1065,9 @@ internal static class MarketChrome
     var showNote = tier < 2;
     var labelH = LineHeight(Theme.SecondaryScale);
     var valueH = LineHeight(valueScale);
-    var height = pad + labelH + (tier == 0 ? 8 : 4) + valueH + (tier == 0 ? 8 : 4) + Theme.BarHeight + (showNote ? (tier == 0 ? 8 : 4) + labelH : 0) + pad;
+    var noteMax = tier == 0 ? 1 : 2;
+    var noteLines = showNote ? stats.Max(stat => WrapText(stat.Note, width - (2 * pad), Theme.SecondaryScale, noteMax).Count) : 0;
+    var height = pad + labelH + (tier == 0 ? 8 : 4) + valueH + (tier == 0 ? 8 : 4) + Theme.BarHeight + (showNote ? (tier == 0 ? 8 : 4) + (noteLines * labelH) : 0) + pad;
     var origin = ImGui.GetCursorScreenPos();
     var draw = ImGui.GetWindowDrawList();
     for (var i = 0; i < stats.Length; i++)
@@ -1090,7 +1102,11 @@ internal static class MarketChrome
       {
         y += tier == 0 ? 8 : 4;
         var done = stat.Fraction is >= 1f;
-        DrawText(draw, new Vector2(pos.X + pad, y), FitText(stat.Note, width - (2 * pad), Theme.SecondaryScale), done ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
+        foreach (var noteLine in WrapText(stat.Note, width - (2 * pad), Theme.SecondaryScale, noteMax))
+        {
+          DrawText(draw, new Vector2(pos.X + pad, y), noteLine, done ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
+          y += labelH;
+        }
       }
     }
     ImGui.SetCursorScreenPos(origin);

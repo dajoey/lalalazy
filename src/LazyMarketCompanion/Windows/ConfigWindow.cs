@@ -181,7 +181,7 @@ public sealed class ConfigWindow : Window
     var busy = AutomationBusy?.Invoke() ?? false;
     var state = CurrentState();
     var action = busy ? "the current market action" : !Plugin.Configuration.AutoMarketEnabled ? "Auto-Market is off" : Plugin.Configuration.AutoMarketItems.Count == 0 ? "no Auto-Market entries" : "watching the Auto-Market list";
-    var detail = busy ? "Stop requests cancellation of the current action." : Plugin.Configuration.AutoMarketEnabled && Plugin.Configuration.AutoMarketItems.Count == 0 ? "Add an item from the Auto-Market page or inventory context menu." : $"{Plugin.Configuration.AutoMarketItems.Count} configured entries · {Plugin.Configuration.ItemPriceLimits.Count} price limits";
+    var detail = busy ? "Stop cancels the current action." : Plugin.Configuration.AutoMarketEnabled && Plugin.Configuration.AutoMarketItems.Count == 0 ? "Add an item from the Auto-Market page or inventory context menu." : $"{Plugin.Configuration.AutoMarketItems.Count} configured entries · {Plugin.Configuration.ItemPriceLimits.Count} price limits";
     MarketChrome.Footer(state, action, detail, busy ? "Stop" : null, busy ? () => CancelAutomation?.Invoke("cancelled from the config window") : null);
   }
 
@@ -386,6 +386,11 @@ public sealed class ConfigWindow : Window
     MarketChrome.CardHeader("Auto-Market entries", "Per-item toggles and limits retain their existing save behavior.", $"{c.AutoMarketItems.Count} entries");
     AutoMarketItem? remove = null;
     var avail = MarketChrome.Avail();
+    if (avail < 760)
+    {
+      DrawEntryCards(c, avail);
+      return;
+    }
     var flags = avail < 940 ? ImGuiTableFlags.ScrollX : ImGuiTableFlags.None;
     if (MarketChrome.BeginTable("##autoMarketTable", 10, flags, new Vector2(avail, 0)))
     {
@@ -467,6 +472,118 @@ public sealed class ConfigWindow : Window
       }
 
       ImGui.EndTable();
+    }
+
+    if (remove != null)
+    {
+      c.AutoMarketItems.Remove(remove);
+      c.Save();
+    }
+  }
+
+  /// <summary>Narrow layout of the entries table: one card per entry, the same edits with the same clamps.</summary>
+  private static void DrawEntryCards(Configuration c, float avail)
+  {
+    const float pad = 12f;
+    AutoMarketItem? remove = null;
+    var line = MarketChrome.Control;
+    var sub = MarketChrome.LineHeight(Theme.SecondaryScale);
+    var inner = avail - (2 * pad);
+    var half = (inner - 8) / 2f;
+    foreach (var entry in c.AutoMarketItems.OrderBy(e => ItemNameResolver.GetItemName(e.ItemId)).ThenBy(e => e.HQ).ToList())
+    {
+      ImGui.PushID(entry.Key);
+      var pos = ImGui.GetCursorScreenPos();
+      var draw = ImGui.GetWindowDrawList();
+      var name = $"{ItemNameResolver.GetItemName(entry.ItemId)}{(entry.HQ ? " (HQ)" : "")}";
+      var left = pos.X + pad + 44 + 10;
+      var nameLines = MarketChrome.WrapText(name, pos.X + pad + inner - left, 1f, 2);
+      var nameH = MathF.Max(line, nameLines.Count * MarketChrome.LineHeight());
+      var height = pad + nameH + (4 * (8 + line)) + pad;
+      draw.AddRectFilled(pos, pos + new Vector2(avail, height), Theme.Pack(Theme.ShellBar), 8f);
+      draw.AddRect(pos, pos + new Vector2(avail, height), Theme.Pack(Theme.SurfaceBorder with { W = 0.7f }), 8f);
+      var x = pos.X + pad;
+      var y = pos.Y + pad;
+
+      ImGui.SetCursorScreenPos(new Vector2(x, y + ((nameH - line) / 2f)));
+      var on = entry.Enabled;
+      if (MarketChrome.Toggle("##on", ref on)) { entry.Enabled = on; c.Save(); }
+      var textTop = y + ((nameH - (nameLines.Count * MarketChrome.LineHeight())) / 2f);
+      for (var i = 0; i < nameLines.Count; i++)
+        MarketChrome.DrawText(draw, new Vector2(left, textTop + (i * MarketChrome.LineHeight())), nameLines[i], Theme.TextPrimary);
+      ImGui.SetCursorScreenPos(new Vector2(left, y));
+      ImGui.Dummy(new Vector2(MathF.Max(1, pos.X + pad + inner - left), nameH));
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{name}\nItem ID: {entry.ItemId}  max stack {ItemNameResolver.MaxStack(entry.ItemId)}");
+
+      void Label(float lx, float ly, string text) =>
+        MarketChrome.DrawText(draw, new Vector2(lx, ly + ((line - sub) / 2f)), text, Theme.TextSecondary, Theme.SecondaryScale);
+      const float labelW = 74f;
+      const float rightW = 84f;
+
+      // row 2: stack | keep in bags
+      y += nameH + 8;
+      Label(x, y, "Stack");
+      ImGui.SetCursorScreenPos(new Vector2(x + labelW, y));
+      ImGui.SetNextItemWidth(half - labelW);
+      var stack = entry.StackSize;
+      var listingCap = LazyMarketCompanion.AutoMarket.MarketListingCap.For((int)ItemNameResolver.MaxStack(entry.ItemId));
+      if (ImGui.InputInt("##stack", ref stack, 0, 0)) { entry.StackSize = Math.Clamp(stack, 0, listingCap); c.Save(); }
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Units per listing. 0 = the market's maximum ({listingCap}). The market accepts at most {listingCap} of this item per listing; larger values are clamped.");
+      var rx = x + half + 8;
+      Label(rx, y, "Keep bags");
+      ImGui.SetCursorScreenPos(new Vector2(rx + rightW, y));
+      ImGui.SetNextItemWidth(half - rightW);
+      var keepB = entry.KeepInBags;
+      if (ImGui.InputInt("##keepb", ref keepB, 0, 0)) { entry.KeepInBags = Math.Max(keepB, 0); c.Save(); }
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip("Never sell below this many from your bags.");
+
+      // row 3: keep on retainer | max per retainer
+      y += line + 8;
+      Label(x, y, "Keep ret.");
+      ImGui.SetCursorScreenPos(new Vector2(x + labelW, y));
+      ImGui.SetNextItemWidth(half - labelW);
+      var keepR = entry.KeepInRetainer;
+      if (ImGui.InputInt("##keepr", ref keepR, 0, 0)) { entry.KeepInRetainer = Math.Max(keepR, 0); c.Save(); }
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip("Never sell below this many from the retainer's own inventory.");
+      Label(rx, y, "Max/ret.");
+      ImGui.SetCursorScreenPos(new Vector2(rx + rightW, y));
+      ImGui.SetNextItemWidth(half - rightW);
+      var max = entry.MaxListingsPerRetainer;
+      if (ImGui.InputInt("##max", ref max, 0, 0)) { entry.MaxListingsPerRetainer = Math.Max(max, 0); c.Save(); }
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip("Max listings of this item on one retainer at once (existing ones count). 0 = no cap.");
+
+      // row 4: source | fixed price
+      y += line + 8;
+      Label(x, y, "Source");
+      ImGui.SetCursorScreenPos(new Vector2(x + labelW, y));
+      var srcIdx = entry.SourceOverride.HasValue ? (int)entry.SourceOverride.Value + 1 : 0;
+      if (MarketChrome.Combo("##src", ref srcIdx, ["(global)", "Bags", "Retainer", "Both"], half - labelW))
+      {
+        entry.SourceOverride = srcIdx == 0 ? null : (StockSource)(srcIdx - 1);
+        c.Save();
+      }
+      Label(rx, y, "Fixed price");
+      ImGui.SetCursorScreenPos(new Vector2(rx + rightW, y));
+      ImGui.SetNextItemWidth(half - rightW);
+      var fixedPrice = entry.FixedPrice;
+      if (ImGui.InputInt("##fixed", ref fixedPrice, 0, 0)) { entry.FixedPrice = Math.Max(fixedPrice, 0); c.Save(); }
+      if (ImGui.IsItemHovered()) ImGui.SetTooltip("List at exactly this unit price instead of matching. 0 = match the board.");
+
+      // row 5: skip routing switch and Remove
+      y += line + 8;
+      ImGui.SetCursorScreenPos(new Vector2(x, y));
+      var skipRouting = entry.ExcludeFromCategoryRouting;
+      if (MarketChrome.Toggle("##skiprouting", ref skipRouting)) { entry.ExcludeFromCategoryRouting = skipRouting; c.Save(); }
+      Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer - unaffected by any category-routing rule above.");
+      Label(x + 44 + 10, y, "Skip routing");
+      var removeW = MathF.Max(72, MarketChrome.ButtonWidth("Remove"));
+      ImGui.SetCursorScreenPos(new Vector2(x + inner - removeW, y));
+      if (ImGui.Button("Remove", new Vector2(removeW, line)))
+        remove = entry;
+
+      ImGui.SetCursorScreenPos(pos);
+      ImGui.Dummy(new Vector2(avail, height + 8));
+      ImGui.PopID();
     }
 
     if (remove != null)

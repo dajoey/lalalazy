@@ -320,7 +320,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var busy = _runInProgress();
     var state = CurrentState(c);
     var action = busy ? "the current market action" : !c.AutoMarketEnabled ? "Auto-Market is off" : c.AutoMarketItems.Count == 0 ? "no Auto-Market entries" : "Auto-Market list ready";
-    var detail = busy ? "Stop requests cancellation of the current action." : c.AutoMarketEnabled && c.AutoMarketItems.Count == 0 ? "Add an item from the main window or inventory context menu." : $"{visibleCount} visible groups · {c.AutoMarketItems.Count} configured entries";
+    var detail = busy ? "Stop cancels the current action." : c.AutoMarketEnabled && c.AutoMarketItems.Count == 0 ? "Add an item from the main window or inventory context menu." : $"{visibleCount} visible groups · {c.AutoMarketItems.Count} configured entries";
     MarketChrome.Footer(state, action, detail, busy ? "Stop" : null, busy ? () => _cancelAutomation?.Invoke("cancelled from the Auto-Market panel") : null);
   }
 
@@ -509,35 +509,53 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var draw = ImGui.GetWindowDrawList();
     var line = MarketChrome.Control;
     var sub = MarketChrome.LineHeight(Theme.SecondaryScale);
-    var height = pad + line + 4 + sub + (onList ? 8 + line : 0) + pad;
+    var inner = width - (2 * pad);
+    var x = pos.X + pad;
+
+    // line 1: switch and the full-width name, wrapped to two lines instead of cut
+    var left = onList ? x + 44 + 10 : x;
+    var nameRoom = pos.X + pad + inner - left;
+    var name = $"{row.Name}{(row.Hq ? " (HQ)" : "")}";
+    var nameLines = MarketChrome.WrapText(name, nameRoom, 1f, 2);
+    var nameH = MathF.Max(onList ? line : 0, nameLines.Count * MarketChrome.LineHeight());
+    var height = pad + nameH + 6 + line + (onList ? 8 + line + 8 + line : 0) + pad;
     draw.AddRectFilled(pos, pos + new Vector2(width, height), Theme.Pack(Theme.ShellBar), 8f);
     draw.AddRect(pos, pos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder with { W = 0.7f }), 8f);
-    var x = pos.X + pad;
-    var inner = width - (2 * pad);
     var y = pos.Y + pad;
 
-    // line 1: switch, name, Add / Remove
-    var left = x;
     if (entry != null)
     {
-      ImGui.SetCursorScreenPos(new Vector2(x, y));
+      ImGui.SetCursorScreenPos(new Vector2(x, y + ((nameH - line) / 2f)));
       var on = entry.Enabled;
       if (MarketChrome.Toggle("##on", ref on)) { entry.Enabled = on; c.Save(); }
       Tip("Ticks and unticks this item on the Auto-Market list - the same switch the main window's table has. Unticked = on the list but not listed.");
-      left = x + 44 + 10;
     }
-    var buttonLabel = row.Kind == AutoMarketPanelModel.RowKind.NotListed ? "Add" : row.Kind == AutoMarketPanelModel.RowKind.OnList ? "Remove" : null;
-    var buttonW = buttonLabel is null ? 0 : MathF.Max(72, MarketChrome.ButtonWidth(buttonLabel));
-    var nameRoom = (x + inner) - left - (buttonW > 0 ? buttonW + 10 : 0);
-    var name = $"{row.Name}{(row.Hq ? " (HQ)" : "")}";
-    var shown = MarketChrome.FitText(name, nameRoom);
-    MarketChrome.DrawText(draw, new Vector2(left, y + ((line - MarketChrome.LineHeight()) / 2f)), shown, Theme.TextPrimary);
+    var textTop = y + ((nameH - (nameLines.Count * MarketChrome.LineHeight())) / 2f);
+    for (var i = 0; i < nameLines.Count; i++)
+      MarketChrome.DrawText(draw, new Vector2(left, textTop + (i * MarketChrome.LineHeight())), nameLines[i], Theme.TextPrimary);
     ImGui.SetCursorScreenPos(new Vector2(left, y));
-    ImGui.Dummy(new Vector2(MathF.Max(1, nameRoom), line));
+    ImGui.Dummy(new Vector2(MathF.Max(1, nameRoom), nameH));
     if (ImGui.IsItemHovered())
-      ImGui.SetTooltip($"{(shown != name ? name + "\n" : string.Empty)}Item ID: {row.ItemId}  max stack {ItemNameResolver.MaxStack(row.ItemId)}  in {row.Stacks} stack(s)");
+      ImGui.SetTooltip($"{name}\nItem ID: {row.ItemId}  max stack {ItemNameResolver.MaxStack(row.ItemId)}  in {row.Stacks} stack(s)");
+
+    // line 2: status and quantity on the left, Add / Remove on the right
+    y += nameH + 6;
+    var (statusText, statusState) = row.Kind switch
+    {
+      AutoMarketPanelModel.RowKind.OnList when row.EntryEnabled => ("Ready", UiState.Ready),
+      AutoMarketPanelModel.RowKind.OnList => ("Idle", UiState.Idle),
+      AutoMarketPanelModel.RowKind.NotListed => ("Empty", UiState.Empty),
+      _ => ("unmarketable", UiState.Idle),
+    };
+    var statusColor = row.Kind is AutoMarketPanelModel.RowKind.OnList or AutoMarketPanelModel.RowKind.NotListed ? Copy.MarkColor(statusState) : Theme.TextSecondary;
+    var textY = y + ((line - sub) / 2f);
+    MarketChrome.DrawText(draw, new Vector2(x, textY), statusText, statusColor, Theme.SecondaryScale);
+    var qtyX = x + MarketChrome.TextWidth(statusText, Theme.SecondaryScale) + 8;
+    MarketChrome.DrawText(draw, new Vector2(qtyX, textY), $"· {row.Quantity} in bags", Theme.TextSecondary, Theme.SecondaryScale);
+    var buttonLabel = row.Kind == AutoMarketPanelModel.RowKind.NotListed ? "Add" : row.Kind == AutoMarketPanelModel.RowKind.OnList ? "Remove" : null;
     if (buttonLabel is not null)
     {
+      var buttonW = MathF.Max(72, MarketChrome.ButtonWidth(buttonLabel));
       ImGui.SetCursorScreenPos(new Vector2(x + inner - buttonW, y));
       if (row.Kind == AutoMarketPanelModel.RowKind.NotListed)
       {
@@ -561,31 +579,10 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       }
     }
 
-    // line 2: status and quantity; the routing switch on the right for list entries
-    y += line + 4;
-    var (statusText, statusState) = row.Kind switch
-    {
-      AutoMarketPanelModel.RowKind.OnList when row.EntryEnabled => ("Ready", UiState.Ready),
-      AutoMarketPanelModel.RowKind.OnList => ("Idle", UiState.Idle),
-      AutoMarketPanelModel.RowKind.NotListed => ("Empty", UiState.Empty),
-      _ => ("unmarketable", UiState.Idle),
-    };
-    var statusColor = row.Kind is AutoMarketPanelModel.RowKind.OnList or AutoMarketPanelModel.RowKind.NotListed ? Copy.MarkColor(statusState) : Theme.TextSecondary;
-    MarketChrome.DrawText(draw, new Vector2(x, y), statusText, statusColor, Theme.SecondaryScale);
-    var qtyX = x + MarketChrome.TextWidth(statusText, Theme.SecondaryScale) + 8;
-    MarketChrome.DrawText(draw, new Vector2(qtyX, y), $"· {row.Quantity} in bags", Theme.TextSecondary, Theme.SecondaryScale);
     if (entry != null)
     {
-      var label = "Skip routing";
-      var labelW = MarketChrome.TextWidth(label, Theme.SecondaryScale);
-      MarketChrome.DrawText(draw, new Vector2(x + inner - 44 - 8 - labelW, y), label, Theme.TextSecondary, Theme.SecondaryScale);
-      ImGui.SetCursorScreenPos(new Vector2(x + inner - 44, y + (sub / 2f) - (MarketChrome.Control / 2f)));
-      var skip = entry.ExcludeFromCategoryRouting;
-      if (MarketChrome.Toggle("##skiprouting", ref skip)) { entry.ExcludeFromCategoryRouting = skip; c.Save(); }
-      Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer.");
-
       // line 3: the same clamped edits the main window's table makes
-      y += sub + 8;
+      y += line + 8;
       var half = (inner - 8) / 2f;
       var stackLabelW = MarketChrome.TextWidth("Stack", Theme.SecondaryScale) + 8;
       MarketChrome.DrawText(draw, new Vector2(x, y + ((line - MarketChrome.LineHeight(Theme.SecondaryScale)) / 2f)), "Stack", Theme.TextSecondary, Theme.SecondaryScale);
@@ -606,6 +603,14 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
       if (ImGui.InputInt("##keep", ref keep, 0, 0)) { entry.KeepInBags = Math.Max(keep, 0); c.Save(); }
       if (ImGui.IsItemHovered())
         ImGui.SetTooltip("Never sell below this many in your bags. 0 = sell everything.");
+
+      // line 4: routing switch
+      y += line + 8;
+      MarketChrome.DrawText(draw, new Vector2(x, y + ((line - sub) / 2f)), "Skip category routing", Theme.TextSecondary, Theme.SecondaryScale);
+      ImGui.SetCursorScreenPos(new Vector2(x + inner - 44, y));
+      var skip = entry.ExcludeFromCategoryRouting;
+      if (MarketChrome.Toggle("##skiprouting", ref skip)) { entry.ExcludeFromCategoryRouting = skip; c.Save(); }
+      Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer.");
     }
 
     ImGui.SetCursorScreenPos(pos);
