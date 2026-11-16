@@ -67,7 +67,7 @@ internal class ConfigWindow : Window
             var y = DrawTopBar(live, winPos, winSize.X, gutter);
             y = DrawPageHeader(c, winPos, winSize.X, gutter, y);
 
-            var footerHeight = FooterHeight(winSize.X);
+            var footerHeight = FooterHeight(winSize.X, c.MasterEnable);
             FoodUiChrome.PopupBounds = (winPos.Y + y, winPos.Y + winSize.Y - footerHeight - (2 * Theme.Unit));
             ImGui.SetCursorPos(new Vector2(0, y));
             DrawBody(c, live, new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter);
@@ -126,7 +126,7 @@ internal class ConfigWindow : Window
         var draw = ImGui.GetWindowDrawList();
         var inner = winWidth - (2 * gutter);
         const float padY = 3.5f * Theme.Unit;
-        const float brandHeight = 10 * Theme.Unit;
+        const float brandHeight = FoodUiChrome.BrandHeight;
         var control = FoodUiChrome.ControlHeight;
         var pillSize = new Vector2(FoodUiChrome.PillWidth(), control);
         var closeSize = new Vector2(control);
@@ -151,9 +151,9 @@ internal class ConfigWindow : Window
         draw.AddRectFilled(winPos, winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.ShellBar));
         draw.AddLine(winPos + new Vector2(0, barHeight), winPos + new Vector2(winWidth, barHeight), Theme.Pack(Theme.SurfaceBorder));
         draw.PopClipRect();
-        FoodUiChrome.Brand(draw, winPos + new Vector2(gutter, padY), brandHeight);
-        FoodUiChrome.StatusPill(draw, winPos + pillPos, pillSize, Copy.Word(live.State), live.PillDetail, live.State);
-        if (FoodUiChrome.OutlineButton(draw, "close", "×", winPos + closePos, closeSize))
+        FoodUiChrome.Brand(draw, winPos + new Vector2(gutter, padY), MathF.Min(brandWidth, inner));
+        FoodUiChrome.StatusPill(draw, winPos + pillPos, pillSize, live.State);
+        if (FoodUiChrome.CloseButton(draw, winPos + closePos, closeSize))
             IsOpen = false;
         ImGui.SetCursorScreenPos(winPos + new Vector2(0, barHeight + 1));
         return barHeight + 1;
@@ -169,13 +169,13 @@ internal class ConfigWindow : Window
         const string description = "Keeps Well Fed active with the food and duty rules selected below.";
         const float tile = 11 * Theme.Unit;
         const float padTop = 5 * Theme.Unit;
-        var wide = winWidth >= 1000;
+        var wide = winWidth >= 760;
         var textX = gutter + tile + (4 * Theme.Unit);
         var metaWidth = wide ? MathF.Min(winWidth * 0.40f, FoodUiChrome.TextWidth(count, Theme.SecondaryScale)) : 0;
-        var textWidth = winWidth - textX - gutter - (wide ? metaWidth + (6 * Theme.Unit) : 0);
+        var textWidth = winWidth - textX - gutter - (wide ? metaWidth + 16 : 0);
         var origin = winPos + new Vector2(gutter, top + padTop);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), FoodUiChrome.Radius);
-        FoodUiChrome.Diamond(draw, origin + new Vector2(tile / 2f), 11, Theme.Pack(Theme.Accent));
+        FoodUiChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
 
         var shownTitle = FoodUiChrome.ClampLines(title, textWidth, FoodUiChrome.PageTitleScale, wide ? 1 : 2);
         var titleHeight = FoodUiChrome.WrappedHeight(shownTitle, textWidth, FoodUiChrome.PageTitleScale);
@@ -321,10 +321,13 @@ internal class ConfigWindow : Window
 
             var min = new Vector2(pos.X + pad, y);
             var max = new Vector2(pos.X + width - pad, y + Theme.BarHeight);
-            draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
-            if (stat.Fraction is { } fraction && fraction > 0)
-                draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y),
-                    Theme.Pack(stat.Dim ? Theme.StateNeutral : Theme.StateGreen), Theme.BarHeight / 2f);
+            if (stat.Fraction is { } fraction)
+            {
+                draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), Theme.BarHeight / 2f);
+                if (fraction > 0)
+                    draw.AddRectFilled(min, new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction, 0, 1)), max.Y),
+                        Theme.Pack(stat.Dim ? Theme.StateNeutral : Theme.StateGreen), Theme.BarHeight / 2f);
+            }
             y += Theme.BarHeight + (2 * Theme.Unit);
 
             if (!stacked)
@@ -697,11 +700,13 @@ internal class ConfigWindow : Window
 
     // ---- footer ----
 
-    private static float FooterHeight(float width)
+    private static float FooterHeight(float width, bool hasAction)
     {
         var textBlock = FoodUiChrome.LineHeight() + Theme.Unit + FoodUiChrome.LineHeight(Theme.SecondaryScale);
         const float pad = 3 * Theme.Unit;
-        return pad + MathF.Max(textBlock, FoodUiChrome.ControlHeight) + pad;
+        return width < 620 && hasAction
+            ? pad + textBlock + pad + FoodUiChrome.ControlHeight + pad
+            : pad + MathF.Max(textBlock, FoodUiChrome.ControlHeight) + pad;
     }
 
     private bool DrawFooter(Live live, bool masterEnabled, Vector2 winPos, Vector2 winSize, float gutter, float height)
@@ -717,12 +722,16 @@ internal class ConfigWindow : Window
         var secondary = live.Reason ?? (live.Fed
             ? $"Well Fed · {live.PillDetail} remaining"
             : "Food profiles and settings save on change.");
-        var actionSize = new Vector2(MathF.Max(12 * Theme.Unit, FoodUiChrome.TextWidth("Stop") + (8 * Theme.Unit)), FoodUiChrome.ControlHeight);
+        var narrow = winSize.X < 620 && masterEnabled;
+        var inner = winSize.X - (2 * gutter);
+        var actionSize = new Vector2(narrow ? inner : FoodUiChrome.ActionWidth(72, "Stop"), FoodUiChrome.ControlHeight);
         var textBlock = FoodUiChrome.LineHeight() + Theme.Unit + FoodUiChrome.LineHeight(Theme.SecondaryScale);
-        var actionPos = new Vector2(winPos.X + winSize.X - gutter - actionSize.X, top + ((height - actionSize.Y) / 2f));
-        var textTop = top + ((height - textBlock) / 2f);
+        var actionPos = narrow
+            ? new Vector2(winPos.X + gutter, top + (3 * Theme.Unit) + textBlock + (3 * Theme.Unit))
+            : new Vector2(winPos.X + winSize.X - gutter - actionSize.X, top + ((height - actionSize.Y) / 2f));
+        var textTop = narrow ? top + (3 * Theme.Unit) : top + ((height - textBlock) / 2f);
         var textLeft = winPos.X + gutter + FoodUiChrome.Gap;
-        var textRight = actionPos.X - FoodUiChrome.Gap;
+        var textRight = narrow || !masterEnabled ? winPos.X + winSize.X - gutter : actionPos.X - FoodUiChrome.Gap;
         draw.AddCircleFilled(new Vector2(winPos.X + gutter + Theme.Unit, textTop + (FoodUiChrome.LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(live.State)));
         var shown = FoodUiChrome.Fit(primary, textRight - textLeft);
         var shownSecondary = FoodUiChrome.Fit(secondary, textRight - textLeft, Theme.SecondaryScale);

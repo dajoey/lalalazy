@@ -46,7 +46,7 @@ internal static class FoodUiChrome
         ImGui.Dummy(new Vector2(MathF.Max(1, width), MathF.Max(0, height + gap - Theme.ItemSpacing.Y)));
     }
 
-    public static float Gutter(float windowWidth) => windowWidth >= 900 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
+    public static float Gutter(float windowWidth) => windowWidth >= 760 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
 
     // ---- text ----
 
@@ -177,36 +177,67 @@ internal static class FoodUiChrome
 
     // ---- shell controls ----
 
-    internal static float BrandWidth()
-        => 24 + (3 * Theme.Unit) + TextWidth("LazyFoodBuff", Theme.TitleScale);
+    internal const float BrandHeight = 40;
 
-    internal static void Brand(ImDrawListPtr draw, Vector2 pos, float height)
+    internal static float BrandWidth()
+        => 12 + 24 + 12 + TextWidth("LazyFoodBuff", Theme.TitleScale) + 16;
+
+    /// <summary>The bordered brand chip: diamond, then the name. The name ellipsises when the chip is shorter than its natural width.</summary>
+    internal static void Brand(ImDrawListPtr draw, Vector2 pos, float width)
     {
-        Diamond(draw, pos + new Vector2(12, height / 2f), 12, Theme.Pack(Theme.Accent));
-        DrawText(draw, pos + new Vector2(24 + (3 * Theme.Unit), (height - LineHeight(Theme.TitleScale)) / 2f),
-            "LazyFoodBuff", Theme.TextPrimary, Theme.TitleScale);
+        var size = new Vector2(width, BrandHeight);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), 8f);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), 8f);
+        Diamond(draw, pos + new Vector2(24, BrandHeight / 2f), 12, Theme.Pack(Theme.Accent));
+        DrawFitted(draw, pos + new Vector2(48, (BrandHeight - LineHeight(Theme.TitleScale)) / 2f),
+            "LazyFoodBuff", width - 48 - 16, Theme.TextPrimary, Theme.TitleScale);
     }
 
     /// <summary>One width for every state so the pill never shifts between states.</summary>
     internal static float PillWidth()
-    {
-        var widest = Enum.GetValues<UiState>().Max(s => TextWidth(PillText(Copy.Word(s), "99m")));
-        return (4 * Theme.Unit) + (Theme.DotRadius * 2) + (2 * Theme.Unit) + widest + (4 * Theme.Unit);
-    }
+        => MathF.Max(104, 16 + (2 * Theme.DotRadius) + 8 + Enum.GetValues<UiState>().Max(s => TextWidth(Copy.Word(s))) + 16);
 
-    internal static string PillText(string label, string? detail) => string.IsNullOrEmpty(detail) ? label : $"{label} · {detail}";
-
-    internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, string label, string? detail, UiState state)
+    internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
     {
-        var color = Copy.MarkColor(state);
-        var text = PillText(label, detail);
+        var mark = Copy.MarkColor(state);
+        var neutral = state is UiState.Idle or UiState.NeedsSetup or UiState.Empty;
+        var word = Copy.Word(state);
         draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), size.Y / 2f);
         draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), size.Y / 2f);
-        var textSize = ImGui.CalcTextSize(text);
-        var contentWidth = (Theme.DotRadius * 2) + (2 * Theme.Unit) + textSize.X;
-        var left = pos.X + ((size.X - contentWidth) / 2f);
-        draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
-        draw.AddText(new Vector2(left + (Theme.DotRadius * 2) + (2 * Theme.Unit), pos.Y + ((size.Y - textSize.Y) / 2f)), Theme.Pack(color), text);
+        var group = (2 * Theme.DotRadius) + 8 + TextWidth(word);
+        var x = pos.X + ((size.X - group) / 2f);
+        draw.AddCircleFilled(new Vector2(x + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(mark));
+        DrawText(draw, new Vector2(x + (2 * Theme.DotRadius) + 8, pos.Y + ((size.Y - LineHeight()) / 2f)), word,
+            neutral ? Theme.TextSecondary : mark);
+    }
+
+    /// <summary>The close control: a drawn cross with a tooltip anchored under the box, right aligned to it.</summary>
+    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##lfb_close", size);
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), 8f);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), 8f);
+        var c = pos + (size / 2f);
+        var col = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        draw.AddLine(c + new Vector2(-6, -6), c + new Vector2(6, 6), col, 1.5f);
+        draw.AddLine(c + new Vector2(-6, 6), c + new Vector2(6, -6), col, 1.5f);
+        if (hovered)
+        {
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
+        return clicked;
     }
 
     internal static bool ChoiceButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size, bool selected)
@@ -241,13 +272,15 @@ internal static class FoodUiChrome
     }
 
     /// <summary>The stop control: a tinted outline, red because it stops something, never a solid block.</summary>
+    internal static float ActionWidth(float minWidth, string label) => MathF.Max(minWidth, TextWidth(label) + 32f);
+
     internal static bool StopButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
     {
         ImGui.SetCursorScreenPos(pos);
         var clicked = ImGui.InvisibleButton("##lfb_stop", size);
         var hovered = ImGui.IsItemHovered();
-        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.24f : 0.14f }), Radius);
-        draw.AddRect(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.95f : 0.70f }), Radius);
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.24f : 0.12f }), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(Theme.StateRed with { W = hovered ? 0.85f : 0.55f }), Radius);
         var textSize = ImGui.CalcTextSize("Stop");
         draw.AddText(pos + ((size - textSize) / 2f), Theme.Pack(Theme.TextPrimary), "Stop");
         return clicked;
