@@ -37,6 +37,8 @@ internal static class Scenarios
       Config("cfg-first-run-automarket-tall-1100x1900", Wide, 1900, new ConfigSetup { Page = "AutoMarket", Cfg = Fixtures.FirstRun, Inv = Fixtures.BlankInventory }),
       Config("cfg-automarket-typical-1100x760", Wide, 760, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-typical-tall-1100x2900", Wide, 2900, new ConfigSetup { Page = "AutoMarket", Search = "Titanium", Ledger = true }),
+      Config("cfg-automarket-entries-1100x3800", Wide, 3800, new ConfigSetup { Page = "AutoMarket", Search = "Titanium", Ledger = true }),
+      Config("cfg-automarket-entries-narrow-620x4600", 620, 4600, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-typical-620x420", 620, 420, new ConfigSetup { Page = "AutoMarket" }),
       Config("cfg-automarket-busy-narrow-620x640", 620, 640, new ConfigSetup { Page = "AutoMarket", Busy = true }),
       Config("cfg-automarket-off-no-autoretainer-1100x760", Wide, 760, new ConfigSetup
@@ -161,9 +163,11 @@ internal sealed class ConfigState : IScenarioState
 
   public void DrawFrame(int frameIndex, Vector2 size)
   {
+    _window.PreDraw();
     SceneHost.BeginWindow(_window.WindowName, size, _window.Flags);
     _window.Draw();
     ImGui.End();
+    _window.PostDraw();
   }
 
   internal static void SetPrivate(object target, string field, object value)
@@ -221,11 +225,13 @@ internal sealed class PanelState : IScenarioState
     }
 
     var panelSize = _setup.InventoryRect is null ? size : new Vector2(380, 720);
+    _window.PreDraw();
     SceneHost.BeginWindow(_window.WindowName, panelSize, _window.Flags, position);
     if (_setup.Modal is { } modal && frameIndex == 0)
       ImGui.OpenPopup(modal); // same window scope as the real modal's BeginPopupModal
     _window.Draw();
     ImGui.End();
+    _window.PostDraw();
   }
 }
 

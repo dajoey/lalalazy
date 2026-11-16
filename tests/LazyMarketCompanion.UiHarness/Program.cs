@@ -221,19 +221,20 @@ internal static class Program
       io.DisplayFramebufferScale = Vector2.One;
       io.DeltaTime = 1f / 60f;
       _ = UiLook.Apply(Options);
-      var padding = ImGui.GetStyle().WindowPadding;
       for (var step = 0; step < 4; step++)
       {
-        // The close button is 34 wide, 16 down from the bar's top and flush right inside the window padding.
-        io.MousePos = step == 0 ? new Vector2(-10000, -10000) : new Vector2(size.X - padding.X - 17, padding.Y + 16 + 17);
+        // The close button is 36 wide, 16 down from the bar's top and its right edge is one gutter (24 px at this width) from the window edge.
+        io.MousePos = step == 0 ? new Vector2(-10000, -10000) : new Vector2(size.X - 24 - 18, 16 + 18);
         io.MouseDown[0] = step == 2;
         ImGui.NewFrame();
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
+        window.PreDraw();
         ImGui.Begin(window.WindowName, ref open, window.Flags | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
         window.Draw();
         ImGui.End();
+        window.PostDraw();
         ImGui.Render();
       }
       if (window.IsOpen)

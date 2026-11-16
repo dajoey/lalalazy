@@ -34,19 +34,19 @@ internal static class OverlayMirror
 
   private static void DrawButtons((string Label, string Tooltip)[] buttons, bool busy, bool arSession)
   {
-    MarketChrome.PushFrame();
+    MarketChrome.PushFrame(compact: true);
     try
     {
       if (busy)
       {
         var pos = ImGui.GetCursorScreenPos();
         var label = "Running";
-        var size = new Vector2(ImGui.CalcTextSize(label).X + 43, 28);
+        var size = new Vector2(ImGui.CalcTextSize(label).X + 43, ImGui.GetFrameHeight());
         MarketChrome.StatusPill(ImGui.GetWindowDrawList(), pos, size, label, UiState.Running);
         ImGui.Dummy(size);
         ImGui.SameLine();
         var stopLabel = arSession ? "Stop (AutoRetainer)" : "Stop";
-        if (Widgets.StopButton(stopLabel))
+        if (MarketChrome.StopButton(stopLabel))
         {
         }
         return;
@@ -80,12 +80,12 @@ internal static class OverlayMirror
     "ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoNavFocus",
     "| ImGuiWindowFlags.AlwaysUseWindowPadding | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings);",
     "ImGui.PopStyleVar(5);",
-    "MarketChrome.PushFrame();",
-    "var size = new Vector2(ImGui.CalcTextSize(label).X + 43, 28);",
+    "MarketChrome.PushFrame(compact: true);",
+    "var size = new Vector2(ImGui.CalcTextSize(label).X + 43, ImGui.GetFrameHeight());",
     "MarketChrome.StatusPill(ImGui.GetWindowDrawList(), pos, size, label, UiState.Running);",
     "ImGui.Dummy(size);",
     "var stopLabel = _arRetainer != null ? \"Stop (AutoRetainer)\" : \"Stop\";",
-    "if (Widgets.StopButton(stopLabel))",
+    "if (MarketChrome.StopButton(stopLabel))",
     "var disabled = label == \"Auto Market\" && !Plugin.Configuration.AutoMarketEnabled;",
     "if (disabled) ImGui.BeginDisabled();",
     "if (MarketChrome.Button(label))",
