@@ -122,7 +122,7 @@ internal class ConfigWindow : Window
     {
         if (!config.Enabled)
             return new LiveStatus(UiState.NeedsSetup, "Auto-sit is off", "Enable auto-sit to resume the same saved command.");
-        if (!string.IsNullOrWhiteSpace(config.SitCommand) && !config.SitCommand.StartsWith('/'))
+        if (!LazyFishSitter.Core.SitPolicy.IsSendableSitCommand(config.SitCommand))
             return new LiveStatus(UiState.NeedsSetup, "Correct the sit command", "The command must start with a slash.");
         if (!service.TripActive)
             return new LiveStatus(UiState.Idle, "Waiting for a fishing hole", null);
@@ -286,7 +286,7 @@ internal class ConfigWindow : Window
         ImGui.TextUnformatted("Sit command");
         FishSitterChrome.Gap(8);
         var command = config.SitCommand;
-        var invalid = !string.IsNullOrWhiteSpace(command) && !command.StartsWith('/');
+        var invalid = !LazyFishSitter.Core.SitPolicy.IsSendableSitCommand(command);
         var lineHeight = FishSitterChrome.LineHeight();
         ImGui.SetNextItemWidth(FishSitterChrome.Avail());
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(16, (ControlHeight - lineHeight) / 2f));
