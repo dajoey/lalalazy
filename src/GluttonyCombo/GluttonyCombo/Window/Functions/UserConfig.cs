@@ -473,7 +473,8 @@ public static class UserConfig
             ImGuiEx.Spacing(new Vector2(3, 0));
             if (isConditionalChoice) ImGui.Indent(); //Align checkbox after the + symbol
         }
-        if (ImGui.Checkbox($"{checkBoxName}##{config}", ref output))
+        // Fork: drawn track toggle; the configuration value and save path are unchanged.
+        if (GluttonyChrome.Toggle($"{checkBoxName}##{config}", ref output))
         {
             Configuration.SetCustomBoolValue(config, output);
             valChanged = true;

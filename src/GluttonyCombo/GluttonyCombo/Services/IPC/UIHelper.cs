@@ -425,7 +425,8 @@ public class UIHelper(Leasing leasing)
     {
         bool DefaultUI(string label, ref bool backupVar)
         {
-            return ImGui.Checkbox(label, ref backupVar);
+            // Fork: only the uncontrolled checkbox drawing changes; lease checks, values, and callbacks are untouched.
+            return Window.GluttonyChrome.Toggle(label, ref backupVar);
         }
 
         (string controllers, bool state)? controlled = null;

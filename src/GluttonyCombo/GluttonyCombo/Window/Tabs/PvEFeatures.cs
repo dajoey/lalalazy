@@ -23,9 +23,10 @@ using GluttonyCombo.Window.MessagesNS;
 
 namespace GluttonyCombo.Window.Tabs;
 
-internal class PvEFeatures : FeaturesWindow
+internal partial class PvEFeatures : FeaturesWindow
 {
-    internal static new void Draw()
+    // Fork: the approved entry point lives in PvEFeaturesApproved.cs; this legacy renderer is retained for merge context.
+    private static void DrawLegacy()
     {
         //#if !DEBUG
         if (ActionReplacer.ClassLocked())

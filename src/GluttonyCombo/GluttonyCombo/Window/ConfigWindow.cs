@@ -123,6 +123,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     public ConfigWindow() : base($"{GluttonyCombo.P.Name} {GluttonyCombo.P.GetType().Assembly.GetName().Version}###WrathCombo")
     {
         RespectCloseHotkey = true;
+        // Fork: the custom shell supplies the title and close controls; only its inner body scrolls.
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
         SetMinSize();
 
@@ -130,9 +132,10 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     }
 
     private void SetMinSize(IFontHandle? fontHandle = null, ILockedImFont? lockedFont = null) =>
+        // Fork: reserve enough vertical space for the shell body and persistent footer.
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(700, 100),
+            MinimumSize = new Vector2(700, 520),
         };
 
     // ---- LalaUiKit conversion (UI Refresh 2026-11, Brief R1-R13) ----
@@ -153,22 +156,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
 
     public override void Draw()
     {
-        Theme.PushFrame();
-        try
-        {
-            DrawTopBar();
-            if (!Service.Configuration.UILeftColumnCollapsed)
-                DrawNav();
-            else
-                DrawExpandButton();
-            DrawBody();
-            DrawFooter();
-        }
-        finally
-        {
-            Theme.PopFrame();
-        }
-
+        // Fork: the approved two-level shell owns navigation and page chrome; drag/drop behavior is unchanged.
+        GluttonyShell.Draw(this);
         Presets.DrawDragDrop();
     }
 

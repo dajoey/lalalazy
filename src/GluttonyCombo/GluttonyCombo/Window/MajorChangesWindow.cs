@@ -43,7 +43,9 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         BringToFront();
 
-        Flags = ImGuiWindowFlags.AlwaysAutoResize;
+        // Fork: custom title/close controls and a dedicated inner body replace native chrome and outer scrolling.
+        Flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar |
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     }
 
     /// <summary>
@@ -51,85 +53,105 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
     /// </summary>
     public override void Draw()
     {
+        // Fork: a real close button stays above the migration popup's only scroll region.
+        Theme.PushFrame();
+        GluttonyChrome.PushControlColors();
         PadOutMinimumWidthFor("Gluttony Combo | New Changes");
-
-        #region Tanks
-
-        Widgets.Title("Tank In-Combo Mitigation Has Been Overhauled and " +
-            "Moved");
-        if (WasUsingOldDRKConfigs || WasUsingOldGNBConfigs ||
-            WasUsingOldPLDConfigs || WasUsingOldWARConfigs)
-            ImGuiEx.Text(Theme.StateAmber,
-                "You had one of these tanks configured! Please Read!");
-        ImGuiEx.Text(
-            "Tanks have had their In-Combo Mitigation completely overhauled.\n" +
-            "No longer is their mitigation settings in each combo, and " +
-            "no longer is mitigation entirely triggered by HP%.\n" +
-            "Mitigation is now in its own Section, under the Advanced Combos, " +
-            "and those options apply to the Advanced Combos\nif they have " +
-            "'Include Mitigations' checked.\n" +
-            "(Simple Modes will use the recommended values for these settings, " +
-            "if 'Include Mitigations' is checked there)" +
-            "\n\n" +
-            "You can find these moved mitigation settings here:\n" +
-            "PvE Features > [Tank of choice] > Advanced Mitigation Options\n\n" +
-            "Make sure Mitigation is enabled in combos for these to work:\n" +
-            "PvE Features > [Tank of choice] > Advanced/Simple Combo > Include " +
-            "Mitigations");
         ImGui.NewLine();
-        if (ImGui.Button("> Open Dark Knight's Config##majorSettings2"))
-            GluttonyCombo.P.HandleOpenCommand(["DRK"], forceOpen: true);
-        ImGui.SameLine();
-        ImGui.Text("(then just search for 'Mitigation')");
-        if (ImGui.Button("> Open Gun Breaker's Config##majorSettings2"))
-            GluttonyCombo.P.HandleOpenCommand(["GNB"], forceOpen: true);
-        if (ImGui.Button("> Open Paladin's Config##majorSettings3"))
-            GluttonyCombo.P.HandleOpenCommand(["PLD"], forceOpen: true);
-        if (ImGui.Button("> Open Warrior's Config##majorSettings4"))
-            GluttonyCombo.P.HandleOpenCommand(["WAR"], forceOpen: true);
-
-        #endregion
-
-        ImGuiEx.Spacing(new System.Numerics.Vector2(0, 10));
-        ImGui.Separator();
-        ImGuiEx.Spacing(new System.Numerics.Vector2(0, 10));
-
-        #region Raidwides/Tankbusters
-        
-        Widgets.Title("Raidwide-Detection Improved, Tankbuster Detection Added");
-        ImGuiEx.Text(
-            "Raidwide detection has been improved to now also check for nearby\n" +
-            "stack marker visual effects, in addition to the existing raidwide " +
-            "cast detection.\n" +
-            "(No change by you is needed for this, it's just expanded now)" +
-            "\n\n" +
-            "Tankbuster detection has been added by checking for visual effects!\n" +
-            "Options to mitigate as a tank for these is in the new mitigation " +
-            "options above.\n\n" +
-            "Find the new tankbuster mitigation options here:\n" +
-            "PvE Features > [Tank of choice] > Advanced Mitigation Options > " +
-            "Boss Encounter\n" +
-            "(can also search for 'Tankbuster' in your tank's configuration)"
-        );
-
-        #endregion
-
-        #region Close and Do not Show again
-
-        ImGuiEx.Spacing(new System.Numerics.Vector2(0, 20));
-        ImGui.Separator();
-        ImGuiHelpers.CenterCursorFor(
-            ImGuiHelpers.GetButtonSize("Close and Do Not Show again").X
-            //+ ImGui.GetStyle().ItemSpacing.X * 2
-        );
-        if (ImGui.Button("Close and Do Not Show again"))
-        {
-            Service.Configuration.HideMajorChangesForVersion = Version;
-            Service.Configuration.Save();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        if (GluttonyChrome.CloseButton(ImGui.GetWindowDrawList(), "migration",
+                origin + new System.Numerics.Vector2(width - GluttonyChrome.CloseButtonSize, 0)))
             IsOpen = false;
-        }
+        ImGui.SetCursorScreenPos(origin + new System.Numerics.Vector2(0, GluttonyChrome.CloseButtonSize + 8));
+        var bodyHeight = MathF.Min(560, MathF.Max(240, ImGui.GetMainViewport().Size.Y - 260));
+        using (ImRaii.Child("majorChangesBody", new System.Numerics.Vector2(0, bodyHeight), false))
+        {
+            GluttonyChrome.Card("major_changes", () =>
+        {
+            Widgets.Title("Important changes");
+            Widgets.SecondaryWrapped("Two existing setup guides explain the moved mitigation options.");
 
-        #endregion
+            #region Tanks
+
+            Widgets.Title("Tank In-Combo Mitigation Has Been Overhauled and " +
+                "Moved");
+            if (WasUsingOldDRKConfigs || WasUsingOldGNBConfigs ||
+                WasUsingOldPLDConfigs || WasUsingOldWARConfigs)
+                ImGuiEx.Text(Theme.StateAmber,
+                    "You had one of these tanks configured! Please Read!");
+            ImGuiEx.Text(
+                "Tanks have had their In-Combo Mitigation completely overhauled.\n" +
+                "No longer is their mitigation settings in each combo, and " +
+                "no longer is mitigation entirely triggered by HP%.\n" +
+                "Mitigation is now in its own Section, under the Advanced Combos, " +
+                "and those options apply to the Advanced Combos\nif they have " +
+                "'Include Mitigations' checked.\n" +
+                "(Simple Modes will use the recommended values for these settings, " +
+                "if 'Include Mitigations' is checked there)" +
+                "\n\n" +
+                "You can find these moved mitigation settings here:\n" +
+                "PvE Features > [Tank of choice] > Advanced Mitigation Options\n\n" +
+                "Make sure Mitigation is enabled in combos for these to work:\n" +
+                "PvE Features > [Tank of choice] > Advanced/Simple Combo > Include " +
+                "Mitigations");
+            ImGui.NewLine();
+            if (ImGui.Button("> Open Dark Knight's Config##majorSettings2"))
+                GluttonyCombo.P.HandleOpenCommand(["DRK"], forceOpen: true);
+            ImGui.SameLine();
+            ImGui.Text("(then just search for 'Mitigation')");
+            if (ImGui.Button("> Open Gun Breaker's Config##majorSettings2"))
+                GluttonyCombo.P.HandleOpenCommand(["GNB"], forceOpen: true);
+            if (ImGui.Button("> Open Paladin's Config##majorSettings3"))
+                GluttonyCombo.P.HandleOpenCommand(["PLD"], forceOpen: true);
+            if (ImGui.Button("> Open Warrior's Config##majorSettings4"))
+                GluttonyCombo.P.HandleOpenCommand(["WAR"], forceOpen: true);
+
+            #endregion
+
+            ImGuiEx.Spacing(new System.Numerics.Vector2(0, 10));
+            ImGui.Separator();
+            ImGuiEx.Spacing(new System.Numerics.Vector2(0, 10));
+
+            #region Raidwides/Tankbusters
+
+            Widgets.Title("Raidwide-Detection Improved, Tankbuster Detection Added");
+            ImGuiEx.Text(
+                "Raidwide detection has been improved to now also check for nearby\n" +
+                "stack marker visual effects, in addition to the existing raidwide " +
+                "cast detection.\n" +
+                "(No change by you is needed for this, it's just expanded now)" +
+                "\n\n" +
+                "Tankbuster detection has been added by checking for visual effects!\n" +
+                "Options to mitigate as a tank for these is in the new mitigation " +
+                "options above.\n\n" +
+                "Find the new tankbuster mitigation options here:\n" +
+                "PvE Features > [Tank of choice] > Advanced Mitigation Options > " +
+                "Boss Encounter\n" +
+                "(can also search for 'Tankbuster' in your tank's configuration)"
+            );
+
+            #endregion
+
+            #region Close and Do not Show again
+
+            ImGuiEx.Spacing(new System.Numerics.Vector2(0, 20));
+            ImGui.Separator();
+            ImGuiHelpers.CenterCursorFor(
+                ImGuiHelpers.GetButtonSize("Close and Do Not Show again").X
+            );
+            if (ImGui.Button("Close and Do Not Show again"))
+            {
+                Service.Configuration.HideMajorChangesForVersion = Version;
+                Service.Configuration.Save();
+                IsOpen = false;
+            }
+
+            #endregion
+        });
+        }
+        GluttonyChrome.PopControlColors();
+        Theme.PopFrame();
 
         if (_centeredWindow < 5)
             CenterWindow();

@@ -104,11 +104,7 @@ internal class Debug : ConfigWindow, IDisposable
 
     internal new static unsafe void Draw()
     {
-        Layout.PageHeader(null, FontAwesomeIcon.Bug.ToIconString(), "DEBUG",
-            "This is where you can figure out where it all went wrong.",
-            PingPluginIPC.CanGetPing ? $"{PingPluginIPC.LastPing}ms ping" : "ping unavailable");
-        ImGui.Dummy(new Vector2(0, Theme.Unit));
-
+        // Fork: the shell owns the debug page header; live diagnostic sections are unchanged.
         #region Debug Walking
 
         if (DebugConfig)
@@ -1702,7 +1698,8 @@ internal class Debug : ConfigWindow, IDisposable
 
         #region Hidden Features
 
-        if (ImGui.Checkbox("Show Hidden Features",
+        // Fork: drawn track toggle; the saved value is unchanged.
+        if (GluttonyChrome.Toggle("Show Hidden Features",
                 ref Service.Configuration.ShowHiddenFeatures))
             Service.Configuration.Save();
 

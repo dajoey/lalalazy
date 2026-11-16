@@ -33,14 +33,12 @@ internal class AutoRotationTab : ConfigWindow
         var cfg = Service.Configuration.RotationConfig;
         bool changed = false;
 
-        Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), MainWindowUI.Button_AutoRotation,
-            AutoRotationUI.Info_Header, $"{(cfg.Enabled ? "Enabled" : "Off")}");
-
+        // Fork: the shell owns the page header; boolean settings use drawn tracks with unchanged save semantics.
         if (P.UIHelper.ShowIPCControlledIndicatorIfNeeded())
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
         else
-            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
 
         Widgets.Title(AutoRotationUI.CombatSettingHeader);
 
@@ -53,7 +51,7 @@ internal class AutoRotationTab : ConfigWindow
         // OutOfCombatGate.ExternalControl* / OutOfCombatAttacksAllowed. A fresh lease
         // lifts the restriction for hostile-only presses and the DPS hard-target write
         // while it lasts; the saved options are read, never written.
-        changed |= Widgets.Checkbox(
+        changed |= GluttonyChrome.Toggle(
             "Attack out of combat while another plugin controls Gluttony",
             ref cfg.AttackOutOfCombatWhileControlled);
         ImGuiComponents.HelpMarker(
@@ -70,7 +68,7 @@ internal class AutoRotationTab : ConfigWindow
         if (inCombatOnly)
         {
             ImGuiExtensions.Prefix(false);
-            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_BypassSelfUse, ref cfg.BypassBuffs);
             ImGuiComponents.HelpMarker(
                 Text.FormatAndCache(
                     AutoRotationUI.HelpText_BypassSelfUse,
@@ -110,8 +108,8 @@ internal class AutoRotationTab : ConfigWindow
 
         Widgets.Title(AutoRotationUI.AutomaticActivationHeader);
 
-        changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
-        changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);
+        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
+        changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_DisableInstanceExit, ref cfg.DisableAfterInstance);
 
         if (ImGui.CollapsingHeader(AutoRotationUI.Label_DamageSettings))
         {
@@ -129,12 +127,12 @@ internal class AutoRotationTab : ConfigWindow
             if (ImGui.CollapsingHeader("Fight Brain (log-only)"))
             {
                 var fb = cfg.FightBrain;
-                changed |= Widgets.Checkbox("Enable the Fight Brain (forecast reads and FB| log lines)", ref fb.Enabled);
-                changed |= Widgets.Checkbox("Show the countdown strip", ref fb.ShowStrip);
+                changed |= GluttonyChrome.Toggle("Enable the Fight Brain (forecast reads and FB| log lines)", ref fb.Enabled);
+                changed |= GluttonyChrome.Toggle("Show the countdown strip", ref fb.ShowStrip);
                 ImGuiComponents.HelpMarker(
                     "The strip lists what the code forecast says is coming (BossMod Reborn's " +
                     "timeline and hints plus enemy casts), code forecasts only.");
-                changed |= Widgets.Checkbox("Party Shadow", ref fb.PartyShadow);
+                changed |= GluttonyChrome.Toggle("Party Shadow", ref fb.PartyShadow);
                 ImGuiComponents.HelpMarker(
                     "Party Shadow: the FB|party-mit mitigation tally and the FB|pos-zone " +
                     "position lines. Log only, pure code.");
@@ -145,7 +143,7 @@ internal class AutoRotationTab : ConfigWindow
             }
 
             // Fork (1.0.4.258): out-of-range fallback - decision core AutoRotation/RangeFallbackGate.cs.
-            changed |= Widgets.Checkbox(
+            changed |= GluttonyChrome.Toggle(
                 "Attack an in-range enemy when the chosen target is out of range",
                 ref cfg.DPSSettings.FallbackToInRangeEnemy);
             ImGuiComponents.HelpMarker(
@@ -160,14 +158,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSRotationMode is DPSRotationMode.Manual)
             {
                 ImGuiExtensions.Prefix(!cfg.DPSSettings.AoEIgnoreManual);
-                changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);
+                changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_EnforceBestAoETarget, ref cfg.DPSSettings.AoEIgnoreManual);
 
                 ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_EnforceBestAoETarget);
 
                 if (cfg.DPSSettings.AoEIgnoreManual)
                 {
                     ImGuiExtensions.Prefix(true);
-                    changed |= Widgets.Checkbox(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);
+                    changed |= GluttonyChrome.Toggle(AutoRotationUI.OnlyAoEManualTargetSet, ref cfg.DPSSettings.AoEOnlyWhenTargeting);
 
                     ImGuiComponents.HelpMarker(AutoRotationUI.OnlyAoEManualTargetSetHelp);
                 }
@@ -204,9 +202,9 @@ internal class AutoRotationTab : ConfigWindow
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_QuestPriority, ref cfg.DPSSettings.QuestPriority, "QuestPriority");
-            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_TreasureHuntPriority);
-            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
 
             if (cfg.DPSSettings.PreferNonCombat && changed)
                 cfg.DPSSettings.OnlyAttackInCombat = false;
@@ -218,7 +216,7 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.DPSSettings.OnlyAttackInCombat && changed)
                 cfg.DPSSettings.PreferNonCombat = false;
 
-            changed |= Widgets.Checkbox(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);
+            changed |= GluttonyChrome.Toggle(AutoRotationUI.Checkbox_UnTargetAndDisableForPenalty, ref cfg.DPSSettings.UnTargetAndDisableForPenalty);
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
@@ -358,29 +356,29 @@ internal class AutoRotationTab : ConfigWindow
                 );
 
                 ImGui.Indent();
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Text.FormatAndCache(AutoRotationUI.Checkbox_AutoRezRequireSwiftJob,
                         Job.WHM.Shorthand(), Job.CNJ.Shorthand()) + "##AutoRezRequireSwiftWHM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftWHM);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.SCH.Shorthand() + "##AutoRezRequireSwiftSCH",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSCH);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.AST.Shorthand() + "##AutoRezRequireSwiftAST",
                     ref cfg.HealerSettings.AutoRezRequireSwiftAST);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.SGE.Shorthand() + "##AutoRezRequireSwiftSGE",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSGE);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.SMN.Shorthand() + "##AutoRezRequireSwiftSMN",
                     ref cfg.HealerSettings.AutoRezRequireSwiftSMN);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.BLU.Shorthand() + "##AutoRezRequireSwiftBLU",
                     ref cfg.HealerSettings.AutoRezRequireSwiftBLU);
 
                 // RDM is the one row whose OFF state does something new, so it is the one
                 // row that explains itself.
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Job.RDM.Shorthand() + "##AutoRezRequireSwiftRDM",
                     ref cfg.HealerSettings.AutoRezRequireSwiftRDM);
                 ImGuiComponents.HelpMarker(
@@ -456,14 +454,14 @@ internal class AutoRotationTab : ConfigWindow
             if (cfg.HealerSettings.ManageKardia)
             {
                 ImGuiExtensions.Prefix(cfg.HealerSettings.ManageKardia);
-                changed |= Widgets.Checkbox(
+                changed |= GluttonyChrome.Toggle(
                     Text.FormatAndCache(
                         AutoRotationUI.Checkbox_KardiaTanksOnly,
                         SGE.Kardia.ActionName()),
                     ref cfg.HealerSettings.KardiaTanksOnly);
             }
 
-            changed |= Widgets.Checkbox(
+            changed |= GluttonyChrome.Toggle(
                 Text.FormatAndCache(
                     AutoRotationUI.Checkbox_PreEmptiveHoT,
                     Job.WHM.Shorthand(),
