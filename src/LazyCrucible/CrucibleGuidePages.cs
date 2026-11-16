@@ -92,21 +92,18 @@ internal static class CrucibleGuidePages
         CrucibleCard.Draw("fight_navigation", 0, () =>
         {
             CruciblePages.Section("Fight navigation");
-            ImGui.Checkbox("Follow the next fight", ref shell.GuideFollow);
+            CrucibleChrome.Toggle("Follow the next fight", ref shell.GuideFollow, null);
             Widgets.Caption(RunTracker.Focus.Battle >= 0
                 ? $"next: {BST_CrucibleData.BattleLabel(RunTracker.Focus.Board, RunTracker.Focus.Battle)}"
                 : "no fight in focus");
             Widgets.Secondary("Board");
+            var boardButtonWidth = MathF.Min(46, (ImGui.GetContentRegionAvail().X - (4 * 2 * Theme.Unit)) / 5);
             for (var b = 1; b <= 5; b++)
             {
                 if (b > 1)
-                {
-                    if (ImGui.GetContentRegionAvail().X < 36)
-                        ImGui.NewLine();
-                    else
-                        ImGui.SameLine();
-                }
-                if (ImGui.RadioButton($"{b}##guideBoard", shell.GuideBoard == b))
+                    ImGui.SameLine();
+                if (CrucibleChrome.OutlineButton(ImGui.GetWindowDrawList(), $"guide_board_{b}", b.ToString(),
+                        ImGui.GetCursorScreenPos(), new Vector2(boardButtonWidth, 28), shell.GuideBoard == b))
                 {
                     shell.GuideBoard = b;
                     shell.GuideBattle = 1;
@@ -138,13 +135,28 @@ internal static class CrucibleGuidePages
                     Widgets.SecondaryWrapped("Captured list unavailable; ranking assumes every familiar is captured.");
                 foreach (var pick in selection.Picks)
                 {
+                    var start = ImGui.GetCursorPos();
+                    var available = ImGui.GetContentRegionAvail().X;
                     var point = ImGui.GetCursorScreenPos();
                     ImGui.GetWindowDrawList().AddCircleFilled(point + new Vector2(4, 8), 4, Theme.Pack(Theme.Accent));
-                    var labelX = ImGui.GetCursorPosX() + 16;
+                    var labelX = start.X + 16;
                     ImGui.SetCursorPosX(labelX);
                     Widgets.Body(CruciblePages.BeastName(pick.Row));
-                    ImGui.SetCursorPosX(labelX);
-                    Widgets.SecondaryWrapped(pick.Why);
+                    var nameBottom = ImGui.GetCursorPosY();
+                    if (available >= 420)
+                    {
+                        ImGui.SetCursorPos(new Vector2(start.X + 180, start.Y));
+                        ImGui.PushTextWrapPos(start.X + available);
+                        Widgets.SecondaryWrapped(pick.Why);
+                        ImGui.PopTextWrapPos();
+                        ImGui.SetCursorPos(new Vector2(start.X, MathF.Max(nameBottom, ImGui.GetCursorPosY())));
+                    }
+                    else
+                    {
+                        ImGui.SetCursorPosX(labelX);
+                        Widgets.SecondaryWrapped(pick.Why);
+                        ImGui.SetCursorPosX(start.X);
+                    }
                 }
             },
             () => DrawCalls(fight, selection));
@@ -181,11 +193,11 @@ internal static class CrucibleGuidePages
         foreach (var row in rows)
         {
             var state = row.Covered ? UiState.Ready : row.Warn ? UiState.Blocked : UiState.Idle;
-            Widgets.StateText(row.Covered ? "✓" : row.Warn ? "!" : "·", state);
-            ImGui.SameLine();
-            var by = row.Covered ? $" — {CruciblePages.BeastName(row.CoveredBy)}" : $" — {row.WhyNot}";
-            ImGui.TextWrapped($"{row.What}{UiPresentationLogic.TierSuffix(row.Tier)}{by}");
-            Widgets.StateText(row.Covered ? "Ready" : row.Warn ? "Needed" : "Useful", state);
+            var detail = row.Covered
+                ? $"{row.Tool} — {CruciblePages.BeastName(row.CoveredBy)}"
+                : row.WhyNot ?? "No horn pick answers this call";
+            CallLine(row.Covered ? "✓" : row.Warn ? "!" : "·", row.What + UiPresentationLogic.TierSuffix(row.Tier), detail,
+                row.Covered ? "Ready" : row.Warn ? "Needed" : "Useful", state);
             Src(row.Src.ToList());
         }
         foreach (var row in mitigation)
@@ -197,29 +209,65 @@ internal static class CrucibleGuidePages
             Src(row.Src.ToList());
         }
         foreach (var mechanic in fight.Mechanics.Where(m => m.Tell.Contains("never interruptible", StringComparison.OrdinalIgnoreCase)))
-        {
-            Widgets.StateText("•", UiState.Blocked);
-            ImGui.SameLine();
-            Widgets.Body(mechanic.Name);
-            Widgets.StateText("Guide call", UiState.Blocked);
-            Widgets.SecondaryWrapped(mechanic.Do);
-        }
+            CallLine("•", mechanic.Name, mechanic.Do, "Guide call", UiState.Blocked);
         if (rows.Count == 0 && mitigation.Count == 0)
             Widgets.Secondary("No required horn calls for this fight.");
+    }
+
+    private static void CallLine(string mark, string main, string detail, string stateLabel, UiState state)
+    {
+        var start = ImGui.GetCursorPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        var stateWidth = ImGui.CalcTextSize(stateLabel).X;
+        Widgets.StateText(mark, state);
+        ImGui.SameLine();
+        if (width >= 300)
+        {
+            ImGui.PushTextWrapPos(start.X + width - stateWidth - 12);
+            ImGui.TextWrapped(main);
+            ImGui.PopTextWrapPos();
+            var mainBottom = ImGui.GetCursorPosY();
+            ImGui.SetCursorPos(new Vector2(start.X + width - stateWidth, start.Y));
+            ImGui.GetWindowDrawList().AddText(ImGui.GetCursorScreenPos(), Theme.Pack(Copy.MarkColor(state)), stateLabel);
+            ImGui.SetCursorPos(new Vector2(start.X + 20, MathF.Max(mainBottom, start.Y + ImGui.GetTextLineHeight() + Theme.ItemSpacing.Y)));
+        }
+        else
+        {
+            ImGui.TextWrapped(main);
+            Widgets.StateText(stateLabel, state);
+            ImGui.SetCursorPosX(start.X + 20);
+        }
+        if (detail.Length > 0)
+            Widgets.SecondaryWrapped(detail);
     }
 
     private static void MechanicCard(GuideMechanic mechanic, bool danger)
     {
         CrucibleCard.Row("mechanic_" + mechanic.Name, () =>
         {
-            var name = mechanic.Cast is { } cast ? $"{mechanic.Name} ({cast:0.#} s)" : mechanic.Name;
+            var start = ImGui.GetCursorPos();
+            var width = ImGui.GetContentRegionAvail().X;
+            var wide = width >= 560 && ImGui.CalcTextSize(mechanic.Name).X < width - 260;
+            var showBadge = wide && mechanic.Cast.HasValue && ImGui.CalcTextSize(mechanic.Name).X <= 120;
+            var name = !showBadge && mechanic.Cast is { } cast ? $"{mechanic.Name} ({cast:0.#} s)" : mechanic.Name;
             if (danger)
                 Widgets.StateText(name, UiState.Blocked);
             else
                 Widgets.Body(name);
-            Src(mechanic.Src);
-            if (mechanic.Cast is { } seconds)
-                Widgets.StateText($"{seconds:0.#} s", UiState.Blocked);
+            var nameBottom = ImGui.GetCursorPosY();
+            if (showBadge && mechanic.Cast is { } seconds)
+            {
+                var draw = ImGui.GetWindowDrawList();
+                var text = $"{seconds:0.#} s";
+                var textSize = ImGui.CalcTextSize(text);
+                var badgePos = ImGui.GetCursorScreenPos() - new Vector2(0, ImGui.GetTextLineHeightWithSpacing());
+                badgePos += new Vector2(146, -2);
+                draw.AddRectFilled(badgePos, badgePos + textSize + new Vector2(16, 8), Theme.Pack(Theme.StateAmber with { W = 0.16f }), 8);
+                draw.AddText(badgePos + new Vector2(8, 4), Theme.Pack(Theme.StateAmber), text);
+            }
+            var instructionX = wide ? start.X + MathF.Max(230, ImGui.CalcTextSize(name).X + 24) : start.X;
+            if (wide)
+                ImGui.SetCursorPos(new Vector2(instructionX, start.Y));
             if (mechanic.Tell.Length > 0)
             {
                 Widgets.Caption("Tell");
@@ -228,22 +276,20 @@ internal static class CrucibleGuidePages
             }
             if (mechanic.Do.Length > 0)
             {
+                ImGui.SetCursorPosX(instructionX);
                 Widgets.Caption("Do");
                 ImGui.SameLine();
                 ImGui.TextWrapped(mechanic.Do);
             }
+            ImGui.SetCursorPos(new Vector2(start.X, MathF.Max(nameBottom, ImGui.GetCursorPosY())));
+            Src(mechanic.Src);
         }, 64);
     }
 
     private static void Src(List<string> src)
     {
-        if (src.Count == 0)
-            return;
-        if (ImGui.GetContentRegionAvail().X < 80)
-            ImGui.NewLine();
-        else
-            ImGui.SameLine();
-        Widgets.Caption($"[{string.Join(" ", src)}]");
+        if (src.Count > 0)
+            Widgets.SecondaryWrapped($"[{string.Join(" ", src)}]");
     }
 
     private static void DrawBringAndFacts(GuideFight fight)

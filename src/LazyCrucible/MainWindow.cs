@@ -1,4 +1,5 @@
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 
 namespace LazyCrucible;
@@ -13,7 +14,11 @@ internal sealed class MainWindow : Window
     {
         _plugin = plugin;
         _shell = shell;
+        _shell.CloseRequested = () => IsOpen = false;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(420, 300), MaximumSize = new Vector2(1400, 1400) };
+        Size = new Vector2(1280, 840);
+        SizeCondition = ImGuiCond.FirstUseEver;
     }
 
     public override void Draw() => _shell.Draw(_plugin);

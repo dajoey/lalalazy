@@ -1,6 +1,5 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using LalaUiKit;
 
 namespace LazyCrucible;
@@ -10,6 +9,10 @@ internal sealed record CruciblePage(string Id, string Group, string Title, strin
 /// <summary>Per-plugin navigation, focus, search, status and save-on-change state for the structural UI.</summary>
 internal sealed class CrucibleShell
 {
+    private const float ControlHeight = 34f;
+    private const float WideFooterHeight = 68f;
+    private const float NarrowFooterHeight = 100f;
+
     public const string OverviewPage = "shell.overview";
     public const string RosterHornsPage = "run.roster_horns";
     public const string UpcomingPage = "guide.upcoming";
@@ -17,18 +20,18 @@ internal sealed class CrucibleShell
 
     public static readonly CruciblePage[] Pages =
     [
-        new(OverviewPage, "Home", "Crucible overview", "Live readiness, recent activity, and useful destinations.", "home overview readiness activity"),
+        new(OverviewPage, "Home", "Crucible overview", "Live readiness, recent activity, and the next useful destination.", "home overview readiness activity"),
         new("run.board_overview", "Run", "Board overview", "Board progression and the fight currently in focus.", "run board progression"),
-        new(RosterHornsPage, "Run", "Roster & horns", "Familiar roster settings and the live Battlehorn plan.", "run roster horns score auto duty"),
-        new("run.feed_shop", "Run", "Feed & shop", "Feeding, purchases and score-goal behavior.", "run feed shop score goal"),
-        new("run.campsite", "Run", "Campsite", "Familiar rest selection with Rest left to the player.", "run campsite rest"),
-        new("run.display_logging", "Run", "Display & logging", "Guide opening, announcements and read-only recording.", "display logging announce record report"),
-        new("rewards.spoils", "Rewards", "Spoils", "Take all only when rewards fit; otherwise choose.", "rewards spoils loot"),
-        new("rewards.treasure", "Rewards", "Treasure", "Suggestion-only coffer guidance.", "rewards treasure coffer"),
-        new(UpcomingPage, "Guide", "Upcoming fight", "Horn picks, calls, mechanics and advice for one fight.", "guide upcoming follow fight"),
+        new(RosterHornsPage, "Run", "Roster & horns", "Prepares the familiar roster and Battlehorn picks for the active board.", "run roster horns score auto duty"),
+        new("run.feed_shop", "Run", "Feed & shop", "Keeps feeding and purchases aligned with the fights ahead.", "run feed shop score goal"),
+        new("run.campsite", "Run", "Campsite", "Selects familiars worth resting while leaving Rest to the player.", "run campsite rest"),
+        new("run.display_logging", "Run", "Display & logging", "Controls guide opening, announcements, and read-only screen recording.", "display logging announce record report"),
+        new("rewards.spoils", "Rewards", "Spoils", "Take all only when the rewards fit; otherwise keep the choice visible.", "rewards spoils loot"),
+        new("rewards.treasure", "Rewards", "Treasure", "Suggests the best coffer without pressing a choice.", "rewards treasure coffer"),
+        new(UpcomingPage, "Guide", "Upcoming fight", "Real horn picks, calls, mechanics, and advice for the focused fight.", "guide upcoming follow fight"),
         new("guide.browse", "Guide", "Browse boards", "Browse every real guide entry by board and battle.", "guide browse boards battles"),
-        new(AdvisorPage, "Guide", "Beast picks by battle", "Board advisor, ranked picks and capture advice.", "guide beast picks advisor bestiary capture"),
-        new("guide.recent", "Guide", "What LazyCrucible chose this session", "The newest 30 selection decisions.", "guide recent choices session"),
+        new(AdvisorPage, "Guide", "Beast picks by battle", "The existing advisor: roster, battle picks, and capture advice.", "guide beast picks advisor bestiary capture"),
+        new("guide.recent", "Guide", "What LazyCrucible chose this session", "The newest 30 real selection decisions, with their reasons.", "guide recent choices session"),
     ];
 
     private Plugin? _plugin;
@@ -44,6 +47,7 @@ internal sealed class CrucibleShell
     public bool GuideFollow = true;
     public IncomingCast? Incoming { get; private set; }
     public CruciblePage Current => Pages.First(p => p.Id == CurrentPage);
+    public Action? CloseRequested { get; set; }
 
     private (int Board, int Battle) _lastFocus = (0, -1);
 
@@ -107,7 +111,7 @@ internal sealed class CrucibleShell
             DrawFeatureRow();
             DrawPageHeader();
             DrawStatusBanner();
-            var footerHeight = (2 * ImGui.GetFrameHeightWithSpacing()) + (2 * Theme.Unit);
+            var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
             ImGui.BeginChild("##crucibleBody", new Vector2(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
             CruciblePages.Render(this, CurrentPage);
             ImGui.EndChild();
@@ -121,17 +125,10 @@ internal sealed class CrucibleShell
         }
     }
 
-    public void Setting(string literalLabel, Func<bool> get, Action<bool> set)
+    public void Setting(string literalLabel, Func<bool> get, Action<bool> set, string? help = null)
     {
         var value = get();
-        ImGui.PushStyleColor(ImGuiCol.CheckMark, Theme.Accent);
-        var changed = ImGui.Checkbox("##crucible_setting_" + literalLabel, ref value);
-        ImGui.PopStyleColor();
-        ImGui.SameLine();
-        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
-        ImGui.TextWrapped(literalLabel);
-        ImGui.PopTextWrapPos();
-        if (!changed)
+        if (!CrucibleChrome.Toggle(literalLabel, ref value, help))
             return;
         set(value);
         _changed = true;
@@ -172,76 +169,149 @@ internal sealed class CrucibleShell
     private void DrawTopGroups()
     {
         var width = ImGui.GetContentRegionAvail().X;
-        var p = ImGui.GetCursorScreenPos();
-        var height = Theme.PillHeight;
-        var dl = ImGui.GetWindowDrawList();
-        dl.AddRectFilled(p, p + new Vector2(width, height), Theme.Pack(Theme.ShellBar), 4f);
-        dl.AddRect(p, p + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), 4f);
-        ImGui.SetCursorPos(ImGui.GetCursorPos() + new Vector2(2 * Theme.Unit, (height - ImGui.GetTextLineHeight()) / 2f));
-        Widgets.Title("LazyCrucible");
-        ImGui.SameLine();
-        foreach (var group in Pages.Select(p => p.Group).Distinct())
+        var origin = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        var gap = 2 * Theme.Unit;
+        var groups = Pages.Select(p => p.Group).Distinct().ToArray();
+        var brandSize = new Vector2(MathF.Max(180, (ImGui.CalcTextSize("LazyCrucible").X * Theme.TitleScale) + 68), 42);
+        var groupSizes = groups.Select(group => new Vector2(MathF.Max(72, ImGui.CalcTextSize(group).X + 32), ControlHeight)).ToArray();
+        var (state, _) = OverallState();
+        var stateLabel = Copy.Word(state);
+        var statusSize = new Vector2(MathF.Max(76, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
+        var closeSize = new Vector2(ControlHeight);
+        var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
+        const float minSearchWidth = 180;
+        const float maxSearchWidth = 280;
+        var singleRow = width >= leftWidth + minSearchWidth + statusSize.X + closeSize.X + (4 * gap);
+        var groupPositions = new Vector2[groups.Length];
+        var brandPos = new Vector2(0, 12);
+        float searchWidth;
+        Vector2 searchPos;
+        Vector2 statusPos;
+        Vector2 closePos;
+        float barHeight;
+
+        if (singleRow)
         {
-            var first = Pages.First(p => p.Group == group);
-            NavButton(group, Current.Group == group, () => CurrentPage = first.Id);
-            ImGui.SameLine();
+            barHeight = 66;
+            var x = brandSize.X + gap;
+            var y = (barHeight - ControlHeight) / 2f;
+            for (var i = 0; i < groups.Length; i++)
+            {
+                groupPositions[i] = new Vector2(x, y);
+                x += groupSizes[i].X + gap;
+            }
+            searchWidth = MathF.Min(maxSearchWidth, width - leftWidth - statusSize.X - closeSize.X - (4 * gap));
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, y);
+            closePos = new Vector2(width - closeSize.X, y);
+            searchPos = new Vector2(statusPos.X - gap - searchWidth, y);
         }
-        var (state, detail) = OverallState();
-        var pillDetail = state switch
+        else
         {
-            UiState.Missing => "Bestiary",
-            UiState.Ready when RunTracker.Focus.Battle < 0 => null,
-            _ => detail,
-        };
-        var word = Copy.Word(state);
-        var label = string.IsNullOrEmpty(pillDetail) ? $"Crucible · {word}" : $"Crucible · {word} · {pillDetail}";
-        var pillWidth = ImGui.CalcTextSize(label).X + 40;
-        if (ImGui.GetContentRegionAvail().X < pillWidth + Theme.Unit)
-            ImGui.NewLine();
-        var pillPos = new Vector2(p.X + width - pillWidth, p.Y);
-        dl.AddRectFilled(pillPos, pillPos + new Vector2(pillWidth, height), Theme.Pack(Theme.Surface), height / 2f);
-        dl.AddRect(pillPos, pillPos + new Vector2(pillWidth, height), Theme.Pack(Theme.SurfaceBorder), height / 2f);
-        dl.AddCircleFilled(pillPos + new Vector2(12, height / 2f), Theme.DotRadius, Theme.Pack(Copy.MarkColor(state)));
-        dl.AddText(pillPos + new Vector2(24, (height - ImGui.GetTextLineHeight()) / 2f), Theme.Pack(Theme.TextPrimary), label);
-        ImGui.SetCursorScreenPos(p + new Vector2(0, height + Theme.ItemSpacing.Y));
+            var groupsBesideBrand = leftWidth <= width;
+            var x = groupsBesideBrand ? brandSize.X + gap : 0;
+            var y = groupsBesideBrand ? 16f : 62f;
+            for (var i = 0; i < groups.Length; i++)
+            {
+                var buttonWidth = MathF.Min(groupSizes[i].X, width);
+                if (x > 0 && x + buttonWidth > width)
+                {
+                    x = 0;
+                    y += ControlHeight + gap;
+                }
+                groupPositions[i] = new Vector2(x, y);
+                x += buttonWidth + gap;
+            }
+            var navigationBottom = groupsBesideBrand ? brandPos.Y + brandSize.Y : y + ControlHeight;
+            var searchY = navigationBottom + gap;
+            searchWidth = MathF.Min(maxSearchWidth, MathF.Max(120, width - statusSize.X - closeSize.X - (2 * gap)));
+            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, searchY);
+            closePos = new Vector2(width - closeSize.X, searchY);
+            searchPos = new Vector2(statusPos.X - gap - searchWidth, searchY);
+            barHeight = searchY + ControlHeight + 12;
+        }
+
+        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        if (CrucibleChrome.BrandButton(draw, origin + brandPos, brandSize))
+            CurrentPage = OverviewPage;
+        for (var i = 0; i < groups.Length; i++)
+        {
+            var group = groups[i];
+            var first = Pages.First(p => p.Group == group);
+            NavButton("group_" + group, group, origin + groupPositions[i], groupSizes[i], Current.Group == group, () => CurrentPage = first.Id);
+        }
+        DrawSearchInput(origin + searchPos, searchWidth);
+        CrucibleChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (CrucibleChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+            CloseRequested?.Invoke();
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, barHeight));
     }
 
-    private static void NavButton(string label, bool selected, Action navigate)
+    private static void NavButton(string id, string label, Vector2 pos, Vector2 size, bool selected, Action navigate)
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, selected ? Theme.AccentActive : Theme.Surface);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.AccentHover);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.AccentActive);
-        if (ImGui.Button(label + (selected ? " •" : "")))
+        if (CrucibleChrome.OutlineButton(ImGui.GetWindowDrawList(), id, label, pos, size, selected))
             navigate();
-        ImGui.PopStyleColor(3);
     }
 
     private void DrawFeatureRow()
     {
-        foreach (var feature in Pages.Where(p => p.Group == Current.Group))
+        var width = ImGui.GetContentRegionAvail().X;
+        var origin = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        var gap = 3 * Theme.Unit;
+        var features = Pages.Where(p => p.Group == Current.Group).ToArray();
+        var titles = features.Select(FeatureTitle).ToArray();
+        var sizes = titles.Select(title => new Vector2(
+            MathF.Min(width, MathF.Max(110, ImGui.CalcTextSize(title).X + 52)), ControlHeight)).ToArray();
+        var positions = new Vector2[features.Length];
+        float x = 0;
+        float y = 8;
+        for (var i = 0; i < features.Length; i++)
         {
-            var title = feature.Id == AdvisorPage ? "Beast picks by battle" :
-                feature.Id == "guide.recent" ? "Recent choices" : feature.Title;
-            var width = ImGui.CalcTextSize(title).X + 32;
-            if (ImGui.GetContentRegionAvail().X < width + Theme.Unit)
-                ImGui.NewLine();
-            NavButton(title, CurrentPage == feature.Id, () => CurrentPage = feature.Id);
-            if (CurrentPage == feature.Id)
+            if (x > 0 && x + sizes[i].X > width)
             {
-                ImGui.SameLine();
-                Widgets.StatusDot(UiState.Ready);
+                x = 0;
+                y += ControlHeight + (2 * Theme.Unit);
             }
-            ImGui.SameLine();
+            positions[i] = new Vector2(x, y);
+            x += sizes[i].X + gap;
         }
-        ImGui.NewLine();
-        ImGui.Separator();
+        var barHeight = y + ControlHeight + 8;
+        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        for (var i = 0; i < features.Length; i++)
+        {
+            var feature = features[i];
+            if (CrucibleChrome.FeatureButton(draw, feature.Id, titles[i], origin + positions[i], sizes[i], CurrentPage == feature.Id))
+                CurrentPage = feature.Id;
+        }
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, barHeight));
+    }
+
+    private static string FeatureTitle(CruciblePage feature) => feature.Id == AdvisorPage ? "Beast picks by battle" :
+        feature.Id == "guide.recent" ? "Recent choices" : feature.Title;
+
+    private void DrawSearchInput(Vector2 pos, float width)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        ImGui.SetNextItemWidth(width);
+        var framePadding = Theme.FramePadding;
+        framePadding.Y = MathF.Max(framePadding.Y, (ControlHeight - ImGui.GetTextLineHeight()) / 2f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, framePadding);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
+        ImGui.InputTextWithHint("##crucibleSearch", "Search settings and fights...", ref SearchText, 256);
+        ImGui.PopStyleColor(3);
+        ImGui.PopStyleVar(2);
     }
 
     private void DrawSearch()
     {
-        var width = MathF.Min(360, MathF.Max(180, ImGui.GetContentRegionAvail().X));
-        ImGui.SetNextItemWidth(width);
-        ImGui.InputTextWithHint("##crucibleSearch", "Search settings and fights...", ref SearchText, 256);
         if (SearchText.Trim().Length == 0)
             return;
         var matches = Pages.Where(p => (p.Title + " " + p.SearchTerms).Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase)).Take(6).ToList();
@@ -270,18 +340,33 @@ internal sealed class CrucibleShell
             description = fight.Summary;
         }
         var count = CruciblePages.LiveCount(this, CurrentPage);
-        if (ImGui.GetContentRegionAvail().X < 620)
+        var subtext = CruciblePages.LiveSubtext(this, CurrentPage);
+        var width = ImGui.GetContentRegionAvail().X;
+        var origin = ImGui.GetCursorScreenPos();
+        var draw = ImGui.GetWindowDrawList();
+        var tileSize = new Vector2(42);
+        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
+        CrucibleChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
+
+        if (width >= 1100)
         {
-            Widgets.IconTile(null, FontAwesomeIcon.Paw.ToIconString(), new Vector2(Theme.NavTileSize), false);
-            Widgets.Title(title);
-            Widgets.Secondary(description);
-            Widgets.Caption(count);
+            var textX = origin.X + tileSize.X + 12;
+            var countWidth = ImGui.CalcTextSize(count).X;
+            var subtextWidth = ImGui.CalcTextSize(subtext).X;
+            DrawText(draw, new Vector2(textX, origin.Y), FitText(title, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
+            DrawText(draw, new Vector2(textX, origin.Y + 29), FitText(description, width - tileSize.X - 12 - subtextWidth - 16), Theme.TextSecondary);
+            DrawTextRight(draw, origin.X + width, origin.Y + 4, count, Theme.TextSecondary);
+            DrawTextRight(draw, origin.X + width, origin.Y + 31, subtext, Theme.TextSecondary);
+            ImGui.SetCursorScreenPos(origin + new Vector2(0, 58));
+            ImGui.Separator();
+            return;
         }
-        else
-        {
-            Layout.PageHeader(null, FontAwesomeIcon.Paw.ToIconString(), title, description, count);
-        }
-        Widgets.Caption(CruciblePages.LiveSubtext(this, CurrentPage));
+
+        DrawText(draw, origin + new Vector2(tileSize.X + 12, 4), FitText(title, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
+        ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 8));
+        Widgets.SecondaryWrapped(description);
+        Widgets.Caption(count);
+        Widgets.Caption(subtext);
         ImGui.Separator();
     }
 
@@ -317,13 +402,17 @@ internal sealed class CrucibleShell
         _ => reason,
     };
 
+    private static float FooterHeight(float width) => width < 620 ? NarrowFooterHeight : WideFooterHeight;
+
     private void DrawFooter()
     {
-        ImGui.Dummy(new Vector2(0, Theme.Unit));
-        ImGui.Separator();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        var height = FooterHeight(width);
+        var draw = ImGui.GetWindowDrawList();
+        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
         var (state, detail) = OverallState();
-        Widgets.StatusDot(state);
-        ImGui.SameLine();
         string primary;
         string secondary;
         if (Current.Group == "Guide")
@@ -347,18 +436,53 @@ internal sealed class CrucibleShell
             primary = PetSelect.LastSummary.Length == 0 ? "No familiar selection yet this session." : $"{PetSelect.LastSummaryAt:HH:mm:ss}  {PetSelect.LastSummary}";
             secondary = SelectionScreens.Status.Length > 0 ? SelectionScreens.Status : detail;
         }
-        Widgets.Secondary(primary);
-        if (ImGui.GetContentRegionAvail().X < 230)
-            ImGui.NewLine();
-        else
-            ImGui.SameLine(ImGui.GetWindowWidth() - 220);
-        if (Current.Group == "Guide")
+
+        var actionLabel = Current.Group == "Guide" ? "Return to run setup" : "Open the fight guide";
+        var actionWidth = MathF.Min(width, MathF.Max(180, ImGui.CalcTextSize(actionLabel).X + 48));
+        var narrow = width < 620;
+        var actionPos = origin + new Vector2(width - actionWidth, narrow ? 56 : 16);
+        var textRight = narrow ? origin.X + width : actionPos.X - 16;
+        var textPos = origin + new Vector2(24, 9);
+        draw.AddCircleFilled(origin + new Vector2(10, 19), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        DrawText(draw, textPos, FitText(primary, textRight - textPos.X), Theme.TextPrimary);
+        DrawText(draw, textPos + new Vector2(0, 27), FitText(secondary, textRight - textPos.X), Theme.TextSecondary);
+        if (CrucibleChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, new Vector2(actionWidth, 36)))
         {
-            if (ImGui.Button("Return to run setup"))
+            if (Current.Group == "Guide")
                 CurrentPage = RosterHornsPage;
+            else
+                _plugin?.ToggleGuide();
         }
-        else if (ImGui.Button("Open the fight guide"))
-            _plugin?.ToggleGuide();
-        Widgets.Caption(secondary);
+        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
+    }
+
+    private static void DrawText(ImDrawListPtr draw, Vector2 pos, string text, Vector4 color, float scale = 1)
+    {
+        if (text.Length == 0)
+            return;
+        if (scale == 1)
+            draw.AddText(pos, Theme.Pack(color), text);
+        else
+            draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * scale, pos, Theme.Pack(color), text);
+    }
+
+    private static void DrawTextRight(ImDrawListPtr draw, float right, float y, string text, Vector4 color)
+    {
+        if (text.Length == 0)
+            return;
+        draw.AddText(new Vector2(right - ImGui.CalcTextSize(text).X, y), Theme.Pack(color), text);
+    }
+
+    private static string FitText(string text, float width, float scale = 1)
+    {
+        if (width <= 0)
+            return "";
+        if (ImGui.CalcTextSize(text).X * scale <= width)
+            return text;
+        const string ellipsis = "…";
+        var length = text.Length;
+        while (length > 0 && ImGui.CalcTextSize(text[..length] + ellipsis).X * scale > width)
+            length--;
+        return length == 0 ? "" : text[..length].TrimEnd() + ellipsis;
     }
 }

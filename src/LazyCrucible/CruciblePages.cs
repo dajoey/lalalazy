@@ -1,6 +1,5 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using ECommons.DalamudServices;
 using Lalalazy.Crucible;
 using LalaUiKit;
@@ -73,9 +72,9 @@ internal static class CruciblePages
             Widgets.Secondary(description);
     }
 
-    public static void TwoColumns(Action work, Action rail)
+    public static void TwoColumns(Action work, Action rail, float breakpoint = 760)
     {
-        if (ImGui.GetContentRegionAvail().X >= 760)
+        if (ImGui.GetContentRegionAvail().X >= breakpoint)
         {
             using var columns = Layout.TwoColumns.Begin(0.72f);
             work();
@@ -201,7 +200,7 @@ internal static class CruciblePages
                     new Stat("Required calls", selection is null ? "—" : required.Covered.ToString(), selection is null ? null : required.Total.ToString(),
                         selection is null ? "No fight in focus" : required.Total == 0 ? "No required calls" : "Covered by the live ranking", selection is null || required.Total == 0 ? null : required.Covered / (float)required.Total));
 
-                CrucibleCard.Draw("battlehorn_plan", 0, () =>
+                CrucibleCard.Draw("battlehorn_plan", focus is null ? 140 : 386, () =>
                 {
                     Section("Battlehorn plan", focus is null ? "No live horn plan" : $"{focus.Title} · {BST_CrucibleData.Boards[focus.Board - 1].Name}",
                         focus is null ? null : focus.Counters.Count + focus.Mechanics.Count + " guide calls");
@@ -220,7 +219,11 @@ internal static class CruciblePages
                             : match.WhyNot ?? "No horn pick answers this call";
                         PlanRow(counter.What, response, covered ? UiState.Ready : UiState.Blocked, covered ? "Ready" : "Needed");
                     }
-                    foreach (var mechanic in focus.Mechanics.Take(2))
+                    var guideCall = focus.Mechanics
+                        .OrderByDescending(mechanic => mechanic.Tell.Contains("never interruptible", StringComparison.OrdinalIgnoreCase))
+                        .ThenByDescending(mechanic => mechanic.Cast ?? 0)
+                        .Take(1);
+                    foreach (var mechanic in guideCall)
                         PlanRow(mechanic.Name, mechanic.Do, UiState.Blocked, "Guide call");
                     ImGui.Dummy(new Vector2(0, Theme.Unit));
                     CrucibleCard.Draw("recommended_horns", 0, () =>
@@ -235,7 +238,7 @@ internal static class CruciblePages
             },
             () =>
             {
-                CrucibleCard.Draw("requirements", 0, () =>
+                CrucibleCard.Draw("requirements", 160, () =>
                 {
                     Section("Requirements");
                     Requirement("Beastmaster", "Required", true);
@@ -243,19 +246,21 @@ internal static class CruciblePages
                     Requirement("Active board", ActiveBoard() != 0 ? "Ready" : "Optional", ActiveBoard() != 0);
                     Requirement("AutoDuty", PetSelect.YieldReason == "autoduty_running" ? "Standby" : "Optional", PetSelect.YieldReason != "autoduty_running");
                 });
-                CrucibleCard.Draw("roster_settings", 0, () =>
+                CrucibleCard.Draw("roster_settings", 338, () =>
                 {
                     Section("Settings");
-                    shell.Setting("Fill the run roster at the Bentbranch Meadows entry menu", () => cfg.AutoRoster, value => cfg.AutoRoster = value);
-                    Help("Once per entry-menu visit; a roster changed by hand is left alone until the next run.");
-                    shell.Setting("Score: three familiars", () => cfg.ScoreThreeFamiliars, value => cfg.ScoreThreeFamiliars = value);
-                    Help("Opt in to a three-familiar score roster; never used on an AutoDuty-driven screen.");
-                    shell.Setting("Fill the Battlehorn slots before each fight", () => cfg.AutoHorns, value => cfg.AutoHorns = value);
-                    Help("Ranks three answers to the fight's mechanics; never starts the fight.");
-                    shell.Setting("Stand down while AutoDuty is running", () => cfg.YieldToAutoDuty, value => cfg.YieldToAutoDuty = value);
-                    Help("Reads AutoDuty settings only; the two drivers never overwrite each other.");
+                    void SettingRow(string label, Func<bool> get, Action<bool> set)
+                    {
+                        var start = ImGui.GetCursorScreenPos();
+                        shell.Setting(label, get, set);
+                        ImGui.SetCursorScreenPos(new Vector2(start.X, start.Y + 64));
+                    }
+                    SettingRow("Fill the run roster at the Bentbranch Meadows entry menu", () => cfg.AutoRoster, value => cfg.AutoRoster = value);
+                    SettingRow("Score: three familiars", () => cfg.ScoreThreeFamiliars, value => cfg.ScoreThreeFamiliars = value);
+                    SettingRow("Fill the Battlehorn slots before each fight", () => cfg.AutoHorns, value => cfg.AutoHorns = value);
+                    SettingRow("Stand down while AutoDuty is running", () => cfg.YieldToAutoDuty, value => cfg.YieldToAutoDuty = value);
                 });
-            });
+            }, breakpoint: 980);
     }
 
     private static void PlanHeader()
@@ -314,7 +319,8 @@ internal static class CruciblePages
         if (labelWidth + valueWidth + 36 <= width)
         {
             ImGui.SetCursorPos(new Vector2(start.X + width - valueWidth, start.Y));
-            Widgets.Caption(value);
+            ImGui.GetWindowDrawList().AddText(ImGui.GetCursorScreenPos(), Theme.Pack(Theme.TextSecondary), value);
+            ImGui.SetCursorPos(new Vector2(start.X, start.Y + ImGui.GetTextLineHeight() + Theme.ItemSpacing.Y));
         }
         else
         {
@@ -438,7 +444,7 @@ internal static class CruciblePages
             draw.AddRect(pos, pos + new Vector2(width, height), Theme.Pack(Theme.SurfaceBorder), 8f);
 
             ImGui.SetCursorScreenPos(pos + new Vector2(12, 10));
-            Widgets.IconTile(null, FontAwesomeIcon.Paw.ToIconString(), new Vector2(18), false);
+            CrucibleChrome.Diamond(draw, pos + new Vector2(20, 20), 5, Theme.Pack(Theme.Accent));
             ImGui.SetCursorScreenPos(pos + new Vector2(38, 11));
             Widgets.Caption(stat.Label);
             ImGui.SetCursorScreenPos(pos + new Vector2(12, 34));
@@ -527,22 +533,21 @@ internal static class CrucibleCard
             right();
             return;
         }
-        var startX = ImGui.GetCursorPosX();
-        var startY = ImGui.GetCursorScreenPos().Y;
+        var start = ImGui.GetCursorScreenPos();
         var available = ImGui.GetContentRegionAvail().X;
         var gap = 2 * Theme.Unit;
         var leftWidth = (available - gap) * leftFraction;
         CrucibleCard.Draw("two_left", 0, left, CrucibleCardTone.Surface, leftWidth);
         var leftBottom = ImGui.GetCursorScreenPos().Y;
-        ImGui.SetCursorScreenPos(new Vector2(startX + leftWidth + gap, startY));
+        ImGui.SetCursorScreenPos(new Vector2(start.X + leftWidth + gap, start.Y));
         CrucibleCard.Draw("two_right", 0, right, CrucibleCardTone.Surface, available - leftWidth - gap);
         var rightBottom = ImGui.GetCursorScreenPos().Y;
-        ImGui.SetCursorScreenPos(new Vector2(startX, MathF.Max(leftBottom, rightBottom)));
+        ImGui.SetCursorScreenPos(new Vector2(start.X, MathF.Max(leftBottom, rightBottom)));
     }
 
     private static (uint Fill, uint Border) Colors(CrucibleCardTone tone) => tone switch
     {
-        CrucibleCardTone.Row => (Theme.Pack(Theme.ShellBar), Theme.Pack(Theme.SurfaceBorder)),
+        CrucibleCardTone.Row => (Theme.Pack(Theme.ShellBar), Theme.Pack(Theme.ShellBar)),
         CrucibleCardTone.Recommended => (Theme.Pack(Theme.StateGreen with { W = 0.13f }), Theme.Pack(Theme.SurfaceBorder)),
         CrucibleCardTone.Attention => (Theme.Pack(Theme.StateAmber with { W = 0.13f }), Theme.Pack(Theme.SurfaceBorder)),
         _ => (Theme.Pack(Theme.Surface), Theme.Pack(Theme.SurfaceBorder)),
