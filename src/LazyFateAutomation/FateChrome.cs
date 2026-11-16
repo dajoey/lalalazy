@@ -10,7 +10,8 @@ internal static class FateChrome
     internal const float Control = 36f;
     internal const float Radius = 8f;
     internal const float CardGap = 16f;
-    private const float PadX = 16f;
+    internal const float PadX = 16f;
+    internal const float RowPadY = 12f;
     private static readonly Vector2 ToggleSize = new(44, 24);
 
     private static readonly Stack<float> Rights = new();
@@ -238,19 +239,40 @@ internal static class FateChrome
     internal static float FeaturePillWidth(string label) => 16 + 12 + 8 + TextWidth(label, Theme.SecondaryScale) + 16 + 1;
 
     internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+        => HeaderIconButton(draw, "##fate_close", pos, size, "Close", cross: true);
+
+    /// <summary>Square header button with a drawn glyph (cross or dash) and a tooltip anchored below its box.</summary>
+    internal static bool HeaderIconButton(ImDrawListPtr draw, string id, Vector2 pos, Vector2 size, string tooltip, bool cross)
     {
         ImGui.SetCursorScreenPos(pos);
-        var clicked = ImGui.InvisibleButton("##fate_close", size);
+        var clicked = ImGui.InvisibleButton(id, size);
         var hovered = ImGui.IsItemHovered();
         draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Alpha(Theme.Accent, 0.14f) : Theme.Surface), Radius);
         draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
         var center = pos + (size / 2f);
         var color = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
-        draw.AddLine(center + new Vector2(-6, -6), center + new Vector2(6, 6), color, 1.5f);
-        draw.AddLine(center + new Vector2(-6, 6), center + new Vector2(6, -6), color, 1.5f);
+        if (cross)
+        {
+            draw.AddLine(center + new Vector2(-6, -6), center + new Vector2(6, 6), color, 1.5f);
+            draw.AddLine(center + new Vector2(-6, 6), center + new Vector2(6, -6), color, 1.5f);
+        }
+        else
+        {
+            draw.AddLine(center + new Vector2(-6, 0), center + new Vector2(6, 0), color, 1.5f);
+        }
         if (hovered)
-            AnchoredTooltip("Close", new Vector2(pos.X + size.X, pos.Y + size.Y + 4), new Vector2(1, 0));
+            AnchoredTooltip(tooltip, new Vector2(pos.X + size.X, pos.Y + size.Y + 4), new Vector2(1, 0));
         return clicked;
+    }
+
+    /// <summary>Per-FATE progress bar colour: the suite's progress colour unless the saved bar colour was changed from its original default.</summary>
+    internal static Vector4 ProgressColour(Vector4 saved)
+    {
+        var original = new Vector4(0.404f, 0.259f, 0.541f, 1f);
+        const float tolerance = 0.002f;
+        var isOriginal = MathF.Abs(saved.X - original.X) < tolerance && MathF.Abs(saved.Y - original.Y) < tolerance
+            && MathF.Abs(saved.Z - original.Z) < tolerance && MathF.Abs(saved.W - original.W) < tolerance;
+        return isOriginal ? Theme.StateGreen : saved;
     }
 
     internal static void AnchoredTooltip(string text, Vector2 anchor, Vector2 pivot)
@@ -290,13 +312,13 @@ internal static class FateChrome
 
     // ---- card ---------------------------------------------------------------------------------------------------
 
-    internal static void Card(string id, Action content, float minHeight = 0, float width = 0, bool row = false, bool fill = false, float? gap = null)
+    internal static void Card(string id, Action content, float minHeight = 0, float width = 0, bool row = false, bool fill = false, float? gap = null, float bottomOverlap = 0)
     {
         var draw = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
         var avail = Avail();
         var cardWidth = width <= 0 ? avail : MathF.Min(width, avail);
-        var padY = row ? 12f : 16f;
+        var padY = row ? RowPadY : 16f;
         var topLevel = _cardDepth == 0;
         _cardDepth++;
         if (topLevel)
@@ -315,7 +337,7 @@ internal static class FateChrome
             ImGui.PopID();
             PopRight();
             var contentBottom = ImGui.GetItemRectMax().Y;
-            var natural = MathF.Max(minHeight, contentBottom - origin.Y + padY);
+            var natural = MathF.Max(minHeight, contentBottom - origin.Y - bottomOverlap + padY);
             var height = natural;
             if (fill && !float.IsNaN(_fillBottom) && _fillBottom - origin.Y > natural)
             {
@@ -399,6 +421,14 @@ internal static class FateChrome
         if (detailText.Length > 0)
             Text(draw, new Vector2(pos.X + width - detailWidth, pos.Y + ((titleHeight - LineHeight(Theme.SecondaryScale)) / 2f)),
                 detailText, Theme.TextSecondary, Theme.SecondaryScale);
+        if (detail is not null && detailText != detail)
+        {
+            ImGui.SetCursorScreenPos(new Vector2(pos.X + width - detailWidth, pos.Y));
+            ImGui.InvisibleButton("##section_tip_" + title, new Vector2(MathF.Max(1, detailWidth), titleHeight));
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(detail);
+            ImGui.SetCursorScreenPos(pos);
+        }
         ImGui.Dummy(new Vector2(width, titleHeight));
         Space(8);
     }

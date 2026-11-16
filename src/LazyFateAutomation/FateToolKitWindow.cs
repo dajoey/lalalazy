@@ -212,7 +212,7 @@ public class FateToolKitWindow : MinimisableWindow
         var groups = Pages.Select(page => page.Group).Distinct().ToArray();
         var navWidths = groups.Select(group => MathF.Max(72, FateChrome.TextWidth(group) + 32)).ToArray();
         var navTotal = navWidths.Sum() + (gap * (groups.Length - 1));
-        var minimiseSize = new Vector2(FateChrome.ActionWidth(96, "Minimise"), FateChrome.Control);
+        var minimiseSize = new Vector2(FateChrome.Control);
         var pillSize = new Vector2(FateChrome.PillWidth(), FateChrome.Control);
         var closeSize = new Vector2(FateChrome.Control);
         var rightWidth = minimiseSize.X + gap + pillSize.X + gap + closeSize.X;
@@ -250,10 +250,8 @@ public class FateToolKitWindow : MinimisableWindow
             navX += navWidths[i] + gap;
         }
 
-        if (FateChrome.OutlineButton(draw, "header_minimise", "Minimise", winPos + minimisePos, minimiseSize))
+        if (FateChrome.HeaderIconButton(draw, "##fate_header_minimise", winPos + minimisePos, minimiseSize, "Minimise", cross: false))
             ToggleMinimised();
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(MinimiseTooltipText);
         FateChrome.StatusPill(draw, winPos + pillPos, pillSize, state);
         if (FateChrome.CloseButton(draw, winPos + closePos, closeSize))
             IsOpen = false;
@@ -464,11 +462,14 @@ public class FateToolKitWindow : MinimisableWindow
             return;
         }
 
-        FateChrome.Section("FATEs in this zone", $"{eligible} eligible of {fates.Count}");
-        FateChrome.Paragraph("Click a FATE to pathfind there, or click again while navigation is active to stop. Right-click toggles its blacklist entry; hover for eligibility details.");
-        FateChrome.Space(12);
-        foreach (var (fate, isAvailable) in fates)
-            DrawFateCard(fate, isAvailable);
+        FateChrome.Card("fates_in_zone", () =>
+        {
+            FateChrome.Section("FATEs in this zone", $"{eligible} eligible of {fates.Count}");
+            FateChrome.Paragraph("Click a FATE to pathfind there, or click again while navigation is active to stop. Right-click toggles its blacklist entry; hover for eligibility details.");
+            FateChrome.Space(12);
+            for (var i = 0; i < fates.Count; i++)
+                DrawFateCard(fates[i].Fate, fates[i].IsAvailable, i == fates.Count - 1);
+        });
     }
 
     private void DrawRunSetup()
@@ -662,7 +663,7 @@ public class FateToolKitWindow : MinimisableWindow
         ImGui.Dummy(new Vector2(width, statusY + statusHeight + 8));
     }
 
-    private void DrawFateCard(PublicEvent fate, bool isAvailable)
+    private void DrawFateCard(PublicEvent fate, bool isAvailable, bool last)
     {
         FateChrome.Card($"fate_{fate.Id}", () =>
         {
@@ -678,8 +679,8 @@ public class FateToolKitWindow : MinimisableWindow
             var metaHeight = FateChrome.LineHeight(Theme.SecondaryScale);
             var rowHeight = nameHeight + 4 + metaHeight + 8 + Theme.BarHeight;
 
-            ImGui.SetCursorScreenPos(origin);
-            ImGui.InvisibleButton("##fate_open", new Vector2(width, rowHeight));
+            ImGui.SetCursorScreenPos(origin - new Vector2(FateChrome.PadX, FateChrome.RowPadY));
+            ImGui.InvisibleButton("##fate_open", new Vector2(width + (2 * FateChrome.PadX), rowHeight + (2 * FateChrome.RowPadY)));
             var hovered = ImGui.IsItemHovered();
             if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
@@ -718,10 +719,11 @@ public class FateToolKitWindow : MinimisableWindow
             draw.AddRectFilled(barMin, barMax, Theme.Pack(Theme.SurfaceBorder), 2f);
             if (fraction > 0)
             {
-                var fill = automated ? _tweak.Config.BarColour : _tweak.Config.BarColour with { W = 0.45f };
+                var barColour = FateChrome.ProgressColour(_tweak.Config.BarColour);
+                var fill = automated ? barColour : barColour with { W = 0.45f };
                 draw.AddRectFilled(barMin, new Vector2(barMin.X + ((barMax.X - barMin.X) * fraction), barMax.Y), Theme.Pack(fill), 2f);
             }
-        }, row: true, gap: 8);
+        }, row: true, gap: last ? 0 : 8, bottomOverlap: FateChrome.RowPadY);
     }
 
     private void DrawFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted)
@@ -855,7 +857,7 @@ public class FateToolKitWindow : MinimisableWindow
                 {
                     FateChrome.Section("Selection behavior");
                     FateChrome.Paragraph("Eligibility still uses duration, progress, time remaining, blacklist, pending state, and player level. This page changes only which eligible types may run.");
-                }, fill: true);
+                });
             });
     }
 
