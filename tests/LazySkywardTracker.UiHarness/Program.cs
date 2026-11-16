@@ -193,10 +193,12 @@ internal static class Program
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
+        window.PreDraw();
         ImGui.Begin(window.WindowName, ref open, window.Flags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
         window.Draw();
         ImGui.End();
+        window.PostDraw();
     }
 }

@@ -42,11 +42,11 @@ internal static class Checks
                       ?? throw new MissingMemberException("ColumnsFor not found");
         foreach (var width in new[] { 760f, 900f, 1180f })
         {
-            var value = columns.Invoke(null, [width]) ?? throw new InvalidOperationException("ColumnsFor returned null");
+            var value = columns.Invoke(null, [width, 110f, 140f, 130f]) ?? throw new InvalidOperationException("ColumnsFor returned null");
             var type = value.GetType();
             var progressX = (float)(type.GetProperty("ProgressX")?.GetValue(value) ?? 0f);
             var progressWidth = (float)(type.GetProperty("ProgressWidth")?.GetValue(value) ?? 0f);
-            Check($"wide row columns fit at {width:0}px", progressWidth >= 80 && progressX + progressWidth + 206 <= width + 0.01f);
+            Check($"wide row columns fit at {width:0}px", progressWidth >= 80 && progressX + progressWidth + 24 + 130 <= width + 0.01f);
         }
 
         CheckStubTableMatchesPlugin();
