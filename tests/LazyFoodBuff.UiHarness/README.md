@@ -22,7 +22,11 @@ mode renders the default-size subset. `--strict-glyphs` fails the run when a dra
 2. Add a `yield return new(N("name", w, h), w, h, YourState) { ... }` line in `BuildScenarios`. Options: `SelectedJob`
    (ClassJob row shown in the profile selector), `ScrollToEnd` (both columns to their end), `ScrollNotches` (stacked
    body down by wheel notches), `Popup` (`JobSelector` / `FoodPicker`: a real click opens the combo; the click position
-   is found by probing), `CanvasHeight` (display taller than the window for popups), `Scale`.
+   is found by probing), `CanvasHeight` (display taller than the window for popups), `EditSlider` (Ctrl+click a threshold slider and type), `Scale`.
+
+After the renders the harness also runs interaction checks on the two threshold sliders (Ctrl+click and double-click typed
+entry, Enter and Escape, range clamping, Left and Right stepping with navigation on, no stepping with it off) and fails
+the run if any of them does not hold.
 
 Real food and job names are used; the stat bonuses are approximate and only steer which food the real ranking picks.
 The job icon is one flat placeholder tile (the game icons are not available here).
