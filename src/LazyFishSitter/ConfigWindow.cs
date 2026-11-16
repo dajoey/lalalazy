@@ -18,7 +18,7 @@ internal class ConfigWindow : Window
     public ConfigWindow(Plugin plugin) : base("Lazy Fish Sitter##cfg")
     {
         _plugin = plugin;
-        Flags = ImGuiWindowFlags.NoTitleBar;
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         Size = new Vector2(900, 640);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -77,7 +77,7 @@ internal class ConfigWindow : Window
         return new LiveStatus(UiState.Ready, "Armed for a safe sit window", null);
     }
 
-    private static void DrawTopBar(UiState state)
+    private void DrawTopBar(UiState state)
     {
         var width = ImGui.GetContentRegionAvail().X;
         var origin = ImGui.GetCursorScreenPos();
@@ -86,17 +86,22 @@ internal class ConfigWindow : Window
         var brandSize = new Vector2(MathF.Max(216, (ImGui.CalcTextSize("LazyFishSitter").X * Theme.TitleScale) + 64), 40);
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
-        var stacked = width < brandSize.X + statusSize.X + (3 * gap);
+        var closeSize = new Vector2(ControlHeight);
+        var closePos = origin + new Vector2(width - closeSize.X, 12);
+        var contentRight = width - closeSize.X - gap;
+        var stacked = width < brandSize.X + statusSize.X + closeSize.X + (4 * gap);
         var barHeight = stacked ? 104f : 58f;
         var brandPos = origin + new Vector2(0, 9);
         var statusPos = stacked
             ? origin + new Vector2(0, 59)
-            : origin + new Vector2(width - statusSize.X, (barHeight - ControlHeight) / 2f);
+            : origin + new Vector2(contentRight - statusSize.X, (barHeight - ControlHeight) / 2f);
 
         draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
         draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
         FishSitterChrome.Brand(draw, brandPos, brandSize);
         FishSitterChrome.StatusPill(draw, statusPos, statusSize, state);
+        if (FishSitterChrome.ActionButton(draw, "close", "×", closePos, closeSize, false))
+            IsOpen = false;
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, barHeight));
     }
