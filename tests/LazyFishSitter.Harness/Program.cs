@@ -46,6 +46,7 @@ internal static class Program
         Case18_JoeyReproduction_QuickCastsSitsAfterCast();
         Case19_StandAgainResitsOnSubsequentCast();
         Case20_BlindReadStandAgainResits();
+        Case21_UnsendableSitCommandIsNeverSentAndCostsNoSends();
 
         Console.WriteLine(new string('-', 72));
         Console.WriteLine($"{_pass} passed, {_fail} failed");
@@ -382,5 +383,46 @@ internal static class Program
         var r = Runner.Run(s, sitReadsSeated: false);
         Check("20 a sit the game takes but never reads seated still re-sits after stand-up",
             r.Count == 2, $"sent {r.Count}");
+    }
+
+    // A command the game's chat box would reject must not be counted as a send: it would
+    // burn the trip's whole send budget on commands that never leave the plugin.
+    private static void Case21_UnsendableSitCommandIsNeverSentAndCostsNoSends()
+    {
+        const string Reason = "sit command must start with /";
+        var longSession = new Session().ArriveAtHole().PoleReady(40).LeaveHole();
+
+        var noSlash = Runner.Run(longSession, sitTakes: false, sitCommand: "sit");
+        Check("21a a command without a leading slash sends nothing", noSlash.Count == 0, $"sent {noSlash.Count}");
+        Check("21b the skip reason names the rule", noSlash.SkipReasons.Any(r => r == Reason),
+            string.Join(" | ", noSlash.SkipReasons.Distinct()));
+        Check("21c the rule is logged once per trip, not every frame",
+            noSlash.Logs.Count(l => l.Contains("sit command", StringComparison.Ordinal)) == 1,
+            $"{noSlash.Logs.Count(l => l.Contains("sit command", StringComparison.Ordinal))} lines");
+        Check("21d no send was counted, so the cap was never reached",
+            !noSlash.SkipReasons.Any(r => r.StartsWith("cap reached", StringComparison.Ordinal)));
+
+        var tooLong = Runner.Run(longSession, sitTakes: false, sitCommand: "/" + new string('a', 500));
+        Check("21e a 501-byte command sends nothing and reports the reason",
+            tooLong.Count == 0 && tooLong.SkipReasons.Any(r => r == Reason),
+            $"sent {tooLong.Count}");
+
+        var atLimit = Runner.Run(new Session().ArriveAtHole().PoleReady(10).LeaveHole(), sitCommand: "/" + new string('a', 499));
+        Check("21f a 500-byte command is still sent", atLimit.Count == 1, $"sent {atLimit.Count}");
+
+        var empty = Runner.Run(new Session().ArriveAtHole().PoleReady(10).LeaveHole(), sitCommand: "");
+        Check("21g an empty command still falls back to /sit",
+            empty.Count == 1 && empty.Sends[0].Cmd == "/sit", empty.Count == 0 ? "nothing sent" : empty.Sends[0].Cmd);
+
+        var plain = Runner.Run(new Session().ArriveAtHole().PoleReady(10).LeaveHole());
+        Check("21h /sit is sent unchanged", plain.Count == 1 && plain.Sends[0].Cmd == "/sit",
+            plain.Count == 0 ? "nothing sent" : plain.Sends[0].Cmd);
+
+        Check("21i the predicate accepts empty, whitespace and slash commands",
+            SitPolicy.IsSendableSitCommand(null) && SitPolicy.IsSendableSitCommand("") && SitPolicy.IsSendableSitCommand("  ")
+            && SitPolicy.IsSendableSitCommand("/sit") && SitPolicy.IsSendableSitCommand("/" + new string('a', 499)));
+        Check("21j the predicate rejects a missing slash, a leading space and 501 bytes",
+            !SitPolicy.IsSendableSitCommand("sit") && !SitPolicy.IsSendableSitCommand(" /sit")
+            && !SitPolicy.IsSendableSitCommand("/" + new string('a', 500)));
     }
 }

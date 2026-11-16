@@ -45,6 +45,7 @@ public sealed class SitPolicy
     private int _consecutiveUnacceptedSends;
     private bool _satThisCast;
     private bool _capLogged;
+    private bool _badCommandLogged;
     /// <summary>The character is seated as far as we can tell: a seated read, or the game took our /sit.</summary>
     private bool _sitBelieved;
     /// <summary>A seated read happened WITH THE ROD OUT, so "not seated" means something in this context.</summary>
@@ -144,6 +145,19 @@ public sealed class SitPolicy
         if (!_tripActive) { reason = "not at a fishing hole"; return null; }
         if (ctx.BlockReason is { } blocked) { reason = blocked; return null; }
 
+        // A command the chat box would reject must not reach the send bookkeeping: it would
+        // use up the trip's sends on commands that never leave the plugin.
+        if (!IsSendableSitCommand(ctx.SitCommand))
+        {
+            if (!_badCommandLogged)
+            {
+                _badCommandLogged = true;
+                Log($"sit command is not sendable (it must start with / and fit 500 bytes) - nothing will be sent this trip [{snap}]");
+            }
+            reason = "sit command must start with /";
+            return null;
+        }
+
         // GUARD 1 - any seated signal at all. A /sit here would STAND him. This one must never
         // be wrong in the permissive direction, so it is first and absolute.
         if (snap.Seated) { reason = $"already seated ({snap.PostureText})"; return null; }
@@ -197,6 +211,16 @@ public sealed class SitPolicy
             $"{(now - standing).TotalSeconds:F1}s at {snap.State}) [{snap}]");
         reason = $"sent {cmd} (#{_sendsThisTrip} this trip)";
         return cmd;
+    }
+
+    /// <summary>
+    /// True when <paramref name="cmd"/> may be handed to the chat box: empty or whitespace (the
+    /// policy then sends /sit), otherwise a leading slash and at most 500 UTF-8 bytes.
+    /// </summary>
+    public static bool IsSendableSitCommand(string? cmd)
+    {
+        if (string.IsNullOrWhiteSpace(cmd)) return true;
+        return cmd[0] == '/' && System.Text.Encoding.UTF8.GetByteCount(cmd) <= 500;
     }
 
     /// <summary>Every-frame bookkeeping: seated/standing clocks, trip boundaries, transitions.</summary>
@@ -318,6 +342,7 @@ public sealed class SitPolicy
         _consecutiveUnacceptedSends = 0;
         _satThisCast = snap.Seated;
         _capLogged = false;
+        _badCommandLogged = false;
         _sitBelieved = snap.Seated;
         _detectorProvenWithRodOut = false;
         _seatedReadsWithRodOut = 0;
@@ -348,6 +373,7 @@ public sealed class SitPolicy
         _consecutiveUnacceptedSends = 0;
         _satThisCast = false;
         _capLogged = false;
+        _badCommandLogged = false;
         _sitBelieved = false;
         _detectorProvenWithRodOut = false;
         _seatedReadsWithRodOut = 0;
