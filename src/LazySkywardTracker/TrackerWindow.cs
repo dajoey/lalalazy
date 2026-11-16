@@ -41,8 +41,6 @@ public sealed class TrackerWindow : Window
 
     private readonly record struct JobColumns(float AchievementX, float ProgressX, float ProgressWidth);
 
-    private static readonly UiState[] ShownStates = [UiState.Blocked, UiState.Empty, UiState.Ready, UiState.Running];
-
     // The shell lays out its own gutters from the window edge, so the window itself carries no padding.
     public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
 
@@ -162,8 +160,8 @@ public sealed class TrackerWindow : Window
         const float padY = 3.5f * Theme.Unit;
         const float brandHeight = 10 * Theme.Unit;
         var gap = 2 * Theme.Unit;
-        var brandNatural = Theme.Unit * 4 + 24 + (3 * Theme.Unit) + SkywardChrome.TextWidth(title, Theme.TitleScale) + (4 * Theme.Unit);
-        var pillSize = new Vector2(SkywardChrome.PillWidth(ShownStates), SkywardChrome.ControlHeight);
+        var brandNatural = 48 + SkywardChrome.TextWidth(title, Theme.TitleScale) + 16;
+        var pillSize = new Vector2(SkywardChrome.PillWidth(), SkywardChrome.ControlHeight);
         var closeSize = new Vector2(SkywardChrome.ControlHeight);
         var oneRow = inner >= brandNatural + (4 * Theme.Unit) + pillSize.X + gap + closeSize.X;
         var twoRows = !oneRow && !compact;
@@ -184,7 +182,7 @@ public sealed class TrackerWindow : Window
         draw.PopClipRect();
 
         var brandPos = _winPos + new Vector2(gutter, padY);
-        var textRoom = brandWidth - (4 * Theme.Unit) - 24 - (3 * Theme.Unit) - (4 * Theme.Unit);
+        var textRoom = brandWidth - 48 - 16;
         var iconOnly = textRoom < SkywardChrome.TextWidth("Lazy", Theme.TitleScale) * 2;
         if (iconOnly)
             brandWidth = brandHeight;
@@ -196,14 +194,14 @@ public sealed class TrackerWindow : Window
         }
         else
         {
-            SkywardChrome.Diamond(draw, brandPos + new Vector2((4 * Theme.Unit) + 12, brandHeight / 2f), 12, Theme.Pack(Theme.Accent));
+            SkywardChrome.Diamond(draw, brandPos + new Vector2(24, brandHeight / 2f), 12, Theme.Pack(Theme.Accent));
             SkywardChrome.DrawFitted(draw,
-                brandPos + new Vector2((4 * Theme.Unit) + 24 + (3 * Theme.Unit), (brandHeight - SkywardChrome.LineHeight(Theme.TitleScale)) / 2f),
+                brandPos + new Vector2(48, (brandHeight - SkywardChrome.LineHeight(Theme.TitleScale)) / 2f),
                 title, textRoom, Theme.TextPrimary, Theme.TitleScale);
         }
 
-        SkywardChrome.StatusPill(draw, _winPos + pillPos, pillSize, live.State, $"{Copy.Word(live.State)} · {live.Completed} of {Plugin.AchievementIds.Length}");
-        if (SkywardChrome.OutlineButton(draw, "close_window", "×", _winPos + closePos, closeSize))
+        SkywardChrome.StatusPill(draw, _winPos + pillPos, pillSize, live.State);
+        if (SkywardChrome.CloseButton(draw, _winPos + closePos, closeSize))
             IsOpen = false;
         return barHeight + 1;
     }
@@ -214,7 +212,7 @@ public sealed class TrackerWindow : Window
         var width = _winSize.X;
         var tile = 11 * Theme.Unit;
         var padTop = compact ? 3 * Theme.Unit : 5 * Theme.Unit;
-        var wide = width >= 1000;
+        var wide = width >= 760;
         var textX = gutter + tile + (4 * Theme.Unit);
         const string title = "Skyward Tracker";
         const string description = "Tracks Skyward and Skybuilders' points for all jobs toward the Pteranodon mount.";
@@ -225,14 +223,7 @@ public sealed class TrackerWindow : Window
 
         var origin = _winPos + new Vector2(gutter, top + padTop);
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), SkywardChrome.Radius);
-        var glyph = FontAwesomeIcon.Mountain.ToIconString();
-        ImGui.PushFont(UiBuilder.IconFont);
-        const float glyphScale = 1.25f;
-        ImGui.SetWindowFontScale(glyphScale);
-        var glyphSize = ImGui.CalcTextSize(glyph);
-        ImGui.SetWindowFontScale(1f);
-        draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * glyphScale, origin + ((new Vector2(tile) - glyphSize) / 2f), Theme.Pack(Theme.Accent), glyph);
-        ImGui.PopFont();
+        SkywardChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
 
         var metaWidth = wide && !compact
             ? MathF.Min(width * 0.40f, MathF.Max(SkywardChrome.TextWidth(count, Theme.SecondaryScale), SkywardChrome.TextWidth(subtext, Theme.SecondaryScale)))
@@ -279,10 +270,7 @@ public sealed class TrackerWindow : Window
         }
 
         var bottom = top + padTop + MathF.Max(tile, blockBottom - origin.Y) + (2 * Theme.Unit);
-        draw.PushClipRect(_winPos + new Vector2(0, bottom), _winPos + new Vector2(_winSize.X, bottom + 1), false);
-        draw.AddLine(_winPos + new Vector2(0, bottom), _winPos + new Vector2(_winSize.X, bottom), Theme.Pack(Theme.SurfaceBorder));
-        draw.PopClipRect();
-        return bottom + 1;
+        return bottom;
     }
 
     private static void DrawStatCards(Live live, int turnInItems)
@@ -347,7 +335,8 @@ public sealed class TrackerWindow : Window
             }
             y += valueHeight + (2 * Theme.Unit);
 
-            SkywardChrome.Progress(draw, new Vector2(pos.X + pad, y), inner, stat.Fraction ?? 0f, Theme.StateGreen);
+            if (stat.Fraction is { } fraction)
+                SkywardChrome.Progress(draw, new Vector2(pos.X + pad, y), inner, fraction, Theme.StateGreen);
             y += Theme.BarHeight + (2 * Theme.Unit);
             if (!stacked)
                 SkywardChrome.DrawFitted(draw, new Vector2(pos.X + pad, y), stat.Note, inner, noteColor, Theme.SecondaryScale);
@@ -714,7 +703,7 @@ public sealed class TrackerWindow : Window
     private static float FooterHeight()
     {
         var textBlock = SkywardChrome.LineHeight() + Theme.Unit + SkywardChrome.LineHeight(Theme.SecondaryScale);
-        return (6 * Theme.Unit) + textBlock;
+        return 12 + MathF.Max(textBlock, SkywardChrome.ControlHeight) + 12;
     }
 
     private void DrawFooter(Live live, float gutter, float height)
@@ -730,7 +719,7 @@ public sealed class TrackerWindow : Window
         var secondary = SkywardChrome.Sentence(live.Reason ?? $"{live.TotalCurrent:N0} total Skyward points tracked");
         var textLeft = _winPos.X + gutter + (4 * Theme.Unit);
         var textRight = _winPos.X + _winSize.X - gutter;
-        var textTop = top + (3 * Theme.Unit);
+        var textTop = top + ((height - (SkywardChrome.LineHeight() + Theme.Unit + SkywardChrome.LineHeight(Theme.SecondaryScale))) / 2f);
         var lineHeight = SkywardChrome.LineHeight();
         draw.AddCircleFilled(new Vector2(_winPos.X + gutter + Theme.Unit, textTop + (lineHeight / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(live.State)));
         SkywardChrome.DrawFitted(draw, new Vector2(textLeft, textTop), primary, textRight - textLeft, Theme.TextPrimary);

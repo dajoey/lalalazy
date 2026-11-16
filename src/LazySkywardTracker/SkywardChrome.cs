@@ -16,7 +16,7 @@ internal static class SkywardChrome
     public const float PageTitleScale = 1.35f;
     public const float StatValueScale = 1.7f;
 
-    public static float Gutter(float windowWidth) => windowWidth >= 900 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
+    public static float Gutter(float windowWidth) => windowWidth >= 760 ? 6 * Theme.Unit : windowWidth >= 560 ? 4 * Theme.Unit : 3 * Theme.Unit;
 
     // ---- text ----
 
@@ -148,19 +148,48 @@ internal static class SkywardChrome
     }
 
     /// <summary>One width for every state this window shows, so the pill never changes size between states.</summary>
-    internal static float PillWidth(IEnumerable<UiState> states)
-        => (2 * Gap) + (Theme.DotRadius * 2) + (2 * Theme.Unit) + states.Max(s => TextWidth($"{Copy.Word(s)} · 11 of 11"));
+    internal static float PillWidth()
+        => MathF.Max(104, 16 + (Theme.DotRadius * 2) + 8 + Enum.GetValues<UiState>().Max(s => TextWidth(Copy.Word(s))) + 16);
 
-    internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state, string label)
+    internal static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, UiState state)
     {
-        var color = Copy.MarkColor(state);
+        var mark = Copy.MarkColor(state);
+        var neutral = state is UiState.Idle or UiState.NeedsSetup or UiState.Empty;
+        var word = Copy.Word(state);
         draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), size.Y / 2f);
         draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), size.Y / 2f);
-        var textSize = ImGui.CalcTextSize(label);
-        var contentWidth = (Theme.DotRadius * 2) + (2 * Theme.Unit) + textSize.X;
-        var left = pos.X + ((size.X - contentWidth) / 2f);
-        draw.AddCircleFilled(new Vector2(left + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(color));
-        draw.AddText(new Vector2(left + (Theme.DotRadius * 2) + (2 * Theme.Unit), pos.Y + ((size.Y - textSize.Y) / 2f)), Theme.Pack(color), label);
+        var group = (2 * Theme.DotRadius) + 8 + TextWidth(word);
+        var x = pos.X + ((size.X - group) / 2f);
+        draw.AddCircleFilled(new Vector2(x + Theme.DotRadius, pos.Y + (size.Y / 2f)), Theme.DotRadius, Theme.Pack(mark));
+        DrawText(draw, new Vector2(x + (2 * Theme.DotRadius) + 8, pos.Y + ((size.Y - LineHeight()) / 2f)), word, neutral ? Theme.TextSecondary : mark);
+    }
+
+    internal static bool CloseButton(ImDrawListPtr draw, Vector2 pos, Vector2 size)
+    {
+        ImGui.SetCursorScreenPos(pos);
+        var clicked = ImGui.InvisibleButton("##skyward_close", size);
+        var hovered = ImGui.IsItemHovered();
+        draw.AddRectFilled(pos, pos + size, Theme.Pack(hovered ? Theme.Accent with { W = 0.14f } : Theme.Surface), Radius);
+        draw.AddRect(pos, pos + size, Theme.Pack(hovered ? Theme.Accent : Theme.SurfaceBorder), Radius);
+        var c = pos + (size / 2f);
+        var col = Theme.Pack(hovered ? Theme.Accent : Theme.TextSecondary);
+        draw.AddLine(c + new Vector2(-6, -6), c + new Vector2(6, 6), col, 1.5f);
+        draw.AddLine(c + new Vector2(-6, 6), c + new Vector2(6, -6), col, 1.5f);
+        if (hovered)
+        {
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
+        }
+        return clicked;
     }
 
     internal static void Progress(ImDrawListPtr draw, Vector2 pos, float width, float fraction, Vector4 color)
