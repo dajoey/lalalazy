@@ -1,4 +1,11 @@
-﻿## v1.0.4.339 (2026-11-14) [testing]
+﻿## v1.0.4.340 (2026-11-15) [testing]
+- The settings window has been rebuilt in the same custom window style as the other plugins and polished for the real in-game font and scale, with every preset, option and saved setting unchanged.
+- The window uses a two-level layout: Combos, Automation and System tabs, a row of destinations for the open tab, a page header and a status footer that stays in view. Long pages fade out above the footer instead of being cut off.
+- Preset cards have even padding, a larger title and toggles that sit inside the card, and a whole toggle row, label included, can be clicked. Search keeps one width on every page, shows a dimmed hint, has a clear button and reports a result count.
+- The problem report button sits in the footer so it is reachable on every page and window size, and the status pill shows a running rotation in green and a blocked one in amber.
+- This build also picks up the restyled shared What's new window and Report a problem popup.
+
+## v1.0.4.339 (2026-11-14) [testing]
 - The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.
 
 ## v1.0.4.338 (2026-11-10) [testing]
