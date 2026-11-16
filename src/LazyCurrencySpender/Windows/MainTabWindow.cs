@@ -43,13 +43,14 @@ internal class MainTabWindow : Window
                 return;
             _section = (Section)CurrencyChrome.FeatureRow("main_nav", ["Currencies", "Instructions"], (int)_section);
 
-            ImGui.BeginChild("##currency_main_body", Vector2.Zero, false);
+            var footerHeight = CurrencyChrome.FooterHeight(); // Fork: suite footer status line
+            CurrencyChrome.BeginBody("##currency_main_body", footerHeight); // Fork: shared scrolling body child with the suite gutter
             switch (_section)
             {
                 case Section.Currencies:
                     CurrencyChrome.PageHeader("Currencies",
                         "Track live balances and open a spending guide for each currency.",
-                        $"{P.config.SelectedCurrencies.Count} tracked");
+                        loggedIn ? $"{P.config.SelectedCurrencies.Count} tracked" : ""); // Fork: no stale count while logged out
                     MainTab.Draw();
                     break;
                 case Section.Instructions:
@@ -59,7 +60,9 @@ internal class MainTabWindow : Window
                     InstructionsTab.Draw();
                     break;
             }
-            ImGui.EndChild();
+            CurrencyChrome.EndBody(); // Fork: pairs with BeginBody
+            CurrencyChrome.Footer(footerHeight, !loggedIn ? "Not logged in" : $"{P.config.SelectedCurrencies.Count} tracked currencies",
+                !loggedIn ? "Log in to a character to read balances" : "Select Spend it to open a spending guide", state);
         }
         finally
         {

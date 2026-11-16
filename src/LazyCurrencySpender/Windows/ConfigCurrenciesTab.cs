@@ -16,7 +16,7 @@ internal class ConfigCurrenciesTab
                     $"{C.SelectedCurrencies.Count} selected");
                 if (currencies.Count == 0)
                 {
-                    Widgets.InfoBox("Empty — no currencies are currently available.", UiState.Empty);
+                    CurrencyChrome.Notice("Empty — no currencies are currently available.", UiState.Empty); // Fork: same notice style as the other pages
                     return;
                 }
                 foreach (var cur in currencies)
@@ -27,7 +27,7 @@ internal class ConfigCurrenciesTab
                 CurrencyChrome.Section("Display");
                 CurrencyChrome.Toggle("Hide currencies you currently don't own", ref C.HideEmptyCurrencies,
                     "Hide zero-balance currencies without changing the selected set.");
-                Widgets.SecondaryWrapped($"{currencies.Count} currencies are available; {C.SelectedCurrencies.Count} are selected.");
+                CurrencyChrome.Muted($"{currencies.Count} currencies are available; {C.SelectedCurrencies.Count} are selected."); // Fork: secondary size, as a muted status line
             }));
     }
 

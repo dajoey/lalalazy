@@ -16,7 +16,7 @@ internal class MainTab
         update();
         if (Service.Objects.LocalPlayer == null)
         {
-            Widgets.InfoBox("Needs setup — log in before using Lazy Currency Spender.", UiState.NeedsSetup);
+            CurrencyChrome.Notice("Needs setup — log in before using Lazy Currency Spender.", UiState.Blocked); // Fork: tinted attention notice instead of the thin kit strip
             return;
         }
         if (P.Problem)
@@ -55,14 +55,22 @@ internal class MainTab
             CurrencyChrome.Section("Currency balances", "Select Spend it to open the full spending guide.",
                 visibleCurrencies.Count + " visible");
             if (CurrencyChrome.BeginTable("##currencies", C.ShowMissingCollectables ? 4 : 3,
-                    ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable, horizontalScroll: true))
+                    ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable,
+                    horizontalScroll: true, minInnerWidth: 184 + 104 + (C.ShowMissingCollectables ? 88 : 0) + 210)) // Fork: sideways scroll and a Currency floor, as before
             {
-                ImGui.TableSetupColumn("Currency", ImGuiTableColumnFlags.WidthFixed, 180);
-                ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.WidthFixed, 150);
+                // Fork: Currency stretches across the card, numeric columns are fixed and right aligned, one shared header row.
+                ImGui.TableSetupColumn("Currency", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.WidthFixed, 184);
                 if (C.ShowMissingCollectables)
-                    ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableHeadersRow();
+                    ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, 88);
+                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 104);
+                CurrencyChrome.SetHeaderIndent(1, 14); // Fork: header lines up with the amounts after the dot slot
+                if (C.ShowMissingCollectables)
+                    CurrencyChrome.TableHeaders(false, false, true, true);
+                else
+                    CurrencyChrome.TableHeaders(false, false, true);
+                var lineHeight = ImGui.GetTextLineHeight();
+                var area = MathF.Max(30, 2 * lineHeight);
 
                 var sortedCurrencies = P.Currencies;
                 ImGuiTableSortSpecsPtr sortSpecs = ImGui.TableGetSortSpecs();
@@ -101,33 +109,50 @@ internal class MainTab
                         || (currency.ItemId == 26807 && P.Problem))
                         continue;
 
+                    // Fork: every cell is centred in one common row area; the near-cap dot sits inline in a fixed lead slot.
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
+                    var rowTop = CurrencyChrome.CellBegin(30, area);
                     ImGui.Image(currency.Icon.Handle, new Vector2(30, 30));
                     ImGui.SameLine();
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6);
-                    UiHelper.LeftAlign(currency.Name);
+                    ImGui.SetCursorPosY(rowTop + ((area - lineHeight) / 2f));
+                    var nameRoom = ImGui.GetContentRegionAvail().X;
+                    var shownName = CurrencyChrome.FitText(currency.Name, nameRoom);
+                    ImGui.TextUnformatted(shownName);
+                    if (shownName != currency.Name && ImGui.IsItemHovered())
+                        ImGui.SetTooltip(currency.Name);
+                    CurrencyChrome.CellEnd(rowTop, area);
 
                     ImGui.TableNextColumn();
-                    var text = $"{StringHelper.FormatString(currency.CurrentCount.ToString())}/{StringHelper.FormatString(currency.MaxCount.ToString())}\n~{currency.Percentage}% full";
+                    rowTop = CurrencyChrome.CellBegin(2 * lineHeight, area);
+                    var amountPos = ImGui.GetCursorScreenPos();
                     if (currency.Percentage > 50)
-                        Widgets.StatusDot(UiState.Running);
-                    ImGuiEx.Text(text);
+                        ImGui.GetWindowDrawList().AddCircleFilled(amountPos + new Vector2(4, lineHeight / 2f), Theme.DotRadius,
+                            Theme.Pack(Copy.MarkColor(UiState.Running)));
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 14);
+                    ImGui.TextUnformatted($"{StringHelper.FormatString(currency.CurrentCount.ToString())}/{StringHelper.FormatString(currency.MaxCount.ToString())}");
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 14);
+                    Widgets.Secondary($"~{currency.Percentage}% full");
+                    CurrencyChrome.CellEnd(rowTop, area);
 
                     if (C.ShowMissingCollectables)
                     {
                         ImGui.TableNextColumn();
-                        if (MissingCollectables.TryGetValue(currency.ItemId, out var value) && value > 0)
-                            UiHelper.LeftAlign(value.ToString());
-                        else
-                            UiHelper.LeftAlign("-");
+                        rowTop = CurrencyChrome.CellBegin(lineHeight, area);
+                        var missingText = MissingCollectables.TryGetValue(currency.ItemId, out var value) && value > 0 ? value.ToString() : "-";
+                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0, ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(missingText).X));
+                        ImGui.TextUnformatted(missingText);
+                        CurrencyChrome.CellEnd(rowTop, area);
                     }
 
                     ImGui.TableNextColumn();
-                    if (CurrencyChrome.Button("spend_" + currency.ItemId, "Spend it", true))
+                    rowTop = CurrencyChrome.CellBegin(CurrencyChrome.SmallButtonHeight, area);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0, ImGui.GetContentRegionAvail().X - CurrencyChrome.SmallButtonWidth("Spend it")));
+                    if (CurrencyChrome.SmallButton("spend_" + currency.ItemId, "Spend it", true))
                         P.ToggleSpendingUI(currency);
+                    CurrencyChrome.CellEnd(rowTop, area);
                 }
-                ImGui.EndTable();
+                CurrencyChrome.EndTable(); // Fork: pops the shared table style
             }
         });
     }

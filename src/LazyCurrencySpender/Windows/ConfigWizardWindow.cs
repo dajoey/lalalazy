@@ -42,22 +42,21 @@ internal class ConfigWizardWindow : Window
             CurrencyChrome.TopBar("Configuration wizard", UiState.NeedsSetup, controls: _controls);
             if (minimized)
                 return;
-            CurrencyChrome.PageHeader(Step == 0 ? "Welcome" : "Configuration updates",
-                "Review options introduced since the last configured version; every option remains available in settings.",
-                Step == 0 ? $"{MaxSteps} steps" : $"Step {Step} of {MaxSteps}");
-            Widgets.ProgressBar(MaxSteps == 0 ? 0 : Step / (float)MaxSteps);
-
-            var footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
-            var available = ImGui.GetContentRegionAvail();
-            ImGui.BeginChild("##StepContent", new Vector2(available.X, MathF.Max(40, available.Y - footerHeight)), false);
+            // Fork: the page header, progress track and step content scroll together in one shared body child; the footer is a fixed band.
+            var footerHeight = FooterHeight(ImGui.GetWindowWidth());
+            CurrencyChrome.BeginBody("##StepContent", footerHeight);
             if (_resetScroll)
             {
                 ImGui.SetScrollY(0);
                 _resetScroll = false;
             }
+            CurrencyChrome.PageHeader(Step == 0 ? "Welcome" : "Configuration updates",
+                "Review options introduced since the last configured version; every option remains available in settings.",
+                Step == 0 ? $"{MaxSteps} steps" : $"Step {Step} of {MaxSteps}");
+            CurrencyChrome.ProgressTrack(MaxSteps == 0 ? 0 : Step / (float)MaxSteps);
             DrawStep();
-            ImGui.EndChild();
-            DrawFooter();
+            CurrencyChrome.EndBody();
+            DrawFooter(footerHeight);
         }
         finally
         {
@@ -72,9 +71,9 @@ internal class ConfigWizardWindow : Window
             CurrencyChrome.Card("wizard_welcome", () =>
             {
                 CurrencyChrome.Section("Review configuration updates");
-                Widgets.SecondaryWrapped(
-                    "This wizard presents options added since the last configured version. Skip the setup to keep the current values, or review each step and change only what is needed.");
-                Widgets.SecondaryWrapped("Every option can also be changed later in Settings.");
+                CurrencyChrome.Muted(
+                    "This wizard presents options added since the last configured version. Skip the setup to keep the current values, or review each step and change only what is needed."); // Fork: secondary size
+                CurrencyChrome.Muted("Every option can also be changed later in Settings.");
             });
             return;
         }
@@ -95,15 +94,9 @@ internal class ConfigWizardWindow : Window
         }
     }
 
-    private void DrawFooter()
+    // Fork: full-bleed footer band at the suite geometry (60 px, status block at gutter + 16, 36 px buttons).
+    private List<(string Id, string Label, bool Primary, Action Action)> FooterButtons()
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = FooterHeight(width);
-        var draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
-
         var buttons = new List<(string Id, string Label, bool Primary, Action Action)>
         {
             ("wizard_skip", "Skip", false, () => P.configWizard.IsOpen = false),
@@ -114,29 +107,64 @@ internal class ConfigWizardWindow : Window
             buttons.Add(("wizard_finish", "Finish", true, () => { P.configWizard.IsOpen = false; Step = 0; _resetScroll = true; }));
         else
             buttons.Add(("wizard_next", Step == 0 ? "Start" : "Next", true, () => { Step++; _resetScroll = true; }));
+        return buttons;
+    }
 
-        var gap = 2 * Theme.Unit;
-        var widths = buttons.Select(button => MathF.Max(82, ImGui.CalcTextSize(button.Label).X + 30)).ToArray();
+    private static string FooterDetail() => Step == 0 ? $"{MaxSteps} steps to review" : $"Step {Step} of {MaxSteps}";
+
+    private static string FooterStatus() => Step == 0 ? "Ready to review" : Step == MaxSteps ? "Ready to finish" : "Reviewing changes";
+
+    private bool FooterNarrow(float width)
+    {
+        var gutter = CurrencyChrome.Gutter(width);
+        var buttons = FooterButtons();
+        var buttonsWidth = buttons.Sum(button => CurrencyChrome.ActionWidth(96, button.Label)) + ((buttons.Count - 1) * 8);
+        return buttonsWidth + CurrencyChrome.TextWidth(FooterStatus()) + 16 + 16 + (2 * gutter) > width;
+    }
+
+    private float FooterHeight(float width)
+    {
+        var textBlock = CurrencyChrome.LineHeight() + 4 + CurrencyChrome.LineHeight(Theme.SecondaryScale);
+        return FooterNarrow(width) ? 12 + textBlock + 12 + CurrencyChrome.Control + 12 : 12 + MathF.Max(textBlock, CurrencyChrome.Control) + 12;
+    }
+
+    private void DrawFooter(float height)
+    {
+        var winPos = ImGui.GetWindowPos();
+        var width = ImGui.GetWindowWidth();
+        var gutter = CurrencyChrome.Gutter(width);
+        var top = winPos.Y + ImGui.GetWindowHeight() - height;
+        var draw = ImGui.GetWindowDrawList();
+        draw.PushClipRect(winPos, winPos + ImGui.GetWindowSize(), false);
+        draw.AddRectFilled(new Vector2(winPos.X, top), winPos + ImGui.GetWindowSize(), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(new Vector2(winPos.X, top), new Vector2(winPos.X + width, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+
+        var buttons = FooterButtons();
+        var narrow = FooterNarrow(width);
+        var gap = 8f;
+        var widths = buttons.Select(button => CurrencyChrome.ActionWidth(96, button.Label)).ToArray();
         var buttonsWidth = widths.Sum() + ((buttons.Count - 1) * gap);
-        var status = Step == 0 ? "Ready to review" : $"Step {Step}/{MaxSteps}";
-        var narrow = buttonsWidth + ImGui.CalcTextSize(status).X + 48 > width;
-        var buttonY = narrow ? 56 : 15;
-        var x = width - buttonsWidth;
+        var textBlock = CurrencyChrome.LineHeight() + 4 + CurrencyChrome.LineHeight(Theme.SecondaryScale);
+        var buttonY = narrow ? top + 12 + textBlock + 12 : top + ((height - CurrencyChrome.Control) / 2f);
+        var x = winPos.X + width - gutter - buttonsWidth;
         for (var i = 0; i < buttons.Count; i++)
         {
             var button = buttons[i];
-            var pos = origin + new Vector2(x, buttonY);
-            if (CurrencyChrome.OutlineButton(draw, button.Id, button.Label, pos, new Vector2(widths[i], 34), button.Primary))
+            if (CurrencyChrome.OutlineButton(draw, button.Id, button.Label, new Vector2(x, buttonY), new Vector2(widths[i], CurrencyChrome.Control), button.Primary))
                 button.Action();
             x += widths[i] + gap;
         }
-        var textPos = origin + new Vector2(4, narrow ? 17 : 24);
-        draw.AddCircleFilled(textPos + new Vector2(0, -3), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(UiState.NeedsSetup)));
-        draw.AddText(textPos + new Vector2(12, -ImGui.GetTextLineHeight() / 2f), Theme.Pack(Theme.TextSecondary), status);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
+        var textY = narrow ? top + 12 : top + ((height - textBlock) / 2f);
+        var textX = winPos.X + gutter + 16;
+        draw.AddCircleFilled(new Vector2(winPos.X + gutter + 4, textY + (CurrencyChrome.LineHeight() / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(UiState.NeedsSetup)));
+        var room = narrow ? width - gutter - textX : winPos.X + width - gutter - buttonsWidth - 16 - textX;
+        CurrencyChrome.DrawText(draw, new Vector2(textX, textY), CurrencyChrome.FitText(FooterStatus(), room), Theme.TextPrimary);
+        CurrencyChrome.DrawText(draw, new Vector2(textX, textY + CurrencyChrome.LineHeight() + 4), CurrencyChrome.FitText(FooterDetail(), room, Theme.SecondaryScale),
+            Theme.TextSecondary, Theme.SecondaryScale);
+        ImGui.SetCursorScreenPos(new Vector2(winPos.X, top + height));
+        ImGui.Dummy(Vector2.Zero);
     }
-
-    private static float FooterHeight(float width) => width < 520 ? 104 : 64;
 
     private static void DrawVersion1_1_0Steps(int step)
     {
@@ -154,6 +182,7 @@ internal class ConfigWizardWindow : Window
                         return;
                     CurrencyChrome.Toggle("Show missing collectables in the main window", ref C.ShowMissingCollectables,
                         "Add a missing-collectable count to each currency row.");
+                    CurrencyChrome.Divider(); // Fork: separate the sub-section from the toggles above
                     CurrencyChrome.Section("Collectable types", "Select the item types treated as collectables.");
                     foreach (CollectableType type in Enum.GetValues(typeof(CollectableType)))
                     {
@@ -220,9 +249,8 @@ internal class ConfigWizardWindow : Window
         CurrencyChrome.Card("wizard_minimum_sales", () =>
         {
             CurrencyChrome.Section("Market filter");
-            ImGui.SetNextItemWidth(MathF.Min(180, ImGui.GetContentRegionAvail().X));
-            ImGui.InputInt("Minimum sales", ref C.MinSales);
-            Widgets.Caption("Minimum weekly sales for the market table; 0 disables the filter.");
+            CurrencyChrome.IntField("Minimum sales", ref C.MinSales, // Fork: framed field with its label beside it
+                "Minimum weekly sales for the market table; 0 disables the filter.");
         });
         CurrencyChrome.Card("wizard_credits", () =>
         {

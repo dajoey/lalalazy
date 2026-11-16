@@ -1,4 +1,5 @@
 using CurrencySpender.Classes;
+using CurrencySpender.Windows; // Fork: table cell helpers of the shared shell
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text;
@@ -14,6 +15,7 @@ internal static unsafe class UiHelper
     public static void RightAlign(string str, bool formatString = false)
     {
         if (formatString) str = StringHelper.FormatString(str);
+        if (CurrencyChrome.TextCells(str, right: true)) return; // Fork: inside a table every line sits in the shared line slot
         float rowHeight = ImGui.GetFrameHeight(); // Height of the row
         float textHeight = ImGui.GetTextLineHeight(); // Height of the text
         float iconSizef = 20; // Assuming your icon is 20x20
@@ -32,6 +34,7 @@ internal static unsafe class UiHelper
     {
         if (formatString)
             text = StringHelper.FormatString(text);
+        if (CurrencyChrome.IconTextCell(text, icon)) return; // Fork: inside a table the number and icon share one line slot
 
         // Get current column width
         float columnWidth = ImGui.GetColumnWidth();
@@ -67,6 +70,7 @@ internal static unsafe class UiHelper
     public static void LeftAlign(string str, bool formatString = false)
     {
         if (formatString) str = StringHelper.FormatString(str);
+        if (CurrencyChrome.TextCells(str, right: false)) return; // Fork: inside a table every line sits in the shared line slot
         float rowHeight = ImGui.GetFrameHeight(); // Height of the row
         float textHeight = ImGui.GetTextLineHeight(); // Height of the text
         float iconSizef = 20; // Assuming your icon is 20x20
@@ -81,7 +85,7 @@ internal static unsafe class UiHelper
     public static void WarningText(string str)
     {
         // Kit rendering (R4/R5): amber caution box, no colours outside LalaUiKit.
-        LalaUiKit.Widgets.InfoBox(str, LalaUiKit.UiState.Blocked);
+        CurrencyChrome.Notice(str, LalaUiKit.UiState.Blocked); // Fork: the shell's tinted notice instead of the thin kit info strip
     }
 
     private static readonly MissingLocationLog missingLocationLog = new();
@@ -103,7 +107,8 @@ internal static unsafe class UiHelper
             PluginLog.Debug("Back up location triggered");
             backupLocation = Location.Locations.Where(loc => loc.NpcId == item.Shop.Location.BackupNpc).First();
         }
-        if (ImGui.Button($"Flag##sellable-{item.Id}-{item.ShopId}-{item.Shop.NpcId}"))
+        var slotTop = CurrencyChrome.MapButtonsBegin(); // Fork: right aligned in one line slot
+        if (CurrencyChrome.SmallButton($"flag-{item.Id}-{item.ShopId}-{item.Shop.NpcId}", "Flag")) // Fork: framed button
         {
             if(item.Shop.Location.NeedsPresence && AgentMap.Instance()->CurrentTerritoryId != item.Shop.Location.TerritoryId)
             {
@@ -128,7 +133,7 @@ internal static unsafe class UiHelper
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        if (ImGui.Button($"TP##sellable-{item.Id}-{item.ShopId}-{item.Shop.NpcId}"))
+        if (CurrencyChrome.SmallButton($"tp-{item.Id}-{item.ShopId}-{item.Shop.NpcId}", "TP")) // Fork: framed button
         {
             item.Shop.Location.Teleport();
             if(item.Shop.Location.NeedsPresence && AgentMap.Instance()->CurrentTerritoryId != item.Shop.Location.TerritoryId)
@@ -145,6 +150,7 @@ internal static unsafe class UiHelper
                 UiHelper.LeftAlign($"{item.Shop.Location.Zone}");
             ImGui.EndTooltip();
         }
+        CurrencyChrome.MapButtonsEnd(slotTop); // Fork: pairs with MapButtonsBegin
     }
     public static void Notification(string content, NotificationType type = NotificationType.Info, bool minimized = true)
     {

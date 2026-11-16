@@ -11,7 +11,7 @@ internal class DebugTab
         CurrencyChrome.Card("debug_map", () =>
         {
             CurrencyChrome.Section("Map state");
-            Widgets.SecondaryWrapped($"CurrentMapId: {agent->CurrentMapId}\nCurrentTerritoryId: {agent->CurrentTerritoryId}");
+            CurrencyChrome.Muted($"CurrentMapId: {agent->CurrentMapId}\nCurrentTerritoryId: {agent->CurrentTerritoryId}");
         });
         CurrencyChrome.TwoColumns("debug_ranks",
             () => CurrencyChrome.Card("debug_gc_ranks", () =>
@@ -25,11 +25,12 @@ internal class DebugTab
                 CurrencyChrome.Section("FATE ranks");
                 foreach (var rank in PlayerHelper.SharedFateRanks)
                     Widgets.Secondary($"{rank.Key} — {rank.Value}");
-            }));
+            }), 0.5f); // Fork: balanced columns
         CurrencyChrome.Card("debug_tools", () =>
         {
             CurrencyChrome.Section("Generated data");
-            Widgets.SecondaryWrapped("Open the separate diagnostic window for generated collectable and shop rows.");
+            CurrencyChrome.Muted("Open the separate diagnostic window for generated collectable and shop rows."); // Fork: secondary size
+            ImGui.Dummy(new Vector2(1, 4));
             if (CurrencyChrome.Button("open_debug_window", "Open Debug Window"))
                 P.debugTabWindow.IsOpen = true;
         });
