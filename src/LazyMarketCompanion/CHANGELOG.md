@@ -1,4 +1,11 @@
-﻿## v0.2.8.23 (2026-11-15) [testing]
+﻿## v0.2.8.24 (2026-11-15) [testing]
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- The window has a new look with a header showing the plugin name, a status pill and a close button, sub-pages as pill tabs, and a status footer that shows the current state and a Stop button while an action runs.
+- Settings are grouped into cards, and the Auto-Market panel and the entries list show each item as its own card with its full name, switch, stack and keep fields. Long item names are shortened in the middle so the "(HQ)" marker always stays visible, and hovering shows the full name.
+- Narrow windows stack the controls and wrap captions and notices instead of cutting them, and long tables keep their column headers visible while scrolling.
+- The shared What's new window and Report a problem popup were restyled and now use the same custom window style as the plugin windows.
+
+## v0.2.8.23 (2026-11-15) [testing]
 ### Changed
 - The main window, the docked Auto-Market panel, the inventory page, the ownership tooltip, the confirmation prompts and the retainer overlay buttons now use responsive card-based layouts with pink navigation, track-style toggles and rounded controls, and running, idle, empty and ready states are worded the same way everywhere. All settings and behaviour are unchanged.
 - The main window and the Auto-Market panel each have a custom close (X) button, wide tables scroll only inside their own area, and the Auto-Market panel gained a persistent state footer with a Stop button for a running action.
