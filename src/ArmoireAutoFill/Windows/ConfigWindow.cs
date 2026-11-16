@@ -47,7 +47,7 @@ public class ConfigWindow : Window
             {
                 ArmoireChrome.PageHeader("Settings",
                     "Controls when the inventory scanner runs and how collection data stays current.",
-                    string.Empty);
+                    "1 option", "Scanner behavior");
 
                 ArmoireChrome.Card("config_scan_settings", 0, () =>
                 {

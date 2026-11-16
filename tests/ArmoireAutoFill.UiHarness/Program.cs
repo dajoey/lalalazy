@@ -33,12 +33,18 @@ internal static class Program
         /// <summary>
         /// Ordinals (top to bottom) of the interactive items in the left column to press, e.g. the dungeon rows or the
         /// "Pieces" tree nodes; the harness finds them by sweeping the mouse, so a layout change moves them with it.
-        /// The run prints the list it found. On the Collection page #0 is the table header and the dungeon rows follow.
+        /// The run prints the list it found. On the Collection page #0 is the table header and the dungeon rows follow (#1 is the first dungeon).
         /// </summary>
         public int[] Click { get; init; } = [];
 
         /// <summary>Hover the first piece line under the first row (draws the item tooltip).</summary>
         public bool HoverFirstPiece { get; init; }
+
+        /// <summary>Mouse-wheel notches (positive scrolls the body down) applied over the body after the clicks, to show a scrolled page.</summary>
+        public int Scroll { get; init; }
+
+        /// <summary>Notches applied before the clicks, so rows below the fold can be reached.</summary>
+        public int ScrollBefore { get; init; }
 
         /// <summary>Text set under the shopping list, as pressing "Copy import code" does.</summary>
         public bool ImportStatus { get; init; }
@@ -66,7 +72,7 @@ internal static class Program
                 Sim.Typical();
                 Plugin.Configuration.ShowOwnedItems = true;
             })
-            { Width = 1360, Height = 1150, Click = [0], HoverFirstPiece = true },
+            { Width = 1360, Height = 1150, Click = [1], HoverFirstPiece = true },
         new("collection-gear-database-missing", Surface.Collection, SizeKind.Fixed, Sim.GearDatabaseMissing) { Width = 760, Height = 900 },
         new("collection-all-complete-auto-store-off", Surface.Collection, SizeKind.Fixed, () =>
             {
@@ -97,9 +103,21 @@ internal static class Program
         new("settings-first-use", Surface.Settings, SizeKind.FirstUse, Sim.Typical),
         new("settings-narrowest", Surface.Settings, SizeKind.Narrowest, Sim.Typical),
 
+        // Evidence only: an open dungeon scrolled up under the header band and down under the footer, at the first-use size.
+        new("collection-scrolled-open-dungeon", Surface.Collection, SizeKind.Fixed, () =>
+            {
+                Sim.Typical();
+                Plugin.Configuration.ShowOwnedItems = true;
+            })
+            { Width = 820, Height = 600, Click = [1], ScrollBefore = 4, Scroll = 6, GameOnly = true },
+
         // Evidence only: the same typical page at 150 percent global scale.
         new("scale150-collection-typical", Surface.Collection, SizeKind.Fixed, Sim.Typical)
-            { Width = 1000, Height = 1400, Click = [0], Scale = 1.5f, GameOnly = true },
+            { Width = 1000, Height = 1400, Click = [1], Scale = 1.5f, GameOnly = true },
+
+        // Evidence only: the narrowest width at 150 percent scale, where the five-column table gives way to stacked rows.
+        new("scale150-collection-narrow", Surface.Collection, SizeKind.Fixed, Sim.Typical)
+            { Width = 520, Height = 1500, Click = [1], Scale = 1.5f, GameOnly = true },
     ];
 
     public static int Main(string[] args)
@@ -300,6 +318,18 @@ internal static class Program
         DrawFrame(target, size, Away, false, false);
     }
 
+    private static void ScrollBody(Target target, Vector2 size, int notches)
+    {
+        var at = new Vector2(size.X / 2f, size.Y / 2f);
+        for (var notch = 0; notch < notches; notch++)
+        {
+            ImGui.GetIO().MouseWheel = -1f;
+            DrawFrame(target, size, at, false, false);
+            ImGui.GetIO().MouseWheel = 0f;
+            DrawFrame(target, size, at, false, false);
+        }
+    }
+
     private static RenderResult RenderScenario(Scenario scenario)
     {
         Sim.Reset();
@@ -330,6 +360,7 @@ internal static class Program
                 DrawFrame(target, size, Away, false, false);
 
             var probeX = 44f;
+            ScrollBody(target, size, scenario.ScrollBefore);
             var hoverTarget = Vector2.Zero;
             foreach (var ordinal in scenario.Click)
             {
@@ -341,6 +372,8 @@ internal static class Program
                 Console.WriteLine($"  {scenario.Name}: pressing clickable #{ordinal} at y {y0:0}-{y1:0} (of {segments.Count}: {string.Join(" ", segments.Select(g => $"{g.Y0:0}"))})");
                 ClickAt(target, size, at);
             }
+
+            ScrollBody(target, size, scenario.Scroll);
 
             if (scenario.HoverFirstPiece)
             {
