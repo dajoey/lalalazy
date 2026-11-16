@@ -1,3 +1,7 @@
+## v0.2.5.6 (2026-11-15) [testing]
+### Changed
+- The settings window has a custom close button in the header, and the redundant outer scrollbar is gone; the body, rules and rail regions keep their own scrolling. Settings, profiles, potion decisions and automation behaviour are unchanged.
+
 ## v0.2.5.5 (2026-11-15) [testing]
 ### Changed
 - The settings window uses a custom header without the native title bar, pink navigation and toggle controls, responsive rule, requirement and settings cards, live profile counts and a persistent Stop footer. Settings, job profiles, potion decisions and automation behaviour are unchanged, and existing configuration loads as-is.
