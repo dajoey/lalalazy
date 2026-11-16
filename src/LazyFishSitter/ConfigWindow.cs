@@ -9,8 +9,6 @@ namespace LazyFishSitter;
 internal class ConfigWindow : Window
 {
     private const float ControlHeight = 34f;
-    private const float WideFooterHeight = 72f;
-    private const float NarrowFooterHeight = 108f;
     private readonly Plugin _plugin;
 
     private readonly record struct LiveStatus(UiState State, string Action, string? Reason);
@@ -28,27 +26,67 @@ internal class ConfigWindow : Window
         };
     }
 
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();
+
+    private static float Gutter(float width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
+
     public override void Draw()
     {
         var config = _plugin.Config;
         var service = _plugin._service;
         var changed = false;
         var status = CurrentStatus(config, service);
+        var winPos = ImGui.GetWindowPos();
+        var winSize = ImGui.GetWindowSize();
+        var gutter = Gutter(winSize.X);
+        var compact = winSize.Y < 720;
 
         Theme.PushFrame();
         try
         {
-            DrawTopBar(status.State);
-            DrawFeatureRow();
-            DrawPageHeader(service);
+            var y = DrawTopBar(winPos, winSize.X, gutter, compact, status.State);
+            y += DrawFeatureRow(winPos, y, winSize.X, gutter, compact);
+            var footer = MeasureFooter(config, service, status, winSize.X, gutter);
+            if (!compact)
+            {
+                y += DrawPageHeader(winPos + new Vector2(0, y), winSize.X, gutter, service);
+            }
 
-            var width = ImGui.GetContentRegionAvail().X;
-            var footerHeight = FooterHeight(width);
-            ImGui.BeginChild("##fishSitterBody", new Vector2(0, MathF.Max(80, ImGui.GetContentRegionAvail().Y - footerHeight)), false);
-            changed |= DrawBody(config, service);
-            ImGui.EndChild();
+            ImGui.SetCursorScreenPos(winPos + new Vector2(0, y));
+            var bodySize = new Vector2(winSize.X, MathF.Max(80, winSize.Y - footer.Height - y));
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16f));
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 10f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8f);
+            ImGui.PushStyleColor(ImGuiCol.Border, 0u);
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
+            ImGui.BeginChild("##fishSitterBody", bodySize, true);
+            try
+            {
+                if (compact)
+                {
+                    var origin = ImGui.GetCursorScreenPos();
+                    var width = FishSitterChrome.Avail();
+                    var headerHeight = DrawHeaderBlock(origin, width, winSize.X, service);
+                    ImGui.SetCursorScreenPos(origin);
+                    ImGui.Dummy(new Vector2(width, headerHeight + 16 - Theme.ItemSpacing.Y));
+                }
+                changed |= DrawBody(config, service, status);
+                DrawScrollFade();
+            }
+            finally
+            {
+                ImGui.EndChild();
+                ImGui.PopStyleColor(4);
+                ImGui.PopStyleVar(5);
+            }
 
-            DrawFooter(config, service, status, ref changed);
+            DrawFooter(winPos + new Vector2(0, winSize.Y - footer.Height), winSize.X, gutter, config, footer, ref changed);
         }
         finally
         {
@@ -56,6 +94,20 @@ internal class ConfigWindow : Window
             if (changed)
                 _plugin.SaveConfig();
         }
+    }
+
+    /// <summary>A short fade at the bottom of the body while more content is scrolled out of view.</summary>
+    private static void DrawScrollFade()
+    {
+        if (ImGui.GetScrollMaxY() <= 0 || ImGui.GetScrollY() >= ImGui.GetScrollMaxY() - 1)
+            return;
+        var draw = ImGui.GetWindowDrawList();
+        var min = ImGui.GetWindowPos();
+        var size = ImGui.GetWindowSize();
+        var bottom = ImGui.GetColorU32(ImGuiCol.WindowBg) | 0xFF000000u;
+        var top = bottom & 0x00FFFFFFu;
+        var left = min + new Vector2(0, size.Y - 28);
+        draw.AddRectFilledMultiColor(left, min + size - new Vector2(10, 0), top, top, bottom, bottom);
     }
 
     private static LiveStatus CurrentStatus(Configuration config, FishSitService service)
@@ -77,192 +129,291 @@ internal class ConfigWindow : Window
         return new LiveStatus(UiState.Ready, "Armed for a safe sit window", null);
     }
 
-    private void DrawTopBar(UiState state)
+    private float DrawTopBar(Vector2 winPos, float width, float gutter, bool compact, UiState state)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
-        var gap = 2 * Theme.Unit;
-        var brandSize = new Vector2(MathF.Max(216, (ImGui.CalcTextSize("LazyFishSitter").X * Theme.TitleScale) + 64), 40);
-        var stateLabel = Copy.Word(state);
-        var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
-        var closeSize = new Vector2(ControlHeight);
-        var closePos = origin + new Vector2(width - closeSize.X, 12);
-        var contentRight = width - closeSize.X - gap;
-        var stacked = width < brandSize.X + statusSize.X + closeSize.X + (4 * gap);
-        var barHeight = stacked ? 104f : 58f;
-        var brandPos = origin + new Vector2(0, 9);
-        var statusPos = stacked
-            ? origin + new Vector2(0, 59)
-            : origin + new Vector2(contentRight - statusSize.X, (barHeight - ControlHeight) / 2f);
+        var pad = compact ? 8f : 14f;
+        var brandHeight = compact ? 36f : 40f;
+        var brandSize = new Vector2(FishSitterChrome.BrandWidth(), brandHeight);
+        var pillSize = new Vector2(FishSitterChrome.StatusPillWidth(), ControlHeight);
+        var closeSize = ControlHeight;
+        var inner = width - (2 * gutter);
+        var stacked = brandSize.X + pillSize.X + closeSize + 16 > inner;
+        var height = stacked ? pad + brandHeight + 8 + ControlHeight + pad : pad + brandHeight + pad;
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        FishSitterChrome.Brand(draw, brandPos, brandSize);
-        FishSitterChrome.StatusPill(draw, statusPos, statusSize, state);
-        if (FishSitterChrome.ActionButton(draw, "close", "×", closePos, closeSize, false))
+        draw.AddRectFilled(winPos, winPos + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, height - 0.5f), winPos + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
+        var rowCenter = pad + (brandHeight / 2f);
+        FishSitterChrome.Brand(draw, winPos + new Vector2(gutter, pad), brandSize);
+        var closePos = winPos + new Vector2(width - gutter - closeSize, rowCenter - (closeSize / 2f));
+        var pillPos = stacked
+            ? winPos + new Vector2(gutter, pad + brandHeight + 8)
+            : winPos + new Vector2(closePos.X - 8 - pillSize.X - winPos.X, rowCenter - (ControlHeight / 2f));
+        FishSitterChrome.StatusPill(draw, pillPos, pillSize, state);
+        if (FishSitterChrome.CloseButton(draw, closePos, closeSize))
             IsOpen = false;
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        return height;
     }
 
-    private static void DrawFeatureRow()
+    private static float DrawFeatureRow(Vector2 winPos, float top, float width, float gutter, bool compact)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
-        const float barHeight = 52;
-        var tabWidth = MathF.Min(width, MathF.Max(132, ImGui.CalcTextSize("Fish sitting").X + 52));
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        FishSitterChrome.FeatureTab(draw, "Fish sitting", origin + new Vector2(0, 9), new Vector2(tabWidth, ControlHeight));
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        const string label = "Fish sitting";
+        var pad = compact ? 8f : 12f;
+        var height = pad + 32 + pad;
+        var origin = winPos + new Vector2(0, top);
+        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, height - 0.5f), origin + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
+        var pillWidth = MathF.Min(width - (2 * gutter), FishSitterChrome.FeaturePillWidth(label));
+        FishSitterChrome.FeaturePill(draw, label, origin + new Vector2(gutter, pad), new Vector2(pillWidth, 32));
+        return height;
     }
 
-    private static void DrawPageHeader(FishSitService service)
+    /// <summary>The fixed page header: 20 px above, 8 px below, and a hairline at the bottom.</summary>
+    private static float DrawPageHeader(Vector2 bandOrigin, float width, float gutter, FishSitService service)
     {
-        var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
         var draw = ImGui.GetWindowDrawList();
-        var tileSize = new Vector2(42);
+        var contentHeight = DrawHeaderBlock(bandOrigin + new Vector2(gutter, 20), width - (2 * gutter), width, service);
+        var height = 20 + contentHeight + 8;
+        draw.AddLine(bandOrigin + new Vector2(0, height - 0.5f), bandOrigin + new Vector2(width, height - 0.5f), Theme.Pack(Theme.SurfaceBorder));
+        return height;
+    }
+
+    /// <summary>Tile, title, description and the trip count. Returns the block height.</summary>
+    private static float DrawHeaderBlock(Vector2 origin, float width, float windowWidth, FishSitService service)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        const float tile = 44;
+        var wide = windowWidth >= 1000;
         var count = $"{service.SendsThisTrip} sit {(service.SendsThisTrip == 1 ? "send" : "sends")} this trip";
         const string title = "Fish sitting";
         const string description = "Sits at a safe fishing beat, then stays out of the way until the character stands again.";
+        const float scale = 1.35f;
 
-        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
-        FishSitterChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
-        if (width >= 620)
+        draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
+        FishSitterChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10, Theme.Pack(Theme.Accent));
+
+        var textX = origin.X + 60;
+        var countWidth = wide ? MathF.Min(FishSitterChrome.TextWidth(count, Theme.SecondaryScale), 0.4f * windowWidth) : 0;
+        var textWidth = MathF.Max(40, width - 60 - (wide ? countWidth + 16 : 0));
+        var shownTitle = FishSitterChrome.ClampLines(title, textWidth, scale, wide ? 1 : 2);
+        var titleBlock = FishSitterChrome.WrappedHeight(shownTitle, textWidth, scale);
+        var shownDescription = FishSitterChrome.ClampLines(description, textWidth, Theme.SecondaryScale, wide ? 1 : 3);
+        var descriptionHeight = FishSitterChrome.WrappedHeight(shownDescription, textWidth, Theme.SecondaryScale);
+
+        var y = origin.Y;
+        FishSitterChrome.DrawWrapped(draw, new Vector2(textX, y), shownTitle, textWidth, Theme.TextPrimary, scale);
+        y += titleBlock + 4;
+        var descriptionTop = y;
+        FishSitterChrome.DrawWrapped(draw, new Vector2(textX, y), shownDescription, textWidth, Theme.TextSecondary, Theme.SecondaryScale);
+        y += descriptionHeight;
+
+        if (wide)
         {
-            var textX = origin.X + tileSize.X + 12;
-            var countWidth = ImGui.CalcTextSize(count).X * Theme.CaptionScale;
-            FishSitterChrome.DrawText(draw, new Vector2(textX, origin.Y),
-                FishSitterChrome.FitText(title, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-            FishSitterChrome.DrawText(draw, new Vector2(textX, origin.Y + 28),
-                FishSitterChrome.FitText(description, width - tileSize.X - 12), Theme.TextSecondary);
-            FishSitterChrome.DrawTextRight(draw, origin.X + width, origin.Y + 5, count, Theme.TextSecondary, Theme.CaptionScale);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, 56));
+            var shownCount = FishSitterChrome.FitText(count, countWidth, Theme.SecondaryScale);
+            FishSitterChrome.DrawTextRight(draw, origin.X + width, descriptionTop, shownCount, Theme.TextSecondary, Theme.SecondaryScale);
         }
         else
         {
-            FishSitterChrome.DrawText(draw, origin + new Vector2(tileSize.X + 12, 4),
-                FishSitterChrome.FitText(title, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 6));
-            Widgets.SecondaryWrapped(description);
-            Widgets.Caption(count);
+            y += 4;
+            FishSitterChrome.DrawText(draw, new Vector2(textX, y), FishSitterChrome.FitText(count, textWidth, Theme.SecondaryScale),
+                Theme.TextSecondary, Theme.SecondaryScale);
+            y += FishSitterChrome.LineHeight(Theme.SecondaryScale);
         }
-        ImGui.Separator();
+        return MathF.Max(tile, y - origin.Y);
     }
 
-    private static bool DrawBody(Configuration config, FishSitService service)
+    private static bool DrawBody(Configuration config, FishSitService service, LiveStatus status)
     {
         var changed = false;
         var lastSit = service.LastSitSentUtc == DateTime.MinValue
             ? "Never"
             : service.LastSitSentUtc.ToLocalTime().ToString("HH:mm:ss");
+        var sends = service.SendsThisTrip;
         FishSitterChrome.StatCards(
-            new FishSitterStat("Sit sends", service.SendsThisTrip.ToString(), "Total this hole visit"),
-            new FishSitterStat("Fishing hole", service.TripActive ? "Active" : "None",
+            new FishSitterStat("Sit sends", sends.ToString(), FishSitService.MaxSends.ToString(),
+                Math.Min(1f, sends / (float)FishSitService.MaxSends), "Total this hole visit", sends >= FishSitService.MaxSends),
+            new FishSitterStat("Fishing hole", service.TripActive ? "Active" : "None", null,
+                service.TripActive ? 1f : 0f,
                 service.TripActive ? "Trip counters are live" : "Start fishing to begin a trip"),
-            new FishSitterStat("Posture", service.SitBelieved ? "Seated" : "Not seated",
+            new FishSitterStat("Posture", service.SitBelieved ? "Seated" : "Not seated", null,
+                service.SitBelieved ? 1f : 0f,
                 service.SitBelieved ? "No sit command needed" : service.SeatedReadWorksWithRodOut
-                    ? "Rod-out seated read proven" : "Rod-out seated read not seen yet"));
+                    ? "Rod-out read proven" : "Rod-out read not seen yet"));
 
-        if (ImGui.GetContentRegionAvail().X >= 720)
-        {
-            var origin = ImGui.GetCursorScreenPos();
-            var available = ImGui.GetContentRegionAvail().X;
-            var gap = 3 * Theme.Unit;
-            var leftWidth = (available - gap) * 0.58f;
-            FishSitterChrome.Card(width => DrawTripCard(service, lastSit, width), leftWidth);
-            var leftBottom = ImGui.GetCursorScreenPos().Y;
-            ImGui.SetCursorScreenPos(origin + new Vector2(leftWidth + gap, 0));
-            FishSitterChrome.Card(width => DrawSettingsCard(config, width, ref changed), available - leftWidth - gap);
-            var rightBottom = ImGui.GetCursorScreenPos().Y;
-            ImGui.SetCursorScreenPos(new Vector2(origin.X, MathF.Max(leftBottom, rightBottom)));
-        }
-        else
-        {
-            FishSitterChrome.Card(width => DrawTripCard(service, lastSit, width));
-            FishSitterChrome.Card(width => DrawSettingsCard(config, width, ref changed));
-        }
+        FishSitterChrome.Columns("body",
+            () => FishSitterChrome.Card(() => DrawTripCard(service, lastSit, status), fill: true),
+            () => FishSitterChrome.Card(() => DrawSettingsCard(config, ref changed), fill: true),
+            640);
         return changed;
     }
 
-    private static void DrawTripCard(FishSitService service, string lastSit, float width)
+    private static void DrawTripCard(FishSitService service, string lastSit, LiveStatus status)
     {
+        var positive = Theme.StateGreen;
         FishSitterChrome.SectionTitle("This fishing trip");
         if (!service.TripActive)
-            Widgets.SecondaryWrapped("No active fishing hole. Start fishing to populate the live trip details below.");
-        FishSitterChrome.KeyValue("Fishing hole", service.TripActive ? "Active" : "Not active", width);
-        FishSitterChrome.KeyValue("Seated", service.SitBelieved ? "Yes" : "No", width);
-        FishSitterChrome.KeyValue("Rod-out seated read", service.SeatedReadWorksWithRodOut ? "Proven" : "Not seen yet", width);
-        FishSitterChrome.KeyValue("Last sit command", lastSit, width);
-        ImGui.Separator();
-        Widgets.Caption("LAST CHECK");
-        Widgets.SecondaryWrapped(service.LastSkipReason);
+        {
+            FishSitterChrome.Para("No active fishing hole. Start fishing to populate the live trip details below.", Theme.SecondaryScale, Theme.TextSecondary);
+            FishSitterChrome.Gap(8);
+        }
+        FishSitterChrome.KeyValue("Fishing hole", service.TripActive ? "Active" : "Not active", service.TripActive ? positive : null);
+        FishSitterChrome.KeyValue("Seated", service.SitBelieved ? "Yes" : "No", service.SitBelieved ? positive : null);
+        FishSitterChrome.KeyValue("Rod-out seated read", service.SeatedReadWorksWithRodOut ? "Proven" : "Not seen yet",
+            service.SeatedReadWorksWithRodOut ? positive : null);
+        FishSitterChrome.KeyValue("Last sit command", lastSit);
+        FishSitterChrome.Gap(4);
+        FishSitterChrome.Hairline();
+        FishSitterChrome.Gap(12);
+        // While setup is incomplete the policy's own last read is not what holds the command, so show the setup reason.
+        var (summary, detail) = status.State == UiState.NeedsSetup && status.Reason is not null
+            ? (status.Reason, null)
+            : Describe(service.LastSkipReason);
+        FishSitterChrome.Para("Last check", Theme.SecondaryScale, Theme.TextSecondary);
+        FishSitterChrome.Gap(4);
+        FishSitterChrome.Para(summary, 1f, Theme.TextPrimary);
+        if (detail is not null)
+        {
+            FishSitterChrome.Gap(4);
+            FishSitterChrome.Para(detail, Theme.SecondaryScale, Theme.TextSecondary);
+        }
     }
 
-    private static void DrawSettingsCard(Configuration config, float width, ref bool changed)
+    private static void DrawSettingsCard(Configuration config, ref bool changed)
     {
         FishSitterChrome.SectionTitle("Settings");
         var enabled = config.Enabled;
         if (FishSitterChrome.Toggle("Sit while fishing", ref enabled,
-            "Uses the standby beat or a settled line, then leaves the character seated. Standing again re-arms the existing policy.", width))
+            "Uses the standby beat or a settled line, then leaves the character seated. Standing again re-arms the existing policy."))
         {
             config.Enabled = enabled;
             changed = true;
         }
 
-        ImGui.Separator();
-        Widgets.Body("Sit command");
+        FishSitterChrome.Hairline();
+        FishSitterChrome.Gap(12);
+        ImGui.TextUnformatted("Sit command");
+        FishSitterChrome.Gap(8);
         var command = config.SitCommand;
-        ImGui.SetNextItemWidth(width);
+        var invalid = !string.IsNullOrWhiteSpace(command) && !command.StartsWith('/');
+        var lineHeight = FishSitterChrome.LineHeight();
+        ImGui.SetNextItemWidth(FishSitterChrome.Avail());
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(16, (ControlHeight - lineHeight) / 2f));
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
         ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ShellBar);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.SurfaceBorder);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.ShellBar);
+        ImGui.PushStyleColor(ImGuiCol.Border, invalid ? Theme.StateAmber : Theme.SurfaceBorder);
         if (ImGui.InputText("##fish_sitter_command", ref command, 64))
         {
             config.SitCommand = command.Trim();
             changed = true;
         }
-        ImGui.PopStyleColor(3);
-        ImGui.PopStyleVar();
-        Widgets.SecondaryWrapped("Default /sit. The command must start with a slash.");
+        ImGui.PopStyleColor(4);
+        ImGui.PopStyleVar(3);
+        FishSitterChrome.Gap(8);
+        FishSitterChrome.Para("Default /sit. The command must start with a slash.", Theme.SecondaryScale,
+            invalid ? Theme.StateAmber : Theme.TextSecondary);
 
-        ImGui.Separator();
-        Widgets.SecondaryWrapped($"Runs every frame. Sends stay at least 10 seconds apart and stop after {FishSitService.MaxSends} consecutive unaccepted sends in a fishing trip.");
+        FishSitterChrome.Gap(12);
+        FishSitterChrome.Hairline();
+        FishSitterChrome.Gap(12);
+        FishSitterChrome.Para($"Runs every frame. Sends stay at least 10 seconds apart and stop after {FishSitService.MaxSends} consecutive unaccepted sends in a fishing trip.",
+            Theme.SecondaryScale, Theme.TextSecondary);
     }
 
-    private static float FooterHeight(float width) => width < 560 ? NarrowFooterHeight : WideFooterHeight;
-
-    private static void DrawFooter(Configuration config, FishSitService service, LiveStatus status, ref bool changed)
+    /// <summary>
+    /// Display wording for the policy's last-check text: a capitalised summary, with any bracketed detail
+    /// (game-read key=value pairs, counts) split off for a smaller muted line. The raw text is unchanged.
+    /// </summary>
+    internal static (string Summary, string? Detail) Describe(string raw)
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var height = FooterHeight(width);
-        var draw = ImGui.GetWindowDrawList();
-        var narrow = width < 560;
-        var actionLabel = config.Enabled ? "Stop" : "Enable auto-sit";
-        var actionWidth = MathF.Min(width, MathF.Max(104, ImGui.CalcTextSize(actionLabel).X + 44));
-        var actionPos = origin + new Vector2(width - actionWidth, narrow ? 62 : 18);
-        var textRight = narrow ? origin.X + width : actionPos.X - 16;
-        var textPos = origin + new Vector2(24, 10);
-        var primary = $"{Copy.Word(status.State)} · {status.Action}";
-        var secondary = status.Reason ?? "Last check: " + service.LastSkipReason;
+        var text = raw.Trim();
+        string? detail = null;
+        if (text.StartsWith('(') && text.EndsWith(')'))
+            text = text[1..^1];
+        else
+        {
+            var open = text.IndexOf(" (", StringComparison.Ordinal);
+            if (open > 0 && text.EndsWith(')'))
+            {
+                detail = text[(open + 2)..^1];
+                text = text[..open];
+            }
+        }
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
-        draw.AddCircleFilled(origin + new Vector2(10, 20), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(status.State)));
-        FishSitterChrome.DrawText(draw, textPos, FishSitterChrome.FitText(primary, textRight - textPos.X), Theme.TextPrimary);
-        FishSitterChrome.DrawText(draw, textPos + new Vector2(0, 27), FishSitterChrome.FitText(secondary, textRight - textPos.X), Theme.TextSecondary);
-        if (FishSitterChrome.ActionButton(draw, "footer_action", actionLabel, actionPos, new Vector2(actionWidth, 34), config.Enabled))
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?<=\p{L})\(\d+\)", "").Replace(" - ", " — ");
+        if (detail is not null)
+        {
+            var parts = detail.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1 && parts.All(p => p.Contains('=')))
+                detail = string.Join(" · ", parts);
+        }
+        return (Capitalise(text), detail);
+    }
+
+    private static string Capitalise(string text) =>
+        text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
+    private readonly record struct FooterLayout(
+        float Height, bool Narrow, string Primary, string Secondary, string FullSecondary, string ActionLabel,
+        float ActionWidth, float TextWidth, float PrimaryHeight, float SecondaryHeight, UiState State);
+
+    private static FooterLayout MeasureFooter(Configuration config, FishSitService service, LiveStatus status, float width, float gutter)
+    {
+        var narrow = width < 620;
+        var actionLabel = config.Enabled ? "Stop" : "Enable auto-sit";
+        var actionWidth = narrow ? width - (2 * gutter) : FishSitterChrome.ActionWidth("Stop", "Enable auto-sit");
+        var textRight = narrow ? width - gutter : width - gutter - actionWidth - 16;
+        var textWidth = MathF.Max(40, textRight - (gutter + 16));
+        var primary = $"{Copy.Word(status.State)} · {status.Action}";
+        var full = status.Reason is { } reason ? Capitalise(reason) : "Last check: " + Describe(service.LastSkipReason).Summary;
+        var shown = FishSitterChrome.ClampLines(full, textWidth, Theme.SecondaryScale, narrow ? 2 : 1);
+        var primaryHeight = FishSitterChrome.LineHeight();
+        var secondaryHeight = FishSitterChrome.WrappedHeight(shown, textWidth, Theme.SecondaryScale);
+        var block = primaryHeight + 4 + secondaryHeight;
+        var height = narrow ? 12 + block + 12 + ControlHeight + 12 : 12 + MathF.Max(block, ControlHeight) + 12;
+        return new FooterLayout(height, narrow, FishSitterChrome.FitText(primary, textWidth), shown, status.Reason is null ? service.LastSkipReason : full,
+            actionLabel, actionWidth, textWidth, primaryHeight, secondaryHeight, status.State);
+    }
+
+    private static void DrawFooter(Vector2 origin, float width, float gutter, Configuration config, FooterLayout layout, ref bool changed)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var block = layout.PrimaryHeight + 4 + layout.SecondaryHeight;
+        var bandHeight = layout.Narrow ? layout.Height - 12 - ControlHeight - 12 : layout.Height;
+        var textTop = origin.Y + (layout.Narrow ? 12 : (bandHeight - block) / 2f);
+        var left = origin.X + gutter;
+        // Full-bleed background and top hairline, clipped to the window rect so nothing leaks past the frame.
+        draw.PushClipRect(origin, origin + new Vector2(width, layout.Height), false);
+        draw.AddRectFilled(origin, origin + new Vector2(width, layout.Height), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(origin + new Vector2(0, 0.5f), origin + new Vector2(width, 0.5f), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+
+        var dotColor = Theme.Pack(FishSitterChrome.StateColor(layout.State));
+        draw.AddCircleFilled(new Vector2(left + 4, textTop + (layout.PrimaryHeight / 2f)), Theme.DotRadius + 1, dotColor);
+        FishSitterChrome.DrawText(draw, new Vector2(left + 16, textTop), layout.Primary, Theme.TextPrimary);
+        FishSitterChrome.DrawWrapped(draw, new Vector2(left + 16, textTop + layout.PrimaryHeight + 4), layout.Secondary,
+            layout.TextWidth, Theme.TextSecondary, Theme.SecondaryScale);
+
+        var textMin = new Vector2(left + 16, textTop);
+        var textMax = textMin + new Vector2(layout.TextWidth, block);
+        if (ImGui.IsMouseHoveringRect(textMin, textMax) && layout.FullSecondary.Length > 0)
+            ImGui.SetTooltip(layout.FullSecondary);
+
+        var actionPos = layout.Narrow
+            ? new Vector2(left, origin.Y + layout.Height - 12 - ControlHeight)
+            : new Vector2(origin.X + width - gutter - layout.ActionWidth, origin.Y + ((layout.Height - ControlHeight) / 2f));
+        var enabled = config.Enabled;
+        if (FishSitterChrome.ActionButton(draw, "footer_action", layout.ActionLabel, actionPos, new Vector2(layout.ActionWidth, ControlHeight),
+                enabled ? FishSitterChrome.ButtonStyle.Neutral : FishSitterChrome.ButtonStyle.Accent, destructive: enabled))
         {
             config.Enabled = !config.Enabled;
             changed = true;
         }
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, layout.Height));
     }
 
     /// <summary>Display-side read of the conditions that make injecting a command unsafe.</summary>

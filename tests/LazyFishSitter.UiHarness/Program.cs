@@ -123,8 +123,13 @@ internal static class Program
         },
         new("seated-tall", SizeKind.Custom, r => r.StandbyWithOneSend().GameSeatsCharacter())
         {
-            Width = 420, Height = 1300,
+            Width = 420, Height = 1420,
             Shows = "narrowest width, tall enough to show everything the scrolling body hides at 420x480",
+        },
+        new("seated-full", SizeKind.Custom, r => r.StandbyWithOneSend().GameSeatsCharacter())
+        {
+            Width = 900, Height = 780,
+            Shows = "wide layout tall enough to show the whole page: both cards end at the same bottom",
         },
         new("blocked-combat", SizeKind.FirstUse, r =>
         {
@@ -285,11 +290,13 @@ internal static class Program
                 ImGui.SetNextWindowPos(Vector2.Zero);
                 ImGui.SetNextWindowSize(size);
                 var open = true;
+                window.PreDraw();
                 ImGui.Begin(window.WindowName, ref open, window.Flags |
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
                     ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
                 window.Draw();
                 ImGui.End();
+                window.PostDraw();
                 ImGui.Render();
             }
 
@@ -400,8 +407,10 @@ internal static class Program
                 ImGui.SetCursorPos(new Vector2(20, 20));
                 const float width = 300;
                 if (step == 0)
-                    clickPos = ImGui.GetCursorScreenPos() + new Vector2(width - 20, 12);
-                FishSitterChrome.Toggle("Sit while fishing", ref value, null, width);
+                    clickPos = ImGui.GetCursorScreenPos() + new Vector2(width - 20, 24);
+                FishSitterChrome.PushRight(ImGui.GetCursorScreenPos().X + width);
+                FishSitterChrome.Toggle("Sit while fishing", ref value, null);
+                FishSitterChrome.PopRight();
                 ImGui.End();
                 ImGui.Render();
             }
