@@ -81,6 +81,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     _inventory = inventory;
     _runInProgress = runInProgress;
     _cancelAutomation = cancelAutomation;
+    Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     SizeConstraints = new WindowSizeConstraints
     {
       MinimumSize = new Vector2(360, 420),
@@ -273,14 +274,20 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     var statusLabel = busy ? Copy.Word(state) : $"{Copy.Word(state)} · {counts.OnList} on list";
     var brandSize = new Vector2(MathF.Max(158, (ImGui.CalcTextSize("Auto-Market").X * Theme.TitleScale) + 68), 42);
     var statusSize = new Vector2(MathF.Max(104, ImGui.CalcTextSize(statusLabel).X + 43), 34);
-    var singleRow = width >= brandSize.X + statusSize.X + (3 * gap);
+    var closeSize = new Vector2(34);
+    var singleRow = width >= brandSize.X + statusSize.X + closeSize.X + (4 * gap);
     var barHeight = singleRow ? 66 : 116;
     draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
     draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
     if (MarketChrome.BrandButton(draw, origin + new Vector2(0, 12), brandSize, "Auto-Market"))
       ImGui.SetScrollHereY(0);
-    var statusPos = singleRow ? new Vector2(width - statusSize.X, 16) : new Vector2(0, 66);
+    var statusPos = singleRow ? new Vector2(width - statusSize.X - closeSize.X - gap, 16) : new Vector2(0, 66);
+    var closePos = singleRow ? new Vector2(width - closeSize.X, 16) : new Vector2(width - closeSize.X, 12);
     MarketChrome.StatusPill(draw, origin + statusPos, statusSize, statusLabel, state);
+    if (MarketChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+      IsOpen = false;
+    if (ImGui.IsItemHovered())
+      ImGui.SetTooltip("Close");
     ImGui.SetCursorScreenPos(origin);
     ImGui.Dummy(new Vector2(width, barHeight));
   }

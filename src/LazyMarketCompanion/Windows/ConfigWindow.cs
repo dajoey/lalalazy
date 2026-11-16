@@ -73,6 +73,7 @@ public sealed class ConfigWindow : Window
   public ConfigWindow()
     : base("Lazy Market Companion")
   {
+    Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(620, 420), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
   }
 
@@ -155,12 +156,14 @@ public sealed class ConfigWindow : Window
     var state = busy ? UiState.Running : !Plugin.Configuration.AutoMarketEnabled ? UiState.Idle : Plugin.Configuration.AutoMarketItems.Count == 0 ? UiState.Empty : UiState.Ready;
     var statusLabel = busy ? LalaUiKit.Copy.Word(state) : $"{LalaUiKit.Copy.Word(state)} · {Plugin.Configuration.AutoMarketItems.Count} items";
     var statusSize = new Vector2(MathF.Max(94, ImGui.CalcTextSize(statusLabel).X + 43), 34);
+    var closeSize = new Vector2(34);
     var leftWidth = brandSize.X + gap + groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-    var singleRow = width >= leftWidth + statusSize.X + (2 * gap);
+    var singleRow = width >= leftWidth + statusSize.X + closeSize.X + (3 * gap);
     var positions = new Vector2[groups.Length];
     var brandPos = new Vector2(0, singleRow ? 12 : 10);
     float barHeight;
     Vector2 statusPos;
+    Vector2 closePos;
 
     if (singleRow)
     {
@@ -171,7 +174,8 @@ public sealed class ConfigWindow : Window
         positions[i] = new Vector2(x, 16);
         x += groupSizes[i].X + gap;
       }
-      statusPos = new Vector2(width - statusSize.X, 16);
+      statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, 16);
+      closePos = new Vector2(width - closeSize.X, 16);
     }
     else
     {
@@ -187,7 +191,8 @@ public sealed class ConfigWindow : Window
         positions[i] = new Vector2(x, y);
         x += groupSizes[i].X + gap;
       }
-      statusPos = new Vector2(width - statusSize.X, 14);
+      statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, 14);
+      closePos = new Vector2(width - closeSize.X, 14);
       barHeight = y + 42;
     }
 
@@ -202,6 +207,10 @@ public sealed class ConfigWindow : Window
         _currentPage = Pages.First(page => page.Group == group).Id;
     }
     MarketChrome.StatusPill(draw, origin + statusPos, statusSize, statusLabel, state);
+    if (MarketChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+      IsOpen = false;
+    if (ImGui.IsItemHovered())
+      ImGui.SetTooltip("Close");
     ImGui.SetCursorScreenPos(origin);
     ImGui.Dummy(new Vector2(width, barHeight));
   }
