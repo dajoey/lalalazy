@@ -127,9 +127,11 @@ internal static class PanelFilterCases
       var root = roots.Where(Directory.Exists).FirstOrDefault() ?? "";
       check("173 scan: plugin source tree found (run from repo root or bin)",
         root.Length > 0, "src/LazyMarketCompanion not found from either candidate path");
-      var winPath = Path.Combine(root, "Windows", "AutoMarketPanelWindow.cs");
+      // 0.2.8.25: the dropdowns moved from the docked panel to the main window's Inventory panel card
+      // (same saved keys); the docked panel only reads them (case 178 pins that).
+      var winPath = Path.Combine(root, "Windows", "ConfigWindow.cs");
       var cfgPath = Path.Combine(root, "Configuration.cs");
-      check("173 scan: the panel window and Configuration sources are found",
+      check("173 scan: the main window and Configuration sources are found",
         root.Length > 0 && File.Exists(winPath) && File.Exists(cfgPath), winPath);
 
       if (File.Exists(winPath) && File.Exists(cfgPath))
@@ -142,18 +144,18 @@ internal static class PanelFilterCases
         check("173 scan: finds the two filter dropdowns it grades",
           win.Contains("##lmcPanelStatus") && win.Contains("##lmcPanelCategory"), "");
 
-        check("173 scan: the panel resolves the saved status filter from the configuration",
+        check("173 scan: the card resolves the saved status filter from the configuration",
           win.Contains("ResolveVisibleStatus(c.AutoMarketPanelStatus)"), "");
-        check("173 scan: the panel resolves the saved category against the bags actually present",
+        check("173 scan: the card resolves the saved category against the bags actually present",
           win.Contains("ResolveVisibleCategory(c.AutoMarketPanelCategory"), "");
 
-        var filters = SliceMethod(win, "private void DrawFilters");
-        check("173 scan: the DrawFilters method is found", filters.Length > 0, "");
+        var filters = SliceMethod(win, "private void DrawInventoryPanelCard");
+        check("173 scan: the DrawInventoryPanelCard method is found", filters.Length > 0, "");
         check("173 scan: picking a status writes the configuration and saves",
-          filters.Contains("Configuration.AutoMarketPanelStatus = _status") && filters.Contains(".Save()"), "");
+          filters.Contains("c.AutoMarketPanelStatus = (AutoMarketPanelModel.StatusFilter)statusIdx") && filters.Contains(".Save()"), "");
         check("173 scan: picking a category (or every-category) writes the configuration and saves",
-          filters.Contains("Configuration.AutoMarketPanelCategory = 0")
-            && filters.Contains("Configuration.AutoMarketPanelCategory = catId") && filters.Contains(".Save()"), "");
+          filters.Contains("c.AutoMarketPanelCategory = 0")
+            && filters.Contains("c.AutoMarketPanelCategory = catId") && filters.Contains(".Save()"), "");
 
         check("173 scan: Configuration declares both remembered filter settings",
           cfg.Contains("AutoMarketPanelStatus { get; set; }") && cfg.Contains("AutoMarketPanelCategory { get; set; }"), "");

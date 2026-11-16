@@ -5,7 +5,6 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LalaUiKit;
 using LazyMarketCompanion.AutoMarket;
-using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -14,10 +13,14 @@ using Lalalazy.Telemetry;
 namespace LazyMarketCompanion.Windows;
 
 /// <summary>
-/// The Auto-Market panel (0.2.8.12): a normal-titled window listing every marketable stack in the
-/// player's bags, whether it is on the Auto-Market list, and quick add/remove + per-item knobs -
-/// the LIST answer to the same question the bag dots answer at each slot (which never rendered
-/// reliably for this player; the dots stay available but are no longer the only way to see state).
+/// The Auto-Market panel: a normal-titled window that docks beside the inventory window and lists
+/// every marketable stack in the player's bags, whether it is on the Auto-Market list, and quick
+/// add/remove + per-item knobs - the LIST answer to the same question the bag dots answer at each
+/// slot. Since 0.2.8.25 it shows nothing else: a title line with its close button, then the stacks.
+/// Where the panel sits, whether it stays open, the status/category filters that narrow it, the
+/// counts and the bulk add/remove actions are the main window's "Inventory panel" card
+/// (<c>ConfigWindow.DrawInventoryPanelCard</c>); the global Auto-Market settings were never a
+/// second surface and live only in the main window.
 ///
 /// BEHAVIOUR (the task's contract):
 /// - Docks beside the inventory window (right when there is room, else left, else floats at a
@@ -26,16 +29,10 @@ namespace LazyMarketCompanion.Windows;
 ///   line below names what was read.
 /// - Opens automatically with the inventory while dock-to-inventory is on; closes with it unless
 ///   pinned; <c>/lmc panel</c> toggles it any time.
-/// - The master switch asks for confirmation on turn-ON and stays locked while a run is in
-///   progress. The confirmation is the panel's own safety (the main window's switch writes the
-///   setting directly, without one); the run lock is the same run the main window checks.
-/// - "Add all visible" / "Remove all visible" show the exact count they would touch and confirm
-///   first; single-row edits are the same config writes the main window's table makes
-///   (GetOrAddAutoMarketItem / AutoMarketItems.Remove), so the two can never disagree.
-/// - The global Auto-Market knobs are copied label-for-label from the Auto-Market tab; a change
-///   here writes the same field the main window writes. What the main window does not expose is
-///   not exposed here either (placeholder price, the routing-move switch, the manual default
-///   amount) - the panel is a convenience view, not a second config surface.
+/// - Lists marketable stacks only (<see cref="AutoMarketPanelModel.PanelRows"/>), narrowed by the
+///   status and category filters saved in the configuration. Single-row edits are the same config
+///   writes the main window's table makes (GetOrAddAutoMarketItem / AutoMarketItems.Remove), so
+///   the two can never disagree.
 ///
 /// The list covers the player's four bag containers only (InventoryService.ReadBags), which is
 /// what Auto-Market's "bags" stock source draws from; retainer stock has its own view (the
@@ -46,18 +43,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
 {
   private readonly Inventory.InventoryService _inventory;
   private readonly Func<bool> _runInProgress;
-  private readonly Action<string>? _cancelAutomation;
   private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("panel.automarket", "Auto-Market panel");
-
-  // ---- panel UI state ----
-  // _status and _categoryFilter are working values resolved from the saved configuration every
-  // frame (Draw), so the dropdowns remember their setting between sessions; picking in a
-  // dropdown writes the configuration. A stale saved category resolves to "every category" for
-  // display while the saved value is kept (see AutoMarketPanelModel.ResolveVisibleCategory).
-  private AutoMarketPanelModel.StatusFilter _status = AutoMarketPanelModel.StatusFilter.All;
-  private string _search = string.Empty;
-  private uint _categoryFilter; // 0 = every category
-  private bool _showUnmarketable;
 
   // ---- placement state (Watch + Draw cooperate) ----
   private PanelDock.DockMode _lastMode = PanelDock.DockMode.Floating;
@@ -73,14 +59,11 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private PanelDock.Rect _invRect;
   private float _invScale;
 
-  private readonly Dictionary<uint, bool> _marketableCache = [];
-
-  public AutoMarketPanelWindow(Inventory.InventoryService inventory, Func<bool> runInProgress, Action<string>? cancelAutomation)
+  public AutoMarketPanelWindow(Inventory.InventoryService inventory, Func<bool> runInProgress)
     : base("Lazy Market Companion Auto-Market##lmcPanel")
   {
     _inventory = inventory;
     _runInProgress = runInProgress;
-    _cancelAutomation = cancelAutomation;
     Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     SizeConstraints = new WindowSizeConstraints
     {
@@ -216,277 +199,53 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private void DrawFrame()
   {
     // inside Begin: the window's real position and size this frame
-      var windowPos = ImGui.GetWindowPos();
-      var windowSize = ImGui.GetWindowSize();
-      _lastSize = windowSize;
-      if (_lastMode == PanelDock.DockMode.Floating)
-        _lastFloating = windowPos;
+    var windowPos = ImGui.GetWindowPos();
+    var windowSize = ImGui.GetWindowSize();
+    _lastSize = windowSize;
+    if (_lastMode == PanelDock.DockMode.Floating)
+      _lastFloating = windowPos;
 
-      var c = Plugin.Configuration;
+    var c = Plugin.Configuration;
 
-      // ---- the list, straight from the bags ----
-      var stacks = new List<AutoMarketPanelModel.StackInput>();
-      foreach (var b in _inventory.ReadBags())
-        stacks.Add(new AutoMarketPanelModel.StackInput(b.Container, b.Slot, b.ItemId, b.Hq, b.Quantity));
+    // ---- the list, straight from the bags: marketable stacks only, narrowed by the filters saved
+    // from the main window's "Inventory panel" card ----
+    var all = AutoMarketBagView.ReadRows(_inventory, c);
+    var visible = AutoMarketPanelModel.PanelRows(all, c.AutoMarketPanelStatus, c.AutoMarketPanelCategory);
+    var filtered = AutoMarketPanelModel.ResolveVisibleStatus(c.AutoMarketPanelStatus) != AutoMarketPanelModel.StatusFilter.All
+      || AutoMarketPanelModel.ResolveVisibleCategory(c.AutoMarketPanelCategory, AutoMarketPanelModel.PresentCategories(all)) != 0;
 
-      var entries = new List<AutoMarketPanelModel.EntryInput>(c.AutoMarketItems.Count);
-      foreach (var e in c.AutoMarketItems)
-        entries.Add(new AutoMarketPanelModel.EntryInput(e.ItemId, e.HQ, e.Enabled, e.ExcludeFromCategoryRouting, e.StackSize, e.KeepInBags));
-
-      var all = AutoMarketPanelModel.Build(stacks, entries, ItemNameResolver.GetItemName, ItemNameResolver.SearchCategoryId, IsMarketable);
+    if (!_loggedOpen)
+    {
+      _loggedOpen = true;
       var counts = AutoMarketPanelModel.Count(all);
-
-      // The filter dropdowns remember their setting (0.2.8.15): the working values are resolved
-      // from the saved configuration every frame, so a plugin reload or game restart restores
-      // them. A saved category that is not in the current bags resolves to "every category" for
-      // display - it must not hide everything behind an invisible filter - while the saved value
-      // itself is kept until another is picked.
-      _status = AutoMarketPanelModel.ResolveVisibleStatus(c.AutoMarketPanelStatus);
-      _categoryFilter = AutoMarketPanelModel.ResolveVisibleCategory(c.AutoMarketPanelCategory, AutoMarketPanelModel.PresentCategories(all));
-      var filters = new AutoMarketPanelModel.Filters(_status, _search, _categoryFilter, _showUnmarketable);
-      var visible = AutoMarketPanelModel.Visible(all, filters);
-      var bulk = AutoMarketPanelModel.PlanBulk(visible);
-
-      if (!_loggedOpen)
-      {
-        _loggedOpen = true;
-        Svc.Log.Information(
-          $"[LMC] Auto-Market panel opened: dock={_lastMode} pos=({windowPos.X:0.#},{windowPos.Y:0.#}) size=({windowSize.X:0.#},{windowSize.Y:0.#})" +
-          $" viewport=({ImGui.GetMainViewport().Pos.X:0.#},{ImGui.GetMainViewport().Pos.Y:0.#})+({ImGui.GetMainViewport().Size.X:0.#},{ImGui.GetMainViewport().Size.Y:0.#})" +
-          $" inventory={(_invOpen ? $"({_invRect.Pos.X:0.#},{_invRect.Pos.Y:0.#})+({_invRect.Size.X:0.#},{_invRect.Size.Y:0.#}) scale={_invScale:0.00}" : "not readable")}" +
-          $" rows: on-list={counts.OnList} not-listed={counts.NotListed} excluded={counts.Excluded} unmarketable={counts.NotMarketable} showing={visible.Count}");
-      }
-
-      MarketChrome.HeaderBand("Auto-Market", CurrentState(c), [], out _, out _, out var closeClicked);
-      if (closeClicked)
-        IsOpen = false;
-      MarketChrome.PageHeader("Bag groups", "Live bag groups, list membership, per-item limits, and bulk actions.", $"{visible.Count} shown · {counts.OnList} on list");
-      var busy = _runInProgress();
-      var footerHeight = MarketChrome.FooterHeight(ImGui.GetWindowWidth(), busy);
-      if (MarketChrome.BeginBody(footerHeight))
-      {
-        MarketChrome.StatCards(
-          new MarketChrome.Stat("On list", counts.OnList.ToString(), "Bag groups with an Auto-Market entry"),
-          new MarketChrome.Stat("Not listed", counts.NotListed.ToString(), "Marketable groups available to add"),
-          new MarketChrome.Stat("Excluded", counts.Excluded.ToString(), "Entries skipped by category routing"));
-        DrawHeader(c, counts);
-        DrawFilters(all, counts);
-        DrawBulkButtons(bulk);
-        DrawTable(c, visible);
-        DrawKnobs(c);
-      }
-      MarketChrome.EndBody();
-      if (_pendingPopup == 1)
-        ImGui.OpenPopup("Turn Auto-Market on?");
-      else if (_pendingPopup == 2)
-        ImGui.OpenPopup("Add all visible items?");
-      else if (_pendingPopup == 3)
-        ImGui.OpenPopup("Remove all visible items?");
-      _pendingPopup = 0;
-      DrawBulkModals(c, bulk);
-      DrawFooter(c, visible.Count);
-  }
-
-  private void DrawHeader(Configuration c, AutoMarketPanelModel.Counts counts)
-  {
-    MarketChrome.Card("panel_dock", () =>
-    {
-      MarketChrome.CardHeader("Panel placement", $"{counts.OnList} on list · {counts.NotListed} not listed");
-      var dock = c.AutoMarketPanelDock;
-      if (MarketChrome.Toggle("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
-      Tip("Place the panel beside the inventory window (right when there is room, else left). Off = the panel floats wherever you dragged it, and opening your bags does not open or close it.");
-
-      if (dock)
-      {
-        var pinned = c.AutoMarketPanelPinned;
-        if (MarketChrome.Toggle("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
-        Tip("Off (the default): the panel opens and closes with your inventory.\r\nOn: the panel stays up after the inventory closes - close it by hand or with /lmc panel.");
-      }
-
-      var where = _lastMode switch
-      {
-        PanelDock.DockMode.Right => "Docked right of the inventory",
-        PanelDock.DockMode.Left => "Docked left of the inventory",
-        _ => _invOpen ? "Floating · no room beside the inventory" : "Floating · inventory not readable or closed",
-      };
-      MarketChrome.RowsDone();
-      ImGui.Dummy(new Vector2(0, 4));
-      MarketChrome.Secondary(where);
-    });
-  }
-
-  private void DrawFooter(Configuration c, int visibleCount)
-  {
-    var busy = _runInProgress();
-    var state = CurrentState(c);
-    var action = busy ? "the current market action" : !c.AutoMarketEnabled ? "Auto-Market is off" : c.AutoMarketItems.Count == 0 ? "no Auto-Market entries" : "Auto-Market list ready";
-    var detail = busy ? "Stop cancels the current action." : c.AutoMarketEnabled && c.AutoMarketItems.Count == 0 ? "Add an item from the main window or inventory context menu." : $"{visibleCount} visible groups · {c.AutoMarketItems.Count} configured entries";
-    MarketChrome.Footer(state, action, detail, busy ? "Stop" : null, busy ? () => _cancelAutomation?.Invoke("cancelled from the Auto-Market panel") : null);
-  }
-
-  // =====================================================================================
-  // filters
-  // =====================================================================================
-
-  private void DrawFilters(List<AutoMarketPanelModel.Row> all, AutoMarketPanelModel.Counts counts)
-  {
-    MarketChrome.Card("panel_filters", () =>
-    {
-      MarketChrome.CardHeader("Filters", "Narrow the live bag groups without changing the underlying list.");
-      var statusIdx = (int)_status;
-      if (MarketChrome.Field("Status", width => MarketChrome.Combo("##lmcPanelStatus", ref statusIdx, ["All", "On list", "Not on list", "Excluded"], width)))
-      {
-        _status = (AutoMarketPanelModel.StatusFilter)statusIdx;
-        Plugin.Configuration.AutoMarketPanelStatus = _status;
-        Plugin.Configuration.Save();
-      }
-      Tip("Show every marketable stack, only the ones on the Auto-Market list, only the ones missing from it, or only the ones quick-excluded from category routing. This setting is remembered between sessions.");
-
-      var categories = AutoMarketPanelModel.PresentCategories(all).ToList();
-      var labels = new List<string> { "Every category" };
-      labels.AddRange(categories.Select(catId => $"{ItemNameResolver.GetSearchCategoryName(catId)} ({catId})"));
-      var catIdx = _categoryFilter == 0 ? 0 : Math.Max(0, categories.IndexOf(_categoryFilter) + 1);
-      if (MarketChrome.Field("Category", width => MarketChrome.Combo("##lmcPanelCategory", ref catIdx, [.. labels], width)))
-      {
-        if (catIdx == 0)
-        {
-          _categoryFilter = 0;
-          Plugin.Configuration.AutoMarketPanelCategory = 0;
-        }
-        else
-        {
-          var catId = categories[catIdx - 1];
-          _categoryFilter = catId;
-          Plugin.Configuration.AutoMarketPanelCategory = catId;
-        }
-        Plugin.Configuration.Save();
-      }
-      Tip("Only stacks in this market-board category. This setting is remembered between sessions; a category the current bags do not have shows as every category until it is picked again.");
-
-      var show = _showUnmarketable;
-      if (MarketChrome.Toggle($"Show unmarketable ({counts.NotMarketable})", ref show))
-        _showUnmarketable = show;
-      Tip("Quest items, gear the sheet calls untradable, anything with no market category: they get no dot and no Auto-Market listing, so they are hidden. This shows and counts them.");
-
-      var search = _search;
-      if (MarketChrome.Field("Search", width =>
-          {
-            ImGui.SetNextItemWidth(width);
-            return ImGui.InputTextWithHint("##lmcPanelSearch", "search by item name", ref search, 64);
-          }))
-        _search = search;
-    });
-  }
-
-  // =====================================================================================
-  // bulk buttons + confirmation modals
-  // =====================================================================================
-
-  private void DrawBulkButtons(AutoMarketPanelModel.BulkPlan bulk)
-  {
-    MarketChrome.Card("bulk_actions", () =>
-    {
-      MarketChrome.CardHeader("Bulk actions", "Counts come from the rows visible under the current filters.");
-      var width = MarketChrome.Avail();
-      var addLabel = $"Add all visible ({bulk.Adds.Count})";
-      var removeLabel = $"Remove all visible ({bulk.Removes.Count})";
-      var sideBySide = MarketChrome.ButtonWidth(addLabel) + MarketChrome.ButtonWidth(removeLabel) + 8 <= width;
-      var each = sideBySide ? (width - 8) / 2f : width;
-      if (MarketChrome.Button(addLabel, each))
-        _pendingPopup = 2; // opened at window scope after the body so the modal shares its id stack
-      Tip("Adds every currently visible 'not listed' row to the Auto-Market list (default settings, enabled) - the same entries the inventory context menu's 'Add to Auto-Market' creates. You confirm first.");
-
-      if (sideBySide)
-        ImGui.SameLine(0, 8);
-      if (MarketChrome.Button(removeLabel, each))
-        _pendingPopup = 3;
-      Tip("Removes every currently visible on-list row from the Auto-Market list. You confirm first - and the filters above decide what 'visible' means.");
-    });
-  }
-
-  private int _pendingPopup;
-
-  private void DrawBulkModals(Configuration c, AutoMarketPanelModel.BulkPlan bulk)
-  {
-    MarketChrome.PushModalStyle("Turn Auto-Market on?");
-    var keep1 = true;
-    if (MarketChrome.ModalBegan(ImGui.BeginPopupModal("Turn Auto-Market on?", ref keep1, MarketChrome.ModalFlags), "Turn Auto-Market on?", 320))
-    {
-      ImGui.TextWrapped("Turning Auto-Market on lets it run the next time it is triggered, including during AutoRetainer cycles if that is set up in its settings.");
-      switch (MarketChrome.ModalButtons("Turn on", "Keep it off", false))
-      {
-        case 1:
-          c.AutoMarketEnabled = true;
-          c.Save();
-          ImGui.CloseCurrentPopup();
-          break;
-        case 2:
-          ImGui.CloseCurrentPopup();
-          break;
-      }
-      MarketChrome.EndModal();
+      Svc.Log.Information(
+        $"[LMC] Auto-Market panel opened: dock={_lastMode} pos=({windowPos.X:0.#},{windowPos.Y:0.#}) size=({windowSize.X:0.#},{windowSize.Y:0.#})" +
+        $" viewport=({ImGui.GetMainViewport().Pos.X:0.#},{ImGui.GetMainViewport().Pos.Y:0.#})+({ImGui.GetMainViewport().Size.X:0.#},{ImGui.GetMainViewport().Size.Y:0.#})" +
+        $" inventory={(_invOpen ? $"({_invRect.Pos.X:0.#},{_invRect.Pos.Y:0.#})+({_invRect.Size.X:0.#},{_invRect.Size.Y:0.#}) scale={_invScale:0.00}" : "not readable")}" +
+        $" rows: on-list={counts.OnList} not-listed={counts.NotListed} excluded={counts.Excluded} unmarketable={counts.NotMarketable} showing={visible.Count}");
     }
 
-    MarketChrome.PushModalStyle("Add all visible items?");
-    var keep2 = true;
-    if (MarketChrome.ModalBegan(ImGui.BeginPopupModal("Add all visible items?", ref keep2, MarketChrome.ModalFlags), "Add all visible items?", 320))
-    {
-      ImGui.TextWrapped($"Add {bulk.Adds.Count} {(bulk.Adds.Count == 1 ? "item" : "items")} to the Auto-Market list now?");
-      MarketChrome.Secondary("New entries use the default settings (enabled, stack = the market maximum).");
-      switch (MarketChrome.ModalButtons("Add", "Cancel", false))
-      {
-        case 1:
-          foreach (var (id, hq) in bulk.Adds)
-            c.GetOrAddAutoMarketItem(id, hq);
-          c.Save();
-          ImGui.CloseCurrentPopup();
-          break;
-        case 2:
-          ImGui.CloseCurrentPopup();
-          break;
-      }
-      MarketChrome.EndModal();
-    }
-
-    MarketChrome.PushModalStyle("Remove all visible items?");
-    var keep3 = true;
-    if (MarketChrome.ModalBegan(ImGui.BeginPopupModal("Remove all visible items?", ref keep3, MarketChrome.ModalFlags), "Remove all visible items?", 320))
-    {
-      ImGui.TextWrapped($"Remove {bulk.Removes.Count} {(bulk.Removes.Count == 1 ? "item" : "items")} from the Auto-Market list now?");
-      MarketChrome.Secondary("Auto-Market will stop touching these items entirely. This does not cancel listings already on the retainers.");
-      switch (MarketChrome.ModalButtons("Remove", "Cancel", true))
-      {
-        case 1:
-          foreach (var (id, hq) in bulk.Removes)
-          {
-            var entry = c.GetAutoMarketItem(id, hq);
-            if (entry != null)
-              c.AutoMarketItems.Remove(entry);
-          }
-          c.Save();
-          ImGui.CloseCurrentPopup();
-          break;
-        case 2:
-          ImGui.CloseCurrentPopup();
-          break;
-      }
-      MarketChrome.EndModal();
-    }
+    MarketChrome.HeaderBand("Auto-Market", CurrentState(c), [], out _, out _, out var closeClicked);
+    if (closeClicked)
+      IsOpen = false;
+    if (MarketChrome.BeginBody(0f))
+      DrawTable(c, visible, filtered);
+    MarketChrome.EndBody();
   }
 
   // =====================================================================================
   // the list: one card per bag group (the Item column keeps the room it needs at any width)
   // =====================================================================================
 
-  private void DrawTable(Configuration c, List<AutoMarketPanelModel.Row> visible)
+  private static void DrawTable(Configuration c, List<AutoMarketPanelModel.Row> visible, bool filtered)
   {
     MarketChrome.Card("bag_groups", () =>
     {
       MarketChrome.CardHeader("Marketable stacks", "Live quantities and the same per-item edits as the main window.", $"{visible.Count} groups");
       if (visible.Count == 0)
       {
-        MarketChrome.Notice(_search.Length > 0 || _categoryFilter != 0 || _status != AutoMarketPanelModel.StatusFilter.All
-          ? "Empty · no bag groups match the current filters. Clear the search or choose another filter."
+        MarketChrome.Notice(filtered
+          ? "Empty · no marketable stacks match the status or category filter. Change it in the main window's Inventory panel card."
           : "Empty · nothing marketable is in the bags right now.", UiState.Empty);
         return;
       }
@@ -618,148 +377,8 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   }
 
   // =====================================================================================
-  // global knobs - label-for-label the Auto-Market tab's controls, writing the same fields
-  // =====================================================================================
-
-  private static bool ComboField(string label, string id, ref int index, string[] items)
-  {
-    var local = index;
-    var changed = MarketChrome.Field(label, width => MarketChrome.Combo(id, ref local, items, width));
-    if (changed)
-      index = local;
-    return changed;
-  }
-
-  private void DrawKnobs(Configuration c)
-  {
-    MarketChrome.Card("panel_settings", () =>
-    {
-    MarketChrome.CardHeader("Auto-Market settings", "The same saved controls as the main window; no additional selling surface.");
-
-    var enabled = c.AutoMarketEnabled;
-    var busy = _runInProgress();
-    if (busy) ImGui.BeginDisabled();
-    if (MarketChrome.Toggle("Enable Auto-Market", ref enabled))
-    {
-      if (enabled)
-        _pendingPopup = 1;
-      else
-      {
-        c.AutoMarketEnabled = false;
-        c.Save();
-      }
-    }
-    if (busy) ImGui.EndDisabled();
-    TipAlways(busy
-      ? "Running. Stop the current action first."
-      : "Master switch. When off, the Auto Market buttons and the AutoRetainer hook do nothing.");
-    var markers = c.AutoMarketMarkersEnabled;
-    if (MarketChrome.Toggle("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
-    Tip("Draws a small green dot on every bag stack that is on the Auto-Market list and enabled.\r\nAn item on the list with its tick unticked gets no dot - it would not be listed.\r\nThis panel lists the same state as a table, even when the dots do not draw.");
-
-    var duringAr = c.AutoMarketDuringAutoRetainer;
-    if (!AutoRetainerIPC.Installed) ImGui.BeginDisabled();
-    if (MarketChrome.Toggle("Run during AutoRetainer ventures", ref duringAr)) { c.AutoMarketDuringAutoRetainer = duringAr; c.Save(); }
-    if (!AutoRetainerIPC.Installed) ImGui.EndDisabled();
-    TipAlways(AutoRetainerIPC.Installed
-      ? "When AutoRetainer cycles a retainer (multi-mode / ventures), claim it after AR's own work, list your items, match prices, hand it back.\r\nOnly enabled retainers (Retainers tab) are claimed."
-      : "AutoRetainer is not installed / loaded.");
-
-    var inSweep = c.AutoMarketInPinchAllSweep;
-    if (MarketChrome.Toggle("Include in 'Auto Market' sweep", ref inSweep)) { c.AutoMarketInPinchAllSweep = inSweep; c.Save(); }
-    Tip("The 'Auto Market' button on the retainer list lists items on every enabled retainer before pinching. Off = that button only pinches.");
-
-    var src = (int)c.AutoMarketSource;
-    if (ComboField("Stock source", "##lmcPanelSource", ref src, ["Bags only", "Retainer inventory only", "Bags + retainer inventory"])) { c.AutoMarketSource = (StockSource)src; c.Save(); }
-    Tip("Where items may be taken from. Per-item override available in the main window's table. This panel always lists your bags.");
-
-    var retFirst = c.AutoMarketPreferRetainerStockFirst;
-    if (MarketChrome.Toggle("Retainer stock first", ref retFirst)) { c.AutoMarketPreferRetainerStockFirst = retFirst; c.Save(); }
-    Tip("Sell the retainer's own inventory (venture loot) before touching your bags.");
-
-    var partial = c.AutoMarketListPartialStacks;
-    if (MarketChrome.Toggle("List partial stacks", ref partial)) { c.AutoMarketListPartialStacks = partial; c.Save(); }
-    Tip("If there isn't a full listing's worth left, list what's there anyway. Off = only full-size listings.");
-
-    var pm = (int)c.AutoMarketPriceMode;
-    if (ComboField("New listing price", "##lmcPanelPriceMode", ref pm, ["Placeholder, then match on the board", "Universalis first (fallback: placeholder)"])) { c.AutoMarketPriceMode = (NewListingPriceMode)pm; c.Save(); }
-    Tip("Placeholder: list at an absurd price, then immediately run the normal price match on that slot (Compare Prices).\r\n" +
-        "Universalis first: ask Universalis for the data-center low before listing, so the item goes up already priced. Falls back to placeholder when Universalis has nothing.");
-
-    var reserve = c.AutoMarketReserveSlots;
-    if (MarketChrome.Field("Reserve slots", width => MarketChrome.IntInput("##lmcPanelReserve", ref reserve, width))) { c.AutoMarketReserveSlots = Math.Clamp(reserve, 0, 19); c.Save(); }
-    Tip("Leave this many of the retainer's 20 market slots empty for manual listings.");
-
-    var pinchAll = c.AutoMarketPinchAllAfter;
-    if (MarketChrome.Toggle("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
-    Tip("Off (the default): after listing, only the new listings are priced - much faster.\nOn: re-price ALL of this retainer's listings as well (same as Auto Pinch), which costs a few seconds per existing listing.");
-
-    var msgs = c.ShowAutoMarketMessages;
-    if (MarketChrome.Toggle("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
-
-    if (!c.AutoMarketPinchAllAfter)
-    {
-      var fb = (int)c.AutoMarketPinchFallback;
-      if (ComboField("If a new listing can't be found", "##lmcPanelPinchFallback", ref fb,
-            ["Re-price every listing", "Leave it at the placeholder and tell me", "Re-price only my Auto-Market items"]))
-      { c.AutoMarketPinchFallback = (PinchFallbackMode)fb; c.Save(); }
-      Tip("Auto Market finds its new listings by reading your sell list, so this should not come up.\n" +
-          "If it ever does:\n" +
-          "Re-price every listing (the default): nothing is left unsellable, but listings you never asked us to touch get re-priced.\n" +
-          "Leave it at the placeholder: nothing else is touched, but the new listing sits at 999,999,999 gil and will not sell until you price it or run Auto Pinch.\n" +
-          "Only my Auto-Market items: re-price just the listings whose item is on the list in the main window, so a listing you made by hand is never touched.");
-    }
-
-    var sortIdx = (int)c.AutoMarketSortMode;
-    if (ComboField("Listing order", "##lmcPanelSortMode", ref sortIdx, ["List order", "Cheapest first", "Fastest selling first", "Most expensive first"]))
-    { c.AutoMarketSortMode = (MarketSortMode)sortIdx; c.Save(); }
-    Tip("When the retainer does not have enough free market slots for everything on your Auto-Market list, this decides which items get the slots first.\r\n"
-        + "Fastest selling first (the default): one Universalis lookup ranks your items by how many sell per day, so the slots go to what actually moves.\r\n"
-        + "Cheapest / most expensive first: same lookup, ranked by current board price.\r\n"
-        + "List order: the order of the main window's table - and the order the 'on list' rows keep here.\r\n"
-        + "Items Universalis has no fresh data for keep their list position and sort last, and a failed lookup changes nothing.");
-
-    var gate = c.AutoMarketValueGateEnabled;
-    if (MarketChrome.Toggle("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
-    var threshold = (int)Math.Min(c.AutoMarketValueGateThresholdGil, int.MaxValue);
-    if (MarketChrome.Field("Value threshold", width => MarketChrome.IntInput("##lmcPanelGateThreshold", ref threshold, width, 0), "gil, net of fees")) { c.AutoMarketValueGateThresholdGil = Math.Max(threshold, 0); c.Save(); }
-    Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices. Items whose total sellable value "
-        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number take the vendor leg instead of a market slot - only NQ non-gear items the Item sheet prices as vendorable; the retainer sells them to a vendor in the same session.\r\n"
-        + "0 = the switch does nothing.");
-
-    if (c.AutoMarketValueGateEnabled)
-    {
-      int gateFresh = c.AutoMarketGateFreshnessHours;
-      if (MarketChrome.Field("Only trust gate prices newer than", width => MarketChrome.SliderInt("##lmcPanelGateFreshness", ref gateFresh, 1, 168, width, " hours"))) { c.AutoMarketGateFreshnessHours = Math.Clamp(gateFresh, 1, 168); c.Save(); }
-      Tip("Universalis is crowd-sourced and lags. Prices older than this never hold an item back - the item is listed normally. Same idea as the Auto Pinch pre-flight freshness window.");
-    }
-
-    var autoAssign = c.AutoAssignUnroutedCategories;
-    if (MarketChrome.Toggle("Auto-assign uncovered categories", ref autoAssign))
-    {
-      c.AutoAssignUnroutedCategories = autoAssign;
-      c.Save();
-    }
-    Tip("When a sweep finds marked Auto-Market stock in the bags whose market-board category has no rule, it assigns that category to the sweep-enabled retainer carrying the fewest routed categories and moves the stock there in the same pass. Manage the rules themselves in the main window's Category Routing section.");
-    });
-  }
-
-  // =====================================================================================
   // helpers
   // =====================================================================================
-
-  /// <summary>The same marketability test the bag markers use, cached per item id per session.</summary>
-  private bool IsMarketable(uint itemId)
-  {
-    if (_marketableCache.TryGetValue(itemId, out var cached))
-      return cached;
-    var result = false;
-    var sheet = Plugin.DataManager?.GetExcelSheet<Item>();
-    if (sheet != null && sheet.TryGetRow(itemId, out var item))
-      result = !item.IsUntradable && item.ItemSearchCategory.RowId != 0;
-    _marketableCache[itemId] = result;
-    return result;
-  }
 
   /// <summary>
   /// The inventory window's screen rectangle, from the addon's own root node - the same read the
@@ -794,12 +413,6 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private static void Tip(string text)
   {
     if (ImGui.IsItemHovered())
-      ImGui.SetTooltip(text);
-  }
-
-  private static void TipAlways(string text)
-  {
-    if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
       ImGui.SetTooltip(text);
   }
 }

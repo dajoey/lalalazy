@@ -5877,8 +5877,10 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
   Check("162 scan: plugin source tree found (run from repo root or bin)",
     root162.Length > 0, "src/LazyMarketCompanion not found from either candidate path");
 
-  var winPath162 = Path.Combine(root162, "Windows", "AutoMarketPanelWindow.cs");
-  Check("162 scan: the panel window source is found",
+  // 0.2.8.25: the bulk confirmations moved with their buttons to the main window's Inventory panel
+  // card; the docked panel draws no modal at all any more (case 178 pins that).
+  var winPath162 = Path.Combine(root162, "Windows", "ConfigWindow.cs");
+  Check("162 scan: the main window source is found",
     root162.Length > 0 && File.Exists(winPath162), winPath162);
 
   if (File.Exists(winPath162))
@@ -5889,10 +5891,10 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     var modals162 = System.Text.RegularExpressions.Regex.Matches(winSrc162, "BeginPopupModal\\(\"([^\"]+)\"")
       .Select(m => m.Groups[1].Value).ToList();
 
-    // Control: this window draws exactly three confirmations. If the scan stops finding them it
-    // is broken (regex drift, file moved) and must fail loudly rather than pass vacuously.
-    Check("162 scan: finds the three confirmation modals it grades",
-      modals162.Count == 3, $"modals={modals162.Count}");
+    // Control: this window draws exactly two confirmations (bulk add, bulk remove). If the scan stops
+    // finding them it is broken (regex drift, file moved) and must fail loudly rather than pass vacuously.
+    Check("162 scan: finds the two confirmation modals it grades",
+      modals162.Count == 2, $"modals={modals162.Count}");
 
     var unopened162 = modals162.Where(m => !opened162.Contains(m)).ToList();
     Check("162 scan: every confirmation modal is opened by the exact same id string",
@@ -5915,6 +5917,9 @@ PinchKeyCases.Run((name, ok, detail) => Check(name, ok, detail));
 
 // 175. The mannequin listing gate (0.2.8.19): see MannequinCases.cs.
 MannequinCases.Run((name, ok, detail) => Check(name, ok, detail));
+
+// 176-180. The docked panel lists only marketable stacks; the rest lives in the main window (0.2.8.25): see PanelSettingsCases.cs.
+PanelSettingsCases.Run((name, ok, detail) => Check(name, ok, detail));
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

@@ -64,6 +64,17 @@ public sealed class ConfigWindow : Window
   /// <summary>The Inventory tab's draw (Inventory/InventoryTab.cs), wired in Plugin.cs. Null = no tab.</summary>
   internal System.Action? DrawInventoryTab { get; set; }
 
+  /// <summary>
+  /// The bag reader behind the "Inventory panel" card's counts and bulk plans (wired in Plugin.cs): the same
+  /// <see cref="AutoMarketBagView"/> read the docked panel lists from. Null = no counts and no bulk actions.
+  /// </summary>
+  internal Inventory.InventoryService? BagSource { get; set; }
+
+  // The "Inventory panel" card's bulk plan for this frame (null when the card was not drawn) and the
+  // confirmation to open: opened at window scope after the body so the modal shares its id stack.
+  private AutoMarketPanelModel.BulkPlan? _panelBulk;
+  private int _pendingPanelPopup;
+
   /// <summary>Live automation state for the shell pill and footer (wired in Plugin.cs). Null reads idle.</summary>
   internal Func<bool>? AutomationBusy { get; set; }
 
@@ -139,6 +150,7 @@ public sealed class ConfigWindow : Window
 
     var busy = AutomationBusy?.Invoke() ?? false;
     var footerHeight = MarketChrome.FooterHeight(ImGui.GetWindowWidth(), busy);
+    _panelBulk = null;
     if (MarketChrome.BeginBody(footerHeight))
     {
       switch (_currentPage)
@@ -156,6 +168,7 @@ public sealed class ConfigWindow : Window
       }
     }
     MarketChrome.EndBody();
+    DrawPanelModals();
     DrawFooter();
     _forceTab = Tab.None;
   }
@@ -319,6 +332,8 @@ public sealed class ConfigWindow : Window
       }
     });
 
+    MarketChrome.Card("inventory_panel", () => DrawInventoryPanelCard(c));
+
     MarketChrome.Card("category_routing", () => DrawCategoryRouting(c));
     MarketChrome.Card("quarantined_moves", DrawQuarantinedMoves);
     MarketChrome.Card("add_item", () => DrawAddItem(c));
@@ -330,6 +345,164 @@ public sealed class ConfigWindow : Window
     }
 
     MarketChrome.Card("entries", () => DrawEntriesTable(c));
+  }
+
+  /// <summary>
+  /// The docked panel's settings (0.2.8.25): the panel itself lists only the marketable bag stacks, so
+  /// where it sits, whether it stays open, the status and category filters that narrow it, the counts
+  /// and the bulk add/remove live here. Every control writes the same saved key the panel's own
+  /// controls wrote (AutoMarketPanelDock / Pinned / Status / Category); the bulk actions plan through
+  /// <see cref="AutoMarketPanelModel.PlanSettingsBulk"/> over the panel's own rows and confirm first.
+  /// </summary>
+  private void DrawInventoryPanelCard(Configuration c)
+  {
+    List<AutoMarketPanelModel.Row>? all = null;
+    var unreadable = BagSource is null;
+    if (BagSource is not null)
+    {
+      try
+      {
+        all = AutoMarketBagView.ReadRows(BagSource, c);
+      }
+      catch (Exception)
+      {
+        unreadable = true; // the card must never take the window down; the notice below says why the counts are missing
+      }
+    }
+
+    var counts = all is null ? new AutoMarketPanelModel.Counts(0, 0, 0, 0) : AutoMarketPanelModel.Count(all);
+    MarketChrome.CardHeader("Inventory panel", "The panel beside the inventory window lists the marketable stacks in the bags. Where it sits, what it shows and bulk edits to the list are set here.",
+      all is null ? null : $"{counts.OnList} on list · {counts.NotListed} not listed");
+
+    var dock = c.AutoMarketPanelDock;
+    if (MarketChrome.Toggle("Dock to inventory", ref dock)) { c.AutoMarketPanelDock = dock; c.Save(); }
+    Tip("Place the panel beside the inventory window (right when there is room, else left). Off = the panel floats wherever you dragged it, and opening your bags does not open or close it.");
+
+    if (dock)
+    {
+      var pinned = c.AutoMarketPanelPinned;
+      if (MarketChrome.Toggle("Stay open when the inventory closes", ref pinned)) { c.AutoMarketPanelPinned = pinned; c.Save(); }
+      Tip("Off (the default): the panel opens and closes with your inventory.\r\nOn: the panel stays up after the inventory closes - close it by hand or with /lmc panel.");
+    }
+
+    if (all is null)
+    {
+      MarketChrome.RowsDone();
+      MarketChrome.Notice(unreadable && BagSource is not null
+        ? "Failed · the bags could not be read just now."
+        : "Needs setup · inventory services are unavailable.", unreadable && BagSource is not null ? UiState.Failed : UiState.NeedsSetup);
+      return;
+    }
+
+    var statusIdx = (int)AutoMarketPanelModel.ResolveVisibleStatus(c.AutoMarketPanelStatus);
+    if (ComboField("Status", "##lmcPanelStatus", ref statusIdx, ["All", "On list", "Not on list", "Excluded"]))
+    {
+      c.AutoMarketPanelStatus = (AutoMarketPanelModel.StatusFilter)statusIdx;
+      c.Save();
+    }
+    Tip("Show every marketable stack, only the ones on the Auto-Market list, only the ones missing from it, or only the ones quick-excluded from category routing. This setting is remembered between sessions.");
+
+    var categories = AutoMarketPanelModel.PresentCategories(all);
+    var labels = new List<string> { "Every category" };
+    labels.AddRange(categories.Select(catId => $"{ItemNameResolver.GetSearchCategoryName(catId)} ({catId})"));
+    var shownCategory = AutoMarketPanelModel.ResolveVisibleCategory(c.AutoMarketPanelCategory, categories);
+    var catIdx = shownCategory == 0 ? 0 : Math.Max(0, categories.IndexOf(shownCategory) + 1);
+    if (ComboField("Category", "##lmcPanelCategory", ref catIdx, [.. labels]))
+    {
+      if (catIdx == 0)
+      {
+        c.AutoMarketPanelCategory = 0;
+      }
+      else
+      {
+        var catId = categories[catIdx - 1];
+        c.AutoMarketPanelCategory = catId;
+      }
+      c.Save();
+    }
+    Tip("Only stacks in this market-board category. This setting is remembered between sessions; a category the current bags do not have shows as every category until it is picked again.");
+
+    MarketChrome.StatCards(
+      new MarketChrome.Stat("On list", counts.OnList.ToString(), "Bag groups with an Auto-Market entry"),
+      new MarketChrome.Stat("Not listed", counts.NotListed.ToString(), "Marketable groups available to add"),
+      new MarketChrome.Stat("Excluded", counts.Excluded.ToString(), "Entries skipped by category routing"));
+
+    var bulk = AutoMarketPanelModel.PlanSettingsBulk(all, c.AutoMarketPanelStatus, c.AutoMarketPanelCategory);
+    _panelBulk = bulk;
+    var narrowed = AutoMarketPanelModel.ResolveVisibleStatus(c.AutoMarketPanelStatus) != AutoMarketPanelModel.StatusFilter.All || shownCategory != 0;
+    var addLabel = narrowed ? $"Add all shown ({bulk.Adds.Count})" : $"Add all marketable stacks in bags ({bulk.Adds.Count})";
+    var removeLabel = narrowed ? $"Remove all shown ({bulk.Removes.Count})" : $"Remove all ({bulk.Removes.Count})";
+    var width = MarketChrome.Avail();
+    var sideBySide = MarketChrome.ButtonWidth(addLabel) + MarketChrome.ButtonWidth(removeLabel) + 8 <= width;
+    var each = sideBySide ? (width - 8) / 2f : width;
+    if (MarketChrome.Button(addLabel, each))
+      _pendingPanelPopup = 2;
+    Tip("Adds every marketable stack in the bags that is not on the Auto-Market list yet (default settings, enabled) - the same entries the inventory context menu's 'Add to Auto-Market' creates. The status and category filters above narrow which stacks count. You confirm first.");
+    if (sideBySide)
+      ImGui.SameLine(0, 8);
+    if (MarketChrome.Button(removeLabel, each))
+      _pendingPanelPopup = 3;
+    Tip("Removes every stack in the bags that is on the Auto-Market list from the list. The status and category filters above narrow which stacks count. You confirm first.");
+  }
+
+  /// <summary>The two bulk confirmations, at window scope so OpenPopup and BeginPopupModal share an id stack (harness case 162/179).</summary>
+  private void DrawPanelModals()
+  {
+    var c = Plugin.Configuration;
+    var bulk = _panelBulk;
+    if (_pendingPanelPopup == 2)
+      ImGui.OpenPopup("Add all marketable stacks?");
+    else if (_pendingPanelPopup == 3)
+      ImGui.OpenPopup("Remove all marketable stacks?");
+    _pendingPanelPopup = 0;
+    if (bulk is null)
+      return;
+
+    MarketChrome.PushModalStyle("Add all marketable stacks?");
+    var keepAdd = true;
+    if (MarketChrome.ModalBegan(ImGui.BeginPopupModal("Add all marketable stacks?", ref keepAdd, MarketChrome.ModalFlags), "Add all marketable stacks?", 320))
+    {
+      ImGui.TextWrapped($"Add {bulk.Adds.Count} {(bulk.Adds.Count == 1 ? "item" : "items")} to the Auto-Market list now?");
+      MarketChrome.Secondary("New entries use the default settings (enabled, stack = the market maximum).");
+      switch (MarketChrome.ModalButtons("Add", "Cancel", false))
+      {
+        case 1:
+          foreach (var (id, hq) in bulk.Adds)
+            c.GetOrAddAutoMarketItem(id, hq);
+          c.Save();
+          ImGui.CloseCurrentPopup();
+          break;
+        case 2:
+          ImGui.CloseCurrentPopup();
+          break;
+      }
+      MarketChrome.EndModal();
+    }
+
+    MarketChrome.PushModalStyle("Remove all marketable stacks?");
+    var keepRemove = true;
+    if (MarketChrome.ModalBegan(ImGui.BeginPopupModal("Remove all marketable stacks?", ref keepRemove, MarketChrome.ModalFlags), "Remove all marketable stacks?", 320))
+    {
+      ImGui.TextWrapped($"Remove {bulk.Removes.Count} {(bulk.Removes.Count == 1 ? "item" : "items")} from the Auto-Market list now?");
+      MarketChrome.Secondary("Auto-Market will stop touching these items entirely. This does not cancel listings already on the retainers.");
+      switch (MarketChrome.ModalButtons("Remove", "Cancel", true))
+      {
+        case 1:
+          foreach (var (id, hq) in bulk.Removes)
+          {
+            var entry = c.GetAutoMarketItem(id, hq);
+            if (entry != null)
+              c.AutoMarketItems.Remove(entry);
+          }
+          c.Save();
+          ImGui.CloseCurrentPopup();
+          break;
+        case 2:
+          ImGui.CloseCurrentPopup();
+          break;
+      }
+      MarketChrome.EndModal();
+    }
   }
 
   private void DrawAddItem(Configuration c)

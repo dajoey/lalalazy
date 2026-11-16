@@ -68,6 +68,7 @@
     <Compile Include="StallCases.cs" />
     <Compile Include="ConfigurationStubs.cs" />
     <Compile Include="PanelFilterCases.cs" />
+    <Compile Include="PanelSettingsCases.cs" />
     <Compile Include="PinchKeyCases.cs" />
     <Compile Include="MannequinCases.cs" />
     <Compile Include="Program.cs" />

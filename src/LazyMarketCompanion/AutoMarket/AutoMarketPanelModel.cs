@@ -188,6 +188,29 @@ public static class AutoMarketPanelModel
     return result;
   }
 
+  /// <summary>
+  /// The rows the docked panel lists (0.2.8.25): marketable stacks only, narrowed by the status and
+  /// category filters SAVED in the configuration (set in the main window's "Inventory panel" card).
+  /// The panel has no search box and no way to show unmarketable stacks, so both are fixed here:
+  /// search empty, unmarketable hidden. The saved values resolve exactly as the panel always
+  /// resolved them - a status outside the enum shows as All, a category the bags do not hold shows
+  /// as every category - so a stale setting can never hide the whole list.
+  /// </summary>
+  public static List<Row> PanelRows(IReadOnlyList<Row> all, StatusFilter savedStatus, uint savedCategory)
+    => Visible(all, new Filters(
+      ResolveVisibleStatus(savedStatus),
+      string.Empty,
+      ResolveVisibleCategory(savedCategory, PresentCategories(all)),
+      false));
+
+  /// <summary>
+  /// What the main window's "Add all" / "Remove all" would touch: the bulk plan over exactly the
+  /// rows the panel lists for the saved filters (<see cref="PanelRows"/>), computed before anything
+  /// changes - the confirmation dialogs show these counts.
+  /// </summary>
+  public static BulkPlan PlanSettingsBulk(IReadOnlyList<Row> all, StatusFilter savedStatus, uint savedCategory)
+    => PlanBulk(PanelRows(all, savedStatus, savedCategory));
+
   /// <summary>Rows by status over EVERY grouped stack, before any filter.</summary>
   public static Counts Count(IReadOnlyList<Row> allRows)
   {

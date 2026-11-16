@@ -32,6 +32,7 @@
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Windows\MarketChrome.cs" Link="Real\Windows\MarketChrome.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Windows\ConfigWindow.cs" Link="Real\Windows\ConfigWindow.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Windows\AutoMarketPanelWindow.cs" Link="Real\Windows\AutoMarketPanelWindow.cs" />
+    <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Windows\AutoMarketBagView.cs" Link="Real\Windows\AutoMarketBagView.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Inventory\InventoryTab.cs" Link="Real\Inventory\InventoryTab.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Inventory\OwnerTooltip.cs" Link="Real\Inventory\OwnerTooltip.cs" />
     <Compile Include="$(LalaSourceRoot)\src\LazyMarketCompanion\Inventory\Core\*.cs" Link="Real\Inventory\Core\%(Filename)%(Extension)" />
