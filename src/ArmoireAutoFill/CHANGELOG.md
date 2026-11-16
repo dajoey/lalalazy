@@ -1,4 +1,10 @@
-﻿## v0.5.7.5 (2026-11-15) [testing]
+﻿## v0.5.7.6 (2026-11-15) [testing]
+- The dungeon checklist columns are resizable again.
+- The shop catalog build-failure reason is shown in the banner again, not only on hover.
+- The expanded pieces panel stays inside the scrolling page and no longer draws over the footer; header counts and the footer detail line stay visible in short windows.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.5.7.5 (2026-11-15) [testing]
 - The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The window header fits on one row at the default size, with the brand chip, tabs, a state pill and a close button whose tooltip appears below the button.
 - Page titles carry a plain description line, with the owned count and snapshot note aligned to the right.
