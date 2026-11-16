@@ -387,10 +387,17 @@ public class MainWindow : Window
                         ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, Theme.Pack(Theme.Surface));
                         var origin = ImGui.GetCursorScreenPos();
                         var panelPos = new Vector2(tableLeft, origin.Y + Theme.Unit);
-                        // The panel spans every column, so it draws past the first column's own clip rectangle.
-                        draw.PushClipRect(panelPos - new Vector2(0, Theme.Unit), panelPos + new Vector2(inner, panel.Height + Theme.Unit), false);
-                        DrawDungeonPieces(dungeon, panel, panelPos);
-                        draw.PopClipRect();
+                        // The panel spans every column, so it draws past the first column's own clip rectangle. The wide clip
+                        // replaces the body's, so it is cut back to the body's visible rectangle by hand.
+                        var (visMin, visMax) = VisibleBody();
+                        var clipMin = Vector2.Max(panelPos - new Vector2(0, Theme.Unit), visMin);
+                        var clipMax = Vector2.Min(panelPos + new Vector2(inner, panel.Height), visMax);
+                        if (clipMax.X > clipMin.X && clipMax.Y > clipMin.Y)
+                        {
+                            draw.PushClipRect(clipMin, clipMax, false);
+                            DrawDungeonPieces(dungeon, panel, panelPos, visMin, visMax);
+                            draw.PopClipRect();
+                        }
                         ImGui.Dummy(new Vector2(1, panel.Height + (2 * Theme.Unit)));
                     }
                 }
@@ -452,7 +459,8 @@ public class MainWindow : Window
             {
                 var panel = LayoutPieces(dungeon, showOwned, inner);
                 var panelPos = ImGui.GetCursorScreenPos();
-                DrawDungeonPieces(dungeon, panel, panelPos);
+                var (stackedMin, stackedMax) = VisibleBody();
+                DrawDungeonPieces(dungeon, panel, panelPos, stackedMin, stackedMax);
                 ArmoireChrome.Advance(panelPos, inner, panel.Height, 2 * Theme.Unit);
             }
         }
@@ -488,8 +496,15 @@ public class MainWindow : Window
         return new PiecePanel(items, width, pad, columns, cellWidth, pitch, slotWidth, badgeWidth, (2 * pad) + (rows * pitch), null);
     }
 
+    /// <summary>The on-screen rectangle of the window being drawn into (the body), where drawing and hover may happen.</summary>
+    private static (Vector2 Min, Vector2 Max) VisibleBody()
+    {
+        var min = ImGui.GetWindowPos();
+        return (min, min + ImGui.GetWindowSize());
+    }
+
     /// <summary>The pieces of one expanded dungeon in a full-width panel at <paramref name="pos"/>.</summary>
-    private static void DrawDungeonPieces(DungeonInfo dungeon, PiecePanel panel, Vector2 pos)
+    private static void DrawDungeonPieces(DungeonInfo dungeon, PiecePanel panel, Vector2 pos, Vector2 visibleMin, Vector2 visibleMax)
     {
         var draw = ImGui.GetWindowDrawList();
         var pad = panel.Pad;
@@ -513,7 +528,9 @@ public class MainWindow : Window
                 OwnershipStatus.InArmoire => (UiState.Ready, "Armoire"),
                 _ => (UiState.Missing, "Missing"),
             };
-            var hovered = ArmoireChrome.HoverRect(cellMin, cellMax);
+            var hoverMin = Vector2.Max(cellMin, visibleMin);
+            var hoverMax = Vector2.Min(cellMax, visibleMax);
+            var hovered = hoverMax.X > hoverMin.X && hoverMax.Y > hoverMin.Y && ArmoireChrome.HoverRect(hoverMin, hoverMax);
             if (hovered)
                 draw.AddRectFilled(cellMin, cellMax, Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), Theme.Unit);
             var textY = cellMin.Y + Theme.Unit;
