@@ -20,6 +20,9 @@ internal static class CrucibleChrome
 
     private static readonly Stack<float> Rights = new();
 
+    /// <summary>True while the window is short: bands and notices use tighter padding so the body keeps room.</summary>
+    public static bool Compact { get; set; }
+
     // ---- layout: the right edge available to the current card or column ----
 
     public static void ResetLayout() => Rights.Clear();
@@ -289,7 +292,7 @@ internal static class CrucibleChrome
         return clicked;
     }
 
-    internal static float FeatureWidth(string label) => Gap + 12 + (2 * Theme.Unit) + TextWidth(label, Theme.SecondaryScale) + Gap;
+    internal static float FeatureWidth(string label) => Gap + 12 + (2 * Theme.Unit) + TextWidth(label, Theme.SecondaryScale) + Gap + 1;
 
     /// <summary>One width for every state so the search box never moves between states.</summary>
     internal static float PillWidth()
@@ -442,7 +445,7 @@ internal static class CrucibleChrome
         var width = Avail();
         var color = Copy.MarkColor(state);
         var padX = Gap;
-        var padY = 3 * Theme.Unit;
+        var padY = (Compact ? 2 : 3) * Theme.Unit;
         var textLeft = padX + (Theme.DotRadius * 2) + (3 * Theme.Unit);
         var textWidth = MathF.Max(40, width - textLeft - padX);
         var lh = LineHeight();
@@ -477,7 +480,7 @@ internal static class CrucibleChrome
         }
         else
             DrawWrapped(draw, textPos, body, textWidth, Theme.TextSecondary);
-        Advance(pos, width, height, 3 * Theme.Unit);
+        Advance(pos, width, height, (Compact ? 2 : 3) * Theme.Unit);
     }
 
     // ---- settings toggle row ----

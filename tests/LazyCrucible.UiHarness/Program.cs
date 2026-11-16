@@ -39,20 +39,25 @@ internal static class Program
         public Action<CrucibleShell>? Shell { get; init; }
         public int[] Expand { get; init; } = [];
         public float? Scale { get; init; }
+        public bool Scroll { get; init; }
     }
 
     private static Scenario MainWin(string name, int width, int height, string? page = null, Action? state = null,
-        Action<CrucibleShell>? shell = null, int[]? expand = null, float? scale = null)
+        Action<CrucibleShell>? shell = null, int[]? expand = null, float? scale = null, bool scroll = false)
         => new(name, ScenarioKind.Main, width, height)
-        { Page = page, State = state, Shell = shell, Expand = expand ?? [], Scale = scale };
+        { Page = page, State = state, Shell = shell, Expand = expand ?? [], Scale = scale, Scroll = scroll };
 
     private static Scenario GuideWin(string name, int width, int height, string? page = null, Action? state = null,
-        Action<CrucibleShell>? shell = null)
-        => new(name, ScenarioKind.Guide, width, height) { Page = page, State = state, Shell = shell };
+        Action<CrucibleShell>? shell = null, bool scroll = false)
+        => new(name, ScenarioKind.Guide, width, height) { Page = page, State = state, Shell = shell, Scroll = scroll };
+
+    // The smallest sizes the windows allow (SizeConstraints.MinimumSize); checked against the windows in Main.
+    private static readonly Vector2 MainMinimum = new(420, 440);
+    private static readonly Vector2 GuideMinimum = new(380, 440);
 
     // Window sizes read from the sources: both windows open at 1280x840 (SizeCondition FirstUseEver). The narrowest the
     // constraints allow is 420 (main) and 380 (guide) wide; the height stays 840 so wrapping below the header is visible
-    // (at the 300 / 260 minimum height only the header block fits).
+    // (the minimum-size scenarios below cover the shortest windows).
     private const int FirstUseWidth = 1280;
     private const int FirstUseHeight = 840;
 
@@ -84,7 +89,8 @@ internal static class Program
             // Smaller sizes of the same state: a realistic narrow resize, then the narrowest width the window allows.
             MainWin("main-roster-horns-920x640", 920, 640, Roster, Populated),
             MainWin("main-roster-horns-420x840", 420, 840, Roster, Populated),
-            MainWin("main-roster-horns-minimum-size", 420, 600, Roster, Populated),
+            MainWin("main-roster-horns-minimum-size", (int)MainMinimum.X, (int)MainMinimum.Y, Roster, Populated),
+            MainWin("main-roster-horns-420x520", 420, 520, Roster, Populated),
             MainWin("scale150-main-roster-horns-1280x840", FirstUseWidth, FirstUseHeight, Roster, Populated, scale: 1.5f),
             // Home: live overview, and the failed state (older plugin writing the same screens) with nothing recorded yet.
             MainWin("main-home-1280x840", FirstUseWidth, FirstUseHeight, CrucibleShell.OverviewPage, Populated),
@@ -105,16 +111,14 @@ internal static class Program
                 () => { Populated(); CrucibleGame.RosterLoaded = false; }, expand: [1]),
             // Guide window: the focused fight with an incoming cast and the low-HP entry advisory, then its narrowest width
             // with the longest real fight title.
-            GuideWin("guide-upcoming-incoming-1280x840", FirstUseWidth, FirstUseHeight, state: () =>
-            {
-                Populated();
-                RunTracker.Board = 5;
-                RunTracker.Focus = (5, 6);
-                RunTracker.PlayerHpPercent = 23;
-                IncomingAtomicRay();
-            }),
+            GuideWin("guide-upcoming-incoming-1280x840", FirstUseWidth, FirstUseHeight, state: IncomingAndLowHp),
             GuideWin("guide-upcoming-380x840", 380, FirstUseHeight, state: () => { Populated(); FocusOn(5, 11); }),
-            GuideWin("guide-upcoming-minimum-size", 380, 600, state: () => { Populated(); FocusOn(5, 11); }),
+            GuideWin("guide-upcoming-minimum-size", (int)GuideMinimum.X, (int)GuideMinimum.Y, state: () => { Populated(); FocusOn(5, 11); }),
+            // Time-critical notices stay pinned above the body: a scrolled page in each window, and both notices in the
+            // smallest guide window (they scroll inside their own area rather than push the footer).
+            GuideWin("guide-incoming-scrolled-900x600", 900, 600, state: IncomingAndLowHp, scroll: true),
+            GuideWin("guide-incoming-minimum-size", (int)GuideMinimum.X, (int)GuideMinimum.Y, state: IncomingAndLowHp),
+            MainWin("main-standby-scrolled-900x600", 900, 600, Roster, () => { Populated(); PetSelect.YieldReason = "autoduty_running"; }, scroll: true),
             GuideWin("guide-upcoming-short-1280x600", FirstUseWidth, 600, state: () => { Populated(); FocusOn(5, 11); }),
             GuideWin("guide-idle-1280x840", FirstUseWidth, FirstUseHeight, state: () => FocusOnly(0, -1)),
             GuideWin("guide-missing-entry-920x640", 920, 640, state: () => FocusOnly(4, 99)),
@@ -146,6 +150,15 @@ internal static class Program
         RunTracker.Board = board;
         RunTracker.Focus = (board, battle);
         CrucibleGame.CurrentBattleValue = battle;
+    }
+
+    private static void IncomingAndLowHp()
+    {
+        Populated();
+        RunTracker.Board = 5;
+        RunTracker.Focus = (5, 6);
+        RunTracker.PlayerHpPercent = 23;
+        IncomingAtomicRay();
     }
 
     private static void IncomingAtomicRay()
@@ -213,6 +226,7 @@ internal static class Program
                 OutputDirectory = Path.Combine(OutputDirectory, Options.OutputSubdirectory);
             Directory.CreateDirectory(OutputDirectory);
             var scenarios = BuildScenarios(Options);
+            VerifyMinimumSizes();
             using var stream = typeof(Plugin).Assembly.GetManifestResourceStream("CrucibleGuide.json")
                                ?? throw new InvalidOperationException("The real CrucibleGuide.json was not embedded.");
             using var reader = new StreamReader(stream);
@@ -314,9 +328,14 @@ internal static class Program
             // Frame 0 only opens advisor tree nodes (their open state lives in a child window's storage, which the real
             // page fills on a click); it draws no content. Two frames then settle window storage and layout.
             var window = scenario.Kind == ScenarioKind.Guide ? (Window)guideWindow : main;
-            var frames = scenario.Expand.Length > 0 ? 3 : 2;
+            var settle = scenario.Expand.Length > 0 ? 3 : 2;
+            // A scrolled scenario wheels the body once (mouse over it) and then draws two more frames at rest.
+            var frames = settle + (scenario.Scroll ? 3 : 0);
             for (var frameIndex = 0; frameIndex < frames; frameIndex++)
             {
+                var wheel = scenario.Scroll && frameIndex == settle;
+                io.MousePos = wheel ? new Vector2(scenario.Width / 2f, scenario.Height * 0.6f) : new Vector2(-10000, -10000);
+                io.MouseWheel = wheel ? -60f : 0f;
                 ImGui.NewFrame();
                 if (scenario.Expand.Length > 0 && frameIndex == 0)
                 {
@@ -474,6 +493,15 @@ internal static class Program
                     CollectStrings(property.Value, into);
                 break;
         }
+    }
+
+    private static void VerifyMinimumSizes()
+    {
+        var plugin = new Plugin();
+        var main = new MainWindow(plugin, new CrucibleShell());
+        var guide = new GuideWindow(plugin, new CrucibleShell());
+        if (main.SizeConstraints?.MinimumSize != MainMinimum || guide.SizeConstraints?.MinimumSize != GuideMinimum)
+            throw new InvalidOperationException("The minimum-size scenarios no longer match the windows' minimum sizes.");
     }
 
     private static void VerifyCloseCallbacks()

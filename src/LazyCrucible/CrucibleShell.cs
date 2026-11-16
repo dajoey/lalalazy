@@ -100,6 +100,15 @@ internal sealed class CrucibleShell
 
     private const float BodyPadY = CrucibleChrome.Gap;
 
+    /// <summary>Below this window height the bands tighten and the page header drops to a title row.</summary>
+    public const float ShortHeight = 560;
+
+    /// <summary>Smallest body the notices may leave: anything beyond this scrolls inside the notice area.</summary>
+    private const float MinBodyHeight = 72;
+    private const float MinShortBodyHeight = 40;
+
+    private float _noticeHeight;
+
     public void Draw(Plugin? plugin)
     {
         _plugin = plugin ?? _plugin;
@@ -112,18 +121,23 @@ internal sealed class CrucibleShell
             var winPos = ImGui.GetWindowPos();
             var winSize = ImGui.GetWindowSize();
             var gutter = CrucibleChrome.Gutter(winSize.X);
+            var shortWin = winSize.Y < ShortHeight;
+            CrucibleChrome.Compact = shortWin;
             ImGui.SetCursorPos(Vector2.Zero);
-            var y = DrawTopBar(winPos, winSize.X, gutter);
-            y = DrawFeatureBar(winPos, winSize.X, gutter, y);
-            y = DrawPageHeader(winPos, winSize.X, gutter, y);
+            var y = DrawTopBar(winPos, winSize.X, gutter, shortWin);
+            y = DrawFeatureBar(winPos, winSize.X, gutter, y, shortWin);
+            y = DrawPageHeader(winPos, winSize.X, gutter, y, shortWin);
 
-            var footerHeight = FooterHeight(winSize.X);
+            var footerHeight = FooterHeight(winSize.X, shortWin);
+            // Time-critical notices sit outside the scrolling body so a scrolled page never hides them.
+            y = DrawNotices(winPos, winSize.X, gutter, y, MathF.Max(0, winSize.Y - footerHeight - y - (shortWin ? MinShortBodyHeight : MinBodyHeight)));
             ImGui.SetCursorPos(new Vector2(0, y));
-            DrawBody(new Vector2(winSize.X, MathF.Max(40, winSize.Y - footerHeight - y)), gutter);
-            DrawFooter(winPos, winSize, gutter, footerHeight);
+            DrawBody(new Vector2(winSize.X, MathF.Max(1, winSize.Y - footerHeight - y)), gutter);
+            DrawFooter(winPos, winSize, gutter, footerHeight, shortWin);
         }
         finally
         {
+            CrucibleChrome.Compact = false;
             Theme.PopFrame();
             if (_changed)
                 Plugin.Config.Save();
@@ -148,7 +162,6 @@ internal sealed class CrucibleShell
         ImGui.BeginChild("##crucibleBody", size, true);
         // The child has applied its own padding; popups and tooltips opened from page content keep the theme padding.
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Theme.WindowPadding);
-        DrawStatusBanner();
         CruciblePages.Render(this, CurrentPage);
         ImGui.PopStyleVar();
         // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below.
@@ -206,7 +219,7 @@ internal sealed class CrucibleShell
             : "settings and guide ready");
     }
 
-    private float DrawTopBar(Vector2 winPos, float winWidth, float gutter)
+    private float DrawTopBar(Vector2 winPos, float winWidth, float gutter, bool shortWin)
     {
         var draw = ImGui.GetWindowDrawList();
         var gap = 2 * Theme.Unit;
@@ -224,7 +237,7 @@ internal sealed class CrucibleShell
         const float minSearch = 180;
         const float maxSearch = 320;
         var navWidth = brandSize.X + wideGap + groupsWidth;
-        var padY = 3.5f * Theme.Unit;
+        var padY = (shortWin ? 2f : 3.5f) * Theme.Unit;
         var rowHeight = brandSize.Y;
 
         var oneRow = inner >= navWidth + wideGap + minSearch + wideGap + rightWidth;
@@ -297,7 +310,7 @@ internal sealed class CrucibleShell
         return barHeight + 1;
     }
 
-    private float DrawFeatureBar(Vector2 winPos, float winWidth, float gutter, float top)
+    private float DrawFeatureBar(Vector2 winPos, float winWidth, float gutter, float top, bool shortWin)
     {
         var draw = ImGui.GetWindowDrawList();
         var inner = winWidth - (2 * gutter);
@@ -307,7 +320,7 @@ internal sealed class CrucibleShell
             return top;
         var titles = features.Select(FeatureTitle).ToArray();
         var heightEach = 8 * Theme.Unit;
-        var padY = 3 * Theme.Unit;
+        var padY = (shortWin ? 2 : 3) * Theme.Unit;
         var sizes = titles.Select(title => new Vector2(CrucibleChrome.FeatureWidth(title), heightEach)).ToArray();
         var total = sizes.Sum(size => size.X) + ((features.Length - 1) * gap);
         var collapsed = total > inner;
@@ -428,7 +441,7 @@ internal sealed class CrucibleShell
         ImGui.PopStyleVar(4);
     }
 
-    private float DrawPageHeader(Vector2 winPos, float winWidth, float gutter, float top)
+    private float DrawPageHeader(Vector2 winPos, float winWidth, float gutter, float top, bool shortWin)
     {
         var page = Current;
         var title = page.Title;
@@ -446,6 +459,8 @@ internal sealed class CrucibleShell
             }
         }
         var draw = ImGui.GetWindowDrawList();
+        if (shortWin)
+            return DrawShortPageHeader(draw, winPos, winWidth, gutter, top, title, description);
         var tile = 11 * Theme.Unit;
         var padTop = 5 * Theme.Unit;
         var wide = winWidth >= 760;
@@ -493,26 +508,80 @@ internal sealed class CrucibleShell
         return top + padTop + height + (2 * Theme.Unit);
     }
 
-    private void DrawStatusBanner()
+    /// <summary>Short windows keep a title row; the description and meta lines move into a tooltip.</summary>
+    private static float DrawShortPageHeader(ImDrawListPtr draw, Vector2 winPos, float winWidth, float gutter, float top, string title, string description)
     {
+        var tile = 8 * Theme.Unit;
+        var padTop = 3 * Theme.Unit;
+        var origin = winPos + new Vector2(gutter, top + padTop);
+        draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(Theme.Accent with { W = 0.14f }), CrucibleChrome.Radius);
+        CrucibleChrome.Diamond(draw, origin + new Vector2(tile / 2f), 8, Theme.Pack(Theme.Accent));
+        var textX = winPos.X + gutter + tile + (3 * Theme.Unit);
+        var textWidth = winPos.X + winWidth - gutter - textX;
+        var scale = Theme.TitleScale;
+        var shown = CrucibleChrome.Fit(title, textWidth, scale);
+        CrucibleChrome.DrawText(draw, new Vector2(textX, origin.Y + ((tile - CrucibleChrome.LineHeight(scale)) / 2f)), shown, Theme.TextPrimary, scale);
+        if (description.Length > 0 && ImGui.IsMouseHoveringRect(origin, new Vector2(winPos.X + winWidth - gutter, origin.Y + tile)))
+            ImGui.SetTooltip(shown != title ? title + "\n" + description : description);
+        return top + padTop + tile + (2 * Theme.Unit);
+    }
+
+    private List<Action> Notices()
+    {
+        var list = new List<Action>();
         if (PetSelect.YieldReason == "conflict_gluttony")
-            CrucibleChrome.Notice("LazyCrucible is not writing — an older GluttonyCombo that also fills familiars is loaded and must be updated.", UiState.Failed);
+            list.Add(() => CrucibleChrome.Notice("LazyCrucible is not writing — an older GluttonyCombo that also fills familiars is loaded and must be updated.", UiState.Failed));
         else if (PetSelect.YieldReason == "autoduty_running")
-            CrucibleChrome.Notice("AutoDuty standby", Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces), UiState.Blocked);
+            list.Add(() => CrucibleChrome.Notice("AutoDuty standby", Policy.AutoDutyCrucible.StandingBy(ExternalDrivers.DrivenSurfaces), UiState.Blocked));
         else if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
-            CrucibleChrome.Notice("AutoDuty attention", $"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.", UiState.Blocked);
+            list.Add(() => CrucibleChrome.Notice("AutoDuty attention", $"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.", UiState.Blocked));
 
         // Incoming guidance is independent of the main AutoDuty/conflict banner and must never be suppressed.
         if (Incoming is { } warn)
         {
             var guideDo = Plugin.Guide.File.Fights.SelectMany(f => f.Hits.Concat(f.Mechanics))
                 .Where(m => m.Ids.Contains(warn.CastId) && m.Do.Length > 0).Select(m => m.Do).FirstOrDefault();
-            CrucibleChrome.Notice("Incoming", warn.Text + (guideDo is null ? "" : " Guide: " + guideDo), UiState.Running, strong: true);
+            list.Add(() => CrucibleChrome.Notice("Incoming", warn.Text + (guideDo is null ? "" : " Guide: " + guideDo), UiState.Running, strong: true));
         }
         if (CurrentPage == UpcomingPage && Plugin.Guide.Fight(GuideBoard, GuideBattle) is { } fight
             && RunTracker.Focus == (fight.Board, fight.Battle)
             && FightWarnings.EntryAdvice(fight.Board, fight.Battle, RunTracker.PlayerHpPercent) is { } advice)
-            CrucibleChrome.Notice("Before this fight", advice, UiState.Blocked);
+            list.Add(() => CrucibleChrome.Notice("Before this fight", advice, UiState.Blocked));
+        return list;
+    }
+
+    /// <summary>
+    ///     Draws the notices between the page header and the body, outside the scrolling area. When they cannot all fit
+    ///     they scroll inside their own small area instead of pushing the body or the footer. Returns the next top.
+    /// </summary>
+    private float DrawNotices(Vector2 winPos, float winWidth, float gutter, float top, float room)
+    {
+        var notices = Notices();
+        if (notices.Count == 0)
+        {
+            _noticeHeight = 0;
+            return top;
+        }
+        var gap = 2 * Theme.Unit;
+        var height = MathF.Max(CrucibleChrome.LineHeight() + (4 * Theme.Unit), MathF.Min(_noticeHeight > 0 ? _noticeHeight : room, room));
+        var fits = _noticeHeight > 0 && _noticeHeight <= height + 1;
+        ImGui.SetCursorPos(new Vector2(gutter, top + gap));
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 2 * Theme.Unit + 2);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 2 * Theme.Unit);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
+        ImGui.BeginChild("##crucibleNotices", new Vector2(winWidth - (2 * gutter), height), false,
+            fits ? ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse : ImGuiWindowFlags.None);
+        foreach (var notice in notices)
+            notice();
+        // Every notice leaves a gap under itself; the last one is not part of the content.
+        _noticeHeight = MathF.Max(0, ImGui.GetCursorPosY() - ((CrucibleChrome.Compact ? 2 : 3) * Theme.Unit));
+        ImGui.EndChild();
+        ImGui.PopStyleColor(3);
+        ImGui.PopStyleVar(3);
+        return top + gap + height + gap;
     }
 
     private static string StallText(string reason) => reason switch
@@ -525,18 +594,21 @@ internal sealed class CrucibleShell
         _ => reason,
     };
 
-    private static float FooterHeight(float width)
+    /// <summary>The narrow stacked footer drops its second text line in short windows (the tooltip keeps both).</summary>
+    private static bool StackedShort(float width, bool shortWin) => shortWin && width < 620;
+
+    private static float FooterHeight(float width, bool shortWin)
     {
-        var textBlock = CrucibleChrome.LineHeight() + Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale);
-        const float pad = 3 * Theme.Unit;
+        var textBlock = CrucibleChrome.LineHeight() + (StackedShort(width, shortWin) ? 0 : Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale));
+        var pad = (shortWin ? 2 : 3) * Theme.Unit;
         return width < 620
             ? pad + textBlock + pad + CrucibleChrome.ControlHeight + pad
-            : pad + MathF.Max(textBlock, CrucibleChrome.ControlHeight) + pad;
+            : 3 * Theme.Unit + MathF.Max(textBlock, CrucibleChrome.ControlHeight) + (3 * Theme.Unit);
     }
 
     private static readonly System.Text.RegularExpressions.Regex Parenthetical = new(@"\s*\([^)]*\)", System.Text.RegularExpressions.RegexOptions.Compiled);
 
-    private void DrawFooter(Vector2 winPos, Vector2 winSize, float gutter, float height)
+    private void DrawFooter(Vector2 winPos, Vector2 winSize, float gutter, float height, bool shortWin)
     {
         var top = winPos.Y + winSize.Y - height;
         var draw = ImGui.GetWindowDrawList();
@@ -578,8 +650,9 @@ internal sealed class CrucibleShell
         var narrow = winSize.X < 620;
         var inner = winSize.X - (2 * gutter);
         var actionSize = new Vector2(narrow ? inner : CrucibleChrome.ActionWidth(96, actionLabel), CrucibleChrome.ControlHeight);
-        var textBlock = CrucibleChrome.LineHeight() + Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale);
-        var pad = 3 * Theme.Unit;
+        var stackedShort = StackedShort(winSize.X, shortWin);
+        var textBlock = CrucibleChrome.LineHeight() + (stackedShort ? 0 : Theme.Unit + CrucibleChrome.LineHeight(Theme.SecondaryScale));
+        var pad = (narrow && shortWin ? 2 : 3) * Theme.Unit;
         var textLeft = winPos.X + gutter + (4 * Theme.Unit);
         Vector2 actionPos;
         float textTop;
@@ -600,9 +673,10 @@ internal sealed class CrucibleShell
         var textWidth = textRight - textLeft;
         var shown = CrucibleChrome.Fit(primary, textWidth);
         CrucibleChrome.DrawText(draw, new Vector2(textLeft, textTop), shown, Theme.TextPrimary);
-        var shownSecondary = CrucibleChrome.Fit(secondary, textWidth, Theme.SecondaryScale);
-        CrucibleChrome.DrawText(draw, new Vector2(textLeft, textTop + CrucibleChrome.LineHeight() + Theme.Unit), shownSecondary, Theme.TextSecondary, Theme.SecondaryScale);
-        if ((shown != fullPrimary || shownSecondary != secondary)
+        var shownSecondary = stackedShort ? "" : CrucibleChrome.Fit(secondary, textWidth, Theme.SecondaryScale);
+        if (!stackedShort)
+            CrucibleChrome.DrawText(draw, new Vector2(textLeft, textTop + CrucibleChrome.LineHeight() + Theme.Unit), shownSecondary, Theme.TextSecondary, Theme.SecondaryScale);
+        if ((shown != fullPrimary || (shownSecondary != secondary))
             && ImGui.IsMouseHoveringRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + textBlock)))
             ImGui.SetTooltip(fullPrimary + "\n" + secondary);
         if (CrucibleChrome.OutlineButton(draw, "footer_action", actionLabel, actionPos, actionSize))
