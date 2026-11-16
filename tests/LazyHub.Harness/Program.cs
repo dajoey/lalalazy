@@ -251,5 +251,19 @@ Check("e2e: the hub clips over-long text from an adapter instead of trusting it"
     Check("ClearIfExpired is false when nothing was ever pending", !idle.ClearIfExpired(1_000_000));
 }
 
+// ---- responsive native shell layout -------------------------------------------------------------
+Check("layout uses one column below the responsive threshold", HubLayout.Columns(HubLayout.TwoColumnMinWidth - 1) == 1);
+Check("layout uses two columns at the responsive threshold", HubLayout.Columns(HubLayout.TwoColumnMinWidth) == 2);
+Check("detail pages can force a single column", HubLayout.Columns(1200, forceSingle: true) == 1);
+Check("two-column cells alternate without overlap",
+    HubLayout.Cell(0, 1000, 2, 60) is { X: 0, Y: 0 } first &&
+    HubLayout.Cell(1, 1000, 2, 60) is { X: > 0, Y: 0 } second &&
+    first.Width == second.Width && second.X >= first.X + first.Width);
+Check("two-column cells wrap to the next row", HubLayout.Cell(2, 1000, 2, 60).Y == 72);
+Check("row height counts every real item", HubLayout.RowsHeight(15, 2, 60) == 564);
+Check("row height preserves leading content", HubLayout.RowsHeight(1, 2, 60, leading: 200) == 260);
+Check("empty content keeps only its leading height", HubLayout.RowsHeight(0, 2, 60, leading: 200) == 200);
+Check("column widths never become negative", HubLayout.ColumnWidth(0, 2) == 40);
+
 Console.WriteLine($"LazyHub.Harness: {pass} pass, {fail} fail");
 return fail == 0 ? 0 : 1;

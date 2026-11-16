@@ -138,13 +138,13 @@ public sealed class Plugin : IDalamudPlugin
         {
             InternalName = "LazyHub",
             Title = "lalalazy (safe mode)",
-            Size = new Vector2(620f, 640f),
+            Size = new Vector2(780f, 780f),
         }
         : new HubAddon(_monitor, _client, _icons, Textures, Log)
         {
             InternalName = "LazyHub",
             Title = "lalalazy",
-            Size = new Vector2(780f, 690f),
+            Size = new Vector2(1080f, 800f),
         };
 
     private void SetSafeMode(bool on)
