@@ -97,7 +97,7 @@ Source paths are relative to the Dalamud repository (`Dalamud/...`), version 15.
 | Rasterizer settings | oversample 1/1, pixel snap on, gamma 1.7, multiply 1 (`SafeFontConfig` constructor, used directly) |
 | Kerning | GPOS/kern pairs registered per font (`AddFontFromImGuiHeapAllocatedMemory`); the helper is internal, so it is reached by reflection and skipped if absent |
 | Fallback and ellipsis | first present of `U+3013 U+FFFD ? -` and `U+2026 U+0085` (`FontAtlasFactory.FallbackCodepoints`, `EllipsisCodepoints`); lookup table rebuilt with the custom-ImGui hot-data fix (`BuildToolkit.BuildLookupTable`) |
-| Icon font | `FontAwesome710FreeSolid.otf` (asset 2003) at the default size, glyph range min..max of `FontAwesomeIcon`, min and max advance pinned to the default size (`InterfaceManager.SetupHooks`, `IconFontHandle`) |
+| Icon font | `FontAwesome710FreeSolid.otf` (asset 2003) at the default size, glyph range min..max of `FontAwesomeIcon`, size 17 but min and max advance pinned to 16 px (`InterfaceManager.DefaultFontSizePx`, 12pt * 4/3; `InterfaceManager.SetupHooks`, `IconFontHandle`) |
 | Style | `StyleModelV1.DalamudStandard.Apply()` from the supplied `Dalamud.dll`: every metric and colour `Apply` sets (`Interface/Style/StyleModelV1.cs`) |
 | Style metrics vs scale | Dalamud does not scale style metrics by the global scale; only font size follows it. The harness does the same |
 | Config flags | docking and viewports off |

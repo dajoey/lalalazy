@@ -22,6 +22,9 @@ public static unsafe class GameLook
     /// <summary>Default font size in pixels (<c>DefaultFontSpec.SizePx</c> of a stock install).</summary>
     public const float DefaultFontSizePx = 17f;
 
+    /// <summary>Icon font min/max glyph advance (<c>InterfaceManager.DefaultFontSizePx</c>, 12pt * 4/3), distinct from the 17px default font size.</summary>
+    public const float IconAdvancePx = 16f;
+
     // Dalamud: FontAtlasFactory.FallbackCodepoints / EllipsisCodepoints.
     private const string FallbackCodepoints = "〓�?-";
     private const string EllipsisCodepoints = "…\u0085";
@@ -53,7 +56,7 @@ public static unsafe class GameLook
             var iconMin = (ushort)Enum.GetValues<FontAwesomeIcon>().Where(x => x > 0).Min();
             var iconMax = (ushort)Enum.GetValues<FontAwesomeIcon>().Where(x => x > 0).Max();
             iconFont = AddFont(atlas, Path.Combine(options.AssetDirectory, RequiredFontFiles[1]), DefaultFontSizePx, scale,
-                [iconMin, iconMax, 0], DefaultFontSizePx, DefaultFontSizePx, rangeMemory);
+                [iconMin, iconMax, 0], IconAdvancePx, IconAdvancePx, rangeMemory);
 
             if (!atlas.Build())
                 throw new InvalidOperationException("ImFontAtlas.Build failed for the game fonts.");
@@ -105,7 +108,7 @@ public static unsafe class GameLook
         raw.GlyphOffset *= scale;
 
         var font = atlas.AddFont(raw.Handle);
-        AddKerning(font, raw, rangeBlock);
+        AddKerning(font, raw, rangeBlock, sizePx);
         return font;
     }
 
@@ -117,7 +120,7 @@ public static unsafe class GameLook
 
     // Dalamud reads GPOS/kern pair adjustments with an internal helper and registers them on the font. The helper is
     // internal, so it is reached by reflection; when it cannot be found the harness continues without kerning.
-    private static void AddKerning(ImFontPtr font, ImFontConfigPtr raw, IntPtr rangeBlock)
+    private static void AddKerning(ImFontPtr font, ImFontConfigPtr raw, IntPtr rangeBlock, float unscaledSizePx)
     {
         try
         {
@@ -132,7 +135,7 @@ public static unsafe class GameLook
             {
                 if (!InRanges(pair.Left, ranges) || !InRanges(pair.Right, ranges))
                     continue;
-                font.AddKerningPair(pair.Left, pair.Right, pair.Distance * raw.SizePixels);
+                font.AddKerningPair(pair.Left, pair.Right, pair.Distance * unscaledSizePx);
             }
             KerningApplied = true;
         }
