@@ -20,7 +20,8 @@ using GluttonyCombo.Window.Functions;
 
 namespace GluttonyCombo.Window.Tabs;
 
-internal class PvPFeatures : FeaturesWindow
+// Fork: partial so the approved entry point (DrawApproved) lives in PvPFeaturesApproved.cs.
+internal partial class PvPFeatures : FeaturesWindow
 {
     internal static new void Draw()
     {

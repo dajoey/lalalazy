@@ -153,7 +153,7 @@ internal class Presets : ConfigWindow
                 }
                 else
                 {
-                    idForShow = " ".PadLeft(10);
+                    idForShow = string.Empty; // Fork: descriptions start at the card padding, as the toggle label does.
                 }
                 ImGui.Text(idForShow);
                 length = ImGui.CalcTextSize(idForShow);
@@ -161,7 +161,7 @@ internal class Presets : ConfigWindow
                 ImGui.PushItemWidth(length.Length());
             }
 
-            ImGui.TextWrapped($"{presetData.Description}");
+            GluttonyChrome.WrappedText($"{presetData.Description}"); // Fork: wrap at the card's inner edge.
 
             if (presetData.HoverText != null)
             {

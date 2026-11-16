@@ -24,10 +24,7 @@ namespace GluttonyCombo.Window.Tabs
         private const UiControlOption HotbarSetting = UiControlOption.HotbarEmptyVisible;
         internal unsafe static new void Draw()
         {
-            var rotationCount = P.CustomActions.Manager.Actions.Count(act => act.Id <= All.AoeHeals);
-            Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), "Custom Actions",
-                "This section contains a range of bespoke \"Custom Actions\" which can be used as replacements for either base action replacements or specific macros.",
-                $"{rotationCount} rotation buttons");
+            // Fork: the shell owns the page header; boolean settings use drawn tracks with unchanged save semantics.
             Widgets.Title("Rotation Buttons");
             Widgets.SecondaryWrapped($"These buttons replace the need to replace actions for all features marked as either Simple or Advanced. Enable the type of combo you're wanting to use custom actions for, and drag the icon to your hotbar.\n\n" +
                 $"This frees up the actions for manual use, for example, for downtime where you only want to use 1-2-3 combos, or for healers to always have access to basic healing actions.");
@@ -53,7 +50,7 @@ namespace GluttonyCombo.Window.Tabs
             }
 
 
-            if (Widgets.Checkbox("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))
+            if (GluttonyChrome.Toggle("Don't Override Icons with Job Actions (drag action to hotbar again to take effect)", ref Service.Configuration.CustomActionSettings.AlwaysShowIcon))  // Fork: drawn switch in the approved shell style
                 Service.Configuration.Save();
 
             ImGuiComponents.HelpMarker("This will hide all combo outputs on custom actions, leaving only these icons showing. This is not advised if you wish to see the real actions being output by the combos on your hotbar, and should only be used if you feel it's something you want.");
@@ -120,16 +117,16 @@ namespace GluttonyCombo.Window.Tabs
                     switch (type)
                     {
                         case CustomActionType.SingleTargetDPS:
-                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetDPS);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.AoEDPS:
-                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEDPS);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.SingleTargetHeals:
-                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.SingleTargetHeals);  // Fork: drawn switch in the approved shell style
                             break;
                         case CustomActionType.AoEHeals:
-                            changed |= Widgets.Checkbox($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);
+                            changed |= GluttonyChrome.Toggle($"{act.Name}##Custom{act.Id}", ref Service.Configuration.CustomActionSettings.AoEHeals);  // Fork: drawn switch in the approved shell style
                             break;
 
                     }

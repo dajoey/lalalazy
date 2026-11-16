@@ -43,7 +43,52 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         BringToFront();
 
-        Flags = ImGuiWindowFlags.AlwaysAutoResize;
+        // Fork: custom title/close controls and a dedicated inner body replace native chrome and outer scrolling.
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        Size = new System.Numerics.Vector2(780, 620);
+        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeConstraints = new Dalamud.Interface.Windowing.WindowSizeConstraints
+        {
+            MinimumSize = new System.Numerics.Vector2(560, 360),
+        };
+    }
+
+    // Fork: the shell draws full-bleed bands, so the window carries no padding; the body child adds its own.
+    public override void PreDraw() => ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, System.Numerics.Vector2.Zero);
+
+    public override void PostDraw() => ImGui.PopStyleVar();  // Fork: pairs with PreDraw.
+
+    // Fork: approved-style window body (header band, page header, one card per change, footer with the dismiss action).
+    // Drawing and wording live in GluttonyMajorChanges; always returns true so the upstream body below stays for merges.
+    private bool DrawApproved()
+    {
+        Theme.PushFrame();
+        GluttonyChrome.PushControlColors();
+        try
+        {
+            var result = GluttonyMajorChanges.Draw(ImGui.GetWindowPos(), ImGui.GetWindowSize(),
+                GluttonyMajorChanges.Sections(WasUsingOldDRKConfigs || WasUsingOldGNBConfigs ||
+                                              WasUsingOldPLDConfigs || WasUsingOldWARConfigs),
+                "majorChangesBody");
+            if (result.Link is { } job)
+                GluttonyCombo.P.HandleOpenCommand([job], forceOpen: true);
+            if (result.Dismiss)
+            {
+                Service.Configuration.HideMajorChangesForVersion = Version;
+                Service.Configuration.Save();
+            }
+            if (result.Close || result.Dismiss)
+                IsOpen = false;
+        }
+        finally
+        {
+            GluttonyChrome.PopControlColors();
+            Theme.PopFrame();
+        }
+
+        if (_centeredWindow < 5)
+            CenterWindow();
+        return true;
     }
 
     /// <summary>
@@ -51,6 +96,8 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
     /// </summary>
     public override void Draw()
     {
+        // Fork: delegate to the approved-style body; the upstream body below is unreachable in practice but kept for merges.
+        if (DrawApproved()) return;
         PadOutMinimumWidthFor("Gluttony Combo | New Changes");
 
         #region Tanks

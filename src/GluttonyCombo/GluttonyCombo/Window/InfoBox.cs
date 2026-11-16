@@ -42,6 +42,8 @@ internal class InfoBox
             DrawList.AddCircleFilled(StartPosition, 2.0f, ImGui.GetColorU32(Theme.StateNeutral));
         }
 
+        GluttonyChrome.InfoBoxBegin(HasMaxWidth); // Fork: top-level boxes draw their surface behind the content.
+
         DrawContents();
 
         if (Size == Vector2.Zero)
@@ -60,9 +62,16 @@ internal class InfoBox
                 Size = Size with { X = ImGui.GetItemRectMax().X - ImGui.GetItemRectMin().X + 15f };
         }
 
+        // Fork: padding above and below the content; a nested box stops at its parent's inner edge.
+        Size = GluttonyChrome.InfoBoxSize(Size, StartPosition, CurveRadius, ContentsOffset, ImGui.GetItemRectMax().Y - ImGui.GetItemRectMin().Y, HasMaxWidth);
+
+        GluttonyChrome.InfoBoxSurface(StartPosition, Size, HasMaxWidth); // Fork: rounded filled surface for top-level boxes.
+
         DrawCorners();
 
         DrawBorders();
+
+        GluttonyChrome.InfoBoxAdvance(StartPosition.Y + Size.Y); // Fork: keep the next item below a taller card.
     }
 
     public void DrawCentered(float percentSize = 0.80f)
@@ -79,9 +88,12 @@ internal class InfoBox
     private void DrawContents()
     {
         Vector2 topLeftCurveCenter = new(StartPosition.X + CurveRadius + ContentsOffset, StartPosition.Y + CurveRadius + ContentsOffset);
+        // Fork: card padding of the approved style, and the card's inner right edge for wrapping and toggles.
+        topLeftCurveCenter += GluttonyChrome.BeginInfoBox(CurveRadius, ContentsOffset, HasMaxWidth, Size.X);
 
         ImGui.SetCursorScreenPos(topLeftCurveCenter);
         ImGui.PushTextWrapPos(Size.X);
+        GluttonyChrome.InfoBoxWrap(); // Fork: wrap at the card's inner edge, not the container edge.
 
         using (var group = ImRaii.Group())
         {
@@ -95,11 +107,13 @@ internal class InfoBox
             ImGui.PopID();
         }
 
+        GluttonyChrome.EndInfoBox(); // Fork: pairs with BeginInfoBox and InfoBoxWrap.
         ImGui.PopTextWrapPos();
     }
 
     private void DrawCorners()
     {
+        if (GluttonyChrome.InfoBoxSurfaceDrawn) return; // Fork: the approved surface replaces the thin outline.
         Vector2 topLeftCurveCenter = new(StartPosition.X + CurveRadius, StartPosition.Y + CurveRadius);
         Vector2 topRightCurveCenter = new(StartPosition.X + Size.X - CurveRadius, StartPosition.Y + CurveRadius);
         Vector2 bottomLeftCurveCenter = new(StartPosition.X + CurveRadius, StartPosition.Y + Size.Y - CurveRadius);
@@ -128,6 +142,7 @@ internal class InfoBox
 
     private void DrawBorders()
     {
+        if (GluttonyChrome.InfoBoxSurfaceDrawn) return; // Fork: the approved surface replaces the thin outline.
         uint color = Debug ? ImGui.GetColorU32(Theme.StateNeutral) : ColorU32;
 
         DrawList.AddLine(new Vector2(StartPosition.X - 0.5f, StartPosition.Y + CurveRadius - 0.5f), new Vector2(StartPosition.X - 0.5f, StartPosition.Y + Size.Y - CurveRadius + 0.5f), color, BorderThickness);
