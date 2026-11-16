@@ -576,6 +576,7 @@ internal static class FoodUiChrome
 internal static class FoodCard
 {
     public const float Padding = 4 * Theme.Unit;
+    private const float MaxStretch = 12 * Theme.Unit;
 
     /// <summary>Screen Y that cards marked <c>fill</c> stretch down to, or NaN when columns are stacked.</summary>
     public static float FillBottom { get; set; } = float.NaN;
@@ -614,8 +615,14 @@ internal static class FoodCard
             var height = natural;
             if (fill && !float.IsNaN(FillBottom))
             {
-                height = MathF.Max(natural, FillBottom - origin.Y);
-                LastStretch = height - natural;
+                // Only close a small difference between column bottoms; a large one stays natural instead of
+                // leaving a big empty card.
+                var stretch = MathF.Max(0, FillBottom - origin.Y - natural);
+                if (stretch <= MaxStretch)
+                {
+                    height = natural + stretch;
+                    LastStretch = stretch;
+                }
             }
 
             draw.ChannelsSetCurrent(0);

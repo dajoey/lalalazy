@@ -14,6 +14,7 @@ internal class ConfigWindow : Window
     private const float BodyPadY = FoodUiChrome.Gap;
 
     private readonly Plugin _plugin;
+    private bool _wideColumns;
     private string _foodSearch = string.Empty;
     private uint _selectedJobId;
     private string _jobSearch = string.Empty;
@@ -221,10 +222,12 @@ internal class ConfigWindow : Window
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.Accent with { W = 0.6f });
         ImGui.BeginChild("##lfbBody", size, true);
         DrawStatCards(c, live);
-        FoodCard.Columns("body", () => DrawWork(c, live), () => DrawRail(c, live), breakpoint: 840, fillPage: true);
+        // With two columns the diagnostics card sits under the food selection, which balances the column heights.
+        _wideColumns = FoodUiChrome.Avail() >= 840;
+        FoodCard.Columns("body", () => DrawWork(c, live), () => DrawRail(c, live), breakpoint: 840, fillPage: false);
 
         // Rows are never sliced by the footer without a hint: a soft fade marks content that continues below, and a
-        // fade with a hairline marks content that has scrolled away above.
+        // hairline marks content that has scrolled away above (content is clipped cleanly at that line).
         {
             var draw = ImGui.GetWindowDrawList();
             var bg = ImGui.GetColorU32(ImGuiCol.WindowBg);
@@ -234,11 +237,7 @@ internal class ConfigWindow : Window
                 draw.AddRectFilledMultiColor(winPos + new Vector2(1, winSize.Y - (7 * Theme.Unit)), winPos + new Vector2(winSize.X - 1, winSize.Y - 1),
                     bg & 0x00FFFFFFu, bg & 0x00FFFFFFu, bg, bg);
             if (ImGui.GetScrollY() > 1)
-            {
-                draw.AddRectFilledMultiColor(winPos + new Vector2(1, 1), winPos + new Vector2(winSize.X - 1, 1 + (5 * Theme.Unit)),
-                    bg, bg, bg & 0x00FFFFFFu, bg & 0x00FFFFFFu);
-                draw.AddLine(winPos, winPos + new Vector2(winSize.X, 0), Theme.Pack(Theme.SurfaceBorder));
-            }
+                ImGui.GetWindowDrawList().AddLine(winPos + new Vector2(0, 0.5f), winPos + new Vector2(winSize.X, 0.5f), Theme.Pack(Theme.SurfaceBorder));
         }
         ImGui.EndChild();
         ImGui.PopStyleColor(6);
@@ -369,7 +368,10 @@ internal class ConfigWindow : Window
                 DrawManualFoodPicker(job);
             else
                 DrawAutoRecommendation();
-        }, fill: true);
+        });
+
+        if (_wideColumns)
+            DrawDiagnostics(c);
     }
 
     // ---- rail column ----
@@ -443,8 +445,14 @@ internal class ConfigWindow : Window
 
             if (c.WarningSoundEnabled)
                 DrawSoundSettings(c);
-        }, fill: false);
+        }, fill: _wideColumns);
 
+        if (!_wideColumns)
+            DrawDiagnostics(c);
+    }
+
+    private void DrawDiagnostics(Configuration c)
+    {
         FoodCard.Draw("diagnostics", () =>
         {
             FoodUiChrome.CardHeader("Diagnostics", "Optional decision logging does not change food selection or automation.", Theme.Unit);
@@ -506,12 +514,11 @@ internal class ConfigWindow : Window
         var open = FoodUiChrome.BeginCombo("##jobselector", currentName, width);
         if (open)
         {
-            if (ImGui.Selectable("Default (all jobs)", _selectedJobId == 0))
-                _selectedJobId = 0;
-
             ImGui.SetNextItemWidth(-1);
             ImGui.InputTextWithHint("##jobsearch", "Search jobs...", ref _jobSearch, 32);
             ImGui.Separator();
+            if (ImGui.Selectable("Default (all jobs)", _selectedJobId == 0))
+                _selectedJobId = 0;
             var jobSheet = Plugin.Data.GetExcelSheet<ClassJob>();
             if (jobSheet != null)
             {
@@ -616,14 +623,14 @@ internal class ConfigWindow : Window
         var open = FoodUiChrome.BeginCombo("##foodpicker", currentName, width);
         if (open)
         {
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##foodsearch", "Search food...", ref _foodSearch, 64);
+            ImGui.Separator();
             if (ImGui.Selectable("- None -", job.ManualFoodItemId == 0))
             {
                 job.ManualFoodItemId = 0;
                 _changed = true;
             }
-            ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextWithHint("##foodsearch", "Search food...", ref _foodSearch, 64);
-            ImGui.Separator();
 
             var filtered = _plugin._service.AllFoods
                 .Where(f => string.IsNullOrEmpty(_foodSearch) || f.Name.Contains(_foodSearch, StringComparison.OrdinalIgnoreCase))
