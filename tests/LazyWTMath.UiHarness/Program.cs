@@ -57,6 +57,7 @@ internal static class Program
         new("ready-4-stickers-920x700", FirstUse, Four),
         new("ready-7-stickers-920x700", FirstUse, Seven),
         new("ready-7-stickers-920x700-scrolled-end-map", FirstUse, Seven) { GameOnly = true, ScrollEnd = true },
+        new("empty-no-stickers-920x700-scrolled-end", FirstUse, None) { GameOnly = true, ScrollEnd = true },
         new("ready-8-stickers-no-shuffle-920x700", FirstUse, Eight),
         new("ready-9-stickers-complete-920x700", FirstUse, Nine),
         new("failed-bad-solver-state-920x700", FirstUse, Corrupt),
@@ -65,6 +66,7 @@ internal static class Program
         new("ready-4-stickers-480x600", Narrowest, Four) { GameOnly = true },
         new("ready-4-stickers-480x600-scrolled-end-rail", Narrowest, Four) { GameOnly = true, ScrollEnd = true },
         new("failed-bad-solver-state-480x600-scrolled-to-message", Narrowest, Corrupt) { GameOnly = true, ScrollEnd = true, Wheel = -4 },
+        new("ready-4-stickers-640x700", new Vector2(640, 700), Four) { GameOnly = true },
         new("ready-4-stickers-1400x1000-largest", Largest, Four) { GameOnly = true },
         new("hover-close-tooltip-920x700", FirstUse, Four) { GameOnly = true, Hover = Hover.Close },
         new("scale150-ready-4-stickers-920x700", FirstUse, Four) { GameOnly = true, Scale = 1.5f },
@@ -163,7 +165,7 @@ internal static class Program
                 ImGui.NewFrame();
                 BeginRealWindow(window, scenario.Size);
                 window.Draw();
-                ImGui.End();
+                EndRealWindow(window);
                 ImGui.Render();
             }
 
@@ -185,6 +187,8 @@ internal static class Program
 
     private static void BeginRealWindow(LazyWTMathWindow window, Vector2 size)
     {
+        // Same order as the real window host: PreDraw, Begin, Draw, End, PostDraw.
+        window.PreDraw();
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(size);
         var open = true;
@@ -192,11 +196,16 @@ internal static class Program
             ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
     }
 
-    // Window padding is 12 px (kit frame); the close control sits 12 px from the bar's right edge, 14 px down, 34 px square.
-    private static Vector2 CloseCenter(int width) => new(width - 12 - 12 - 17, 12 + 14 + 17);
+    private static void EndRealWindow(LazyWTMathWindow window)
+    {
+        ImGui.End();
+        window.PostDraw();
+    }
 
-    // What's new sits one gap (12 px) and its own width (104 px) to the left of the close control.
-    private static Vector2 WhatsNewCenter(int width) => CloseCenter(width) - new Vector2(17 + 12 + 52, 0);
+    // The window pads nothing: the close control is a 36 px square one gutter from the right edge, centred in a 40 px row under 14 px.
+    private static float Gutter(int width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
+
+    private static Vector2 CloseCenter(int width) => new(width - Gutter(width) - 18, 14 + 20);
 
     private static void Fill(byte[] target, byte r, byte g, byte b)
     {
@@ -309,7 +318,10 @@ internal static class Program
         Console.WriteLine("-- LazyWTMath drawn controls --");
         var shown = 0;
         var window = new LazyWTMathWindow(() => shown++) { IsOpen = true };
-        Click(window, (int)FirstUse.X, (int)FirstUse.Y, WhatsNewCenter((int)FirstUse.X));
+        // What's new is as wide as its measured label, so sweep the row to its left in 8 px steps until it fires.
+        var close = CloseCenter((int)FirstUse.X);
+        for (var x = close.X - 18 - 12; x > close.X - 300 && shown == 0; x -= 8)
+            Click(window, (int)FirstUse.X, (int)FirstUse.Y, new Vector2(x, close.Y));
         Check("What's new control calls the changelog callback once", shown == 1);
         Check("What's new control leaves the window open", window.IsOpen);
         Click(window, (int)FirstUse.X, (int)FirstUse.Y, CloseCenter((int)FirstUse.X));
@@ -337,7 +349,7 @@ internal static class Program
                 ImGui.NewFrame();
                 BeginRealWindow(window, new Vector2(width, height));
                 window.Draw();
-                ImGui.End();
+                EndRealWindow(window);
                 ImGui.Render();
             }
         }
