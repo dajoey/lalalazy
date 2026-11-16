@@ -1,20 +1,23 @@
 using System.Globalization;
+using System.Reflection;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using ECommons.DalamudServices;
 using Dalamud.Bindings.ImGui;
 using LazyCrucible;
 using LazyCrucible.Policy;
-using RenderProbe;
+using Lala.UiRender;
 
 namespace LazyCrucibleHarness;
 
 internal static class Program
 {
-    private static readonly IntPtr FontTextureId = new(1);
     private static readonly string ProjectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-    private static readonly string OutputDirectory = Path.Combine(ProjectRoot, "output");
+    private static bool _lookReported;
+    private static bool _missingGlyphs;
+    private static bool _strictGlyphs;
+    private static string OutputDirectory = Path.Combine(ProjectRoot, "output");
+    private static RenderOptions Options = RenderOptions.BuiltIn;
 
     private enum ScenarioKind
     {
@@ -31,7 +34,7 @@ internal static class Program
         public bool Incoming { get; init; }
     }
 
-    private static readonly Scenario[] Scenarios =
+    private static readonly Scenario[] BaseScenarios =
     [
         new("main-empty-ready", ScenarioKind.Main, 1100, 1600),
         new("main-autoduty-standby", ScenarioKind.Main, 1100, 1600)
@@ -62,13 +65,32 @@ internal static class Program
         new("suggestion-overlay", ScenarioKind.Overlay, 800, 600),
     ];
 
-    public static int Main()
+    // The windows open at 1280x840 on first use; 920x640 is a narrow but realistic resize.
+    private static readonly (int Width, int Height)[] GameWindowSizes = [(1280, 840), (920, 640)];
+
+    private static Scenario[] BuildScenarios(RenderOptions options)
+    {
+        var scenarios = new List<Scenario>(BaseScenarios);
+        if (!options.IsGame)
+            return [.. scenarios];
+        foreach (var scenario in BaseScenarios.Where(s => s.Kind != ScenarioKind.Overlay))
+            foreach (var (width, height) in GameWindowSizes)
+                scenarios.Add(scenario with { Name = $"{scenario.Name}-{width}x{height}", Width = width, Height = height });
+        return [.. scenarios];
+    }
+
+    public static int Main(string[] args)
     {
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
         try
         {
+            Options = RenderOptions.Resolve(args);
+            _strictGlyphs = args.Contains("--strict-glyphs");
+            if (Options.OutputSubdirectory.Length > 0)
+                OutputDirectory = Path.Combine(OutputDirectory, Options.OutputSubdirectory);
             Directory.CreateDirectory(OutputDirectory);
+            var scenarios = BuildScenarios(Options);
             using var stream = typeof(Plugin).Assembly.GetManifestResourceStream("CrucibleGuide.json")
                                ?? throw new InvalidOperationException("The real CrucibleGuide.json was not embedded.");
             using var reader = new StreamReader(stream);
@@ -81,16 +103,26 @@ internal static class Program
             if (validationProblems.Count != 0)
                 throw new InvalidOperationException($"The real guide has {validationProblems.Count} validation problems.");
 
+            var identical = 0;
             var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var scenario in Scenarios)
+            foreach (var scenario in scenarios)
             {
                 var result = RenderScenario(guide, scenario);
                 var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(result.Path))).ToLowerInvariant();
                 if (!hashes.TryAdd(hash, scenario.Name))
-                    throw new InvalidOperationException($"{scenario.Name} is byte-identical to {hashes[hash]}.");
-                Console.WriteLine($"{scenario.Name}: output/{scenario.Name}.png | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
+                {
+                    // Built-in mode keeps the strict rule. In game mode a size variant can legitimately show the same
+                    // pixels as another state (the state's content is outside the visible area): report it as a finding.
+                    if (!Options.IsGame)
+                        throw new InvalidOperationException($"{scenario.Name} is byte-identical to {hashes[hash]}.");
+                    Console.WriteLine($"WARNING: {scenario.Name} is byte-identical to {hashes[hash]}; the state it sets up is not visible at this size.");
+                    identical++;
+                }
+                Console.WriteLine($"{scenario.Name}: {Path.GetRelativePath(ProjectRoot, result.Path).Replace('\\', '/')} | {result.Triangles} triangles | {result.Bytes:N0} bytes | sha256 {hash[..16]}…");
             }
-            Console.WriteLine($"Rendered {Scenarios.Length} distinct real-source UI states. No window or game process was created.");
+            Console.WriteLine($"Rendered {scenarios.Length} real-source UI states ({hashes.Count} distinct). No window or game process was created.");
+            if (_missingGlyphs && _strictGlyphs)
+                throw new InvalidOperationException("--strict-glyphs: text the windows draw contains characters the game font lacks.");
             VerifyToggleInteraction();
             Console.WriteLine("Interactive drawn toggle: press and release changed the setting through CrucibleShell.");
             VerifyCloseCallbacks();
@@ -150,9 +182,14 @@ internal static class Program
             io.DisplayFramebufferScale = Vector2.One;
             io.DeltaTime = 1f / 60f;
             io.MousePos = new Vector2(-10000, -10000);
-            ImGui.StyleColorsDark();
-
-            var atlas = BuildFontAtlas(io.Fonts, out var atlasWidth, out var atlasHeight);
+            var look = UiLook.Apply(Options);
+            if (!_lookReported)
+            {
+                _lookReported = true;
+                Console.WriteLine($"Look: {look.Description}");
+                if (Options.IsGame)
+                    CheckGlyphs(look);
+            }
             var frame = new byte[scenario.Width * scenario.Height * 4];
 
             // Two frames stabilize window storage and, for the advisor, allow a deterministic scroll to the real section.
@@ -180,8 +217,7 @@ internal static class Program
             var drawData = ImGui.GetDrawData();
             if (!drawData.Valid || drawData.TotalVtxCount == 0)
                 throw new InvalidOperationException($"{scenario.Name}: the real Draw method produced no draw data.");
-            var stats = CpuRasterizer.Render(drawData, frame, scenario.Width, scenario.Height,
-                atlas, atlasWidth, atlasHeight, FontTextureId);
+            var stats = CpuRasterizer.Render(drawData, frame, scenario.Width, scenario.Height, look.Textures);
             var path = Path.Combine(OutputDirectory, scenario.Name + ".png");
             PngWriter.Write(path, frame, scenario.Width, scenario.Height);
             return new RenderResult(path, new FileInfo(path).Length, stats.Triangles);
@@ -190,6 +226,93 @@ internal static class Program
         {
             ImGui.DestroyContext(context);
             ScreenReader.Reset();
+        }
+    }
+
+    /// <summary>
+    /// Heuristic glyph audit: every non-ASCII character in the guide data and in the string literals of the compiled
+    /// window sources must exist in the active font, otherwise ImGui draws the fallback glyph. Printed as a report;
+    /// <c>--strict-glyphs</c> turns a miss into a failure.
+    /// </summary>
+    private static void CheckGlyphs(RenderLook look)
+    {
+        var found = new SortedDictionary<string, SortedSet<string>>();
+        void Scan(string source, string text)
+        {
+            foreach (var entry in look.MissingGlyphs(text))
+            {
+                if (!found.TryGetValue(entry, out var sources))
+                    found[entry] = sources = [];
+                sources.Add(source);
+            }
+        }
+
+        using (var stream = typeof(Plugin).Assembly.GetManifestResourceStream("CrucibleGuide.json"))
+        {
+            if (stream is not null)
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(stream);
+                var strings = new List<string>();
+                CollectStrings(document.RootElement, strings);
+                Scan("CrucibleGuide.json", string.Concat(strings.Select(x => x + "\n")));
+            }
+        }
+
+        var root = typeof(Plugin).Assembly.GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "LalaSourceRoot")?.Value;
+        var literal = new System.Text.RegularExpressions.Regex("@?\"(?:[^\"\\\r\n]|\\.)*\"");
+        foreach (var folder in new[] { Path.Combine("src", "LazyCrucible"), Path.Combine("src", "Shared", "LalaUiKit") })
+        {
+            var directory = root is null ? null : Path.Combine(root, folder);
+            if (directory is null || !Directory.Exists(directory))
+                continue;
+            foreach (var file in Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories))
+            {
+                if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") ||
+                    file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+                    continue;
+                var text = new System.Text.StringBuilder();
+                foreach (var line in File.ReadLines(file))
+                {
+                    if (line.TrimStart().StartsWith("//", StringComparison.Ordinal))
+                        continue;
+                    foreach (System.Text.RegularExpressions.Match match in literal.Matches(line))
+                    {
+                        var value = match.Value;
+                        try { value = System.Text.RegularExpressions.Regex.Unescape(value); } catch (ArgumentException) { }
+                        text.Append(value).Append('\n');
+                    }
+                }
+                Scan(Path.GetRelativePath(root!, file).Replace('\\', '/'), text.ToString());
+            }
+        }
+
+        _missingGlyphs = found.Count > 0;
+        if (found.Count == 0)
+        {
+            Console.WriteLine("Glyph check: every drawn non-ASCII character exists in the game font.");
+            return;
+        }
+        Console.WriteLine($"Glyph check: {found.Count} character(s) in drawn text have no glyph in the game font:");
+        foreach (var (entry, sources) in found)
+            Console.WriteLine($"  {entry} in {string.Join(", ", sources)}");
+    }
+
+    private static void CollectStrings(System.Text.Json.JsonElement element, List<string> into)
+    {
+        switch (element.ValueKind)
+        {
+            case System.Text.Json.JsonValueKind.String:
+                into.Add(element.GetString() ?? "");
+                break;
+            case System.Text.Json.JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                    CollectStrings(item, into);
+                break;
+            case System.Text.Json.JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                    CollectStrings(property.Value, into);
+                break;
         }
     }
 
@@ -217,7 +340,7 @@ internal static class Program
             io.DisplaySize = new Vector2(480, 120);
             io.DisplayFramebufferScale = Vector2.One;
             io.DeltaTime = 1f / 60f;
-            _ = BuildFontAtlas(io.Fonts, out _, out _);
+            _ = UiLook.Apply(Options);
             var value = false;
             var clickPos = Vector2.Zero;
             var shell = new CrucibleShell();
@@ -279,25 +402,6 @@ internal static class Program
         ImGui.Begin(name, ref open, windowFlags |
             ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
-    }
-
-    private static unsafe byte[] BuildFontAtlas(ImFontAtlasPtr fonts, out int width, out int height)
-    {
-        // Deliberately use only ImGui's embedded font; never read a host font file.
-        fonts.AddFontDefault();
-        byte* pixels = null;
-        var atlasWidth = 0;
-        var atlasHeight = 0;
-        var bytesPerPixel = 0;
-        fonts.GetTexDataAsRGBA32(0, &pixels, &atlasWidth, &atlasHeight, &bytesPerPixel);
-        width = atlasWidth;
-        height = atlasHeight;
-        if (bytesPerPixel != 4 || width <= 0 || height <= 0)
-            throw new InvalidOperationException("Invalid ImGui RGBA font atlas.");
-        fonts.SetTexID(0, new ImTextureID(FontTextureId));
-        var copy = new byte[width * height * 4];
-        Marshal.Copy((IntPtr)pixels, copy, 0, copy.Length);
-        return copy;
     }
 
     private static void ResetState()
