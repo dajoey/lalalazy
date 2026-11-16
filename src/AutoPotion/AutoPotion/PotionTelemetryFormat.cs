@@ -32,6 +32,13 @@ internal static class PotionTelemetryFormat
     /// </summary>
     public const int NearMissMinIntervalMs = 5000;
 
+    /// <summary>
+    ///     The one-line state summary <c>/autopotion debug</c> prints in chat: the master switch,
+    ///     then the reason of the last tick. Not a telemetry line (no <c>PT|</c> prefix), never logged.
+    /// </summary>
+    public static string StatusLine(bool enabled, string lastSkip)
+        => (enabled ? "enabled" : "disabled") + ", last: " + lastSkip;
+
     // ---- event codes (field 3) -------------------------------------------------
     /// <summary> An HP potion was used. </summary>
     public const char EvHpFired = 'h';
