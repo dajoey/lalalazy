@@ -1,4 +1,13 @@
-﻿## v0.2.8.22 (2026-11-14) [testing]
+﻿## v0.2.8.23 (2026-11-15) [testing]
+### Changed
+- The main window, the docked Auto-Market panel, the inventory page, the ownership tooltip, the confirmation prompts and the retainer overlay buttons now use responsive card-based layouts with pink navigation, track-style toggles and rounded controls, and running, idle, empty and ready states are worded the same way everywhere. All settings and behaviour are unchanged.
+- The main window and the Auto-Market panel each have a custom close (X) button, wide tables scroll only inside their own area, and the Auto-Market panel gained a persistent state footer with a Stop button for a running action.
+- The Report a problem button moved from the tab bar to a Support section on the Retainers & Hotkeys page; it writes the same local report as before.
+### Notes
+- Untried build: tested offline against the plugin's offline test suite, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
+## v0.2.8.22 (2026-11-14) [testing]
 ### Fixed
 - **Mannequin detection no longer skips every real listing on German, French and Japanese clients.** The check compared the context menu against the price window title text (Addon sheet row 930) instead of the menu's own Adjust Price action text (row 959). On English clients the two read the same, but on German, French and Japanese clients they differ, so each real listing looked like a mannequin and was skipped. The check now reads the menu action text (the fix is ported from upstream Dagobert's Auto Pinch).
 ### Notes
