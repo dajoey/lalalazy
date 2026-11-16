@@ -1,6 +1,7 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
 using LalaUiKit;
 using Lumina.Excel.Sheets;
@@ -51,6 +52,7 @@ internal sealed class ConfigWindow : Window
         var jobId = local?.ClassJob.RowId ?? 0;
         var job = jobId == 0 ? config.DefaultJob : config.GetOrCreateJobSettings(jobId);
         var jobName = ResolveJobName(jobId);
+        var jobIcon = ResolveJobIcon(jobId);
         var rulesOn = CountRules(job);
         var profileCount = config.Jobs.Count + 1;
         var inCombat = Plugin.Condition[ConditionFlag.InCombat];
@@ -108,7 +110,7 @@ internal sealed class ConfigWindow : Window
             var y = DrawTopBar(draw, winPos, winSize.X, gutter, state);
             if (!compact)
             {
-                y += DrawPageHeader(draw, jobName, rulesOn, profileCount, winPos.X + gutter, winPos.Y + y, winSize.X - (2f * gutter), winSize.X);
+                y += DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, winPos.X + gutter, winPos.Y + y, winSize.X - (2f * gutter), winSize.X);
             }
 
             ImGui.SetCursorPos(new Vector2(0f, y));
@@ -122,7 +124,7 @@ internal sealed class ConfigWindow : Window
             ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, 0u);
             ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
             ImGui.BeginChild("##autopotionBody", new Vector2(winSize.X, MathF.Max(40f, winSize.Y - footerHeight - y)), true);
-            DrawBody(config, job, jobName, rulesOn, profileCount, inCombat, inDuty, compact, gutter);
+            DrawBody(config, job, jobIcon, jobName, rulesOn, profileCount, inCombat, inDuty, compact, gutter);
             DrawScrollFades();
             ImGui.EndChild();
             ImGui.PopStyleColor(4);
@@ -183,7 +185,7 @@ internal sealed class ConfigWindow : Window
     ///     Icon tile, title, description and counts. Returns the height used, including 20 px above and 8 px below.
     ///     Wide windows put the counts at the right; narrower ones put them under the description.
     /// </summary>
-    private static float DrawPageHeader(ImDrawListPtr draw, string jobName, int rulesOn, int profileCount,
+    private static float DrawPageHeader(ImDrawListPtr draw, ImTextureID? jobIcon, string jobName, int rulesOn, int profileCount,
         float left, float top, float innerWidth, float windowWidth)
     {
         const float tile = 44f;
@@ -195,7 +197,11 @@ internal sealed class ConfigWindow : Window
         var profiles = profileCount == 1 ? "1 job profile" : $"{profileCount} job profiles";
 
         draw.AddRectFilled(origin, origin + new Vector2(tile), Theme.Pack(AutoPotionChrome.Alpha(Theme.Accent, 0.14f)), AutoPotionChrome.Radius);
-        AutoPotionChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10f, Theme.Pack(Theme.Accent));
+        // The active job's game icon replaces the diamond; the Default profile has no job and keeps the diamond.
+        if (jobIcon is { } icon)
+            draw.AddImage(icon, origin + new Vector2(4f), origin + new Vector2(tile - 4f));
+        else
+            AutoPotionChrome.Diamond(draw, origin + new Vector2(tile / 2f), 10f, Theme.Pack(Theme.Accent));
 
         var textX = left + 60f;
         var metaWidth = wide
@@ -231,7 +237,7 @@ internal sealed class ConfigWindow : Window
         return 20f + MathF.Max(tile, blockHeight) + 8f;
     }
 
-    private void DrawBody(Configuration config, JobPotionSettings job, string jobName, int rulesOn, int profileCount,
+    private void DrawBody(Configuration config, JobPotionSettings job, ImTextureID? jobIcon, string jobName, int rulesOn, int profileCount,
         bool inCombat, bool inDuty, bool compact, float gutter)
     {
         if (compact)
@@ -245,7 +251,7 @@ internal sealed class ConfigWindow : Window
             var childSize = ImGui.GetWindowSize();
             var scrollbar = ImGui.GetScrollMaxY() > 0f ? ImGui.GetStyle().ScrollbarSize : 0f;
             draw.PushClipRect(childPos, childPos + childSize, false);
-            var used = DrawPageHeader(draw, jobName, rulesOn, profileCount, childPos.X + gutter, top, width - (2f * gutter) - scrollbar, width);
+            var used = DrawPageHeader(draw, jobIcon, jobName, rulesOn, profileCount, childPos.X + gutter, top, width - (2f * gutter) - scrollbar, width);
             draw.PopClipRect();
             ImGui.SetCursorScreenPos(new Vector2(childPos.X + gutter, top + used + 16f));
             ImGui.Dummy(new Vector2(1f, 0f));
@@ -406,7 +412,7 @@ internal sealed class ConfigWindow : Window
             if (AutoPotionChrome.Toggle("telemetry", "Log potion decisions", ref telemetry,
                     $"Writes \"{PotionTelemetry.Prefix}\" lines when a potion fires or a crossed threshold cannot fire. " +
                     "Near-misses are rate-limited in the plugin log; diagnostic logging does not change potion decisions. " +
-                    "Same setting as the /autopotion telemetry command."))
+                    "Same setting as /autopotion telemetry on|off."))
             {
                 config.DecisionTelemetry = telemetry;
                 // Match the command path: a fresh enable reports the current state immediately.
@@ -476,7 +482,7 @@ internal sealed class ConfigWindow : Window
         var width = compact ? available : (available - (2f * gap)) / 3f;
         var noteHeight = 0f;
         foreach (var stat in stats)
-            noteHeight = MathF.Max(noteHeight, AutoPotionChrome.StatNoteHeight(width, stat.Note));
+            noteHeight = MathF.Max(noteHeight, AutoPotionChrome.StatNoteHeight(width, stat.Note, compact));
         var height = AutoPotionChrome.StatHeight(compact, noteHeight);
         var rowGap = compact ? 8f : gap;
         var origin = ImGui.GetCursorScreenPos();
@@ -492,6 +498,16 @@ internal sealed class ConfigWindow : Window
         var total = compact ? (stats.Length * height) + ((stats.Length - 1) * rowGap) : height;
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(available, total + gap - Theme.ItemSpacing.Y));
+    }
+
+    private static ImTextureID? ResolveJobIcon(uint jobId)
+    {
+        // ClassJob does not expose Icon in this Lumina build; framed job icons use this stable offset.
+        if (jobId == 0)
+            return null;
+        var iconId = 62000u + jobId;
+        var texture = Plugin.Textures.GetFromGameIcon(new GameIconLookup(iconId));
+        return texture.GetWrapOrEmpty().Handle;
     }
 
     private static string ResolveJobName(uint jobId)

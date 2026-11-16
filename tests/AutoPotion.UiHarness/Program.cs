@@ -200,6 +200,8 @@ internal static class Program
             Console.WriteLine("Custom close control: a press and release on the drawn button closes the window.");
             VerifyToggleInteraction();
             Console.WriteLine("Drawn toggle: a press and release changed the setting.");
+            VerifySliderTyping();
+            Console.WriteLine("Threshold slider: Ctrl+click opened the editor, typed digits were taken and Enter applied the value.");
             return 0;
         }
         catch (Exception ex)
@@ -497,6 +499,61 @@ internal static class Program
             }
             if (!value)
                 throw new InvalidOperationException("The drawn toggle did not change the setting after a real press and release.");
+        }
+        finally
+        {
+            ImGui.DestroyContext(context);
+        }
+    }
+
+    private static void VerifySliderTyping()
+    {
+        var context = ImGui.CreateContext();
+        try
+        {
+            var io = ImGui.GetIO();
+            io.DisplaySize = new Vector2(480, 200);
+            io.DisplayFramebufferScale = Vector2.One;
+            io.DeltaTime = 1f / 60f;
+            _ = UiLook.Apply(Options);
+            var value = 55f;
+            var target = Vector2.Zero;
+            var editorSeen = false;
+            // 0 idle, 1 Ctrl held + press, 2 release, 3 type "4", 4 type "2", 5 Enter down, 6 Enter up, 7 settle.
+            for (var step = 0; step < 8; step++)
+            {
+                io.MousePos = step == 0 ? new Vector2(-10000, -10000) : target;
+                io.MouseDown[0] = step == 1;
+                if (step == 1)
+                    io.AddKeyEvent(ImGuiKey.ModCtrl, true);
+                if (step == 2)
+                    io.AddKeyEvent(ImGuiKey.ModCtrl, false);
+                if (step == 3)
+                    io.AddInputCharacter('4');
+                if (step == 4)
+                    io.AddInputCharacter('2');
+                if (step == 5)
+                    io.AddKeyEvent(ImGuiKey.Enter, true);
+                if (step == 6)
+                    io.AddKeyEvent(ImGuiKey.Enter, false);
+                ImGui.NewFrame();
+                ImGui.SetNextWindowPos(Vector2.Zero);
+                ImGui.SetNextWindowSize(io.DisplaySize);
+                var open = true;
+                ImGui.Begin("Slider typing interaction", ref open, ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoSavedSettings);
+                ImGui.SetCursorPos(new Vector2(20, 20));
+                AutoPotionChrome.ThresholdSlider("probe", "Probe threshold", ref value);
+                if (step == 0)
+                    target = (ImGui.GetItemRectMin() + ImGui.GetItemRectMax()) / 2f;
+                if (step is >= 3 and <= 4 && ImGui.GetCurrentContext().TempInputId == ImGui.GetID("##autopotion_threshold_probe"))
+                    editorSeen = true;
+                ImGui.End();
+                ImGui.Render();
+            }
+            if (!editorSeen)
+                throw new InvalidOperationException("Ctrl+click on the threshold slider did not open the typed-value editor.");
+            if (MathF.Abs(value - 42f) > 0.01f)
+                throw new InvalidOperationException($"Typing 42 and pressing Enter left the threshold at {value}.");
         }
         finally
         {

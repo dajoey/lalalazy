@@ -401,8 +401,12 @@ internal static class AutoPotionChrome
         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.SurfaceBorder);
         ImGui.PushStyleColor(ImGuiCol.SliderGrab, Dim ? Alpha(Theme.Accent, 0.5f) : Theme.Accent);
         ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
-        ImGui.PushStyleColor(ImGuiCol.Text, 0u);
-        var changed = ImGui.SliderFloat("##autopotion_threshold_" + id, ref value, 1f, 99f, "%.0f%%");
+        // The slider's own centred text stays hidden, but not while an exact value is being typed
+        // (Ctrl+click or double-click): the editor draws with the same text colour and must stay readable.
+        var sliderId = "##autopotion_threshold_" + id;
+        var typing = ImGui.GetCurrentContext().TempInputId == ImGui.GetID(sliderId);
+        ImGui.PushStyleColor(ImGuiCol.Text, typing ? Theme.TextPrimary : default);
+        var changed = ImGui.SliderFloat(sliderId, ref value, 1f, 99f, "%.0f%%");
         ImGui.PopStyleColor(6);
         ImGui.PopStyleVar(4);
         return changed;
@@ -452,11 +456,11 @@ internal static class AutoPotionChrome
     // ---- stat cards ----
 
     internal static float StatHeight(bool compact, float noteHeight = 0f) => compact
-        ? 12f + MathF.Max(LineHeight(Theme.SecondaryScale), LineHeight(1.35f)) + 8f + Theme.BarHeight + 12f
+        ? 12f + MathF.Max(LineHeight(Theme.SecondaryScale), LineHeight(1.35f)) + 8f + Theme.BarHeight + 8f + MathF.Max(noteHeight, LineHeight(Theme.SecondaryScale)) + 12f
         : 16f + LineHeight(Theme.SecondaryScale) + 8f + LineHeight(1.7f) + 8f + Theme.BarHeight + 8f + MathF.Max(noteHeight, LineHeight(Theme.SecondaryScale)) + 16f;
 
     /// <summary>Height of a stat note wrapped to the card's inner width, so a long note grows the card instead of being cut.</summary>
-    internal static float StatNoteHeight(float cardWidth, string note) => WrappedHeight(note, cardWidth - 32f, Theme.SecondaryScale);
+    internal static float StatNoteHeight(float cardWidth, string note, bool compact) => WrappedHeight(note, cardWidth - (compact ? 24f : 32f), Theme.SecondaryScale);
 
     internal static void StatCard(ImDrawListPtr draw, Vector2 pos, float width, float height, bool compact, string label, string value, string? cap, float? fraction, string note)
     {
@@ -510,11 +514,8 @@ internal static class AutoPotionChrome
                 draw.AddRectFilled(barMin, new Vector2(barMin.X + (inner * filled), barMax.Y), Theme.Pack(Theme.StateGreen), 2f);
         }
 
-        if (!compact)
-        {
-            y += Theme.BarHeight + 8f;
-            DrawWrapped(draw, new Vector2(x, y), note, inner, fraction is >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
-        }
+        y += Theme.BarHeight + 8f;
+        DrawWrapped(draw, new Vector2(x, y), note, inner, fraction is >= 1f ? Theme.StateGreen : Theme.TextSecondary, Theme.SecondaryScale);
     }
 
     // ---- footer button ----
