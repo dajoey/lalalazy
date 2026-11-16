@@ -1,3 +1,6 @@
+## v0.1.0.8 (2026-11-16) [testing]
+- Fixed the local listener spinning a CPU core after the port changed; the port now applies when Enter is pressed.
+
 ## v0.1.0.7 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - Endpoint and continuity values sit in one aligned column and no longer break letter by letter; requirement rows keep a fixed pitch with the status word on the right in its state colour.
