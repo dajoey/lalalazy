@@ -1,12 +1,14 @@
+using System.Collections.Generic;
 using System.IO.Compression;
 using System.Numerics;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 
-namespace RenderProbe;
+namespace Lala.UiRender;
 
-internal static unsafe class CpuRasterizer
+public static unsafe class CpuRasterizer
 {
+    /// <summary>Renders a draw list whose every command samples the single atlas texture registered under <paramref name="fontTextureId"/>.</summary>
     public static RenderStats Render(
         ImDrawDataPtr drawData,
         byte[] frame,
@@ -16,10 +18,29 @@ internal static unsafe class CpuRasterizer
         int atlasWidth,
         int atlasHeight,
         IntPtr fontTextureId)
+        => Render(drawData, frame, frameWidth, frameHeight, [new AtlasTexture(fontTextureId, atlas, atlasWidth, atlasHeight)]);
+
+    /// <summary>
+    /// Renders a draw list. Every command must sample one of the supplied RGBA32 textures (matched by texture id,
+    /// each with its own size); any other texture id, user callback or framebuffer scale is rejected.
+    /// </summary>
+    public static RenderStats Render(
+        ImDrawDataPtr drawData,
+        byte[] frame,
+        int frameWidth,
+        int frameHeight,
+        IReadOnlyList<AtlasTexture> textures)
     {
         if (drawData.FramebufferScale != Vector2.One)
             throw new NotSupportedException("This probe intentionally supports only a 1:1 framebuffer scale.");
-
+        var byId = new Dictionary<ulong, AtlasTexture>();
+        foreach (var texture in textures)
+        {
+            if (texture.Width <= 0 || texture.Height <= 0 || texture.Rgba.Length != texture.Width * texture.Height * 4)
+                throw new NotSupportedException($"Atlas texture {texture.Id} is not a {texture.Width}x{texture.Height} RGBA32 image.");
+            if (!byId.TryAdd((ulong)texture.Id.ToInt64(), texture))
+                throw new InvalidOperationException($"Atlas texture id {texture.Id} is registered twice.");
+        }
         var triangles = 0;
         var displayPos = drawData.DisplayPos;
         for (var listIndex = 0; listIndex < drawData.CmdListsCount; listIndex++)
@@ -32,8 +53,8 @@ internal static unsafe class CpuRasterizer
                     throw new NotSupportedException("User draw callbacks are outside this probe's scope.");
                 if (command.ElemCount == 0)
                     continue;
-                if (command.TextureId.Handle != (ulong)fontTextureId.ToInt64())
-                    throw new NotSupportedException($"Unexpected texture ID {command.TextureId.Handle}; only the ImGui font atlas is registered.");
+                if (!byId.TryGetValue(command.TextureId.Handle, out var sampled))
+                    throw new NotSupportedException($"Unexpected texture ID {command.TextureId.Handle}; only the registered ImGui font atlas textures are supported.");
                 if (command.ElemCount % 3 != 0)
                     throw new InvalidOperationException("Expected indexed triangles in the ImGui draw list.");
 
@@ -46,7 +67,7 @@ internal static unsafe class CpuRasterizer
                     var a = ReadVertex(list.VtxBuffer[i0], displayPos);
                     var b = ReadVertex(list.VtxBuffer[i1], displayPos);
                     var c = ReadVertex(list.VtxBuffer[i2], displayPos);
-                    RasterTriangle(frame, frameWidth, frameHeight, atlas, atlasWidth, atlasHeight, clip, a, b, c);
+                    RasterTriangle(frame, frameWidth, frameHeight, sampled.Rgba, sampled.Width, sampled.Height, clip, a, b, c);
                     triangles++;
                 }
             }
@@ -218,9 +239,12 @@ internal static unsafe class CpuRasterizer
     }
 }
 
-internal readonly record struct RenderStats(int DrawLists, int Triangles);
+/// <summary>One RGBA32 font atlas texture and the texture id its draw commands carry.</summary>
+public sealed record AtlasTexture(IntPtr Id, byte[] Rgba, int Width, int Height);
 
-internal static class PngWriter
+public readonly record struct RenderStats(int DrawLists, int Triangles);
+
+public static class PngWriter
 {
     private static readonly byte[] Signature = [137, 80, 78, 71, 13, 10, 26, 10];
     private static readonly uint[] CrcTable = CreateCrcTable();
