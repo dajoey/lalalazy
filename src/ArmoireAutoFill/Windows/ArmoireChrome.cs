@@ -141,12 +141,23 @@ internal static class ArmoireChrome
         return lo == 0 ? "…" : text[..lo].TrimEnd() + "…";
     }
 
-    /// <summary>Single line that is elided to fit; the full text shows on hover.</summary>
-    public static void DrawFitted(ImDrawListPtr draw, Vector2 pos, string text, float width, Vector4 color, float scale = 1f)
+    /// <summary>
+    ///     True while the pointer is inside the rectangle and this window (or its body child) is the one under it, so a
+    ///     tooltip never shows through another window that overlaps this one. The rectangle is not clipped to the
+    ///     current table column, so a panel that spans several columns still hovers as one.
+    /// </summary>
+    public static bool HoverRect(Vector2 min, Vector2 max)
+        => ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) && ImGui.IsMouseHoveringRect(min, max, false);
+
+    /// <summary>
+    ///     Single line that is elided to fit; the full text shows on hover unless the caller shows its own tooltip
+    ///     (<paramref name="tooltip"/> false), so two tooltips never compete in one frame.
+    /// </summary>
+    public static void DrawFitted(ImDrawListPtr draw, Vector2 pos, string text, float width, Vector4 color, float scale = 1f, bool tooltip = true)
     {
         var fitted = Fit(text, width, scale);
         DrawText(draw, pos, fitted, color, scale);
-        if (fitted != text && ImGui.IsMouseHoveringRect(pos, pos + new Vector2(width, LineHeight(scale))))
+        if (tooltip && fitted != text && HoverRect(pos, pos + new Vector2(width, LineHeight(scale))))
             ImGui.SetTooltip(text);
     }
 
@@ -154,7 +165,7 @@ internal static class ArmoireChrome
     {
         var fitted = Fit(text, width, scale);
         DrawTextRight(draw, right, y, fitted, color, scale);
-        if (fitted != text && ImGui.IsMouseHoveringRect(new Vector2(right - width, y), new Vector2(right, y + LineHeight(scale))))
+        if (fitted != text && HoverRect(new Vector2(right - width, y), new Vector2(right, y + LineHeight(scale))))
             ImGui.SetTooltip(text);
     }
 
@@ -424,6 +435,9 @@ internal static class ArmoireChrome
         var shownPurpose = ClampLines(purpose, leftWidth, Theme.SecondaryScale, wide || shortWindow ? 1 : 3);
         var descHeight = DrawWrapped(draw, new Vector2(textX, descTop), shownPurpose, leftWidth, Theme.TextSecondary, Theme.SecondaryScale);
         var textBottom = descTop + descHeight;
+        // Whatever was cut to fit stays readable on hover.
+        if ((shownTitle != title || shownPurpose != purpose) && HoverRect(new Vector2(textX, origin.Y), new Vector2(textX + leftWidth, textBottom)))
+            ImGui.SetTooltip(shownTitle != title ? title + "\n" + purpose : purpose);
 
         if (wide)
         {
@@ -434,7 +448,7 @@ internal static class ArmoireChrome
             if (subtext.Length > 0)
                 DrawFittedRight(draw, right, descTop, subtext, metaWidth, Theme.TextSecondary, Theme.SecondaryScale);
         }
-        else if (!shortWindow)
+        else
         {
             var meta = count.Length > 0 && subtext.Length > 0 ? $"{count} · {subtext}" : count.Length > 0 ? count : subtext;
             if (meta.Length > 0)
@@ -661,7 +675,7 @@ internal static class ArmoireChrome
         }
         else
             DrawWrapped(draw, textPos, body, textWidth, Theme.TextPrimary);
-        if (!string.IsNullOrEmpty(tooltip) && ImGui.IsMouseHoveringRect(pos, pos + new Vector2(width, height)))
+        if (!string.IsNullOrEmpty(tooltip) && HoverRect(pos, pos + new Vector2(width, height)))
             ImGui.SetTooltip(tooltip);
         Advance(pos, width, height, 3 * Theme.Unit);
     }
@@ -847,11 +861,21 @@ internal static class ArmoireChrome
         var concise = $"{Copy.Word(state)} · {Parenthetical.Replace(action, string.Empty)}";
         var shown = Fit(concise, textRight - textLeft);
         DrawText(draw, new Vector2(textLeft, textTop), shown, Theme.TextPrimary);
-        var shownDetail = compact ? detail : Fit(detail, textRight - textLeft, Theme.SecondaryScale);
+        var shownDetail = compact ? string.Empty : Fit(detail, textRight - textLeft, Theme.SecondaryScale);
+        var detailHidden = false;
         if (!compact)
             DrawText(draw, new Vector2(textLeft, textTop + lineHeight + Theme.Unit), shownDetail, Theme.TextSecondary, Theme.SecondaryScale);
-        if ((shown != full || shownDetail != detail || compact)
-            && ImGui.IsMouseHoveringRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + textBlock)))
+        else
+        {
+            // One line only: the detail follows the state text when there is room, else it stays on hover.
+            var tail = "  ·  " + detail;
+            if (shown == concise && TextWidth(concise + tail) <= textRight - textLeft)
+                DrawText(draw, new Vector2(textLeft + TextWidth(concise), textTop), tail, Theme.TextSecondary);
+            else
+                detailHidden = true;
+        }
+        if ((shown != full || (!compact && shownDetail != detail) || detailHidden)
+            && HoverRect(new Vector2(textLeft, textTop), new Vector2(textRight, textTop + textBlock)))
             ImGui.SetTooltip(full + "\n" + detail);
 
         if (showStop)

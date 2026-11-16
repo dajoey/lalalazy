@@ -33,7 +33,7 @@ internal static class Program
         /// <summary>
         /// Ordinals (top to bottom) of the interactive items in the left column to press, e.g. the dungeon rows or the
         /// "Pieces" tree nodes; the harness finds them by sweeping the mouse, so a layout change moves them with it.
-        /// The run prints the list it found. On the Collection page #0 is the table header and the dungeon rows follow.
+        /// The run prints the list it found. On the Collection page #0 is the table header and the dungeon rows follow (#1 is the first dungeon).
         /// </summary>
         public int[] Click { get; init; } = [];
 
@@ -66,7 +66,7 @@ internal static class Program
                 Sim.Typical();
                 Plugin.Configuration.ShowOwnedItems = true;
             })
-            { Width = 1360, Height = 1150, Click = [0], HoverFirstPiece = true },
+            { Width = 1360, Height = 1150, Click = [1], HoverFirstPiece = true },
         new("collection-gear-database-missing", Surface.Collection, SizeKind.Fixed, Sim.GearDatabaseMissing) { Width = 760, Height = 900 },
         new("collection-all-complete-auto-store-off", Surface.Collection, SizeKind.Fixed, () =>
             {
@@ -99,7 +99,11 @@ internal static class Program
 
         // Evidence only: the same typical page at 150 percent global scale.
         new("scale150-collection-typical", Surface.Collection, SizeKind.Fixed, Sim.Typical)
-            { Width = 1000, Height = 1400, Click = [0], Scale = 1.5f, GameOnly = true },
+            { Width = 1000, Height = 1400, Click = [1], Scale = 1.5f, GameOnly = true },
+
+        // Evidence only: the narrowest width at 150 percent scale, where the five-column table gives way to stacked rows.
+        new("scale150-collection-narrow", Surface.Collection, SizeKind.Fixed, Sim.Typical)
+            { Width = 520, Height = 1500, Click = [1], Scale = 1.5f, GameOnly = true },
     ];
 
     public static int Main(string[] args)

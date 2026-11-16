@@ -186,16 +186,15 @@ public class MainWindow : Window
             new ArmoireStat("In inventory", loaded ? inInv.ToString() : "—", null,
                 loaded ? "Bags, equipment, and armoury chest" : unavailable, null),
             new ArmoireStat("In armoire", loaded ? inArm.ToString() : "—", null,
-                loaded ? "Items stored in the armoire" : unavailable, null),
+                loaded ? $"Stored in the armoire, {CabinetLine()}" : unavailable, null),
             new ArmoireStat("Missing", loaded ? missing.ToString() : "—", null,
                 loaded ? "Still to collect" : unavailable, null));
 
-        if (loaded)
-            ArmoireChrome.Card("collection_snapshot", 0, () =>
-            {
-                ArmoireChrome.CardHeader("Live snapshot");
-                ArmoireChrome.Paragraph(ScanLine(), gap: 0);
-            });
+        ArmoireChrome.Card("collection_snapshot", 0, () =>
+        {
+            ArmoireChrome.CardHeader("Live snapshot");
+            ArmoireChrome.Paragraph(ScanLine(), gap: 0);
+        });
 
         var showOwned = Plugin.Configuration.ShowOwnedItems;
         var hideComplete = Plugin.Configuration.HideCompleteDungeons;
@@ -270,146 +269,251 @@ public class MainWindow : Window
 
         ArmoireChrome.Card("dungeon_table", 0, () =>
         {
-            var draw = ImGui.GetWindowDrawList();
             var inner = ArmoireChrome.Avail();
-            var compact = inner < 520;
-            const float rowPad = ArmoireChrome.Gap;
-            const float colGap = ArmoireChrome.Gap;
-            var lineHeight = ArmoireChrome.LineHeight();
-            var secondaryHeight = ArmoireChrome.LineHeight(Theme.SecondaryScale);
-            var captionHeight = ArmoireChrome.LineHeight(Theme.CaptionScale);
             string LevelText(DungeonInfo d) => d.Level > 0 ? $"Lv {d.Level}" : "—";
             string StateText(DungeonInfo d) => d.IsComplete ? Copy.Word(UiState.Ready) : $"{d.MissingCount} left";
 
-            var levelWidth = MathF.Max(ArmoireChrome.TextWidth("Level", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(LevelText(d))));
-            var itemsWidth = MathF.Max(ArmoireChrome.TextWidth("Items", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.Items.Count.ToString())));
-            var missingWidth = MathF.Max(ArmoireChrome.TextWidth("Missing", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.MissingCount.ToString())));
-            var stateWidth = (2 * Theme.DotRadius) + (2 * Theme.Unit)
+            // Starting widths come from the content; once the player drags a divider the table keeps its own widths.
+            const float cellPadX = 2 * Theme.Unit;
+            var levelWidth = (2 * cellPadX) + MathF.Max(ArmoireChrome.TextWidth("Level", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(LevelText(d))));
+            var itemsWidth = (2 * cellPadX) + MathF.Max(ArmoireChrome.TextWidth("Items", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.Items.Count.ToString())));
+            var missingWidth = (2 * cellPadX) + MathF.Max(ArmoireChrome.TextWidth("Missing", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(d.MissingCount.ToString())));
+            var stateWidth = (2 * cellPadX) + (2 * Theme.DotRadius) + (2 * Theme.Unit)
                 + MathF.Max(ArmoireChrome.TextWidth("Status", Theme.CaptionScale), ordered.Max(d => ArmoireChrome.TextWidth(StateText(d))));
-            var nameLeft = rowPad + 20;
-            var nameWidth = inner - nameLeft - rowPad - levelWidth - itemsWidth - missingWidth - stateWidth - (4 * colGap);
-            var levelX = nameLeft + nameWidth + colGap;
-            var itemsRight = levelX + levelWidth + colGap + itemsWidth;
-            var missingRight = itemsRight + colGap + missingWidth;
-            var stateX = missingRight + colGap;
+            var nameFloor = 8 * ArmoireChrome.LineHeight();
 
-            if (!compact)
+            if (inner - levelWidth - itemsWidth - missingWidth - stateWidth < nameFloor)
             {
-                var headerPos = ImGui.GetCursorScreenPos();
-                var captionY = headerPos.Y;
-                ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + nameLeft, captionY), "Dungeon", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.DrawText(draw, new Vector2(headerPos.X + levelX, captionY), "Level", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.DrawTextRight(draw, headerPos.X + itemsRight, captionY, "Items", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.DrawTextRight(draw, headerPos.X + missingRight, captionY, "Missing", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.DrawTextRight(draw, headerPos.X + stateX + stateWidth, captionY, "Status", Theme.TextSecondary, Theme.CaptionScale);
-                ArmoireChrome.Advance(headerPos, inner, captionHeight, 2 * Theme.Unit);
+                DrawDungeonRowsStacked(ordered, showOwned, inner, LevelText, StateText);
+                return;
             }
 
-            foreach (var dungeon in ordered)
+            var lineHeight = ArmoireChrome.LineHeight();
+            var captionHeight = ArmoireChrome.LineHeight(Theme.CaptionScale);
+            const float cellPadY = Theme.Unit;
+            var rowHeight = lineHeight + (4 * Theme.Unit);
+            var tableLeft = ImGui.GetCursorScreenPos().X;
+            var draw = ImGui.GetWindowDrawList();
+
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(cellPadX, cellPadY));
+            ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.TableRowBg, Theme.ShellBar);
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, Theme.ShellBar);
+            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.SurfaceBorder);
+            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(1f, 1f, 1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(1f, 1f, 1f, 0.05f));
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(1f, 1f, 1f, 0.08f));
+            var began = ImGui.BeginTable("dungeon_table", 5,
+                ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.PadOuterX | ImGuiTableFlags.NoBordersInBody,
+                new Vector2(inner, 0));
+            try
             {
-                var pos = ImGui.GetCursorScreenPos();
-                var open = _openDungeons.Contains(dungeon.ContentFinderConditionId);
-                var rowHeight = compact
-                    ? (2 * 3 * Theme.Unit) + lineHeight + (Theme.Unit / 2f) + secondaryHeight
-                    : (2 * 3 * Theme.Unit) + lineHeight;
-                if (ImGui.InvisibleButton($"##dungeon_{dungeon.ContentFinderConditionId}", new Vector2(inner, rowHeight)))
+                if (!began)
+                    return;
+
+                ImGui.TableSetupColumn("Dungeon", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Level", ImGuiTableColumnFlags.WidthFixed, levelWidth);
+                ImGui.TableSetupColumn("Items", ImGuiTableColumnFlags.WidthFixed, itemsWidth);
+                ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, missingWidth);
+                ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, stateWidth);
+
+                // Header cells are real table headers (divider handles and the right-click size menu) with the caption
+                // drawn over them, so numbers and their captions share one right edge.
+                ImGui.TableNextRow(ImGuiTableRowFlags.Headers, captionHeight + (2 * cellPadY) + (2 * Theme.Unit));
+                var captions = new[] { "Dungeon", "Level", "Items", "Missing", "Status" };
+                for (var column = 0; column < captions.Length; column++)
                 {
-                    if (open)
-                        _openDungeons.Remove(dungeon.ContentFinderConditionId);
+                    ImGui.TableSetColumnIndex(column);
+                    var cell = ImGui.GetCursorScreenPos();
+                    var right = cell.X + ImGui.GetContentRegionAvail().X;
+                    var y = cell.Y + Theme.Unit;
+                    ImGui.TableHeader("##dungeon_header_" + column);
+                    var text = captions[column];
+                    if (column == 0)
+                        ArmoireChrome.DrawText(draw, new Vector2(cell.X + 20, y), text, Theme.TextSecondary, Theme.CaptionScale);
+                    else if (column == 1)
+                        ArmoireChrome.DrawText(draw, new Vector2(cell.X, y), text, Theme.TextSecondary, Theme.CaptionScale);
                     else
-                        _openDungeons.Add(dungeon.ContentFinderConditionId);
-                    open = !open;
+                        ArmoireChrome.DrawTextRight(draw, right, y, text, Theme.TextSecondary, Theme.CaptionScale);
                 }
-                var hovered = ImGui.IsItemHovered();
-                draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(Theme.ShellBar), ArmoireChrome.Radius);
-                if (hovered)
-                    draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), ArmoireChrome.Radius);
 
-                var stateColor = dungeon.IsComplete ? Copy.MarkColor(UiState.Ready) : Copy.MarkColor(UiState.Missing);
-                var padY = 3 * Theme.Unit;
-                ArmoireChrome.Chevron(draw, pos + new Vector2(rowPad + 4, padY + (lineHeight / 2f)), open || hovered ? Theme.Accent : Theme.TextSecondary, right: !open);
-                if (!compact)
+                foreach (var dungeon in ordered)
                 {
-                    var textY = pos.Y + padY;
-                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, textY), dungeon.Name, nameWidth, Theme.TextPrimary);
-                    ArmoireChrome.DrawText(draw, new Vector2(pos.X + levelX, textY), LevelText(dungeon), Theme.TextSecondary);
-                    ArmoireChrome.DrawTextRight(draw, pos.X + itemsRight, textY, dungeon.Items.Count.ToString(), Theme.TextSecondary);
-                    ArmoireChrome.DrawTextRight(draw, pos.X + missingRight, textY, dungeon.MissingCount.ToString(),
+                    var open = _openDungeons.Contains(dungeon.ContentFinderConditionId);
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    var nameCell = ImGui.GetCursorScreenPos();
+                    var nameAvail = ImGui.GetContentRegionAvail().X;
+                    if (ImGui.Selectable($"##dungeon_{dungeon.ContentFinderConditionId}", false, ImGuiSelectableFlags.SpanAllColumns, new Vector2(0, rowHeight)))
+                    {
+                        if (open)
+                            _openDungeons.Remove(dungeon.ContentFinderConditionId);
+                        else
+                            _openDungeons.Add(dungeon.ContentFinderConditionId);
+                        open = !open;
+                    }
+                    var hovered = ImGui.IsItemHovered();
+                    var textY = nameCell.Y + (2 * Theme.Unit);
+                    var stateColor = dungeon.IsComplete ? Copy.MarkColor(UiState.Ready) : Copy.MarkColor(UiState.Missing);
+                    ArmoireChrome.Chevron(draw, new Vector2(nameCell.X + 4, nameCell.Y + (rowHeight / 2f)), open || hovered ? Theme.Accent : Theme.TextSecondary, right: !open);
+                    ArmoireChrome.DrawFitted(draw, new Vector2(nameCell.X + 20, textY), dungeon.Name, nameAvail - 20, Theme.TextPrimary);
+
+                    ImGui.TableSetColumnIndex(1);
+                    var levelCell = ImGui.GetCursorScreenPos();
+                    ArmoireChrome.DrawText(draw, new Vector2(levelCell.X, textY), LevelText(dungeon), Theme.TextSecondary);
+
+                    ImGui.TableSetColumnIndex(2);
+                    var itemsCell = ImGui.GetCursorScreenPos();
+                    ArmoireChrome.DrawTextRight(draw, itemsCell.X + ImGui.GetContentRegionAvail().X, textY, dungeon.Items.Count.ToString(), Theme.TextSecondary);
+
+                    ImGui.TableSetColumnIndex(3);
+                    var missingCell = ImGui.GetCursorScreenPos();
+                    ArmoireChrome.DrawTextRight(draw, missingCell.X + ImGui.GetContentRegionAvail().X, textY, dungeon.MissingCount.ToString(),
                         dungeon.MissingCount > 0 ? Copy.MarkColor(UiState.Missing) : Theme.TextSecondary);
-                    var stateRight = pos.X + stateX + stateWidth;
-                    var stateLeft = MathF.Round(stateRight - ArmoireChrome.TextWidth(StateText(dungeon)));
-                    draw.AddCircleFilled(new Vector2(stateLeft - (2 * Theme.Unit) - Theme.DotRadius, textY + (lineHeight / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
-                    ArmoireChrome.DrawTextRight(draw, stateRight, textY, StateText(dungeon), stateColor);
-                }
-                else
-                {
-                    var stateTextWidth = ArmoireChrome.TextWidth(StateText(dungeon));
-                    var stateRight = pos.X + inner - rowPad;
-                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY), dungeon.Name,
-                        inner - nameLeft - rowPad - stateTextWidth - (2 * Theme.DotRadius) - colGap, Theme.TextPrimary);
-                    ArmoireChrome.DrawTextRight(draw, stateRight, pos.Y + padY, StateText(dungeon), stateColor);
-                    draw.AddCircleFilled(new Vector2(stateRight - stateTextWidth - (2 * Theme.Unit) - Theme.DotRadius, pos.Y + padY + (lineHeight / 2f)),
-                        Theme.DotRadius, Theme.Pack(stateColor));
-                    var detail = $"{LevelText(dungeon)} · {Plural(dungeon.Items.Count, "item")} · {dungeon.MissingCount} missing";
-                    ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY + lineHeight + (Theme.Unit / 2f)), detail,
-                        inner - nameLeft - rowPad, Theme.TextSecondary, Theme.SecondaryScale);
-                }
-                ArmoireChrome.Advance(pos, inner, rowHeight, 2 * Theme.Unit);
 
-                if (open)
-                    DrawDungeonPieces(dungeon, showOwned, inner);
+                    ImGui.TableSetColumnIndex(4);
+                    var stateCell = ImGui.GetCursorScreenPos();
+                    var stateRight = stateCell.X + ImGui.GetContentRegionAvail().X;
+                    var stateText = StateText(dungeon);
+                    var stateLeft = MathF.Round(stateRight - ArmoireChrome.TextWidth(stateText));
+                    draw.AddCircleFilled(new Vector2(stateLeft - (2 * Theme.Unit) - Theme.DotRadius, textY + (lineHeight / 2f)), Theme.DotRadius, Theme.Pack(stateColor));
+                    ArmoireChrome.DrawTextRight(draw, stateRight, textY, stateText, stateColor);
+
+                    if (open)
+                    {
+                        var panel = LayoutPieces(dungeon, showOwned, inner);
+                        ImGui.TableNextRow();
+                        ImGui.TableSetColumnIndex(0);
+                        ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0, Theme.Pack(Theme.Surface));
+                        var origin = ImGui.GetCursorScreenPos();
+                        var panelPos = new Vector2(tableLeft, origin.Y + Theme.Unit);
+                        // The panel spans every column, so it draws past the first column's own clip rectangle.
+                        draw.PushClipRect(panelPos - new Vector2(0, Theme.Unit), panelPos + new Vector2(inner, panel.Height + Theme.Unit), false);
+                        DrawDungeonPieces(dungeon, panel, panelPos);
+                        draw.PopClipRect();
+                        ImGui.Dummy(new Vector2(1, panel.Height + (2 * Theme.Unit)));
+                    }
+                }
+            }
+            finally
+            {
+                if (began)
+                    ImGui.EndTable();
+                ImGui.PopStyleColor(7);
+                ImGui.PopStyleVar();
             }
         });
     }
 
-    /// <summary>The pieces of one expanded dungeon, laid out in a full-width panel under its row.</summary>
-    private static void DrawDungeonPieces(DungeonInfo dungeon, bool showOwned, float width)
+    /// <summary>Fallback for a body too narrow for five columns: two-line rows with the same open and close behaviour.</summary>
+    private void DrawDungeonRowsStacked(List<DungeonInfo> ordered, bool showOwned, float inner, Func<DungeonInfo, string> levelText, Func<DungeonInfo, string> stateText)
     {
         var draw = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetCursorScreenPos();
+        const float rowPad = ArmoireChrome.Gap;
+        const float colGap = ArmoireChrome.Gap;
+        var lineHeight = ArmoireChrome.LineHeight();
+        var secondaryHeight = ArmoireChrome.LineHeight(Theme.SecondaryScale);
+        var nameLeft = rowPad + 20;
+        foreach (var dungeon in ordered)
+        {
+            var pos = ImGui.GetCursorScreenPos();
+            var open = _openDungeons.Contains(dungeon.ContentFinderConditionId);
+            var rowHeight = (2 * 3 * Theme.Unit) + lineHeight + (Theme.Unit / 2f) + secondaryHeight;
+            if (ImGui.InvisibleButton($"##dungeon_{dungeon.ContentFinderConditionId}", new Vector2(inner, rowHeight)))
+            {
+                if (open)
+                    _openDungeons.Remove(dungeon.ContentFinderConditionId);
+                else
+                    _openDungeons.Add(dungeon.ContentFinderConditionId);
+                open = !open;
+            }
+            var hovered = ImGui.IsItemHovered();
+            draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(Theme.ShellBar), ArmoireChrome.Radius);
+            if (hovered)
+                draw.AddRectFilled(pos, pos + new Vector2(inner, rowHeight), Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), ArmoireChrome.Radius);
+
+            var stateColor = dungeon.IsComplete ? Copy.MarkColor(UiState.Ready) : Copy.MarkColor(UiState.Missing);
+            var padY = 3 * Theme.Unit;
+            ArmoireChrome.Chevron(draw, pos + new Vector2(rowPad + 4, padY + (lineHeight / 2f)), open || hovered ? Theme.Accent : Theme.TextSecondary, right: !open);
+            var state = stateText(dungeon);
+            var stateTextWidth = ArmoireChrome.TextWidth(state);
+            var stateRight = pos.X + inner - rowPad;
+            ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY), dungeon.Name,
+                inner - nameLeft - rowPad - stateTextWidth - (2 * Theme.DotRadius) - colGap, Theme.TextPrimary);
+            ArmoireChrome.DrawTextRight(draw, stateRight, pos.Y + padY, state, stateColor);
+            draw.AddCircleFilled(new Vector2(stateRight - stateTextWidth - (2 * Theme.Unit) - Theme.DotRadius, pos.Y + padY + (lineHeight / 2f)),
+                Theme.DotRadius, Theme.Pack(stateColor));
+            var detail = $"{levelText(dungeon)} · {Plural(dungeon.Items.Count, "item")} · {dungeon.MissingCount} missing";
+            ArmoireChrome.DrawFitted(draw, new Vector2(pos.X + nameLeft, pos.Y + padY + lineHeight + (Theme.Unit / 2f)), detail,
+                inner - nameLeft - rowPad, Theme.TextSecondary, Theme.SecondaryScale);
+            ArmoireChrome.Advance(pos, inner, rowHeight, 2 * Theme.Unit);
+
+            if (open)
+            {
+                var panel = LayoutPieces(dungeon, showOwned, inner);
+                var panelPos = ImGui.GetCursorScreenPos();
+                DrawDungeonPieces(dungeon, panel, panelPos);
+                ArmoireChrome.Advance(panelPos, inner, panel.Height, 2 * Theme.Unit);
+            }
+        }
+    }
+
+    /// <summary>The measured layout of one expanded dungeon's pieces: what is listed, how many columns and how tall.</summary>
+    private sealed record PiecePanel(List<ArmoireItem> Items, float Width, float Pad, int Columns, float CellWidth, float Pitch,
+        float SlotWidth, float BadgeWidth, float Height, string? EmptyText);
+
+    private static PiecePanel LayoutPieces(DungeonInfo dungeon, bool showOwned, float width)
+    {
         const float pad = 3 * Theme.Unit;
-        var itemsToShow = (showOwned ? dungeon.Items : dungeon.Items.Where(i => i.Owned == OwnershipStatus.NotOwned))
+        var items = (showOwned ? dungeon.Items : dungeon.Items.Where(i => i.Owned == OwnershipStatus.NotOwned))
             .OrderBy(i => i.Slot).ThenBy(i => i.Name).ToList();
         var lineHeight = ArmoireChrome.LineHeight();
-        var panelWidth = width;
-        var innerWidth = panelWidth - (2 * pad);
-
-        if (itemsToShow.Count == 0)
+        var innerWidth = width - (2 * pad);
+        if (items.Count == 0)
         {
             const string none = "No missing pieces. Enable Show owned items to review this dungeon.";
-            var textHeight = ArmoireChrome.WrappedHeight(none, innerWidth, Theme.SecondaryScale);
-            var emptyHeight = (2 * pad) + textHeight;
-            draw.AddRectFilled(pos, pos + new Vector2(panelWidth, emptyHeight), Theme.Pack(Theme.ShellBar with { W = 0.6f }), ArmoireChrome.Radius);
-            ArmoireChrome.DrawWrapped(draw, pos + new Vector2(pad, pad), none, innerWidth, Theme.TextSecondary, Theme.SecondaryScale);
-            ArmoireChrome.Advance(pos, panelWidth, emptyHeight, 2 * Theme.Unit);
-            return;
+            return new PiecePanel(items, width, pad, 1, innerWidth, lineHeight, 0, 0,
+                (2 * pad) + ArmoireChrome.WrappedHeight(none, innerWidth, Theme.SecondaryScale), none);
         }
 
-        var badges = new[] { "Inventory", "Armoire", "Missing" };
-        var badgeWidth = badges.Max(b => ArmoireChrome.TextWidth(b, Theme.SecondaryScale));
-        var slotWidth = itemsToShow.Max(i => i.Slot == GearSlot.Unknown ? 0 : ArmoireChrome.TextWidth(i.Slot.ToString(), Theme.SecondaryScale));
+        var badgeWidth = new[] { "Inventory", "Armoire", "Missing" }.Max(b => ArmoireChrome.TextWidth(b, Theme.SecondaryScale));
+        var slotWidth = items.Max(i => i.Slot == GearSlot.Unknown ? 0 : ArmoireChrome.TextWidth(i.Slot.ToString(), Theme.SecondaryScale));
         var slotGap = 3 * Theme.Unit;
-        var nameNeed = itemsToShow.Max(i => ArmoireChrome.TextWidth(i.Name));
+        var nameNeed = items.Max(i => ArmoireChrome.TextWidth(i.Name));
         var cellNeed = (5 * Theme.Unit) + slotWidth + slotGap + nameNeed + (3 * Theme.Unit) + badgeWidth + Theme.Unit;
         var columns = Math.Clamp((int)((innerWidth + pad) / (cellNeed + pad)), 1, 3);
         var cellWidth = (innerWidth - ((columns - 1) * pad)) / columns;
         var pitch = lineHeight + (2 * Theme.Unit);
-        var rows = (itemsToShow.Count + columns - 1) / columns;
-        var panelHeight = (2 * pad) + (rows * pitch);
-        draw.AddRectFilled(pos, pos + new Vector2(panelWidth, panelHeight), Theme.Pack(Theme.ShellBar with { W = 0.6f }), ArmoireChrome.Radius);
+        var rows = (items.Count + columns - 1) / columns;
+        return new PiecePanel(items, width, pad, columns, cellWidth, pitch, slotWidth, badgeWidth, (2 * pad) + (rows * pitch), null);
+    }
 
-        for (var i = 0; i < itemsToShow.Count; i++)
+    /// <summary>The pieces of one expanded dungeon in a full-width panel at <paramref name="pos"/>.</summary>
+    private static void DrawDungeonPieces(DungeonInfo dungeon, PiecePanel panel, Vector2 pos)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        var pad = panel.Pad;
+        var lineHeight = ArmoireChrome.LineHeight();
+        draw.AddRectFilled(pos, pos + new Vector2(panel.Width, panel.Height), Theme.Pack(Theme.ShellBar with { W = 0.6f }), ArmoireChrome.Radius);
+        if (panel.EmptyText is { } none)
         {
-            var item = itemsToShow[i];
-            var cellMin = pos + new Vector2(pad + ((i % columns) * (cellWidth + pad)), pad + ((i / columns) * pitch));
-            var cellMax = cellMin + new Vector2(cellWidth, pitch);
+            ArmoireChrome.DrawWrapped(draw, pos + new Vector2(pad, pad), none, panel.Width - (2 * pad), Theme.TextSecondary, Theme.SecondaryScale);
+            return;
+        }
+
+        var slotGap = 3 * Theme.Unit;
+        for (var i = 0; i < panel.Items.Count; i++)
+        {
+            var item = panel.Items[i];
+            var cellMin = pos + new Vector2(pad + ((i % panel.Columns) * (panel.CellWidth + pad)), pad + ((i / panel.Columns) * panel.Pitch));
+            var cellMax = cellMin + new Vector2(panel.CellWidth, panel.Pitch);
             var (state, badge) = item.Owned switch
             {
                 OwnershipStatus.InInventory => (UiState.Ready, "Inventory"),
                 OwnershipStatus.InArmoire => (UiState.Ready, "Armoire"),
                 _ => (UiState.Missing, "Missing"),
             };
-            var hovered = ImGui.IsMouseHoveringRect(cellMin, cellMax);
+            var hovered = ArmoireChrome.HoverRect(cellMin, cellMax);
             if (hovered)
                 draw.AddRectFilled(cellMin, cellMax, Theme.Pack(new Vector4(1f, 1f, 1f, 0.05f)), Theme.Unit);
             var textY = cellMin.Y + Theme.Unit;
@@ -419,18 +523,22 @@ public class MainWindow : Window
             if (item.Slot != GearSlot.Unknown)
                 ArmoireChrome.DrawText(draw, new Vector2(slotX, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f)),
                     item.Slot.ToString(), Theme.TextSecondary, Theme.SecondaryScale);
-            var nameX = slotX + slotWidth + slotGap;
-            var nameWidth = cellMax.X - nameX - badgeWidth - (3 * Theme.Unit);
-            ArmoireChrome.DrawFitted(draw, new Vector2(nameX, textY), item.Name, nameWidth, Theme.TextPrimary);
+            var nameX = slotX + panel.SlotWidth + slotGap;
+            var nameWidth = cellMax.X - nameX - panel.BadgeWidth - (3 * Theme.Unit);
+            var truncated = ArmoireChrome.Fit(item.Name, nameWidth) != item.Name;
+            ArmoireChrome.DrawFitted(draw, new Vector2(nameX, textY), item.Name, nameWidth, Theme.TextPrimary, tooltip: false);
             ArmoireChrome.DrawTextRight(draw, cellMax.X - Theme.Unit, textY + ((lineHeight - ArmoireChrome.LineHeight(Theme.SecondaryScale)) / 2f),
                 badge, color, Theme.SecondaryScale);
 
             if (hovered)
             {
-                var tipHeight = (4 * lineHeight) + (4 * Theme.Unit) + 8;
+                // One tooltip per row: the item facts, led by the full name when the row had to cut it.
+                var tipHeight = ((truncated ? 5 : 4) * lineHeight) + (4 * Theme.Unit) + 8;
                 var below = cellMax.Y + Theme.Unit + tipHeight <= ImGui.GetIO().DisplaySize.Y;
                 ArmoireChrome.BeginTooltip(new Vector2(cellMin.X + (5 * Theme.Unit), below ? cellMax.Y + Theme.Unit : cellMin.Y - Theme.Unit),
                     below ? Vector2.Zero : new Vector2(0f, 1f));
+                if (truncated)
+                    ImGui.Text(item.Name);
                 ImGui.Text($"Item ID: {item.ItemId}");
                 ImGui.Text($"Slot: {item.Slot}");
                 ImGui.Text($"Source: {item.DungeonName ?? "Unknown"}");
@@ -438,7 +546,6 @@ public class MainWindow : Window
                 ArmoireChrome.EndTooltip();
             }
         }
-        ArmoireChrome.Advance(pos, panelWidth, panelHeight, 2 * Theme.Unit);
     }
 
     // ---- Shopping --------------------------------------------------------------------------------------------------
@@ -463,9 +570,11 @@ public class MainWindow : Window
             }
             else if (KnightshopperCatalogBuilder.BuildFailed)
             {
+                var detail = KnightshopperCatalogBuilder.BuildFailureDetail;
                 ArmoireChrome.Notice(
-                    "The shop catalog build failed. It is not retried automatically — see /xllog for details, or press Refresh.",
-                    UiState.Failed, KnightshopperCatalogBuilder.BuildFailureDetail);
+                    $"The shop catalog build failed{(string.IsNullOrWhiteSpace(detail) ? string.Empty : $" ({detail})")}. "
+                    + "It is not retried automatically — see /xllog for details, or press Refresh.",
+                    UiState.Failed);
                 if (ArmoireChrome.Button("Refresh", "Refresh", true))
                     KnightshopperCatalogBuilder.RequestRefresh();
             }
