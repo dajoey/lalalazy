@@ -55,7 +55,8 @@ internal class MainTab
             CurrencyChrome.Section("Currency balances", "Select Spend it to open the full spending guide.",
                 visibleCurrencies.Count + " visible");
             if (CurrencyChrome.BeginTable("##currencies", C.ShowMissingCollectables ? 4 : 3,
-                    ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable))
+                    ImGuiTableFlags.Borders | ImGuiTableFlags.Sortable,
+                    horizontalScroll: true, minInnerWidth: 184 + 104 + (C.ShowMissingCollectables ? 88 : 0) + 210)) // Fork: sideways scroll and a Currency floor, as before
             {
                 // Fork: Currency stretches across the card, numeric columns are fixed and right aligned, one shared header row.
                 ImGui.TableSetupColumn("Currency", ImGuiTableColumnFlags.WidthStretch);

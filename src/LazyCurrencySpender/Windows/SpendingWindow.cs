@@ -176,6 +176,10 @@ internal class SpendingWindow : Window
     // Fork: shared width of the Price column (number, gap and currency icon).
     private const float PriceColumnWidth = 136;
 
+    // Fork: narrowest card the tables lay out in before they scroll sideways (fixed columns plus a readable floor for the stretch ones).
+    private static float StandardMinWidth => 200 + PriceColumnWidth + 110 + CurrencyChrome.MapButtonsWidth();
+    private static float MarketMinWidth => 250 + 72 + PriceColumnWidth + 64 + 96 + 104 + CurrencyChrome.MapButtonsWidth();
+
     private static void SetupStandardColumns()
     {
         // Fork: stretch Name and Zone across the card, fixed measured Price and Actions columns, shared header row.
@@ -191,7 +195,7 @@ internal class SpendingWindow : Window
         if (items is null || Currency is null)
             return;
         if (!CurrencyChrome.BeginTable(id, 4,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true))
+                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true, minInnerWidth: StandardMinWidth))
             return;
         SetupStandardColumns();
         SortStandard(ref items, ImGui.TableGetSortSpecs());
@@ -228,7 +232,7 @@ internal class SpendingWindow : Window
         if (CollectableItems is null || Currency is null)
             return;
         if (!CurrencyChrome.BeginTable("##collectables", 4,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true))
+                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true, minInnerWidth: StandardMinWidth))
             return;
         SetupStandardColumns();
         SortStandard(ref CollectableItems, ImGui.TableGetSortSpecs());
@@ -301,7 +305,7 @@ internal class SpendingWindow : Window
         if (SellableItems is null || Currency is null)
             return;
         if (!CurrencyChrome.BeginTable("##markettable", 7,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true))
+                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true, minInnerWidth: MarketMinWidth))
             return;
         // Fork: stretch Name, fixed right-aligned numeric columns with shared header row.
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
@@ -372,7 +376,7 @@ internal class SpendingWindow : Window
         if (GeneralItems is null || Currency is null)
             return;
         if (!CurrencyChrome.BeginTable("##generalgear", 4,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true))
+                ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable, horizontalScroll: true, minInnerWidth: StandardMinWidth))
             return;
         SetupStandardColumns();
         SortStandard(ref GeneralItems, ImGui.TableGetSortSpecs());

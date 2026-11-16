@@ -948,16 +948,42 @@ internal static class CurrencyChrome
 
     // ---- tables --------------------------------------------------------------------------------------------------
 
-    /// <summary>Hairline-row table filling the card. Fixed and stretch columns share the card width; there is no inner scroll region.</summary>
-    internal static bool BeginTable(string id, int columns, ImGuiTableFlags flags, bool horizontalScroll = false)
+    /// <summary>Hairline-row table filling the card. Fixed and stretch columns share the card width; only a card narrower than its columns need gets a sideways scroll region.</summary>
+    internal static bool BeginTable(string id, int columns, ImGuiTableFlags flags, bool horizontalScroll = false, float minInnerWidth = 0f)
     {
-        _ = horizontalScroll;
         flags = (flags & ~ImGuiTableFlags.Borders) | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.NoPadOuterX;
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 6));
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 0));
         ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Clear);
         _tableVars = 2;
-        var open = ImGui.BeginTable(id, columns, flags, new Vector2(Avail(), 0));
+        // Horizontal scroll as before the polish: when the card is narrower than the columns need (fixed columns plus a
+        // readable floor for the stretch ones), the table scrolls sideways instead of squeezing the names to nothing.
+        var avail = Avail();
+        var inner = 0f;
+        if (horizontalScroll && minInnerWidth > avail)
+        {
+            flags |= ImGuiTableFlags.ScrollX;
+            inner = minInnerWidth;
+        }
+        else
+        {
+            horizontalScroll = false; // it fits: a plain table, as in the wide windows
+        }
+        // A table with its own scroll region does not grow with its rows, so its height is the one measured last frame.
+        var height = 0f;
+        _tableTopY = ImGui.GetCursorScreenPos().Y;
+        _tableScrolls = horizontalScroll;
+        _tableOverflows = inner > 0f;
+        _tableId = id;
+        if (horizontalScroll && ScrollTableHeights.TryGetValue(id, out var known))
+            height = known;
+        if (horizontalScroll)
+        {
+            // The hairline above the header sits on the edge of the scroll region and is clipped there, so it is drawn from the page.
+            var topLeft = ImGui.GetCursorScreenPos();
+            ImGui.GetWindowDrawList().AddLine(topLeft, topLeft + new Vector2(avail, 0), ImGui.GetColorU32(ImGuiCol.TableBorderLight));
+        }
+        var open = ImGui.BeginTable(id, columns, flags, new Vector2(avail, height), inner);
         if (open)
         {
             _inTable = true;
@@ -972,6 +998,9 @@ internal static class CurrencyChrome
     internal static void EndTable()
     {
         _headerIndentColumn = -1;
+        if (_tableScrolls)
+            ScrollTableHeights[_tableId] = ImGui.GetCursorScreenPos().Y - _tableTopY + TableCellPaddingY
+                + (_tableOverflows ? ImGui.GetStyle().ScrollbarSize : 0f);
         ImGui.EndTable();
         _inTable = false;
         ImGui.PopStyleColor();
@@ -980,6 +1009,11 @@ internal static class CurrencyChrome
         _tableEndY = ImGui.GetItemRectMax().Y;
     }
 
+    private static readonly Dictionary<string, float> ScrollTableHeights = new();
+    private static float _tableTopY;
+    private static bool _tableScrolls;
+    private static bool _tableOverflows;
+    private static string _tableId = string.Empty;
     private static float _tableEndY = float.NaN;
     private const float TableCellPaddingY = 6f;
 

@@ -165,6 +165,14 @@ internal static unsafe class Program
                 C.ItemsOfInterest = [26002, 26007];
                 OpenSpending(26807);
             }),
+            new("main-currencies-min-scroll", Kind.Main, 460, 700, () => { }),
+            new("main-currencies-min-tall", Kind.Main, 460, 1300, () => { }),
+            new("spending-bicolor-min", Kind.Spending, 720, 1500, () =>
+            {
+                PlayerHelper.SharedFateRanksMax = false;
+                C.ItemsOfInterest = [26002, 26007];
+                OpenSpending(26807);
+            }),
             new("spending-min-debug", Kind.Spending, 720, 360, () =>
             {
                 C.Debug = true;
