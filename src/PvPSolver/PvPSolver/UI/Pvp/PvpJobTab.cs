@@ -1,6 +1,7 @@
 using Dalamud.Interface.Utility.Raii;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
+using LalaUiKit;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Decisions;
 
@@ -26,58 +27,66 @@ internal static class PvpJobTab
 
     public static void Draw()
     {
-        DrawPicker();
-
         string key = PickedKey();
         Job job = PickedJob();
-        string playing = Player.Available ? Player.Job.ToString() : string.Empty;
-        ImGui.Spacing();
-        ImGui.TextColored(PvpUi.Accent, $"Editing: {key}");
-        if (playing.Length > 0 && playing != key)
+        PvpApprovedChrome.Card("job_setup", () =>
         {
-            ImGui.SameLine();
-            ImGui.TextColored(PvpUi.Muted, $"(the character is playing {playing})");
-        }
-
-        bool enabled = !Service.Config.DisabledJobs.Contains(job);
-        using (var id = ImRaii.PushId("usejob"))
-        {
-            if (PvpUi.Check("Use PvP Solver for this job", ref enabled))
+            DrawPicker();
+            key = PickedKey();
+            job = PickedJob();
+            string playing = Player.Available ? Player.Job.ToString() : string.Empty;
+            ImGui.Spacing();
+            ImGui.TextColored(PvpUi.Accent, $"Editing: {key}");
+            if (playing.Length > 0 && playing != key)
             {
-                _ = enabled ? Service.Config.DisabledJobs.Remove(job) : Service.Config.DisabledJobs.Add(job);
-                PvpUi.Save();
+                ImGui.SameLine();
+                ImGui.TextColored(PvpUi.Muted, $"(the character is playing {playing})");
             }
 
-            PvpUi.Help("Off: PvP Solver takes no action while this job is played, even when it is turned on.");
-        }
+            bool enabled = !Service.Config.DisabledJobs.Contains(job);
+            using (var id = ImRaii.PushId("usejob"))
+            {
+                if (PvpUi.Check("Use PvP Solver for this job", ref enabled))
+                {
+                    _ = enabled ? Service.Config.DisabledJobs.Remove(job) : Service.Config.DisabledJobs.Add(job);
+                    PvpUi.Save();
+                }
 
-        PvpUi.Heading($"Options for {key}");
-        PvpJobOptions.Draw(job);
+                PvpUi.Help("Off: PvP Solver takes no action while this job is played, even when it is turned on.");
+            }
+        });
 
-        PvpUi.Heading($"Defensive abilities for {key}");
-        DrawDefensives(key);
+        PvpApprovedChrome.Card("job_options", () =>
+        {
+            PvpUi.Heading($"Options for {key}");
+            PvpJobOptions.Draw(job);
+        });
+
+        PvpApprovedChrome.Card("job_defensives", () =>
+        {
+            PvpUi.Heading($"Defensive abilities for {key}");
+            DrawDefensives(key);
+        });
     }
 
     private static void DrawPicker()
     {
         string key = PickedKey();
+        PvpUi.Heading("Choose a job");
         foreach (JobGroup group in JobKey.Groups)
         {
-            ImGui.TextUnformatted(group.Name);
+            Widgets.Caption(group.Name);
             bool first = true;
             foreach (string job in group.Jobs)
             {
-                if (first)
-                {
-                    ImGui.SameLine(90f * PvpUi.Scale);
-                    first = false;
-                }
-                else
+                float choiceWidth = MathF.Max(58, ImGui.CalcTextSize(job).X + 28);
+                if (!first && ImGui.GetContentRegionAvail().X >= choiceWidth + LalaUiKit.Theme.ItemSpacing.X)
                 {
                     ImGui.SameLine();
                 }
 
-                if (ImGui.Selectable(job + "##pick", job == key, ImGuiSelectableFlags.None, new Vector2(40f * PvpUi.Scale, 0f)))
+                first = false;
+                if (PvpApprovedChrome.ChoiceButton(group.Name + "_" + job, job, job == key))
                 {
                     _picked = job;
                 }

@@ -138,6 +138,21 @@ internal static class SettingsShapeCases
         Harness.Case("the window has the six tabs of the design, in order: Match, Survival, Targeting, My Job, Display, Advanced",
             tabLabels.SequenceEqual(["Match", "Survival", "Targeting", "My Job", "Display", "Advanced"]), string.Join(",", tabLabels));
 
+        string chrome = Read("PvPSolver", "UI", "Pvp", "PvpApprovedChrome.cs");
+        string shell = Read("PvPSolver", "UI", "Pvp", "PvpApprovedShell.cs");
+        string allPvpSource = string.Join("\n", files.Select(File.ReadAllText));
+        Harness.Case("the approved shell uses drawn navigation, page headers, a live pill, a footer and a real close control without native chrome",
+            chrome.Contains("FeatureButton") && chrome.Contains("StatusPill") && shell.Contains("DrawPageHeader") && shell.Contains("DrawFooter")
+            && shell.Contains("CloseRequested?.Invoke()") && windowRaw.Contains("_shell.CloseRequested = () => IsOpen = false;")
+            && windowRaw.Contains("ImGuiWindowFlags.NoTitleBar") && windowRaw.Contains("ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse")
+            && shell.Contains("##pvpApprovedBody") && windowRaw.Contains("PvpApprovedShell")
+            && !allPvpSource.Contains("ImRaii.TabBar") && !allPvpSource.Contains("ImRaii.TabItem"));
+        Harness.Case("every PvP settings toggle uses the fork-local right-aligned track control rather than a native checkbox",
+            chrome.Contains("ToggleSize") && chrome.Contains("Toggle(") && Sanitized("PvPSolver", "UI", "Pvp", "PvpUi.cs").Contains("PvpApprovedChrome.Toggle(")
+            && !allPvpSource.Contains("ImGui.Checkbox("));
+        Harness.Case("the approved shell keeps search absent for six leaves and derives page counts from real settings, jobs and overlays",
+            !shell.Contains("InputText") && shell.Contains("PvpSettingsCatalog.ForTab") && shell.Contains("JobKey.Groups") && shell.Contains("ShowControlWindow"));
+
         var bad = new List<string>();
         foreach (string file in files)
         {

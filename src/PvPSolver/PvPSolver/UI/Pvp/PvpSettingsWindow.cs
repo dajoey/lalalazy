@@ -29,17 +29,21 @@ internal sealed class PvpSettingsWindow : Window
         (PvpSettingsCatalog.Advanced, PvpAdvancedTab.Draw),
     ];
 
+    private readonly PvpApprovedShell _shell = new();
     private string _switchMessage = string.Empty;
 
     public PvpSettingsWindow()
         : base("PvP Solver Settings v" + (typeof(PvpSettingsWindow).Assembly.GetName().Version?.ToString() ?? "?") + WindowId,
             ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse, false)
     {
+        // Fork: the approved custom header replaces the native Dalamud title bar.
+        Flags |= ImGuiWindowFlags.NoTitleBar;
+        _shell.CloseRequested = () => IsOpen = false;
         SizeCondition = ImGuiCond.FirstUseEver;
-        Size = new Vector2(700f, 620f);
+        Size = new Vector2(1080f, 760f);
         SizeConstraints = new WindowSizeConstraints()
         {
-            MinimumSize = new Vector2(420f, 360f),
+            MinimumSize = new Vector2(560f, 420f),
             MaximumSize = new Vector2(5000f, 5000f),
         };
         RespectCloseHotkey = true;
@@ -49,6 +53,7 @@ internal sealed class PvpSettingsWindow : Window
     {
         PvpJobTab.OnOpen();
         PvpUi.ResetLog();
+        _shell.Reset();
         _switchMessage = string.Empty;
         base.OnOpen();
     }
@@ -74,56 +79,11 @@ internal sealed class PvpSettingsWindow : Window
 
     private void DrawShell()
     {
-        DrawStrip(PvpSwitch.View);
-
-        using var tabBar = ImRaii.TabBar("##pvptabs");
-        if (!tabBar)
-        {
-            return;
-        }
-
-        foreach ((string name, Action draw) in Tabs)
-        {
-            using var item = ImRaii.TabItem(name);
-            if (!item)
-            {
-                continue;
-            }
-
-            using var body = ImRaii.Child("##body" + name, Vector2.Zero, false);
-            if (body)
-            {
-                DrawTabBody(name, draw);
-            }
-        }
+        SwitchView view = PvpSwitch.View;
+        _shell.Draw(Tabs, view, ref _switchMessage, DrawTabBody, SetSwitch);
     }
 
-    private void DrawStrip(SwitchView view)
-    {
-        bool on = view.IsOn;
-        using (var color = ImRaii.PushColor(ImGuiCol.Text, on ? PvpUi.On : PvpUi.Muted))
-        {
-            ImGui.TextUnformatted(view.StatusText);
-        }
-
-        ImGui.SameLine();
-        ImGui.TextWrapped(view.Reason);
-
-        string job = Player.Available ? Player.Job.ToString() : "no character";
-        ImGui.TextUnformatted("Job: " + job);
-        ImGui.SameLine();
-        if (PvpUi.Button(view.ButtonLabel, !view.ButtonEnabled, view.ButtonWhy))
-        {
-            _switchMessage = PvpSwitch.Set(!on) ?? string.Empty;
-        }
-
-        if (_switchMessage.Length > 0)
-        {
-            PvpUi.WarningText(_switchMessage);
-        }
-
-        ImGui.Separator();
-    }
+    private static string? SetSwitch(bool on) => PvpSwitch.Set(on);
 
     private static void DrawTabBody(string name, Action draw)
     {

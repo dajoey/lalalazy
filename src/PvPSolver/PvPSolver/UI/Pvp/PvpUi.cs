@@ -131,11 +131,11 @@ internal static class PvpUi
 
     // ---- controls ------------------------------------------------------------------------------------------------
 
-    /// <summary>A checkbox. Returns true when it was clicked; the caller stores the value and saves.</summary>
+    /// <summary>A right-aligned track toggle. Returns true when clicked; the caller stores the value and saves.</summary>
     internal static bool Check(string label, ref bool value, bool disabled = false)
     {
         using var off = ImRaii.Disabled(disabled);
-        return ImGui.Checkbox(label, ref value);
+        return PvpApprovedChrome.Toggle(label, ref value);
     }
 
     /// <summary>
@@ -145,6 +145,9 @@ internal static class PvpUi
     internal static bool PercentSlider(string id, ref int points, int min, int max, float width = 200f, bool disabled = false)
     {
         using var off = ImRaii.Disabled(disabled);
+        using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
+        using var grab = ImRaii.PushColor(ImGuiCol.SliderGrab, Theme.Accent);
+        using var active = ImRaii.PushColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
         ImGui.SetNextItemWidth(width * Scale);
         bool changed = ImGui.SliderInt(id, ref points, min, max, "%d%%");
         SaveOnRelease();
@@ -155,6 +158,9 @@ internal static class PvpUi
     internal static bool NumberDrag(string id, ref int value, int min, int max, string unit, float width = 120f, bool disabled = false)
     {
         using var off = ImRaii.Disabled(disabled);
+        using var rounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 2 * Theme.Unit);
+        using var grab = ImRaii.PushColor(ImGuiCol.SliderGrab, Theme.Accent);
+        using var active = ImRaii.PushColor(ImGuiCol.SliderGrabActive, Theme.AccentActive);
         ImGui.SetNextItemWidth(width * Scale);
         bool changed = ImGui.DragInt(id, ref value, 1f, min, max, "%d" + unit);
         SaveOnRelease();
@@ -163,34 +169,21 @@ internal static class PvpUi
 
     /// <summary>A small button that is greyed out and does nothing while <paramref name="disabled"/>.</summary>
     internal static bool SmallButton(string label, bool disabled = false)
-    {
-        bool clicked;
-        using (var off = ImRaii.Disabled(disabled))
-        {
-            clicked = ImGui.SmallButton(label);
-        }
-
-        return clicked && !disabled;
-    }
+        => PvpApprovedChrome.Button(label, disabled, small: true);
 
     /// <summary>A small "Reset" button. Returns true when clicked.</summary>
-    internal static bool ResetButton(string id) => ImGui.SmallButton("Reset##" + id);
+    internal static bool ResetButton(string id) => PvpApprovedChrome.Button("Reset##" + id, small: true);
 
     /// <summary>A button that is greyed out with a reason in its tooltip while <paramref name="disabled"/>.</summary>
     internal static bool Button(string label, bool disabled = false, string? whyDisabled = null)
     {
-        bool clicked;
-        using (var off = ImRaii.Disabled(disabled))
-        {
-            clicked = ImGui.Button(label);
-        }
-
+        bool clicked = PvpApprovedChrome.Button(label, disabled);
         if (disabled)
         {
             Tip(whyDisabled);
         }
 
-        return clicked && !disabled;
+        return clicked;
     }
 
     // ---- the catalog -----------------------------------------------------------------------------------------------
@@ -201,16 +194,19 @@ internal static class PvpUi
     /// </summary>
     internal static void DrawSection(string tab, string section, Func<SettingSpec, bool>? custom = null)
     {
-        Heading(section);
-        foreach (SettingSpec spec in PvpSettingsCatalog.ForSection(tab, section))
+        PvpApprovedChrome.Card("section_" + tab + "_" + section, () =>
         {
-            if (custom != null && custom(spec))
+            Heading(section);
+            foreach (SettingSpec spec in PvpSettingsCatalog.ForSection(tab, section))
             {
-                continue;
-            }
+                if (custom != null && custom(spec))
+                {
+                    continue;
+                }
 
-            DrawSetting(spec);
-        }
+                DrawSetting(spec);
+            }
+        });
     }
 
     /// <summary>Draws every section of a tab from the catalog.</summary>
@@ -333,10 +329,17 @@ internal static class PvpUi
         using var off = ImRaii.Disabled(disabled);
         if (spec.Choices.Count <= 3)
         {
+            bool first = true;
             foreach (SettingChoice choice in spec.Choices)
             {
-                ImGui.SameLine();
-                if (ImGui.RadioButton(choice.Label + "##" + choice.Name, choice.Name == current))
+                float choiceWidth = MathF.Max(64, ImGui.CalcTextSize(choice.Label).X + 28);
+                if (!first && ImGui.GetContentRegionAvail().X >= choiceWidth + Theme.ItemSpacing.X)
+                {
+                    ImGui.SameLine();
+                }
+
+                first = false;
+                if (PvpApprovedChrome.ChoiceButton(choice.Name, choice.Label, choice.Name == current))
                 {
                     _ = PvpBinding.TrySetChoice(spec.Property, choice.Name);
                     Save();
@@ -347,7 +350,7 @@ internal static class PvpUi
         }
 
         string preview = spec.Choices.FirstOrDefault(c => c.Name == current)?.Label ?? current;
-        ImGui.SetNextItemWidth(320f * Scale);
+        ImGui.SetNextItemWidth(MathF.Min(320f * Scale, ImGui.GetContentRegionAvail().X));
         using var combo = ImRaii.Combo("##choice", preview);
         if (!combo)
         {
