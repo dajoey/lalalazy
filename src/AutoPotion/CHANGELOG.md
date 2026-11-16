@@ -1,3 +1,11 @@
+## v0.2.5.7 (2026-11-15) [testing]
+### Changed
+- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
+- On narrow windows the footer status line reads in full instead of ending in an ellipsis, and the Stop button takes its own full-width row, tinted red.
+- The threshold value sits at the right of the label line above the slider, so the slider thumb never covers it.
+- Stat notes are shorter, and a long note wraps and grows the cards together instead of being cut.
+- With the master switch off, rule titles, values and toggles are muted so the stopped state looks different from running; the header, close button and status pill match the other plugin windows.
+
 ## v0.2.5.6 (2026-11-15) [testing]
 ### Changed
 - The settings window has a custom close button in the header, and the redundant outer scrollbar is gone; the body, rules and rail regions keep their own scrolling. Settings, profiles, potion decisions and automation behaviour are unchanged.
