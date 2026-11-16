@@ -114,8 +114,7 @@ internal class Settings : ConfigWindow
 
     internal new static void Draw()
     {
-        // Fork: the shell owns the header and search; this surface uses borderless scrolling and drawn toggles.
-        using (ImRaii.Child("main", new Vector2(0, 0), false))
+        // Fork: the shell body is the only scroll owner; the former nested child is removed.
         {
             _currentCategory = null;
             _settingCount = 0;

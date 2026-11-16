@@ -43,7 +43,9 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
         BringToFront();
 
-        Flags = ImGuiWindowFlags.AlwaysAutoResize;
+        // Fork: custom title/close controls and a dedicated inner body replace native chrome and outer scrolling.
+        Flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar |
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     }
 
     /// <summary>
@@ -51,11 +53,21 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
     /// </summary>
     public override void Draw()
     {
-        // Fork: the migration popup uses the same framed card and control palette as the main shell.
+        // Fork: a real close button stays above the migration popup's only scroll region.
         Theme.PushFrame();
         GluttonyChrome.PushControlColors();
         PadOutMinimumWidthFor("Gluttony Combo | New Changes");
-        GluttonyChrome.Card("major_changes", () =>
+        ImGui.NewLine();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        if (GluttonyChrome.CloseButton(ImGui.GetWindowDrawList(), "migration",
+                origin + new System.Numerics.Vector2(width - GluttonyChrome.CloseButtonSize, 0)))
+            IsOpen = false;
+        ImGui.SetCursorScreenPos(origin + new System.Numerics.Vector2(0, GluttonyChrome.CloseButtonSize + 8));
+        var bodyHeight = MathF.Min(560, MathF.Max(240, ImGui.GetMainViewport().Size.Y - 260));
+        using (ImRaii.Child("majorChangesBody", new System.Numerics.Vector2(0, bodyHeight), false))
+        {
+            GluttonyChrome.Card("major_changes", () =>
         {
             Widgets.Title("Important changes");
             Widgets.SecondaryWrapped("Two existing setup guides explain the moved mitigation options.");
@@ -137,6 +149,7 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 
             #endregion
         });
+        }
         GluttonyChrome.PopControlColors();
         Theme.PopFrame();
 

@@ -54,6 +54,16 @@ internal static class GluttonyChrome
         return clicked;
     }
 
+    internal const float CloseButtonSize = 34f;
+
+    internal static bool CloseButton(ImDrawListPtr draw, string id, Vector2 pos)
+    {
+        var clicked = OutlineButton(draw, "close_" + id, "×", pos, new Vector2(CloseButtonSize));
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Close");
+        return clicked;
+    }
+
     internal static bool FeatureButton(ImDrawListPtr draw, string id, string label, Vector2 pos, Vector2 size, bool selected)
     {
         ImGui.SetCursorScreenPos(pos);

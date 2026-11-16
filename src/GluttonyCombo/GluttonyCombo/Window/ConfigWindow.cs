@@ -123,6 +123,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     public ConfigWindow() : base($"{GluttonyCombo.P.Name} {GluttonyCombo.P.GetType().Assembly.GetName().Version}###WrathCombo")
     {
         RespectCloseHotkey = true;
+        // Fork: the custom shell supplies the title and close controls; only its inner body scrolls.
+        Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
         SetMinSize();
 

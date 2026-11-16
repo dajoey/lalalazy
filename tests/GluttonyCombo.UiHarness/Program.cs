@@ -19,6 +19,7 @@ internal static class Program
             VerifyNavigation();
             var image = RenderControls();
             VerifyToggleInteraction();
+            VerifyCloseInteraction();
             Console.WriteLine($"PASS: {_checks} checks; real controls rendered to {image}.");
             return 0;
         }
@@ -114,7 +115,8 @@ internal static class Program
                         new Vector2(group == "Automation" ? 112 : 92, 34), group == "Combos");
                     x += group == "Automation" ? 120 : 100;
                 }
-                GluttonyChrome.StatusPill(draw, origin + new Vector2(width - 118, 20), new Vector2(102, 34), "Running", UiState.Running);
+                GluttonyChrome.StatusPill(draw, origin + new Vector2(width - 160, 20), new Vector2(102, 34), "Running", UiState.Running);
+                GluttonyChrome.CloseButton(draw, "render_main", origin + new Vector2(width - 50, 20));
 
                 IReadOnlyList<GluttonyContent> contents = [new("normal", "Normal"), new("variant", "Variant")];
                 var features = GluttonyShellNavigation.Features(GluttonyPage.PvE, true, contents, false);
@@ -206,6 +208,53 @@ internal static class Program
                 ImGui.Render();
             }
             Check(value, "A real press and release changes the drawn toggle value.");
+        }
+        finally
+        {
+            ImGui.DestroyContext(context);
+        }
+    }
+
+    private static unsafe void VerifyCloseInteraction()
+    {
+        var closeMethod = typeof(GluttonyChrome).GetMethod("CloseButton",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Custom close control is not implemented.");
+        var context = ImGui.CreateContext();
+        try
+        {
+            var io = ImGui.GetIO();
+            io.IniFilename = null;
+            io.DisplaySize = new Vector2(480, 120);
+            io.DisplayFramebufferScale = Vector2.One;
+            io.DeltaTime = 1f / 60f;
+            _ = BuildFontAtlas(io.Fonts, out _, out _);
+            var open = true;
+            var closeCenter = Vector2.Zero;
+            for (var step = 0; step < 3; step++)
+            {
+                if (step == 0)
+                    io.AddMousePosEvent(-10000, -10000);
+                else
+                    io.AddMousePosEvent(closeCenter.X, closeCenter.Y);
+                io.AddMouseButtonEvent(0, step == 1);
+                ImGui.NewFrame();
+                ImGui.SetNextWindowPos(Vector2.Zero);
+                ImGui.SetNextWindowSize(io.DisplaySize);
+                ImGui.Begin("Custom close interaction", ref open,
+                    ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoSavedSettings);
+                var origin = ImGui.GetCursorScreenPos();
+                var width = ImGui.GetContentRegionAvail().X;
+                if (step == 0)
+                    closeCenter = origin + new Vector2(width - 17, 17);
+                var clicked = (bool)closeMethod.Invoke(null,
+                    [ImGui.GetWindowDrawList(), "harness_close", origin + new Vector2(width - 34, 0)])!;
+                if (clicked)
+                    open = false;
+                ImGui.End();
+                ImGui.Render();
+            }
+            Check(!open, "A real press and release on the custom X invokes the close callback.");
         }
         finally
         {

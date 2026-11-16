@@ -115,9 +115,12 @@ internal static class GluttonyShell
         var state = LiveState();
         var stateLabel = Copy.Word(state);
         var statusSize = new Vector2(MathF.Max(82, ImGui.CalcTextSize(stateLabel).X + 43), ControlHeight);
+        var closePos = new Vector2(width - GluttonyChrome.CloseButtonSize, 16);
+        var statusPos = new Vector2(closePos.X - gap - statusSize.X, 16);
+        var navigationRight = statusPos.X - gap;
         var brandPos = new Vector2(0, 12);
         var groupsWidth = groupSizes.Sum(size => size.X) + ((groupSizes.Length - 1) * gap);
-        var besideBrand = brandSize.X + gap + groupsWidth <= width - statusSize.X - gap;
+        var besideBrand = brandSize.X + gap + groupsWidth <= navigationRight;
         var positions = new Vector2[groupSizes.Length];
         var x = besideBrand ? brandSize.X + gap : 0;
         var y = besideBrand ? 16f : 62f;
@@ -125,7 +128,7 @@ internal static class GluttonyShell
 
         for (var i = 0; i < groupSizes.Length; i++)
         {
-            var rightLimit = y == 16f ? width - statusSize.X - gap : width;
+            var rightLimit = y == 16f ? navigationRight : width;
             if (x > 0 && x + groupSizes[i].X > rightLimit)
             {
                 x = 0;
@@ -155,7 +158,9 @@ internal static class GluttonyShell
                     GluttonyShellNavigation.Group(page) == group) && GluttonyShellNavigation.Group(page) != group)
                 Navigate(window, GluttonyShellNavigation.FirstPage(group, IncludeDebug));
         }
-        GluttonyChrome.StatusPill(draw, origin + new Vector2(width - statusSize.X, 16), statusSize, stateLabel, state);
+        GluttonyChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
+        if (GluttonyChrome.CloseButton(draw, "main", origin + closePos))
+            window.IsOpen = false;
 
         if (showSearch)
         {
