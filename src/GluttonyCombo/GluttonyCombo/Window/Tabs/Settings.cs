@@ -114,13 +114,9 @@ internal class Settings : ConfigWindow
 
     internal new static void Draw()
     {
-        using (ImRaii.Child("main", new Vector2(0, 0), true))
+        // Fork: the shell owns the header and search; this surface uses borderless scrolling and drawn toggles.
+        using (ImRaii.Child("main", new Vector2(0, 0), false))
         {
-            Layout.PageHeader(null, FontAwesomeIcon.Cogs.ToIconString(), MainWindowUI.Button_Settings,
-                SettingsUI.Header_SettingsAbout, $"{SettingsList.Count} settings");
-
-            DrawSearchBar();
-
             _currentCategory = null;
             _settingCount = 0;
             _drawnCollapseGroups = [];
@@ -303,7 +299,7 @@ internal class Settings : ConfigWindow
                         _groupValues[setting.GroupNameSpace!][setting.GroupName!] =
                             value;
 
-                    changed = Widgets.Checkbox(label, ref value);
+                    changed = GluttonyChrome.Toggle(label, ref value);
                     if (changed)
                     {
                         setting.Value = value;

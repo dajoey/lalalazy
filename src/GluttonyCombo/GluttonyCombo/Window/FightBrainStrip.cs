@@ -37,20 +37,25 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
         if (entries.Count == 0)
             return;
 
-        ImGui.TextUnformatted("fight brain");
-        foreach (var (hit, seconds) in entries)
+        // Fork: rounded forecast card; entry source, ordering, and click-through behavior are unchanged.
+        GluttonyChrome.Card("fightbrain_forecast", () =>
         {
-            var label = hit.Kind switch
+            LalaUiKit.Widgets.Title("Fight Brain");
+            LalaUiKit.Widgets.Caption($"{entries.Count} code forecasts");
+            foreach (var (hit, seconds) in entries)
             {
-                AutoRotation.FightBrainHitKind.Raidwide => "raidwide",
-                AutoRotation.FightBrainHitKind.Tankbuster => "tankbuster",
-                AutoRotation.FightBrainHitKind.Knockback => "knockback",
-                AutoRotation.FightBrainHitKind.CastHit => hit.Source,
-                AutoRotation.FightBrainHitKind.Downtime => "downtime",
-                _ => hit.Kind.ToString(),
-            };
-            ImGui.TextUnformatted($"{seconds,5:F1}s  {label}");
-        }
+                var label = hit.Kind switch
+                {
+                    AutoRotation.FightBrainHitKind.Raidwide => "raidwide",
+                    AutoRotation.FightBrainHitKind.Tankbuster => "tankbuster",
+                    AutoRotation.FightBrainHitKind.Knockback => "knockback",
+                    AutoRotation.FightBrainHitKind.CastHit => hit.Source,
+                    AutoRotation.FightBrainHitKind.Downtime => "downtime",
+                    _ => hit.Kind.ToString(),
+                };
+                ImGui.TextUnformatted($"{seconds,5:F1}s  {label}");
+            }
+        });
         ImGuiHelpers.ScaledDummy(1);
     }
 }
