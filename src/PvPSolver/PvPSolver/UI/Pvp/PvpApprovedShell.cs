@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.RegularExpressions;
 using Dalamud.Interface.Utility.Raii;
 using LalaUiKit;
 using RotationSolver.Decisions;
@@ -8,8 +9,7 @@ namespace RotationSolver.UI.Pvp;
 /// <summary>Two-level responsive navigation and live status for the fork-only PvP settings window.</summary>
 internal sealed class PvpApprovedShell
 {
-    private const float WideFooterHeight = 68f;
-    private const float NarrowFooterHeight = 100f;
+    private const float Control = PvpApprovedChrome.ControlHeight;
 
     private sealed record Page(string Name, string Group, string Purpose);
 
@@ -31,6 +31,9 @@ internal sealed class PvpApprovedShell
 
     internal void Reset() => _currentPage = PvpSettingsCatalog.Match;
 
+    /// <summary>One outer gutter for every band, the page header, the body padding and the footer.</summary>
+    internal static float Gutter(float windowWidth) => windowWidth >= 760 ? 24 : windowWidth >= 560 ? 16 : 12;
+
     internal void Draw(
         (string Name, Action Draw)[] tabs,
         SwitchView view,
@@ -38,29 +41,33 @@ internal sealed class PvpApprovedShell
         Action<string, Action> drawTabBody,
         Func<bool, string?> changeMode)
     {
+        PvpApprovedChrome.BeginFrame();
         Theme.PushFrame();
         try
         {
-            DrawTopBar(view, switchMessage);
-            DrawFeatureRow();
-            DrawPageHeader();
-            if (switchMessage.Length > 0)
-            {
-                Widgets.InfoBox(switchMessage, UiState.Failed);
-            }
+            Vector2 winPos = ImGui.GetWindowPos();
+            Vector2 winSize = ImGui.GetWindowSize();
+            PvpApprovedChrome.WindowPos = winPos;
+            PvpApprovedChrome.WindowSize = winSize;
+            float gutter = Gutter(winSize.X);
+            bool compact = winSize.Y < 520;
+            ImDrawListPtr draw = ImGui.GetWindowDrawList();
+            UiState state = StateOf(view, switchMessage);
 
-            float footerHeight = FooterHeight(ImGui.GetContentRegionAvail().X);
-            Vector2 bodySize = new(0, MathF.Max(40, ImGui.GetContentRegionAvail().Y - footerHeight));
-            using (var body = ImRaii.Child("##pvpApprovedBody", bodySize, false))
-            {
-                if (body)
-                {
-                    (string name, Action draw) = tabs.First(tab => tab.Name == _currentPage);
-                    drawTabBody(name, draw);
-                }
-            }
+            float y = DrawTopBar(draw, winPos, winSize.X, gutter, state, compact);
+            y += DrawFeatureBand(draw, winPos, winSize.X, gutter, y, compact);
+            y += DrawPageHeader(draw, winPos, winSize.X, gutter, y, compact);
 
-            DrawFooter(view, ref switchMessage, changeMode);
+            float footerHeight = FooterHeight(winSize.X, compact);
+            float bodyHeight = MathF.Max(80, winSize.Y - footerHeight - y);
+            DrawBody(tabs, drawTabBody, winSize.X, gutter, y, bodyHeight, switchMessage);
+            DrawFooter(draw, winPos, winSize, gutter, compact, view, state, ref switchMessage, changeMode);
+
+            if (PvpApprovedChrome.ModalOpen)
+            {
+                // A confirmation popup is open: darken the whole window behind it.
+                draw.AddRectFilled(winPos, winPos + winSize, Theme.Pack(new Vector4(0f, 0f, 0f, 0.45f)));
+            }
         }
         finally
         {
@@ -83,159 +90,265 @@ internal sealed class PvpApprovedShell
         return view.ButtonEnabled ? UiState.Ready : UiState.Idle;
     }
 
-    private void DrawTopBar(SwitchView view, string switchMessage)
+    // ---- header band ------------------------------------------------------------------------------------------
+
+    // Band: 14 px top and bottom, 40 px brand, 36 px controls centred on it. Returns the band height plus its rule.
+    private float DrawTopBar(ImDrawListPtr draw, Vector2 winPos, float width, float gutter, UiState state, bool compact)
     {
-        float width = ImGui.GetContentRegionAvail().X;
-        Vector2 origin = ImGui.GetCursorScreenPos();
-        ImDrawListPtr draw = ImGui.GetWindowDrawList();
-        const float gap = 2 * Theme.Unit;
+        float pad = compact ? 8 : 14;
+        float brandHeight = compact ? 36 : 40;
+        const float gap = 8;
         string[] groups = ["Play", "Setup"];
-        Vector2 brandSize = new(174, 42);
-        Vector2[] groupSizes = groups.Select(group => new Vector2(MathF.Max(78, ImGui.CalcTextSize(group).X + 32), PvpApprovedChrome.ControlHeight)).ToArray();
-        UiState state = StateOf(view, switchMessage);
-        string stateLabel = Copy.Word(state);
-        Vector2 statusSize = new(MathF.Max(86, ImGui.CalcTextSize(stateLabel).X + 43), PvpApprovedChrome.ControlHeight);
-        Vector2 closeSize = new(PvpApprovedChrome.ControlHeight);
-        float required = brandSize.X + groupSizes.Sum(size => size.X) + statusSize.X + closeSize.X + (5 * gap);
-        bool singleRow = width >= required;
-        Vector2[] groupPositions = new Vector2[groups.Length];
-        Vector2 brandPos = new(0, 12);
-        Vector2 statusPos;
-        Vector2 closePos;
-        float barHeight;
+        float inner = width - (2 * gutter);
+        Vector2 closeSize = new(Control);
+        Vector2 pillSize = new(PvpApprovedChrome.StatusPillWidth(), Control);
+        float[] groupWidths = groups.Select(group => MathF.Max(72, PvpApprovedChrome.TextWidth(group) + 32)).ToArray();
+        float groupsWidth = groupWidths.Sum() + (gap * (groups.Length - 1));
+        float rest = pillSize.X + closeSize.X + (2 * gap);
 
-        if (singleRow)
+        float brandScale = Theme.TitleScale;
+        float brandWidth = PvpApprovedChrome.BrandWidth(brandScale);
+        bool singleRow = brandWidth + 16 + groupsWidth + rest <= inner;
+        if (!singleRow && brandWidth + rest > inner)
         {
-            barHeight = 66;
-            float x = brandSize.X + gap;
-            float y = (barHeight - PvpApprovedChrome.ControlHeight) / 2f;
-            for (int i = 0; i < groups.Length; i++)
-            {
-                groupPositions[i] = new Vector2(x, y);
-                x += groupSizes[i].X + gap;
-            }
-
-            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, y);
-            closePos = new Vector2(width - closeSize.X, y);
-        }
-        else
-        {
-            statusPos = new Vector2(width - statusSize.X - closeSize.X - gap, 16);
-            closePos = new Vector2(width - closeSize.X, 16);
-            float x = 0;
-            float y = 62;
-            for (int i = 0; i < groups.Length; i++)
-            {
-                if (x > 0 && x + groupSizes[i].X > width)
-                {
-                    x = 0;
-                    y += PvpApprovedChrome.ControlHeight + gap;
-                }
-
-                groupPositions[i] = new Vector2(x, y);
-                x += groupSizes[i].X + gap;
-            }
-
-            barHeight = y + PvpApprovedChrome.ControlHeight + 12;
+            brandScale = 1f;
+            brandWidth = PvpApprovedChrome.BrandWidth(brandScale);
         }
 
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
-        if (PvpApprovedChrome.BrandButton(draw, origin + brandPos, brandSize))
+        float barHeight = singleRow ? pad + brandHeight + pad : pad + brandHeight + gap + Control + pad;
+        draw.PushClipRect(winPos, winPos + new Vector2(width, barHeight + 1), false);
+        draw.AddRectFilled(winPos, winPos + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, barHeight), winPos + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+
+        float rowCentre = pad + (brandHeight / 2f);
+        Vector2 closePos = new(width - gutter - closeSize.X, rowCentre - (closeSize.Y / 2f));
+        Vector2 pillPos = new(closePos.X - gap - pillSize.X, closePos.Y);
+        float brandMax = pillPos.X - 12 - gutter;
+        brandWidth = MathF.Min(brandWidth, singleRow ? brandWidth : MathF.Max(80, brandMax));
+
+        if (PvpApprovedChrome.Brand(draw, winPos + new Vector2(gutter, pad), new Vector2(brandWidth, brandHeight), brandScale))
         {
             _currentPage = PvpSettingsCatalog.Match;
         }
 
+        float navY = singleRow ? closePos.Y : pad + brandHeight + gap;
+        float x = gutter + brandWidth + 16;
         for (int i = 0; i < groups.Length; i++)
         {
-            string group = groups[i];
-            if (PvpApprovedChrome.OutlineButton(draw, "group_" + group, group, origin + groupPositions[i], groupSizes[i], Current.Group == group))
+            float w = groupWidths[i];
+            if (!singleRow)
             {
-                _currentPage = Pages.First(page => page.Group == group).Name;
+                w = (inner - (gap * (groups.Length - 1))) / groups.Length;
+                x = gutter + (i * (w + gap));
             }
+
+            if (PvpApprovedChrome.NavPill(draw, "group_" + groups[i], groups[i], winPos + new Vector2(x, navY), new Vector2(w, Control), Current.Group == groups[i]))
+            {
+                _currentPage = Pages.First(page => page.Group == groups[i]).Name;
+            }
+
+            x += w + gap;
         }
 
-        PvpApprovedChrome.StatusPill(draw, origin + statusPos, statusSize, stateLabel, state);
-        if (PvpApprovedChrome.OutlineButton(draw, "close_window", "×", origin + closePos, closeSize))
+        PvpApprovedChrome.StatusPill(draw, winPos + pillPos, pillSize, Copy.Word(state), state);
+        if (PvpApprovedChrome.CloseButton(draw, winPos + closePos, closeSize))
         {
             CloseRequested?.Invoke();
         }
 
-        PvpUi.Tip("Close");
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        return barHeight + 1;
     }
 
-    private void DrawFeatureRow()
+    // Sub-navigation: 12 px padding, 32 px pills, 12 px gaps; wraps onto more rows when the pills do not fit.
+    private float DrawFeatureBand(ImDrawListPtr draw, Vector2 winPos, float width, float gutter, float top, bool compact)
     {
-        float width = ImGui.GetContentRegionAvail().X;
-        Vector2 origin = ImGui.GetCursorScreenPos();
-        ImDrawListPtr draw = ImGui.GetWindowDrawList();
-        const float gap = 3 * Theme.Unit;
+        float pad = compact ? 8 : 12;
+        const float height = 32;
         Page[] features = Pages.Where(page => page.Group == Current.Group).ToArray();
-        Vector2[] sizes = features.Select(feature => new Vector2(
-            MathF.Min(width, MathF.Max(112, ImGui.CalcTextSize(feature.Name).X + 52)), PvpApprovedChrome.ControlHeight)).ToArray();
+        float inner = width - (2 * gutter);
         Vector2[] positions = new Vector2[features.Length];
+        float[] widths = features.Select(feature => MathF.Min(inner, PvpApprovedChrome.FeatureButtonWidth(feature.Name))).ToArray();
         float x = 0;
-        float y = 8;
+        float y = 0;
         for (int i = 0; i < features.Length; i++)
         {
-            if (x > 0 && x + sizes[i].X > width)
+            if (x > 0 && x + widths[i] > inner)
             {
                 x = 0;
-                y += PvpApprovedChrome.ControlHeight + (2 * Theme.Unit);
+                y += height + 8;
             }
 
             positions[i] = new Vector2(x, y);
-            x += sizes[i].X + gap;
+            x += widths[i] + 12;
         }
 
-        float barHeight = y + PvpApprovedChrome.ControlHeight + 8;
-        draw.AddRectFilled(origin, origin + new Vector2(width, barHeight), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin + new Vector2(0, barHeight), origin + new Vector2(width, barHeight), Theme.Pack(Theme.SurfaceBorder));
+        float barHeight = pad + y + height + pad;
+        draw.PushClipRect(winPos, winPos + new Vector2(width, top + barHeight + 1), false);
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + new Vector2(width, top + barHeight), Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top + barHeight), winPos + new Vector2(width, top + barHeight), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
         for (int i = 0; i < features.Length; i++)
         {
-            if (PvpApprovedChrome.FeatureButton(draw, features[i].Name, features[i].Name, origin + positions[i], sizes[i], _currentPage == features[i].Name))
+            Vector2 pos = winPos + new Vector2(gutter + positions[i].X, top + pad + positions[i].Y);
+            if (PvpApprovedChrome.FeatureButton(draw, features[i].Name, features[i].Name, pos, new Vector2(widths[i], height), _currentPage == features[i].Name))
             {
                 _currentPage = features[i].Name;
             }
         }
 
-        ImGui.SetCursorScreenPos(origin);
-        ImGui.Dummy(new Vector2(width, barHeight));
+        return barHeight + 1;
     }
 
-    private void DrawPageHeader()
+    // Tile 44, text column at gutter + 60. Returns the header height; no divider below it.
+    private float DrawPageHeader(ImDrawListPtr draw, Vector2 winPos, float width, float gutter, float top, bool compact)
     {
         Page page = Current;
         string count = LiveCount(page.Name);
-        float width = ImGui.GetContentRegionAvail().X;
-        Vector2 origin = ImGui.GetCursorScreenPos();
-        ImDrawListPtr draw = ImGui.GetWindowDrawList();
-        Vector2 tileSize = new(42);
-        draw.AddRectFilled(origin, origin + tileSize, Theme.Pack(Theme.Accent with { W = 0.14f }), 2 * Theme.Unit);
-        PvpApprovedChrome.Diamond(draw, origin + (tileSize / 2f), 10, Theme.Pack(Theme.Accent));
+        const float titleScale = 1.35f;
+        float sm = Theme.SecondaryScale;
+        bool wide = width >= 760;
+        float tile = compact ? 32 : 44;
+        float above = compact ? 12 : 20;
+        float below = compact ? 4 : 8;
+        float textX = gutter + (tile + 16);
+        Vector2 left = winPos + new Vector2(textX, top + above);
+        float titleH = PvpApprovedChrome.LineHeight(titleScale);
+        float smH = PvpApprovedChrome.LineHeight(sm);
+        float block;
 
-        if (width >= 680)
+        draw.AddRectFilled(winPos + new Vector2(gutter, top + above), winPos + new Vector2(gutter + tile, top + above + tile),
+            Theme.Pack(Theme.Accent with { W = 0.14f }), 8f);
+        PvpApprovedChrome.Diamond(draw, winPos + new Vector2(gutter + (tile / 2f), top + above + (tile / 2f)), compact ? 8 : 10, Theme.Pack(Theme.Accent));
+
+        if (compact)
         {
-            float textX = origin.X + tileSize.X + 12;
-            float countWidth = ImGui.CalcTextSize(count).X;
-            PvpApprovedChrome.DrawText(draw, new Vector2(textX, origin.Y),
-                PvpApprovedChrome.FitText(page.Name, width - tileSize.X - 12 - countWidth - 16, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-            PvpApprovedChrome.DrawText(draw, new Vector2(textX, origin.Y + 29),
-                PvpApprovedChrome.FitText(page.Purpose, width - tileSize.X - 12 - countWidth - 16), Theme.TextSecondary);
-            PvpApprovedChrome.DrawTextRight(draw, origin.X + width, origin.Y + 12, count, Theme.TextSecondary);
-            ImGui.SetCursorScreenPos(origin + new Vector2(0, 58));
-            ImGui.Separator();
+            // Short window: title and count only, so the page body keeps its height.
+            float w = width - gutter - textX;
+            string shown = PvpApprovedChrome.FitText(page.Name, w, titleScale);
+            PvpApprovedChrome.Text(draw, left + new Vector2(0, (tile - titleH) / 2f), shown, Theme.TextPrimary, titleScale);
+            float countW = PvpApprovedChrome.TextWidth(count, sm);
+            float titleW = PvpApprovedChrome.TextWidth(shown, titleScale);
+            if (titleW + 16 + countW <= w)
+            {
+                PvpApprovedChrome.TextRight(draw, winPos.X + width - gutter, left.Y + ((tile - smH) / 2f), count, Theme.TextSecondary, sm);
+            }
+
+            return above + tile + below;
+        }
+
+        if (wide)
+        {
+            float metaWidth = MathF.Min(PvpApprovedChrome.TextWidth(count, sm), width * 0.4f);
+            float textWidth = width - gutter - textX - metaWidth - 16;
+            string shownTitle = PvpApprovedChrome.FitText(page.Name, textWidth, titleScale);
+            string shownDescription = PvpApprovedChrome.FitText(page.Purpose, textWidth, sm);
+            PvpApprovedChrome.Text(draw, left, shownTitle, Theme.TextPrimary, titleScale);
+            PvpApprovedChrome.Text(draw, left + new Vector2(0, titleH + 4), shownDescription, Theme.TextSecondary, sm);
+            block = titleH + 4 + smH;
+            string shownCount = PvpApprovedChrome.FitText(count, metaWidth, sm);
+            PvpApprovedChrome.TextRight(draw, winPos.X + width - gutter, left.Y + ((titleH - smH) / 2f), shownCount, Theme.TextSecondary, sm);
+            if (shownTitle != page.Name || shownDescription != page.Purpose || shownCount != count)
+            {
+                HoverIfElided(winPos, top + above, width, block, page.Name + "\n" + page.Purpose + "\n" + count);
+            }
+        }
+        else
+        {
+            float textWidth = width - gutter - textX;
+            List<string> titleLines = PvpApprovedChrome.WrapLines(page.Name, textWidth, titleScale, 2);
+            float y = left.Y;
+            foreach (string line in titleLines)
+            {
+                PvpApprovedChrome.Text(draw, new Vector2(left.X, y), line, Theme.TextPrimary, titleScale);
+                y += titleH;
+            }
+
+            y += 4;
+            List<string> lines = PvpApprovedChrome.WrapLines(page.Purpose, textWidth, sm, 3);
+            foreach (string line in lines)
+            {
+                PvpApprovedChrome.Text(draw, new Vector2(left.X, y), line, Theme.TextSecondary, sm);
+                y += smH;
+            }
+
+            y += 4;
+            PvpApprovedChrome.Text(draw, new Vector2(left.X, y), PvpApprovedChrome.FitText(count, textWidth, sm), Theme.TextSecondary, sm);
+            y += smH;
+            block = y - left.Y;
+        }
+
+        return above + MathF.Max(tile, block) + below;
+    }
+
+    private static void HoverIfElided(Vector2 winPos, float top, float width, float block, string full)
+        => PvpApprovedChrome.HoverTip(winPos + new Vector2(0, top), winPos + new Vector2(width, top + block), full);
+
+    // ---- body -------------------------------------------------------------------------------------------------
+
+    private void DrawBody(
+        (string Name, Action Draw)[] tabs,
+        Action<string, Action> drawTabBody,
+        float width,
+        float gutter,
+        float top,
+        float height,
+        string switchMessage)
+    {
+        ImGui.SetCursorPos(new Vector2(0, top));
+        using var vars = ImRaii.PushStyle(ImGuiStyleVar.ChildBorderSize, 1f)
+            .Push(ImGuiStyleVar.ChildRounding, 0f)
+            .Push(ImGuiStyleVar.WindowPadding, new Vector2(gutter, 16))
+            .Push(ImGuiStyleVar.ScrollbarSize, 10f)
+            .Push(ImGuiStyleVar.ScrollbarRounding, 8f);
+        using var colors = ImRaii.PushColor(ImGuiCol.Border, 0u)
+            .Push(ImGuiCol.ChildBg, 0u)
+            .Push(ImGuiCol.ScrollbarBg, 0u)
+            .Push(ImGuiCol.ScrollbarGrab, Theme.SurfaceBorder);
+        using var child = ImRaii.Child("##pvpApprovedBody", new Vector2(width, height), true);
+        if (!child)
+        {
             return;
         }
 
-        PvpApprovedChrome.DrawText(draw, origin + new Vector2(tileSize.X + 12, 4),
-            PvpApprovedChrome.FitText(page.Name, width - tileSize.X - 12, Theme.TitleScale), Theme.TextPrimary, Theme.TitleScale);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, tileSize.Y + 8));
-        Widgets.SecondaryWrapped(page.Purpose);
-        Widgets.Caption(count);
-        ImGui.Separator();
+        // Cards end one gutter before the window edge (the scrollbar lives in the gutter), like the footer button.
+        PvpApprovedChrome.PushRight(ImGui.GetCursorScreenPos().X + width - (2 * gutter));
+        try
+        {
+            if (switchMessage.Length > 0)
+            {
+                PvpApprovedChrome.Notice("Could not switch PvP Solver", switchMessage, UiState.Failed);
+            }
+
+            (string name, Action draw) = tabs.First(tab => tab.Name == _currentPage);
+            drawTabBody(name, draw);
+            DrawScrollFades(width, height);
+        }
+        finally
+        {
+            PvpApprovedChrome.PopRight();
+        }
+    }
+
+    // A short fade above the footer where more content scrolls in. The pinned header edge is a plain clip, like the other windows.
+    private static void DrawScrollFades(float width, float height)
+    {
+        if (ImGui.GetScrollMaxY() <= 0)
+        {
+            return;
+        }
+
+        ImDrawListPtr draw = ImGui.GetWindowDrawList();
+        Vector2 min = ImGui.GetWindowPos();
+        float right = min.X + width - 11;
+        uint window = ImGui.GetColorU32(ImGuiCol.WindowBg);
+        uint clear = window & 0x00FFFFFFu;
+        uint solid = window | 0xFF000000u;
+        if (ImGui.GetScrollY() < ImGui.GetScrollMaxY() - 1)
+        {
+            float bottom = min.Y + height - 1;
+            draw.AddRectFilledMultiColor(new Vector2(min.X, bottom - 12), new Vector2(right, bottom), clear, clear, solid, solid);
+        }
     }
 
     private static string LiveCount(string page)
@@ -270,40 +383,90 @@ internal sealed class PvpApprovedShell
         return $"{settings} settings";
     }
 
-    private static float FooterHeight(float width) => width < 560 ? NarrowFooterHeight : WideFooterHeight;
+    // ---- footer -----------------------------------------------------------------------------------------------
 
-    private static void DrawFooter(SwitchView view, ref string switchMessage, Func<bool, string?> changeMode)
+    private static bool Narrow(float width, bool compact) => width < 620 && !compact;
+
+    private static float FooterHeight(float width, bool compact)
     {
-        Vector2 origin = ImGui.GetCursorScreenPos();
-        float width = ImGui.GetContentRegionAvail().X;
-        float height = FooterHeight(width);
-        ImDrawListPtr draw = ImGui.GetWindowDrawList();
-        draw.AddRectFilled(origin, origin + new Vector2(width, height), Theme.Pack(Theme.ShellBar));
-        draw.AddLine(origin, origin + new Vector2(width, 0), Theme.Pack(Theme.SurfaceBorder));
-        UiState state = StateOf(view, switchMessage);
-        string primary = view.IsOn
-            ? "Running · automatic PvP actions are enabled"
-            : view.ButtonEnabled
-                ? "Ready · PvP Solver can be turned on"
-                : "Idle · settings remain available outside PvP";
+        float block = PvpApprovedChrome.LineHeight() + 4 + PvpApprovedChrome.LineHeight(Theme.SecondaryScale);
+        return Narrow(width, compact) ? 12 + block + 12 + Control + 12 : 12 + MathF.Max(block, Control) + 12;
+    }
+
+    private static void DrawFooter(
+        ImDrawListPtr draw,
+        Vector2 winPos,
+        Vector2 winSize,
+        float gutter,
+        bool compact,
+        SwitchView view,
+        UiState state,
+        ref string switchMessage,
+        Func<bool, string?> changeMode)
+    {
+        float width = winSize.X;
+        bool narrow = Narrow(width, compact);
+        float height = FooterHeight(width, compact);
+        float top = winSize.Y - height;
+        float lh = PvpApprovedChrome.LineHeight();
+        float smH = PvpApprovedChrome.LineHeight(Theme.SecondaryScale);
+        float textBlock = lh + 4 + smH;
+
+        draw.PushClipRect(winPos + new Vector2(0, top), winPos + winSize, false);
+        draw.AddRectFilled(winPos + new Vector2(0, top), winPos + winSize, Theme.Pack(Theme.ShellBar));
+        draw.AddLine(winPos + new Vector2(0, top), winPos + new Vector2(width, top), Theme.Pack(Theme.SurfaceBorder));
+        draw.PopClipRect();
+
+        string primary = switchMessage.Length > 0
+            ? "Failed · PvP Solver was not switched"
+            : view.IsOn
+                ? "Running · automatic PvP actions are enabled"
+                : view.ButtonEnabled
+                    ? "Ready · PvP Solver can be turned on"
+                    : "Idle · settings remain available outside PvP";
         string secondary = switchMessage.Length > 0 ? switchMessage : view.Reason;
         string actionLabel = view.IsOn ? "Stop" : view.ButtonLabel;
-        float actionWidth = MathF.Min(width, MathF.Max(112, ImGui.CalcTextSize(actionLabel).X + 48));
-        bool narrow = width < 560;
-        Vector2 actionPos = origin + new Vector2(width - actionWidth, narrow ? 56 : 16);
-        float textRight = narrow ? origin.X + width : actionPos.X - 16;
-        Vector2 textPos = origin + new Vector2(24, 9);
-        draw.AddCircleFilled(origin + new Vector2(10, 19), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
-        PvpApprovedChrome.DrawText(draw, textPos, PvpApprovedChrome.FitText(primary, textRight - textPos.X), Theme.TextPrimary);
-        PvpApprovedChrome.DrawText(draw, textPos + new Vector2(0, 27), PvpApprovedChrome.FitText(secondary, textRight - textPos.X), Theme.TextSecondary);
-        ImGui.SetCursorScreenPos(actionPos);
-        if (PvpApprovedChrome.Button(actionLabel + "##pvp_approved_mode", !view.ButtonEnabled, danger: view.IsOn,
-                size: new Vector2(actionWidth, 36)))
+        Vector2 actionSize = new(PvpApprovedChrome.ButtonWidth(actionLabel, view.IsOn ? 72 : 96), Control);
+        if (narrow)
+        {
+            actionSize.X = width - (2 * gutter);
+        }
+
+        Vector2 actionPos = narrow
+            ? new Vector2(gutter, top + height - 12 - Control)
+            : new Vector2(width - gutter - actionSize.X, top + ((height - Control) / 2f));
+        float textRight = narrow ? width - gutter : actionPos.X - 16;
+        float textX = gutter + 16;
+        float textTop = narrow ? top + 12 : top + ((height - textBlock) / 2f);
+        float textWidth = textRight - textX;
+
+        // Concise first line (parentheticals stripped); the tooltip carries the full text when anything is elided.
+        string headline = Regex.Replace(primary, @"\s*\([^)]*\)", string.Empty);
+        string shownHeadline = PvpApprovedChrome.FitText(headline, textWidth);
+        string shownDetail = PvpApprovedChrome.FitText(secondary, textWidth, Theme.SecondaryScale);
+        draw.AddCircleFilled(winPos + new Vector2(gutter + 4, textTop + (lh / 2f)), Theme.DotRadius + 1, Theme.Pack(Copy.MarkColor(state)));
+        PvpApprovedChrome.Text(draw, winPos + new Vector2(textX, textTop), shownHeadline, Theme.TextPrimary);
+        PvpApprovedChrome.Text(draw, winPos + new Vector2(textX, textTop + lh + 4), shownDetail, Theme.TextSecondary, Theme.SecondaryScale);
+        if (shownHeadline != headline || shownDetail != secondary)
+        {
+            PvpApprovedChrome.HoverTip(
+                winPos + new Vector2(textX, textTop),
+                winPos + new Vector2(textRight, textTop + textBlock),
+                headline + "\n" + secondary);
+        }
+
+        bool clicked = PvpApprovedChrome.Button(
+            "mode",
+            actionLabel,
+            winPos + actionPos,
+            actionSize,
+            view.IsOn ? PvpApprovedChrome.ButtonStyle.Danger : PvpApprovedChrome.ButtonStyle.Normal,
+            !view.ButtonEnabled,
+            Theme.Surface);
+        PvpUi.Tip(view.ButtonEnabled ? null : view.ButtonWhy);
+        if (clicked)
         {
             switchMessage = changeMode(!view.IsOn) ?? string.Empty;
         }
-
-        PvpUi.Tip(view.ButtonEnabled ? null : view.ButtonWhy);
-        ImGui.SetCursorScreenPos(origin + new Vector2(0, height));
     }
 }

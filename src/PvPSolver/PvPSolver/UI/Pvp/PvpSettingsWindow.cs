@@ -73,7 +73,18 @@ internal sealed class PvpSettingsWindow : Window
         catch (Exception ex)
         {
             PvpUi.LogOnce("window", ex);
-            DrawFailure(ex);
+            PvpApprovedChrome.BeginFrame();
+            float gutter = PvpApprovedShell.Gutter(ImGui.GetWindowWidth());
+            ImGui.SetCursorPos(new Vector2(gutter, 24));
+            PvpApprovedChrome.PushRight(ImGui.GetWindowPos().X + ImGui.GetWindowWidth() - gutter);
+            try
+            {
+                DrawFailure(ex);
+            }
+            finally
+            {
+                PvpApprovedChrome.PopRight();
+            }
         }
     }
 
@@ -94,15 +105,18 @@ internal sealed class PvpSettingsWindow : Window
         catch (Exception ex)
         {
             PvpUi.LogOnce("tab " + name, ex);
+            ImGui.Dummy(new Vector2(1, 8));
             DrawFailure(ex);
         }
     }
 
     private static void DrawFailure(Exception ex)
     {
-        PvpUi.WarningText("This part of the settings window hit an error: " + ex.Message);
-        PvpUi.Paragraph("The details are in the Dalamud log (type /xllog). The full Rotation Solver settings still work.");
-        if (ImGui.Button("Open the full Rotation Solver settings"))
+        PvpApprovedChrome.Notice(
+            "This part of the settings window hit an error",
+            ex.Message + " The details are in the Dalamud log (open it with /xllog). The full Rotation Solver settings still work.",
+            UiState.Blocked);
+        if (PvpApprovedChrome.InlineButton("open_full", "Open the full Rotation Solver settings", PvpApprovedChrome.ButtonStyle.Accent))
         {
             PvPSolverPlugin.OpenAdvancedWindow();
         }

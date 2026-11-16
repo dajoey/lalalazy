@@ -1,4 +1,5 @@
 using Dalamud.Interface.Utility.Raii;
+using LalaUiKit;
 using ECommons.DalamudServices;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Decisions;
@@ -36,62 +37,59 @@ internal static class PvpAdvancedTab
     {
         PvpApprovedChrome.Card("advanced_editor", () =>
         {
-            PvpUi.Heading("Full Rotation Solver settings");
+            PvpUi.Heading("Full Rotation Solver settings", true);
             PvpUi.Paragraph("The original settings window has every option, including ones this window leaves out. Its job options only show for the job that is loaded in a PvP zone.");
-            if (PvpUi.Button("Open the full Rotation Solver settings"))
+            if (PvpUi.Button("Open the full Rotation Solver settings", style: PvpApprovedChrome.ButtonStyle.Accent))
             {
                 PvPSolverPlugin.OpenAdvancedWindow();
             }
 
-            PvpUi.Help("Same as /pvpsolver advanced.", 0f);
-            ImGui.Spacing();
-            ImGui.TextUnformatted("Open it on a tab:");
+            PvpApprovedChrome.Tighten(4);
+            PvpUi.Help("Same as /pvpsolver advanced.", after: 16);
+            PvpApprovedChrome.Para("Open it on a tab", 1f, Theme.TextPrimary, 8);
             bool first = true;
             foreach ((string label, string tab, string what) in Links)
             {
-                float width = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2f) + ImGui.GetStyle().ItemSpacing.X;
-                if (!first && ImGui.GetContentRegionAvail().X >= width)
-                {
-                    ImGui.SameLine();
-                }
-
-                first = false;
-                if (PvpUi.SmallButton(label + "##link" + tab))
+                if (PvpApprovedChrome.FlowButton("link" + tab, label, first))
                 {
                     PvPSolverPlugin.OpenAdvancedWindow(tab);
                 }
 
                 PvpUi.Tip(what);
+                first = false;
             }
         });
 
         PvpApprovedChrome.Card("advanced_tools", () =>
         {
-            PvpUi.Heading("Backup and tools");
+            PvpUi.Heading("Backup and tools", true);
             if (PvpUi.Button("Back up settings"))
             {
                 RunGuarded(() => Service.Config.Backup(), "Backup");
             }
 
-            PvpUi.Help("Saves a copy of the settings next to the settings file (RotationSolver_Backup.json). An earlier backup is overwritten.");
+            PvpApprovedChrome.Tighten(4);
+            PvpUi.Help("Saves a copy of the settings next to the settings file (RotationSolver_Backup.json). An earlier backup is overwritten.", after: 16);
             if (PvpUi.Button("Restore the backup..."))
             {
                 _openRestore = true;
             }
 
-            PvpUi.Help("Replaces the current settings by the backup. A safety copy of the current settings is kept (RotationSolver_SafetySave.json).");
+            PvpApprovedChrome.Tighten(4);
+            PvpUi.Help("Replaces the current settings by the backup. A safety copy of the current settings is kept (RotationSolver_SafetySave.json).", after: 16);
             if (PvpUi.Button("Open the settings folder"))
             {
                 RunGuarded(() => { _ = Process.Start("explorer.exe", Svc.PluginInterface.ConfigDirectory.FullName); }, "Open folder");
             }
 
-            ImGui.SameLine();
+            ImGui.SameLine(0, 8);
             if (PvpUi.Button("First-start tutorial"))
             {
                 PvPSolverPlugin.OpenFirstStartTutorial();
             }
 
-            PvpUi.Help("The tutorial walks through the full Rotation Solver settings.");
+            PvpApprovedChrome.Tighten(4);
+            PvpUi.Help("The tutorial walks through the full Rotation Solver settings.", after: 0);
             if (_message.Length > 0)
             {
                 PvpUi.WarningText(_message);
@@ -100,13 +98,14 @@ internal static class PvpAdvancedTab
 
         PvpApprovedChrome.Card("advanced_reset", () =>
         {
-            PvpUi.Heading("Reset");
-            if (PvpUi.Button("Reset all settings..."))
+            PvpUi.Heading("Reset", true);
+            if (PvpUi.Button("Reset all settings...", style: PvpApprovedChrome.ButtonStyle.Danger))
             {
                 _openReset = true;
             }
 
-            PvpUi.Help("Returns every PvP Solver setting to its default, including the ones in the full settings window.");
+            PvpApprovedChrome.Tighten(4);
+            PvpUi.Help("Returns every PvP Solver setting to its default, including the ones in the full settings window.", after: 0);
         });
 
         DrawPopups();
@@ -145,48 +144,78 @@ internal static class PvpAdvancedTab
             _openRestore = false;
         }
 
+        // A modal sized to its content and centred over the settings window; the shell darkens the window behind it.
+        // The 24 px padding, rounding, neutral title bar and hidden resize grip are pushed for both popups.
+        Vector2 center = PvpApprovedChrome.WindowPos + (PvpApprovedChrome.WindowSize / 2f);
+        float width = MathF.Min(460, PvpApprovedChrome.WindowSize.X - 48);
+        using var vars = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(24, 20))
+            .Push(ImGuiStyleVar.WindowRounding, 8f)
+            .Push(ImGuiStyleVar.WindowBorderSize, 1f);
+        using var colors = ImRaii.PushColor(ImGuiCol.PopupBg, Theme.Surface)
+            .Push(ImGuiCol.Border, Theme.SurfaceBorder)
+            .Push(ImGuiCol.TitleBg, Theme.ShellBar)
+            .Push(ImGuiCol.TitleBgActive, Theme.ShellBar)
+            .Push(ImGuiCol.TitleBgCollapsed, Theme.ShellBar)
+            .Push(ImGuiCol.ResizeGrip, 0u)
+            .Push(ImGuiCol.ResizeGripHovered, 0u)
+            .Push(ImGuiCol.ResizeGripActive, 0u);
+
+        ImGui.SetNextWindowPos(center, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(width, 0));
         using (var reset = ImRaii.PopupModal(ResetPopup))
         {
             if (reset)
             {
-                ImGui.TextUnformatted("Reset all PvP Solver settings to their defaults?");
-                PvpUi.Help("This is often recommended after an update that changes defaults. It cannot be undone, but a backup made earlier can be restored.", 0f);
-                if (ImGui.Button("Yes, reset", new Vector2(140f * PvpUi.Scale, 0f)))
-                {
-                    RunGuarded(() =>
+                DrawConfirm(width, "Reset all PvP Solver settings to their defaults?",
+                    "This is often recommended after an update that changes defaults. It cannot be undone, but a backup made earlier can be restored.",
+                    "Yes, reset", true, () => RunGuarded(() =>
                     {
                         Service.Config = new Configs();
                         Service.Config.Save();
-                    }, "Reset");
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("No", new Vector2(140f * PvpUi.Scale, 0f)))
-                {
-                    ImGui.CloseCurrentPopup();
-                }
+                    }, "Reset"));
             }
         }
 
+        ImGui.SetNextWindowPos(center, ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(width, 0));
         using (var restore = ImRaii.PopupModal(RestorePopup))
         {
             if (restore)
             {
-                ImGui.TextUnformatted("Replace the current settings by the backup?");
-                PvpUi.Help("The current settings are copied to RotationSolver_SafetySave.json first.", 0f);
-                if (ImGui.Button("Yes, restore", new Vector2(140f * PvpUi.Scale, 0f)))
-                {
-                    RunGuarded(() => Service.Config.Restore(), "Restore");
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("No", new Vector2(140f * PvpUi.Scale, 0f)))
-                {
-                    ImGui.CloseCurrentPopup();
-                }
+                DrawConfirm(width, "Replace the current settings by the backup?",
+                    "The current settings are copied to RotationSolver_SafetySave.json first.",
+                    "Yes, restore", false, () => RunGuarded(() => Service.Config.Restore(), "Restore"));
             }
+        }
+    }
+
+    private static void DrawConfirm(float width, string question, string detail, string confirm, bool danger, Action onConfirm)
+    {
+        PvpApprovedChrome.ModalOpen = true;
+        PvpApprovedChrome.PushRight(ImGui.GetCursorScreenPos().X + width - 48);
+        try
+        {
+            PvpApprovedChrome.Para(question, Theme.TitleScale, Theme.TextPrimary, 8);
+            PvpApprovedChrome.Para(detail, Theme.SecondaryScale, Theme.TextSecondary, 16);
+            float noWidth = PvpApprovedChrome.ButtonWidth("No", 96);
+            float yesWidth = PvpApprovedChrome.ButtonWidth(confirm, 96);
+            float right = PvpApprovedChrome.Avail() + ImGui.GetCursorScreenPos().X;
+            float y = ImGui.GetCursorScreenPos().Y;
+            if (PvpApprovedChrome.Button("confirm", confirm, new Vector2(right - yesWidth, y), new Vector2(yesWidth, PvpApprovedChrome.BodyControl),
+                    danger ? PvpApprovedChrome.ButtonStyle.Danger : PvpApprovedChrome.ButtonStyle.Accent))
+            {
+                onConfirm();
+                ImGui.CloseCurrentPopup();
+            }
+
+            if (PvpApprovedChrome.Button("cancel", "No", new Vector2(right - yesWidth - 8 - noWidth, y), new Vector2(noWidth, PvpApprovedChrome.BodyControl)))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+        }
+        finally
+        {
+            PvpApprovedChrome.PopRight();
         }
     }
 }

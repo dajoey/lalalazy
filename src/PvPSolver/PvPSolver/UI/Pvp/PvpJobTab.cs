@@ -34,25 +34,16 @@ internal static class PvpJobTab
             DrawPicker();
             key = PickedKey();
             job = PickedJob();
+            PvpApprovedChrome.SeparateNextRow();
             string playing = Player.Available ? Player.Job.ToString() : string.Empty;
-            ImGui.Spacing();
-            ImGui.TextColored(PvpUi.Accent, $"Editing: {key}");
-            if (playing.Length > 0 && playing != key)
-            {
-                ImGui.SameLine();
-                ImGui.TextColored(PvpUi.Muted, $"(the character is playing {playing})");
-            }
+            PvpApprovedChrome.Row("editing", $"Editing {key}",
+                playing.Length > 0 && playing != key ? $"The character is playing {playing}." : null, 0, 0, null);
 
             bool enabled = !Service.Config.DisabledJobs.Contains(job);
-            using (var id = ImRaii.PushId("usejob"))
+            if (PvpApprovedChrome.Toggle("usejob", "Use PvP Solver for this job", "Off: PvP Solver takes no action while this job is played, even when it is turned on.", ref enabled))
             {
-                if (PvpUi.Check("Use PvP Solver for this job", ref enabled))
-                {
-                    _ = enabled ? Service.Config.DisabledJobs.Remove(job) : Service.Config.DisabledJobs.Add(job);
-                    PvpUi.Save();
-                }
-
-                PvpUi.Help("Off: PvP Solver takes no action while this job is played, even when it is turned on.");
+                _ = enabled ? Service.Config.DisabledJobs.Remove(job) : Service.Config.DisabledJobs.Add(job);
+                PvpUi.Save();
             }
         });
 
@@ -69,29 +60,51 @@ internal static class PvpJobTab
         });
     }
 
+    // One row per role: its name in a fixed column, the job buttons wrapping to its right. Narrow cards stack the name above.
     private static void DrawPicker()
     {
         string key = PickedKey();
         PvpUi.Heading("Choose a job");
+        const float gap = 8;
+        float captionWidth = JobKey.Groups.Max(group => PvpApprovedChrome.TextWidth(group.Name, Theme.SecondaryScale)) + 16;
+        float available = PvpApprovedChrome.Avail();
+        bool stacked = available < 520;
         foreach (JobGroup group in JobKey.Groups)
         {
-            Widgets.Caption(group.Name);
+            Vector2 origin = ImGui.GetCursorScreenPos();
+            ImDrawListPtr draw = ImGui.GetWindowDrawList();
+            float chipsLeft = stacked ? 0 : captionWidth;
+            float y = stacked ? PvpApprovedChrome.LineHeight(Theme.SecondaryScale) + 4 : 0;
+            float x = chipsLeft;
+            float height = y;
             bool first = true;
             foreach (string job in group.Jobs)
             {
-                float choiceWidth = MathF.Max(58, ImGui.CalcTextSize(job).X + 28);
-                if (!first && ImGui.GetContentRegionAvail().X >= choiceWidth + LalaUiKit.Theme.ItemSpacing.X)
+                float w = MathF.Max(56, PvpApprovedChrome.TextWidth(job) + 24);
+                if (!first && x + w > available)
                 {
-                    ImGui.SameLine();
+                    x = chipsLeft;
+                    y += PvpApprovedChrome.BodyControl + gap;
                 }
 
                 first = false;
-                if (PvpApprovedChrome.ChoiceButton(group.Name + "_" + job, job, job == key))
+                if (PvpApprovedChrome.Button("job_" + group.Name + "_" + job, job, origin + new Vector2(x, y), new Vector2(w, PvpApprovedChrome.BodyControl),
+                        job == key ? PvpApprovedChrome.ButtonStyle.Accent : PvpApprovedChrome.ButtonStyle.Normal))
                 {
                     _picked = job;
                 }
+
+                x += w + gap;
+                height = y + PvpApprovedChrome.BodyControl;
             }
+
+            float captionY = stacked ? 0 : (PvpApprovedChrome.BodyControl - PvpApprovedChrome.LineHeight(Theme.SecondaryScale)) / 2f;
+            PvpApprovedChrome.Text(draw, origin + new Vector2(0, captionY), group.Name, Theme.TextSecondary, Theme.SecondaryScale);
+            ImGui.SetCursorScreenPos(origin);
+            ImGui.Dummy(new Vector2(available, height));
+            ImGui.SetCursorScreenPos(origin + new Vector2(0, height + gap));
         }
+
     }
 
     // ---- defensives ------------------------------------------------------------------------------------------------
@@ -101,7 +114,7 @@ internal static class PvpJobTab
         bool master = Service.Config.PvpDefensivesMaster;
         if (master)
         {
-            PvpUi.Help("The master switch (Survival tab) is on.", 0f);
+            PvpUi.Help("The master switch (Survival tab) is on.");
         }
         else
         {
@@ -109,8 +122,8 @@ internal static class PvpJobTab
                               "Lady of Crowns, Microcosmos, Meisui and Impalement, which were automatic before.");
         }
 
-        PvpUi.Help("A turned-on ability is used on the character itself when its HP falls below the chosen percentage and the ability is ready.", 0f);
-        PvpUi.Help(DefensiveTable.WorstCase, 0f);
+        PvpUi.Help("A turned-on ability is used on the character itself when its HP falls below the chosen percentage and the ability is ready.");
+        PvpUi.Help(DefensiveTable.WorstCase);
 
         foreach (DefensiveRow row in DefensiveTable.ForJob(key))
         {
@@ -120,49 +133,32 @@ internal static class PvpJobTab
 
     private static void DrawRow(DefensiveRow row)
     {
-        using var id = ImRaii.PushId((int)row.ActionId);
+        string rowId = ((int)row.ActionId).ToString(System.Globalization.CultureInfo.InvariantCulture);
         Configs config = Service.Config;
         bool enabled = config.DefensiveEnabled(row);
-        if (PvpUi.Check(row.Label, ref enabled))
+        int min = OptionText.ToPoints(row.MinPercent);
+        int points = Math.Clamp(OptionText.ToPoints(config.DefensivePercent(row)), min, 100);
+        bool changed = enabled != row.DefaultEnabled || points != OptionText.ToPoints(row.DefaultPercent);
+        string defaults = $"(default {(row.DefaultEnabled ? "on" : "off")}, {OptionText.ToPoints(row.DefaultPercent)}%)";
+        string help = OptionText.Excerpt(row.Tooltip, 300, "Worst case:");
+
+        if (PvpApprovedChrome.Toggle(rowId, row.Label, help, ref enabled, tip: row.Tooltip, onReset: () =>
+            {
+                config.SetDefensiveEnabled(row, null);
+                config.SetDefensivePercent(row, null);
+                PvpUi.Save();
+            }, resetVisible: changed))
         {
             config.SetDefensiveEnabled(row, enabled == row.DefaultEnabled ? null : enabled);
             PvpUi.Save();
         }
 
-        PvpUi.Tip(row.Tooltip);
-
-        int min = OptionText.ToPoints(row.MinPercent);
-        int points = Math.Clamp(OptionText.ToPoints(config.DefensivePercent(row)), min, 100);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (24f * PvpUi.Scale));
-        ImGui.TextUnformatted("Use when HP is " + OperatorOf(row));
-        ImGui.SameLine();
-        if (PvpUi.PercentSlider("##percent", ref points, min, 100, width: 160f))
+        if (PvpUi.PercentSlider(rowId + "_percent", "Use when HP is " + OperatorOf(row), defaults, ref points, min, 100, indent: 1, joined: true))
         {
             float ratio = OptionText.FromPoints(points, row.MinPercent, 1f);
             config.SetDefensivePercent(row, OptionText.ToPoints(ratio) == OptionText.ToPoints(row.DefaultPercent) ? null : ratio);
             PvpUi.MarkDirty();
         }
-
-        bool changed = enabled != row.DefaultEnabled || points != OptionText.ToPoints(row.DefaultPercent);
-        string defaults = $"(default {(row.DefaultEnabled ? "on" : "off")}, {OptionText.ToPoints(row.DefaultPercent)}%)";
-        ImGui.SameLine();
-        using (var muted = ImRaii.PushColor(ImGuiCol.Text, PvpUi.Muted))
-        {
-            ImGui.TextUnformatted(defaults);
-        }
-
-        if (changed)
-        {
-            ImGui.SameLine();
-            if (PvpUi.ResetButton("reset"))
-            {
-                config.SetDefensiveEnabled(row, null);
-                config.SetDefensivePercent(row, null);
-                PvpUi.Save();
-            }
-        }
-
-        PvpUi.Help(OptionText.Excerpt(row.Tooltip, 300, "Worst case:"));
     }
 
     // Heart of Corundum is used at or below its percentage; every other row strictly below.

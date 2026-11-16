@@ -24,14 +24,14 @@ internal static class PvpMatchTab
             for (int i = 0; i < Commands.Length; i++)
             {
                 (string command, string what) = Commands[i];
-                if (PvpUi.SmallButton("Copy##cmd" + i))
+                int index = i;
+                PvpApprovedChrome.Row("cmd" + i, command, what, PvpApprovedChrome.ButtonWidth("Copy"), PvpApprovedChrome.BodyControl, pos =>
                 {
-                    ImGui.SetClipboardText(command);
-                }
-
-                ImGui.SameLine();
-                ImGui.TextUnformatted(command);
-                PvpUi.Help(what);
+                    if (PvpApprovedChrome.Button("copy", "Copy", pos, new Vector2(PvpApprovedChrome.ButtonWidth("Copy"), PvpApprovedChrome.BodyControl)))
+                    {
+                        ImGui.SetClipboardText(Commands[index].Command);
+                    }
+                });
             }
         });
     }
