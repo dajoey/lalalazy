@@ -1,4 +1,10 @@
-﻿## v0.0.3.6 (2026-11-15) [testing]
+﻿## v0.0.3.7 (2026-11-15) [testing]
+- The completed-jobs count stays visible in short windows.
+- Progress bars of finished jobs are visibly different from ones still in progress.
+- The inventory projection tooltip is reachable in the narrow layout.
+- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.
+
+## v0.0.3.6 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - Job rows and the Refresh button keep a clear margin inside their card edges, so the points text no longer sits against the border.
 - Job rows are compact and vertically centred, with the job, achievement, progress bar and points aligned on one line.
