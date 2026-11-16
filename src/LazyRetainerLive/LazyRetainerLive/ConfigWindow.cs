@@ -30,7 +30,7 @@ internal class ConfigWindow : Window
 
     public override void PostDraw() => ImGui.PopStyleVar();
 
-    private static float Gutter(float width) => width >= 900 ? 24 : width >= 560 ? 16 : 12;
+    private static float Gutter(float width) => width >= 760 ? 24 : width >= 560 ? 16 : 12;
 
     public override void Draw()
     {
@@ -117,7 +117,7 @@ internal class ConfigWindow : Window
         return barHeight;
     }
 
-    // Tile 44, text column at gutter + 60. Returns the header height; the divider sits on its bottom edge.
+    // Tile 44, text column at gutter + 60. Returns the header height; no divider below it.
     private static float DrawPageHeader(
         ImDrawListPtr draw,
         Vector2 winPos,
@@ -179,12 +179,7 @@ internal class ConfigWindow : Window
             block = y + smH - left.Y;
         }
 
-        var height = 20 + MathF.Max(tile, block) + 8;
-        draw.AddLine(
-            winPos + new Vector2(0, top + height),
-            winPos + new Vector2(width, top + height),
-            Theme.Pack(Theme.SurfaceBorder));
-        return height + 1;
+        return 20 + MathF.Max(tile, block) + 8;
     }
 
     private static void TipIfElided(ImDrawListPtr draw, bool elided, Vector2 winPos, float top, float width, float block, string full)
@@ -471,7 +466,7 @@ internal class ConfigWindow : Window
         draw.AddLine(winPos + new Vector2(0, top), winPos + new Vector2(width, top), Theme.Pack(Theme.SurfaceBorder));
         draw.PopClipRect();
 
-        var actionSize = new Vector2(MathF.Min(132, width - (2 * gutter)), ControlHeight);
+        var actionSize = new Vector2(MathF.Min(RetainerLiveChrome.ActionWidth(72, "Stop listener"), width - (2 * gutter)), ControlHeight);
         var actionPos = narrow
             ? new Vector2(gutter, top + height - 12 - ControlHeight)
             : new Vector2(width - gutter - actionSize.X, top + ((height - ControlHeight) / 2f));

@@ -126,19 +126,21 @@ internal static class RetainerLiveChrome
         draw.AddCircleFilled(center, radius * 0.32f, Theme.Pack(Theme.Surface));
     }
 
-    public static float BrandWidth(float scale) => 46 + TextWidth("LazyRetainerLive", scale) + 16;
+    public static float BrandWidth(float scale) => 48 + TextWidth("LazyRetainerLive", scale) + 16;
+
+    public static float ActionWidth(float minWidth, params string[] labels) => MathF.Max(minWidth, labels.Max(l => TextWidth(l)) + 32f);
 
     public static void Brand(ImDrawListPtr draw, Vector2 pos, Vector2 size, float scale)
     {
         draw.AddRectFilled(pos, pos + size, Theme.Pack(Theme.Surface), 8f);
         draw.AddRect(pos, pos + size, Theme.Pack(Theme.SurfaceBorder), 8f);
-        Diamond(draw, pos + new Vector2(24, size.Y / 2f), 13, Theme.Pack(Theme.Accent));
-        Text(draw, pos + new Vector2(46, (size.Y - LineHeight(scale)) / 2f), "LazyRetainerLive", Theme.TextPrimary, scale);
+        Diamond(draw, pos + new Vector2(24, size.Y / 2f), 12, Theme.Pack(Theme.Accent));
+        Text(draw, pos + new Vector2(48, (size.Y - LineHeight(scale)) / 2f), "LazyRetainerLive", Theme.TextPrimary, scale);
     }
 
     /// <summary>The widest state word fixes the pill width so it never shifts between states.</summary>
     public static float StatusPillWidth()
-        => 16 + (2 * Theme.DotRadius) + 8 + Enum.GetValues<UiState>().Max(s => TextWidth(Copy.Word(s))) + 16;
+        => MathF.Max(104, 16 + (2 * Theme.DotRadius) + 8 + Enum.GetValues<UiState>().Max(s => TextWidth(Copy.Word(s))) + 16);
 
     public static void StatusPill(ImDrawListPtr draw, Vector2 pos, Vector2 size, string label, UiState state)
     {
@@ -174,8 +176,17 @@ internal static class RetainerLiveChrome
         if (hovered)
         {
             // Below the control and right aligned, so the panel never covers the header meta.
-            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 6), ImGuiCond.Always, new Vector2(1f, 0f));
-            Tip("Close");
+            ImGui.SetNextWindowPos(new Vector2(pos.X + size.X, pos.Y + size.Y + 4), ImGuiCond.Always, new Vector2(1f, 0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+            ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+            ImGui.BeginTooltip();
+            ImGui.TextUnformatted("Close");
+            ImGui.EndTooltip();
+            ImGui.PopStyleVar(3);
+            ImGui.PopStyleColor(2);
         }
 
         return clicked;
@@ -343,14 +354,17 @@ internal static class RetainerLiveChrome
             Text(draw, new Vector2(pos.X + pad, y), FitText(note, width - (2 * pad), sm), noteColor, sm);
         }
 
+        // Only a real ratio draws a track; the slot stays reserved either way.
+        if (fraction is not { } f)
+            return;
         var min = new Vector2(pos.X + pad, barY);
         var max = new Vector2(pos.X + width - pad, barY + Theme.BarHeight);
         draw.AddRectFilled(min, max, Theme.Pack(Theme.SurfaceBorder), 2f);
-        if (fraction is > 0f)
+        if (f > 0f)
         {
             draw.AddRectFilled(
                 min,
-                new Vector2(min.X + ((max.X - min.X) * Math.Clamp(fraction.Value, 0, 1)), max.Y),
+                new Vector2(min.X + ((max.X - min.X) * Math.Clamp(f, 0, 1)), max.Y),
                 Theme.Pack(Theme.StateGreen),
                 2f);
         }
