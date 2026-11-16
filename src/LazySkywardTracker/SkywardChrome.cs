@@ -105,7 +105,7 @@ internal static class SkywardChrome
         var fitted = Fit(text, width, scale);
         DrawText(draw, pos, fitted, color, scale);
         if (fitted != text && ImGui.IsMouseHoveringRect(pos, pos + new Vector2(width, LineHeight(scale))))
-            ImGui.SetTooltip(text);
+            TextTooltip(text);
     }
 
     internal static void DrawFittedRight(ImDrawListPtr draw, float right, float y, string text, float width, Vector4 color, float scale = 1f)
@@ -113,7 +113,24 @@ internal static class SkywardChrome
         var fitted = Fit(text, width, scale);
         DrawTextRight(draw, right, y, fitted, color, scale);
         if (fitted != text && ImGui.IsMouseHoveringRect(new Vector2(right - width, y), new Vector2(right, y + LineHeight(scale))))
-            ImGui.SetTooltip(text);
+            TextTooltip(text);
+    }
+
+    /// <summary>Full text of an elided label, in the same bordered tooltip box wherever it is raised; only while this window is hovered.</summary>
+    internal static void TextTooltip(string text)
+    {
+        if (!ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            return;
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Surface);
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.SurfaceBorder);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 4));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
+        ImGui.BeginTooltip();
+        ImGui.TextUnformatted(text);
+        ImGui.EndTooltip();
+        ImGui.PopStyleVar(3);
+        ImGui.PopStyleColor(2);
     }
 
     internal static string Sentence(string text)
