@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "LazyCrucible",
     "InternalName":  "LazyCrucible",
-    "AssemblyVersion":  ".",
+    "AssemblyVersion":  "0.1.9.23",
     "Description":  "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight\u0027s mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
     "ApplicableVersion":  "any",
     "Tags":  [
