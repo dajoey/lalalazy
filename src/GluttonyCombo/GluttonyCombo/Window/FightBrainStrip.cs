@@ -2,6 +2,7 @@
 // forecast says is coming, newest first. CODE FORECASTS ONLY, exactly as the notebook page
 // scopes Stage 1a.
 
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface.Utility;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
@@ -30,7 +31,8 @@ internal class FightBrainStrip : Dalamud.Interface.Windowing.Window
     public override void Draw()
     {
         var cfg = Service.Configuration.RotationConfig.FightBrain;
-        if (!cfg.Enabled || !cfg.ShowStrip || Player.Object is null || !AutoRotation.FightBrain.ForecastSeen)
+        if (!cfg.Enabled || !cfg.ShowStrip || Player.Object is null || !AutoRotation.FightBrain.ForecastSeen
+            || !Svc.Condition[ConditionFlag.InCombat])
             return;
 
         var entries = AutoRotation.FightBrain.StripEntries();

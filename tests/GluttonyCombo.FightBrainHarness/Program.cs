@@ -6,7 +6,10 @@
 //     sets the time (a cast hint always re-times a timeline guess);
 //   - anything 3 s overdue is dropped;
 //   - the cast gate blocks (in shadow) only when the cast would still run, plus 0.5 s,
-//     at the moment the player must move out of the zone under the player.
+//     at the moment the player must move out of the zone under the player;
+//   - the strip shows only entries still ahead of now, nearest first, capped to 6;
+//   - kept entries age out on the same Unix clock the entries carry, so a fight's
+//     leftovers vanish instead of counting up in the negative.
 
 using GluttonyCombo.AutoRotation;
 
@@ -84,6 +87,37 @@ Check("gate: a cast ending exactly at the must-move moment goes through",
 // A zone already active (zoneIn <= 0) is not a forecast: never block on it.
 Check("gate: an already-active zone is not a forecast",
     false, FightBrainForecastCore.WouldBlockCast(castEndIn: 4.5, zoneIn: 0.0, standingInZone: true, walkOut: 1.0));
+
+// ---- the strip shows upcoming entries only ------------------------------------------
+// The strip's view is a separate, stricter rule than the merge drop: an entry already
+// past its moment (beyond a 1 s grace) is not a forecast and must not render.
+var strip = FightBrainForecastCore.Strip([Rw(-5f), Rw(12f)], Now);
+CheckEqual("a strip list with entries at -5 s and +12 s shows only the +12 s entry", 1, strip.Count);
+CheckEqual("the kept entry is the +12 s one", Now + 12000, strip[0].Hit.AtMs);
+CheckEqual("its countdown reads 12 s", 12.0, strip[0].Seconds);
+// Control: future entries still list, nearest first.
+var future = FightBrainForecastCore.Strip([Rw(20f), Rw(8f), Rw(14f)], Now);
+CheckEqual("future entries still list on the strip", 3, future.Count);
+CheckEqual("nearest first", Now + 8000, future[0].Hit.AtMs);
+CheckEqual("then the middle one", Now + 14000, future[1].Hit.AtMs);
+CheckEqual("then the farthest one", Now + 20000, future[2].Hit.AtMs);
+// The 1 s grace: half a second past still shows, 2 s past does not.
+CheckEqual("an entry half a second past its moment still shows (the 1 s strip grace)",
+    1, FightBrainForecastCore.Strip([Rw(-0.5f)], Now).Count);
+CheckEqual("an entry 2 s past its moment does not show", 0,
+    FightBrainForecastCore.Strip([Rw(-2f)], Now).Count);
+// The strip is capped to 6 rows.
+var manyStrip = Enumerable.Range(1, 8).Select(i => Rw(3f + 4 * i)).ToList();
+CheckEqual("the strip is capped to 6 entries", 6, FightBrainForecastCore.Strip(manyStrip, Now).Count);
+
+// ---- kept entries age out on the SAME clock the entries carry ------------------------
+// The tick prunes the kept list with Unix-ms now. A forecast read before a fight ended
+// must vanish once 3 s past its time, not sit on the strip with a negative countdown.
+var keptAtEnd = FightBrainForecastCore.Merge([], [Rw(6f)], Now);
+var afterFight = FightBrainForecastCore.Merge(keptAtEnd, [], Now + 10_000);
+CheckEqual("after the fight ends the kept forecast list is empty", 0, afterFight.Count);
+CheckEqual("until then the kept entry stays",
+    1, FightBrainForecastCore.Merge(keptAtEnd, [], Now + 8_000).Count);
 
 if (failures > 0)
 {

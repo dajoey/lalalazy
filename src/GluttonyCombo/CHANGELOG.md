@@ -1,4 +1,11 @@
-﻿## v1.0.4.340 (2026-11-15) [testing]
+﻿## v1.0.4.341 (2026-11-17) [testing]
+### Fixed
+- **The Fight Brain countdown strip no longer keeps past forecasts on screen.** A clock mix-up inside the forecast tick compared the entries' Unix timestamps against the machine's uptime clock, so the rule that drops a forecast three seconds after its moment passed could never fire: old entries piled up, filled the forecast list, and the strip showed a fixed set of entries whose countdowns grew ever more negative for the rest of the session. The tick now prunes on the same clock the entries carry, and the strip itself shows only entries still ahead (with one second of grace), so a fight's leftovers disappear instead of counting up in the negative.
+- **The Fight Brain countdown strip only draws during combat now.** Outside a fight it draws nothing, even while the forecast source is still answering, so the strip no longer sits on the screen between fights.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
+## v1.0.4.340 (2026-11-15) [testing]
 - The settings window has been rebuilt in the same custom window style as the other plugins and polished for the real in-game font and scale, with every preset, option and saved setting unchanged.
 - The window uses a two-level layout: Combos, Automation and System tabs, a row of destinations for the open tab, a page header and a status footer that stays in view. Long pages fade out above the footer instead of being cut off.
 - Preset cards have even padding, a larger title and toggles that sit inside the card, and a whole toggle row, label included, can be clicked. Search keeps one width on every page, shows a dimmed hint, has a clear button and reports a result count.

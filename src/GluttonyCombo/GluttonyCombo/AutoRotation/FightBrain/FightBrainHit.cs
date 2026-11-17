@@ -29,6 +29,9 @@ internal readonly record struct FightBrainHit(
     /// <summary> An entry this far past its time (and still unread) is untrustworthy and dropped. </summary>
     internal const long OverdueMs = 3000;
 
+    /// <summary> How far past its moment an entry may be and still render on the strip: the strip is stricter than the drop rule. </summary>
+    internal const long StripGraceMs = 1000;
+
     internal string Countdown(long nowMs) => $"{(AtMs - nowMs) / 1000.0:F1}s";
 }
 
@@ -83,5 +86,28 @@ internal static class FightBrainForecastCore
         if (merged.Count > cap)
             merged.RemoveRange(cap, merged.Count - cap);
         return merged;
+    }
+
+    /// <summary>
+    ///     The strip's view of a kept forecast: entries still ahead of <paramref name="nowMs"/>
+    ///     (up to <see cref="FightBrainHit.StripGraceMs"/> of grace), nearest first, capped to
+    ///     <paramref name="cap"/> entries with their countdowns in seconds. An entry whose moment
+    ///     has passed is not a forecast and must not render. Pure; harness-tested.
+    /// </summary>
+    internal static List<(FightBrainHit Hit, double Seconds)> Strip(
+        IReadOnlyList<FightBrainHit> hits, long nowMs, int cap = 6)
+    {
+        List<(FightBrainHit Hit, double Seconds)> entries = [];
+        foreach (var hit in hits)
+        {
+            if (hit.AtMs < nowMs - FightBrainHit.StripGraceMs)
+                continue;
+            entries.Add((hit, (hit.AtMs - nowMs) / 1000.0));
+        }
+
+        entries.Sort(static (a, b) => a.Hit.AtMs.CompareTo(b.Hit.AtMs));
+        if (entries.Count > cap)
+            entries.RemoveRange(cap, entries.Count - cap);
+        return entries;
     }
 }

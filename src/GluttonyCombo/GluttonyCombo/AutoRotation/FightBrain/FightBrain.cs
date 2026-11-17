@@ -59,9 +59,13 @@ internal static class FightBrain
 
         var reading = FightBrainForecast.Read(nowMs);
         ForecastSeen = reading.Seen;
-        var fresh = FightBrainForecastCore.Merge(_current, [], nowMs); // drop overdue entries from the kept list
-        fresh = FightBrainForecastCore.Merge(fresh, reading.Hits, nowMs);
-        LogForecastChange(_current, fresh, nowMs);
+        // The entries carry Unix milliseconds, so the prune and the change log must read the
+        // same clock: pruning against the uptime clock could never age an entry out, and stale
+        // forecasts sat on the strip with growing negative countdowns.
+        var unixNow = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var fresh = FightBrainForecastCore.Merge(_current, [], unixNow); // drop overdue entries from the kept list
+        fresh = FightBrainForecastCore.Merge(fresh, reading.Hits, unixNow);
+        LogForecastChange(_current, fresh, unixNow);
         _current = fresh;
         LastReadMs = nowMs;
 
@@ -87,11 +91,11 @@ internal static class FightBrain
         }
     }
 
-    /// <summary> The current forecast entries with their countdowns now, for the strip. </summary>
+    /// <summary> The current forecast entries with their countdowns now, for the strip: upcoming entries only. </summary>
     internal static IReadOnlyList<(FightBrainHit Hit, double Seconds)> StripEntries()
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        return [.. _current.OrderBy(h => h.AtMs).Take(6).Select(h => (h, (h.AtMs - now) / 1000.0))];
+        return FightBrainForecastCore.Strip(_current, now);
     }
 
     // ------------------------------------------------------------------ cast gate (shadow)
