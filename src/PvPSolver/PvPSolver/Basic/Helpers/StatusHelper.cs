@@ -3,7 +3,10 @@ using ECommons.Automation;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Logging;
+using Lumina.Excel;
 using RotationSolver.Basic.Configuration;
+using GameStatus = FFXIVClientStructs.FFXIV.Client.Game.Status;
+using StatusRow = Lumina.Excel.Sheets.Status;
 
 namespace RotationSolver.Basic.Helpers;
 
@@ -225,36 +228,38 @@ public static class StatusHelper
 	/// </returns>
 	public unsafe static bool IsStatusCapped(IBattleChara battleChara)
 	{
-		if (battleChara == null)
-			return false;
-
-		try
+		if (battleChara == null || battleChara.Struct() == null || !battleChara.IsValid())
 		{
-			if (battleChara.StatusList == null)
+			return false;
+		}
+
+		foreach (ref readonly GameStatus status in battleChara.GetStatuses())
+		{
+			if (status.StatusId == 0)
+			{
 				return false;
-		}
-		catch
-		{
-			return false;
-		}
-
-		if (battleChara.IsValid())
-		{
-			int count = 0;
-			foreach (var x in battleChara.StatusList)
-			{
-				if (x.StatusId != 0)
-				{
-					count++;
-				}
-			}
-			if (count == battleChara.Struct()->StatusManager.NumValidStatuses)
-			{
-				return true;
 			}
 		}
 
-		return false;
+		return true;
+	}
+
+	internal static unsafe ReadOnlySpan<GameStatus> GetStatuses(this IBattleChara? battleChara)
+	{
+		if (battleChara == null)
+		{
+			return default;
+		}
+
+		FFXIVClientStructs.FFXIV.Client.Game.Character.BattleChara* chara = battleChara.Struct();
+		if (chara == null)
+		{
+			return default;
+		}
+
+		var statuses = chara->StatusManager.Status;
+		int count = chara->StatusManager.NumValidStatuses;
+		return count < statuses.Length ? statuses[..count] : statuses;
 	}
 
 	/// <summary>
@@ -640,40 +645,13 @@ public static class StatusHelper
 	/// </returns>
 	public static bool PlayerHasApplyStatus(StatusID[] statusIDs)
 	{
-		if (!DataCenter.PlayerAvailable())
+		if (!DataCenter.InEffectTime)
 		{
 			return false;
 		}
 
-		if (Player.Object == null)
-		{
-			return false;
-		}
-
-		try
-		{
-			if (Player.Object.StatusList == null)
-			{
-				return false;
-			}
-		}
-		catch
-		{
-			// StatusList threw, treat as unavailable
-			return false;
-		}
-
-		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(Player.Object.GameObjectId, out uint statusId))
-		{
-			foreach (StatusID s in statusIDs)
-			{
-				if ((uint)s == statusId)
-				{
-					return true;
-				}
-			}
-		}
-		return false;
+		IBattleChara? player = Player.Object;
+		return player != null && IsApplyingStatus(player.GameObjectId, statusIDs);
 	}
 
 	/// <summary>
@@ -687,27 +665,22 @@ public static class StatusHelper
 	/// </returns>
 	public static bool HasApplyStatus(this IBattleChara battleChara, StatusID[] statusIDs)
 	{
-		try
-		{
-			if (battleChara.StatusList == null)
-			{
-				return false;
-			}
-		}
-		catch
-		{
-			// StatusList threw, treat as unavailable
-			return false;
-		}
+		return battleChara != null && battleChara.Address != nint.Zero && DataCenter.InEffectTime
+			&& IsApplyingStatus(battleChara.GameObjectId, statusIDs);
+	}
 
-		if (DataCenter.InEffectTime && DataCenter.ApplyStatus.TryGetValue(battleChara.GameObjectId, out uint statusId))
+	private static bool IsApplyingStatus(ulong objectId, StatusID[] statusIDs)
+	{
+		return DataCenter.ApplyStatus.TryGetValue(objectId, out uint statusId) && ContainsId(statusId, statusIDs);
+	}
+
+	private static bool ContainsId(uint id, StatusID[] ids)
+	{
+		foreach (StatusID s in ids)
 		{
-			foreach (StatusID s in statusIDs)
+			if ((uint)s == id)
 			{
-				if ((uint)s == statusId)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		return false;
@@ -892,29 +865,77 @@ public static class StatusHelper
 	/// <returns>True if the status is invincible, otherwise false.</returns>
 	public static bool IsInvincible(this IStatus status)
 	{
-		if (status == null)
-		{
-			return false;
-		}
+		return status != null && IsInvincibleStatus(status.StatusId);
+	}
 
-		if (status.GameData.Value.Icon == 15024)
-		{
-			return true;
-		}
+	private static ExcelSheet<StatusRow>? _statusSheet;
 
-		if (OtherConfiguration.InvincibleStatus == null)
-		{
-			return false;
-		}
+	private static bool TryGetStatusRow(uint statusId, out StatusRow row)
+	{
+		return (_statusSheet ??= Service.GetSheet<StatusRow>()).TryGetRow(statusId, out row);
+	}
 
-		foreach (uint id in OtherConfiguration.InvincibleStatus)
+	internal static bool IsInvincibleStatus(uint statusId)
+	{
+		return (TryGetStatusRow(statusId, out StatusRow row) && row.Icon == 15024)
+			|| OtherConfiguration.InvincibleStatus?.Contains(statusId) == true;
+	}
+
+	internal static bool HasInvincibleStatus(this IBattleChara battleChara)
+	{
+		foreach (ref readonly GameStatus status in battleChara.GetStatuses())
 		{
-			if (id == status.StatusId)
+			if (status.StatusId != 0 && IsInvincibleStatus(status.StatusId))
 			{
 				return true;
 			}
 		}
+
 		return false;
+	}
+
+	internal static bool HasPriorityStatus(this IBattleChara battleChara)
+	{
+		var priority = OtherConfiguration.PriorityStatus;
+		if (priority == null || priority.Count == 0)
+		{
+			return false;
+		}
+
+		foreach (ref readonly GameStatus status in battleChara.GetStatuses())
+		{
+			if (status.StatusId != 0 && priority.Contains(status.StatusId))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	internal static bool CanDispel(in GameStatus status, float minRemaining)
+	{
+		return status.StatusId != 0 && status.RemainingTime > minRemaining
+			&& TryGetStatusRow(status.StatusId, out StatusRow row) && row.CanDispel;
+	}
+
+	internal static bool IsDangerous(in GameStatus status, float minRemaining)
+	{
+		if (!CanDispel(status, minRemaining))
+		{
+			return false;
+		}
+
+		return (status.RemainingTime > 3 && TryGetStatusRow(status.StatusId, out StatusRow row) && row.Icon == 215503)
+			|| status.Param > 2
+			|| status.RemainingTime > 20
+			|| OtherConfiguration.DangerousStatus?.Contains(status.StatusId) == true;
+	}
+
+	internal static bool LocksActions(in GameStatus status, float minRemaining)
+	{
+		return status.StatusId != 0 && status.RemainingTime > minRemaining
+			&& TryGetStatusRow(status.StatusId, out StatusRow row) && row.LockActions;
 	}
 
 	/// <summary>
@@ -924,24 +945,7 @@ public static class StatusHelper
 	/// <returns>True if the status is a priority, otherwise false.</returns>
 	public static bool IsPriority(this IStatus status)
 	{
-		if (status == null)
-		{
-			return false;
-		}
-
-		if (OtherConfiguration.PriorityStatus == null)
-		{
-			return false;
-		}
-
-		foreach (uint id in OtherConfiguration.PriorityStatus)
-		{
-			if (id == status.StatusId)
-			{
-				return true;
-			}
-		}
-		return false;
+		return status != null && OtherConfiguration.PriorityStatus?.Contains(status.StatusId) == true;
 	}
 
 	/// <summary>
@@ -977,19 +981,7 @@ public static class StatusHelper
 			return true;
 		}
 
-		if (OtherConfiguration.DangerousStatus == null)
-		{
-			return false;
-		}
-
-		foreach (uint id in OtherConfiguration.DangerousStatus)
-		{
-			if (id == status.StatusId)
-			{
-				return true;
-			}
-		}
-		return false;
+		return OtherConfiguration.DangerousStatus?.Contains(status.StatusId) == true;
 	}
 
 	/// <summary>

@@ -89,6 +89,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		catch (Exception ex)
 		{
 			PluginLog.Warning($"Failed to load config: {ex.Message}");
+			BackupUnreadableConfig();
 			Service.Config = new Configs();
 		}
 
@@ -229,6 +230,22 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		}
 
 		windowSystem.Draw();
+	}
+
+	private static void BackupUnreadableConfig()
+	{
+		try
+		{
+			FileInfo file = Svc.PluginInterface.ConfigFile;
+			if (File.Exists(file.FullName) && file.DirectoryName != null)
+			{
+				File.Copy(file.FullName, Path.Combine(file.DirectoryName, "PvPSolver_LoadFailed.json"), true);
+			}
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Warning($"Failed to back up the unreadable config: {ex.Message}");
+		}
 	}
 
 	internal static void ChangeUITranslation()

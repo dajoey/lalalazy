@@ -14,7 +14,6 @@ using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using Lumina.Excel.Sheets;
 using RotationSolver.Basic.Configuration;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace RotationSolver.Basic.Helpers;
@@ -230,12 +229,9 @@ public static class ObjectHelper
 			return false;
 		}
 
-		foreach (Dalamud.Game.ClientState.Statuses.IStatus status in battleChara.StatusList)
+		if ((!DataCenter.IsPvP || !Service.Config.IgnorePvPInvincibility) && battleChara.HasInvincibleStatus())
 		{
-			if (StatusHelper.IsInvincible(status) && ((DataCenter.IsPvP && !Service.Config.IgnorePvPInvincibility) || !DataCenter.IsPvP))
-			{
-				return false;
-			}
+			return false;
 		}
 
 		// In No Hostiles Names
@@ -495,26 +491,6 @@ public static class ObjectHelper
 		}
 
 		return false;
-	}
-
-	private static string RemoveControlCharacters(string input)
-	{
-		if (string.IsNullOrEmpty(input))
-		{
-			return input;
-		}
-
-		// Use a StringBuilder for efficient string manipulation
-		StringBuilder output = new(input.Length);
-		foreach (char c in input)
-		{
-			// Exclude control characters and private use area characters
-			if (!char.IsControl(c) && (c < '\uE000' || c > '\uF8FF'))
-			{
-				_ = output.Append(c);
-			}
-		}
-		return output.ToString();
 	}
 
 	internal static unsafe bool IsEnemy(this IGameObject obj)
@@ -834,6 +810,9 @@ public static class ObjectHelper
 	/// <returns>
 	/// <c>true</c> if the game object is a top priority hostile target; otherwise, <c>false</c>.
 	/// </returns>
+	private const long TopPriorityTtlMs = 15;
+	private static readonly Dictionary<ulong, (long Tick, bool IsPriority)> _topPriorityCache = [];
+
 	internal static bool IsTopPriorityHostile(this IBattleChara battleChara)
 	{
 		if (battleChara == null)
@@ -841,6 +820,25 @@ public static class ObjectHelper
 			return false;
 		}
 
+		ulong id = battleChara.GameObjectId;
+		long now = Environment.TickCount64;
+		if (_topPriorityCache.TryGetValue(id, out (long Tick, bool IsPriority) cached) && now - cached.Tick < TopPriorityTtlMs)
+		{
+			return cached.IsPriority;
+		}
+
+		if (_topPriorityCache.Count > 512)
+		{
+			_topPriorityCache.Clear();
+		}
+
+		bool isPriority = IsTopPriorityHostileCore(battleChara);
+		_topPriorityCache[id] = (now, isPriority);
+		return isPriority;
+	}
+
+	private static bool IsTopPriorityHostileCore(IBattleChara battleChara)
+	{
 		if (battleChara.IsAllianceMember() || battleChara.IsParty())
 		{
 			return false;
@@ -921,16 +919,9 @@ public static class ObjectHelper
 			}
 		}
 
-		// Ensure StatusList is not null before iterating
-		if (battleChara.StatusList != null)
+		if (battleChara.HasPriorityStatus())
 		{
-			foreach (Dalamud.Game.ClientState.Statuses.IStatus status in battleChara.StatusList)
-			{
-				if (StatusHelper.IsPriority(status))
-				{
-					return true;
-				}
-			}
+			return true;
 		}
 
 		if (Service.Config.ChooseAttackMark)

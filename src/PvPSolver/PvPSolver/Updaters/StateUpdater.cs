@@ -564,11 +564,6 @@ internal static class StateUpdater
 			return false;
 		}
 
-		if (Player.Object.StatusList == null)
-		{
-			return false;
-		}
-
 		if (DataCenter.IsPvP && StatusHelper.PlayerHasStatus(false, StatusID.Mounted))
 		{
 			return false;

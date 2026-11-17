@@ -85,9 +85,12 @@ namespace RotationSolver.Commands
 				if (parts.Length > 1)
 				{
 					string value = parts[1];
-					if (Enum.TryParse(typeof(TargetingType), value, true, out object? parsedEnumSet))
+					if (int.TryParse(value, out int parsedIndex))
 					{
-						TargetingType targetingTypeSet = (TargetingType)parsedEnumSet;
+						index = parsedIndex;
+					}
+					else if (Enum.TryParse<TargetingType>(value, true, out TargetingType targetingTypeSet))
+					{
 						int idx = Service.Config.TargetingTypes.IndexOf(targetingTypeSet);
 						if (idx >= 0)
 						{
@@ -103,10 +106,6 @@ namespace RotationSolver.Commands
 							Svc.Chat.PrintError($"{targetingTypeSet} is not in TargetingTypes list.");
 							return;
 						}
-					}
-					else if (!int.TryParse(value, out index))
-					{
-						index = -1;
 					}
 				}
 

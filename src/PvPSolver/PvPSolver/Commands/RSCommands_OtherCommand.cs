@@ -1,4 +1,5 @@
 ﻿using ECommons.DalamudServices;
+using System.Globalization;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Basic.Rotations.Duties;
 using RotationSolver.Data;
@@ -377,7 +378,19 @@ public static partial class RSCommands
 		string actName = str[..lastHyphenIndex].Trim();
 		string timeStr = str[(lastHyphenIndex + 1)..].Trim();
 
-		if (double.TryParse(timeStr, out double time))
+		if (double.TryParse(timeStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double time)
+			|| double.TryParse(timeStr, NumberStyles.Float, CultureInfo.CurrentCulture, out time))
+		{
+			DoActionCommand(actName, time);
+			return;
+		}
+
+		Svc.Chat.PrintError(UiString.CommandsInsertActionFailure.GetDescription());
+	}
+
+	internal static void DoActionCommand(string actName, double time)
+	{
+		if (double.IsFinite(time))
 		{
 			var rotationActions = RotationUpdater.CurrentRotationActions ?? [];
 			var dutyActions = DataCenter.CurrentDutyRotation?.AllActions ?? [];

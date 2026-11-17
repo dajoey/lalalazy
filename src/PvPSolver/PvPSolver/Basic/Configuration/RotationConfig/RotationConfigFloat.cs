@@ -1,4 +1,5 @@
 ﻿using RotationSolver.Basic.Rotations.Duties;
+using System.Globalization;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
@@ -92,7 +93,7 @@ internal class RotationConfigFloat : RotationConfigBase
 
 		string numStr = str[Name.Length..].Trim();
 
-		if (float.TryParse(numStr, out float parsedValue))
+		if (TryParseValue(numStr, out float parsedValue))
 		{
 			if (UnitType == ConfigUnitType.Percent)
 			{
@@ -103,5 +104,12 @@ internal class RotationConfigFloat : RotationConfigBase
 		}
 
 		return false;
+	}
+
+	internal static bool TryParseValue(string? text, out float value)
+	{
+		return (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+			|| float.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
+			&& float.IsFinite(value);
 	}
 }

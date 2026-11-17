@@ -180,6 +180,12 @@ public partial class CustomRotation
 	/// <returns>True if an MP potion was used; otherwise, false.</returns>
 	private static bool UseMpPotion(IAction nextGCD, out IAction? act)
 	{
+		act = null;
+		if (!Service.Config.UseMpPotions)
+		{
+			return false;
+		}
+
 		MpPotionItem? best = null;
 		foreach (var a in MpPotions)
 		{
@@ -232,6 +238,12 @@ public partial class CustomRotation
 	/// <returns>True if an HP potion was used; otherwise, false.</returns>
 	private static bool UseHpPotion(IAction nextGCD, out IAction? act)
 	{
+		act = null;
+		if (!Service.Config.UseHpPotions)
+		{
+			return false;
+		}
+
 		HpPotionItem? best = null;
 		foreach (var a in HpPotions)
 		{

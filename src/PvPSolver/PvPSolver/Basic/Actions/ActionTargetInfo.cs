@@ -96,8 +96,8 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 
 			var statusCheck = CheckStatus(target, skipStatusProvideCheck, skipTargetStatusNeedCheck);
-			var ttkCheck = CheckTimeToKill(target);
-			var resistanceCheck = CheckResistance(target);
+			var ttkCheck = CheckTimeToKill(target, action.Config.TimeToKill);
+			var resistanceCheck = CheckResistance(target, Range);
 
 			if (!statusCheck || !ttkCheck || !resistanceCheck)
 			{
@@ -199,7 +199,7 @@ public struct ActionTargetInfo(IBaseAction action)
 				if (isRestrictedAction) continue;
 			}
 
-			if (CheckStatus(tar, skipStatusProvideCheck, skipTargetStatusNeedCheck) && CheckTimeToKill(tar) && CheckResistance(tar))
+			if (CheckStatus(tar, skipStatusProvideCheck, skipTargetStatusNeedCheck) && CheckTimeToKill(tar, action.Config.TimeToKill) && CheckResistance(tar, Range))
 			{
 				validTargets.Add(tar);
 			}
@@ -353,7 +353,7 @@ public struct ActionTargetInfo(IBaseAction action)
 	/// <returns>
 	/// <c>true</c> if the game object meets the resistance criteria for the action; otherwise, <c>false</c>.
 	/// </returns>
-	private readonly bool CheckResistance(IBattleChara battleChara)
+	private readonly bool CheckResistance(IBattleChara battleChara, float range)
 	{
 		if (battleChara == null)
 		{
@@ -491,7 +491,7 @@ public struct ActionTargetInfo(IBaseAction action)
 					return false;
 				}
 			}
-			if (Range >= 20) // Range
+			if (range >= 20) // Range
 			{
 				if (battleChara.HasStatus(false, StatusID.EnergyField))
 				{
@@ -516,21 +516,20 @@ public struct ActionTargetInfo(IBaseAction action)
 	/// <returns>
 	/// <c>true</c> if the game object meets the time to kill criteria for the action; otherwise, <c>false</c>.
 	/// </returns>
-	private readonly bool CheckTimeToKill(IBattleChara battleChara)
+	private static bool CheckTimeToKill(IBattleChara battleChara, float timeToKill)
 	{
 		if (battleChara == null)
 		{
 			return false;
 		}
 
-		if (battleChara is not IBattleChara b)
+		if (timeToKill <= 0)
 		{
-			return false;
+			return true;
 		}
 
-		float time = b.GetTTK();
-		bool result = float.IsNaN(time) || time >= action.Config.TimeToKill;
-		return result;
+		float time = battleChara.GetTTK();
+		return float.IsNaN(time) || time >= timeToKill;
 	}
 
 	#endregion
@@ -1125,7 +1124,7 @@ public struct ActionTargetInfo(IBaseAction action)
 			{
 				// Use the same cone half-angle (_alpha = π/3) as GetCanTarget
 				float cos = Vector3.Dot(faceVec, toTarget / dist);
-				if (cos >= (float)Math.Cos(_alpha))
+				if (cos >= (float)CosAlpha)
 					result.Add(t);
 			}
 			else if (castType == CastType.StraightLine)
@@ -1283,6 +1282,8 @@ public struct ActionTargetInfo(IBaseAction action)
 	}
 
 	private const double _alpha = Math.PI / 3;
+	private static readonly float SinAlpha = (float)Math.Sin(_alpha);
+	private static readonly double CosAlpha = Math.Cos(_alpha);
 	/// <summary>
 	/// Determines if the sub-target can be targeted based on the specified criteria.
 	/// </summary>
@@ -1361,7 +1362,7 @@ public struct ActionTargetInfo(IBaseAction action)
 					Vector3 dirN = dir / dirLen;
 
 					// Widen by target hitbox along aim direction to be more permissive near the apex
-					Vector3 tdirAdj = tdir + dirN * (target.HitboxRadius / (float)Math.Sin(_alpha));
+					Vector3 tdirAdj = tdir + dirN * (target.HitboxRadius / SinAlpha);
 
 					float tlen = tdirAdj.Length();
 					if (tlen <= 0.001f)
@@ -1370,7 +1371,7 @@ public struct ActionTargetInfo(IBaseAction action)
 					}
 
 					float cos = Vector3.Dot(dir, tdirAdj) / (dirLen * tlen);
-					return cos >= Math.Cos(_alpha);
+					return cos >= CosAlpha;
 				}
 
 			case CastType.StraightLine: // Line (beam from player in the player's facing direction)

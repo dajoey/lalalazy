@@ -290,17 +290,18 @@ internal static class ActionUpdater
 			return false;
 		}
 
-		if (Player.Object.StatusList == null)
+		// Status-lock detection stays a PvE-only gate in this fork.
+		if (DataCenter.IsPvP)
 		{
 			return false;
 		}
 
-		foreach (var status in Player.Object.StatusList)
+		float minRemaining = 1 + DataCenter.DefaultGCDRemain;
+		foreach (ref readonly var status in Player.Object.GetStatuses())
 		{
-			if (!DataCenter.IsPvP)
+			if (StatusHelper.LocksActions(status, minRemaining))
 			{
-				if (status != null && status.GameData.Value.LockActions == true && status.RemainingTime > 1 + DataCenter.DefaultGCDRemain)
-					return true;
+				return true;
 			}
 		}
 		return false;

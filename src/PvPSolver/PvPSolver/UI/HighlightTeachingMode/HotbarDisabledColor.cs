@@ -92,7 +92,7 @@ public sealed class HotbarDisabledColor : DrawingHighlightHotbarBase
 				hotBarIndex++;
 				continue;
 			}
-			Hotbar raptureHotbar = raptureModule->Hotbars[resolvedHotbarIndex];
+			ref Hotbar raptureHotbar = ref raptureModule->Hotbars[resolvedHotbarIndex];
 
 			int slotIndex = 0;
 			foreach (ActionBarSlot slot in actionBar->ActionBarSlotVector.AsSpan())
@@ -110,7 +110,7 @@ public sealed class HotbarDisabledColor : DrawingHighlightHotbarBase
 					continue;
 				}
 
-				HotbarSlot hotbarSlot = raptureHotbar.Slots[slotIndex];
+				ref HotbarSlot hotbarSlot = ref raptureHotbar.Slots[slotIndex];
 
 				if (hotbarSlot.ApparentSlotType != HotbarSlotType.Action || hotbarSlot.OriginalApparentSlotType != HotbarSlotType.Action)
 				{

@@ -187,15 +187,19 @@ internal static class DataCenter
 									  || Svc.GamepadState.Raw(Dalamud.Game.ClientState.GamePad.GamepadButtons.R1) >=
 									  0.5f;
 
-	internal static DateTime EffectTime { private get; set; } = DateTime.Now;
-	internal static DateTime EffectEndTime { private get; set; } = DateTime.Now;
+	private static long _effectEndTick = long.MinValue;
+
+	internal static void StartEffectTime(float seconds)
+	{
+		_effectEndTick = Environment.TickCount64 + (long)(seconds * 1000);
+	}
 
 	internal static int AttackedTargetsCount { get; set; } = 48;
 	internal static Queue<(ulong id, DateTime time)> AttackedTargets { get; } = new(AttackedTargetsCount);
 
 	internal static Queue<MacroItem> Macros { get; } = new Queue<MacroItem>();
 
-	internal static bool InEffectTime => DateTime.Now >= EffectTime && DateTime.Now <= EffectEndTime;
+	internal static bool InEffectTime => Environment.TickCount64 <= _effectEndTick;
 	internal static Dictionary<ulong, uint> HealHP { get; set; } = [];
 	internal static Dictionary<ulong, uint> ApplyStatus { get; set; } = [];
 	internal static uint MPGain { get; set; }

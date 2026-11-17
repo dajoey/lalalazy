@@ -140,7 +140,7 @@ namespace RotationSolver.Commands
 			{
 				index = Service.Config.TargetingIndex + 1;
 			}
-			index %= count;
+			index = ((index % count) + count) % count;
 			Service.Config.TargetingIndex = index;
 		}
 

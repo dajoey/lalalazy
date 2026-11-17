@@ -91,22 +91,7 @@ internal static partial class TargetUpdater
 					if (member.IsTargetable && member.DistanceToPlayer() < 48 && member.CanSeeFrom(playerEye.Value))
 					{
 						// Valid hostile target
-						bool hasInvincible = false;
-						var statusList = member.StatusList;
-
-						if (statusList != null)
-						{
-							var statusCount = statusList.Length;
-							for (int i = 0; i < statusCount; i++)
-							{
-								var status = statusList[i];
-								if (status != null && status.StatusId != 0 && status.IsInvincible())
-								{
-									hasInvincible = true;
-									break;
-								}
-							}
-						}
+						bool hasInvincible = member.HasInvincibleStatus();
 						if (hasInvincible && ((DataCenter.IsPvP && !Service.Config.IgnorePvPInvincibility) || !DataCenter.IsPvP))
 						{
 							continue; // Invincible enemy doesn't get added to any lists
@@ -215,7 +200,6 @@ internal static partial class TargetUpdater
 				{
 					if ((skipDummyCheck || !battleChara.IsDummy())
 						&& battleChara.IsTargetable
-						&& battleChara.StatusList != null
 						&& !battleChara.IsPet())
 					{
 						allTargets.Add(battleChara);
@@ -302,21 +286,7 @@ internal static partial class TargetUpdater
 			if (!target.IsEnemy() || !target.IsTargetable || !target.CanSeeFrom(playerEye.Value) || target.DistanceToPlayer() >= 48)
 				continue;
 
-			bool hasInvincible = false;
-			var statusList = target.StatusList;
-			if (statusList != null)
-			{
-				var statusCount = statusList.Length;
-				for (int i = 0; i < statusCount; i++)
-				{
-					var status = statusList[i];
-					if (status != null && status.StatusId != 0 && StatusHelper.IsInvincible(status))
-					{
-						hasInvincible = true;
-						break;
-					}
-				}
-			}
+			bool hasInvincible = target.HasInvincibleStatus();
 			if (hasInvincible &&
 				((DataCenter.IsPvP && !Service.Config.IgnorePvPInvincibility) || !DataCenter.IsPvP))
 			{
@@ -526,20 +496,17 @@ internal static partial class TargetUpdater
 			IBattleChara? closestNonDangerous = null;
 			float closestNonDangerousDist = float.MaxValue;
 
+			float minRemaining = 1 + DataCenter.DefaultGCDRemain;
+
 			foreach (IBattleChara person in _dispelPartyTargets)
 			{
 				bool hasDangerous = false;
-				var statusList = person.StatusList;
-				if (statusList != null)
+				foreach (ref readonly var status in person.GetStatuses())
 				{
-					for (int i = 0, n = statusList.Length; i < n; i++)
+					if (StatusHelper.IsDangerous(status, minRemaining))
 					{
-						var status = statusList[i];
-						if (status != null && status.IsDangerous())
-						{
-							hasDangerous = true;
-							break;
-						}
+						hasDangerous = true;
+						break;
 					}
 				}
 
@@ -581,26 +548,16 @@ internal static partial class TargetUpdater
 			return;
 		}
 
+		float minRemaining = 1 + DataCenter.DefaultGCDRemain;
 		foreach (IBattleChara member in members)
 		{
-			try
+			foreach (ref readonly var status in member.GetStatuses())
 			{
-				if (member.StatusList != null)
+				if (StatusHelper.CanDispel(status, minRemaining))
 				{
-					for (int i = 0; i < member.StatusList.Length; i++)
-					{
-						Dalamud.Game.ClientState.Statuses.IStatus? status = member.StatusList[i];
-						if (status != null && status.CanDispel())
-						{
-							targetList.Add(member);
-							break; // Add only once per member if any status can be dispelled
-						}
-					}
+					targetList.Add(member);
+					break; // Add only once per member if any status can be dispelled
 				}
-			}
-			catch (NullReferenceException ex)
-			{
-				PluginLog.Error($"NullReferenceException in AddDispelTargets for member {member?.ToString()}: {ex.Message}");
 			}
 		}
 	}
