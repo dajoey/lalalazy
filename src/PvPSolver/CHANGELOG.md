@@ -1,4 +1,17 @@
-﻿## v0.1.2.18 (2026-11-15) [testing]
+﻿## v0.1.2.19 (2026-11-17) [testing]
+- Upstream engine sync (RotationSolverReborn 866988a7ee, status and target check improvements): the status reads behind target selection use the game's status array directly. Hostile-target filtering, invincible and priority status checks, dispel and dangerous-status detection, and the status-lock check read it without building status objects first (StatusHelper.GetStatuses, TargetUpdater, ObjectHelper, ActionUpdater).
+- The check for a full status list reads the status slots directly, and the applied-status lookups read the effect-time cache without touching the status list. The effect-time window is measured on a monotonic tick clock, so a system clock change can no longer extend or cut it (DataCenter.StartEffectTime, Watcher).
+- Top-priority hostile checks are cached for 15 ms per target to cut repeated work in the target scan (ObjectHelper.IsTopPriorityHostile). Time-to-kill and resistance checks take their limit from the caller, and the cone and line target checks reuse precomputed trigonometry (ActionTargetInfo).
+- Rotation settings that hold a decimal number parse with the invariant culture first and the current culture second, and reject NaN and infinity. The timed action command parses the time the same way, and the IPC action command passes the trimmed action name with the time rounded to three decimals (RotationConfigFloat, RotationConfigBase, RSCommands_OtherCommand, IPCProvider).
+- State commands that name a targeting type also accept a numeric index, and the targeting index wraps correctly in both directions (RSCommands_BasicInfo, RSCommands_StateSpecialCommand).
+- Delayed target switching ignores a new request while one is still waiting and looks the candidate up by object id when the delay ends, so a target that despawned in between is skipped (RSCommands_Actions.SetTargetWithDelay). Macro targets are remembered by object id instead of by object reference (MacroItem).
+- The Disable Auto Rotation call to WrathCombo is limited to one per second (IPCSubscriber).
+- HP and MP potion use respects the two potion settings before choosing a potion, and the potion items pass the clipping check through (CustomRotation_Items, HpPotionItem, MpPotionItem, BaseItem).
+- When the saved configuration cannot be read, a copy is kept as PvPSolver_LoadFailed.json before settings reset (RotationSolverPlugin). The disabled-hotbar highlight reads hotbar slots by reference (HotbarDisabledColor).
+- Not carried: upstream changes to rotations and windows this plugin does not contain (extra and Reborn PvE rotations, the main window, the auto-attack updater, the changelog json), and upstream's wider rewrite of the status reader methods, which this plugin's own status code does not share a base with. Defensive null checks on the status list stay in place.
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.2.18 (2026-11-15) [testing]
 - The first-start tutorial has a new look and walks through the PvP Solver settings window tab by tab, with buttons that open the matching tab.
 - The control and cooldown windows have a clean bordered look, and an unlocked window can be moved by a small handle along its top edge.
 - The full legacy settings window has a matching header that shows the plugin version, with a Reset button and a close button. The reset and restore confirmations in the Advanced tab no longer show a plain title bar.
