@@ -1,4 +1,12 @@
-﻿## v0.1.2.19 (2026-11-17) [testing]
+﻿## v0.1.2.20 (2026-11-18) [testing]
+- Upstream engine sync (RotationSolverReborn c170c9cd5d, source reorganization): upstream moved its engine, configuration and rotation code into new folders and namespaces and split several large files into partial classes (ActionTargetInfo, DataCenter, ObjectHelper, StatusHelper, Configs). A line-by-line comparison of the old and new files found no behavior change in any of them, so this plugin keeps its own layout and namespaces.
+- All 21 PvP rotations now declare game version 7.58, and their source-code links point at upstream's new rotation folders. Metadata only; no rotation behavior change.
+- A saved rotation choice is matched by full name, by short name or by the trailing name segment, so a rotation still resolves if its namespace moves (RotationUpdater.MatchesRotationName).
+- The settings code generators group fields by namespace, kind and class name instead of by syntax node, so one type declared across several files produces a single generated settings class (ConditionBoolGenerator, JobConfigGenerator, JobChoiceConfigGenerator).
+- Not carried: upstream's folder and namespace renames, Extra and Reborn PvE rotation edits, the Rotation template namespaces in the PvE generator resources, the main window contributor list, and the RebornMaterial package bump (this plugin does not use that package).
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.2.19 (2026-11-17) [testing]
 - Upstream engine sync (RotationSolverReborn 866988a7ee, status and target check improvements): the status reads behind target selection use the game's status array directly. Hostile-target filtering, invincible and priority status checks, dispel and dangerous-status detection, and the status-lock check read it without building status objects first (StatusHelper.GetStatuses, TargetUpdater, ObjectHelper, ActionUpdater).
 - The check for a full status list reads the status slots directly, and the applied-status lookups read the effect-time cache without touching the status list. The effect-time window is measured on a monotonic tick clock, so a system clock change can no longer extend or cut it (DataCenter.StartEffectTime, Watcher).
 - Top-priority hostile checks are cached for 15 ms per target to cut repeated work in the target scan (ObjectHelper.IsTopPriorityHostile). Time-to-kill and resistance checks take their limit from the caller, and the cone and line target checks reuse precomputed trigonometry (ActionTargetInfo).
