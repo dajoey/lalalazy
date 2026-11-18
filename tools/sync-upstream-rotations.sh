@@ -11,6 +11,18 @@
 #   tools/sync-upstream-rotations.sh           # syncs from upstream/main
 #   tools/sync-upstream-rotations.sh <branch>  # syncs from upstream/<branch>
 #
+# STRATEGY (decided 2026-11-18, t_ae2668fc): FOLLOW upstream's layout, do not pin. Upstream moved the
+# PvP rotations to RotationSolver/Rotations/<Role>/<Job>/ (PR #1425, c170c9cd5d). The script reads that
+# layout, copies only the PvP files into the local <Role>/ folders, and rewrites the one namespace line.
+# It does not rewrite usings: the fork keeps a RotationSolver.Basic base layer, and the rotation files
+# only need the namespace line changed. Pinning to the old layout (866988a7ee) was rejected: upstream's
+# PvP balance changes would stop arriving. The old path stays as a fallback for older upstream refs.
+#
+# THE SYNC IS NOT A BLIND OVERWRITE. Since 2026-10 the fork edits these same files (defensive-HP
+# settings via RotationSolver.Decisions, RealHp.HpRatio, AI decision layer removed), so a run replaces
+# those lines with upstream's. Always read `git diff` after running and keep the fork-side lines;
+# commit only the upstream changes you want.
+#
 # After running, review with `git diff` and commit the parts you want.
 # If the new rotations reference action/status IDs the fork doesn't have,
 # the build will break — pull just those symbols in manually from upstream.
@@ -49,11 +61,19 @@ SYNC_PAIRS=(
 NEW_ROOT="RotationSolver/Rotations"
 LOCAL_PVP="src/PvPSolver/PvPSolver/RebornRotations/PVPRotations"
 if git cat-file -e "$UPSTREAM_REF:$NEW_ROOT" 2>/dev/null; then
+  mapfile -t new_files < <(git ls-tree -r --name-only "$UPSTREAM_REF" -- "$NEW_ROOT" \
+    | grep -iE '^RotationSolver/Rotations/[^/]+/[^/]+/[^/]*_Default\.PVP\.cs$' || true)
+  if [ "${#new_files[@]}" -eq 0 ]; then
+    # Never empty the local folder on a zero match: the filename convention probably changed.
+    echo "ERROR: $NEW_ROOT exists at $UPSTREAM_REF but holds no <Role>/<Job>/*_Default.PVP.cs files." >&2
+    echo "       Local $LOCAL_PVP left untouched. Update the pattern in this script." >&2
+    exit 1
+  fi
   echo "==> Syncing $NEW_ROOT/<Role>/<Job>/*_Default.PVP.cs -> $LOCAL_PVP/<Role>/"
   rm -rf "$LOCAL_PVP"
   mkdir -p "$LOCAL_PVP"
   count=0
-  while IFS= read -r f; do
+  for f in "${new_files[@]}"; do
     rel="${f#"$NEW_ROOT"/}"
     role="${rel%%/*}"
     mkdir -p "$LOCAL_PVP/$role"
@@ -62,8 +82,10 @@ if git cat-file -e "$UPSTREAM_REF:$NEW_ROOT" 2>/dev/null; then
     # RotationSolver.RebornRotations.PVPRotations.<Role> (the line carries no BOM-sensitive anchor).
     sed -i -E "s/namespace RotationSolver\.Rotations\.[A-Za-z]+\.[A-Za-z]+;/namespace RotationSolver.RebornRotations.PVPRotations.$role;/" "$LOCAL_PVP/$role/${f##*/}"
     count=$((count + 1))
-  done < <(git ls-tree -r --name-only "$UPSTREAM_REF" -- "$NEW_ROOT" | grep -iE '^RotationSolver/Rotations/[^/]+/[^/]+/[^/]*_Default\.PVP\.cs$')
+  done
   echo "    copied $count PvP rotation files"
+  changed="$(git diff --name-only -- "$LOCAL_PVP" | wc -l)"
+  echo "    $changed of them differ from the committed copies (fork-side edits and upstream changes mixed: read git diff)"
   SYNC_PAIRS=()
 fi
 
