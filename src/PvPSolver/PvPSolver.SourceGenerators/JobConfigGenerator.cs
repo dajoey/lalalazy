@@ -34,10 +34,14 @@ public class JobConfigGenerator : IIncrementalGenerator
 	/// <param name="array">The collected syntax nodes and semantic models.</param>
 	private void Execute(SourceProductionContext context, ImmutableArray<(VariableDeclaratorSyntax, SemanticModel SemanticModel)> array)
 	{
-		var dict = new Dictionary<SyntaxNode, List<(VariableDeclaratorSyntax, SemanticModel)>>();
+		var dict = new Dictionary<(string NameSpace, string ClassType, string ClassName), List<(VariableDeclaratorSyntax, SemanticModel)>>();
 		foreach (var entry in array)
 		{
-			var key = entry.Item1.Parent!.Parent!.Parent!;
+			var type = (TypeDeclarationSyntax)entry.Item1.Parent!.Parent!.Parent!;
+			var namespaceName = type.GetParent<BaseNamespaceDeclarationSyntax>()?.Name.ToString() ?? "Null";
+			var classType = type is ClassDeclarationSyntax ? "class" : "struct";
+			var className = type.Identifier.Text;
+			var key = (namespaceName, classType, className);
 			if (!dict.TryGetValue(key, out var list))
 			{
 				list = [];
@@ -48,15 +52,11 @@ public class JobConfigGenerator : IIncrementalGenerator
 
 		foreach (var kv in dict)
 		{
-			var type = (TypeDeclarationSyntax)kv.Key;
-			var namespaceName = type.GetParent<BaseNamespaceDeclarationSyntax>()?.Name.ToString() ?? "Null";
-			var classType = type is ClassDeclarationSyntax ? "class" : "struct";
-			var className = type.Identifier.Text;
+			var (namespaceName, classType, className) = kv.Key;
 
 			var propertyCodes = new List<string>();
 			foreach (var (variableInfo, model) in kv.Value)
 			{
-				var typeSymbol = model.GetDeclaredSymbol(type) as ITypeSymbol;
 				var field = (FieldDeclarationSyntax)variableInfo.Parent!.Parent!;
 				var variableName = variableInfo.Identifier.ToString();
 				var propertyName = variableName.ToPascalCase();

@@ -33,10 +33,14 @@ public class ConditionBoolGenerator : IIncrementalGenerator
 	/// <param name="array">The array of variable declarators and semantic models.</param>
 	private void Execute(SourceProductionContext context, ImmutableArray<(VariableDeclaratorSyntax, SemanticModel SemanticModel)> array)
 	{
-		var dict = new Dictionary<SyntaxNode, List<(VariableDeclaratorSyntax, SemanticModel)>>();
+		var dict = new Dictionary<(string NameSpace, string ClassType, string ClassName), List<(VariableDeclaratorSyntax, SemanticModel)>>();
 		foreach (var entry in array)
 		{
-			var key = entry.Item1.Parent!.Parent!.Parent!;
+			var type = (TypeDeclarationSyntax)entry.Item1.Parent!.Parent!.Parent!;
+			var nameSpace = type.GetParent<BaseNamespaceDeclarationSyntax>()?.Name.ToString() ?? "Null";
+			var classType = type is ClassDeclarationSyntax ? "class" : "struct";
+			var className = type.Identifier.Text;
+			var key = (nameSpace, classType, className);
 			if (!dict.TryGetValue(key, out var list))
 			{
 				list = new List<(VariableDeclaratorSyntax, SemanticModel)>();
@@ -47,11 +51,7 @@ public class ConditionBoolGenerator : IIncrementalGenerator
 
 		foreach (var kv in dict)
 		{
-			var type = (TypeDeclarationSyntax)kv.Key;
-			var nameSpace = type.GetParent<BaseNamespaceDeclarationSyntax>()?.Name.ToString() ?? "Null";
-			var classType = type is ClassDeclarationSyntax ? "class" : "struct";
-			var className = type.Identifier.Text;
-
+			var (nameSpace, classType, className) = kv.Key;
 			var propertyCodes = GeneratePropertyCodes(kv.Value, context, nameSpace, className);
 
 			if (propertyCodes.Count == 0) continue;

@@ -20,14 +20,18 @@ public class JobChoiceConfigGenerator : IIncrementalGenerator
 
 	private void Execute(SourceProductionContext context, ImmutableArray<(VariableDeclaratorSyntax, SemanticModel SemanticModel)> array)
 	{
-		var typeGroups = array.GroupBy(variable => variable.Item1.Parent!.Parent!.Parent!);
-
-		foreach (var group in typeGroups)
+		var typeGroups = array.GroupBy(variable =>
 		{
-			var type = (TypeDeclarationSyntax)group.Key;
+			var type = (TypeDeclarationSyntax)variable.Item1.Parent!.Parent!.Parent!;
 			var namespaceName = type.GetParent<BaseNamespaceDeclarationSyntax>()?.Name.ToString() ?? "Null";
 			var classType = type is ClassDeclarationSyntax ? "class" : "struct";
 			var className = type.Identifier.Text;
+			return (namespaceName, classType, className);
+		});
+
+		foreach (var group in typeGroups)
+		{
+			var (namespaceName, classType, className) = group.Key;
 
 			var propertyCodes = new List<string>();
 			foreach (var (variableInfo, model) in group)

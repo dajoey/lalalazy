@@ -2,8 +2,8 @@
 
 namespace RotationSolver.RebornRotations.PVPRotations.Healer;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
-[SourceCode(Path = "main/RebornRotations/PVPRotations/Healer/AST_Default.PVP.cs")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.58", RotationType = RotationType.Reborn)]
+[SourceCode(Path = "main/Rotations/Healer/Astrologian/AST_Default.PVP.cs")]
 
 public class AST_DefaultPVP : AstrologianRotation
 {

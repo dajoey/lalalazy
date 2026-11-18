@@ -457,7 +457,7 @@ internal static class RotationUpdater
 				ICustomRotation rotation = validCustomRotationsList[0];
 				foreach (var possibleRotation in validCustomRotationsList)
 				{
-					if (possibleRotation.GetType().FullName == desiredRotationName)
+					if (MatchesRotationName(possibleRotation.GetType(), desiredRotationName))
 					{
 						rotation = possibleRotation;
 						break;
@@ -584,7 +584,7 @@ internal static class RotationUpdater
 		Type? rotation = null;
 		foreach (var r in types)
 		{
-			if (r.FullName == name)
+			if (MatchesRotationName(r, name))
 			{
 				rotation = r;
 				break;
@@ -613,5 +613,17 @@ internal static class RotationUpdater
 		}
 
 		return rotation;
+	}
+
+	private static bool MatchesRotationName(Type type, string? name)
+	{
+		if (string.IsNullOrEmpty(name))
+		{
+			return false;
+		}
+
+		return type.FullName == name
+			|| type.Name == name
+			|| name.EndsWith("." + type.Name, StringComparison.Ordinal);
 	}
 }

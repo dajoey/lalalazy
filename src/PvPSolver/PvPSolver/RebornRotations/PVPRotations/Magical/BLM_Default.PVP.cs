@@ -2,8 +2,8 @@
 
 namespace RotationSolver.RebornRotations.PVPRotations.Magical;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.57", RotationType = RotationType.Reborn)]
-[SourceCode(Path = "main/RebornRotations/PVPRotations/Magical/BLM_Default.PVP.cs")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.58", RotationType = RotationType.Reborn)]
+[SourceCode(Path = "main/Rotations/Magical/BlackMage/BLM_Default.PVP.cs")]
 
 public class BLM_DefaultPVP : BlackMageRotation
 {
