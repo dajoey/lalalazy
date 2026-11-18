@@ -36,11 +36,36 @@ UPSTREAM_REF="upstream/$UPSTREAM_BRANCH"
 # Upstream has renamed this folder twice over its history:
 #   BasicRotations/PVPRotations/        (oldest)
 #   RebornRotations/PVPRotations/
-#   RotationSolver/RebornRotations/PVPRotations/  (current)
+#   RotationSolver/RebornRotations/PVPRotations/  (until 2026-11-17)
+#   RotationSolver/Rotations/<Role>/<Job>/       (current, handled above)
 # The [SourceCode] attribute inside each file often lags these renames.
 SYNC_PAIRS=(
   "RotationSolver/RebornRotations/PVPRotations|src/PvPSolver/PvPSolver/RebornRotations/PVPRotations"
 )
+
+# Upstream reorganised again (2026-11-18, c170c9cd5d): the PvP rotations now sit beside the PvE
+# ones as RotationSolver/Rotations/<Role>/<Job>/<JOB>_Default.PVP.cs (MCH: .PvP.cs). When that
+# layout is present, copy just those files into the local <Role>/ folders.
+NEW_ROOT="RotationSolver/Rotations"
+LOCAL_PVP="src/PvPSolver/PvPSolver/RebornRotations/PVPRotations"
+if git cat-file -e "$UPSTREAM_REF:$NEW_ROOT" 2>/dev/null; then
+  echo "==> Syncing $NEW_ROOT/<Role>/<Job>/*_Default.PVP.cs -> $LOCAL_PVP/<Role>/"
+  rm -rf "$LOCAL_PVP"
+  mkdir -p "$LOCAL_PVP"
+  count=0
+  while IFS= read -r f; do
+    rel="${f#"$NEW_ROOT"/}"
+    role="${rel%%/*}"
+    mkdir -p "$LOCAL_PVP/$role"
+    git show "$UPSTREAM_REF:$f" > "$LOCAL_PVP/$role/${f##*/}"
+    # upstream's namespace is now RotationSolver.Rotations.<Role>.<Job>; this fork keeps
+    # RotationSolver.RebornRotations.PVPRotations.<Role> (the line carries no BOM-sensitive anchor).
+    sed -i -E "s/namespace RotationSolver\.Rotations\.[A-Za-z]+\.[A-Za-z]+;/namespace RotationSolver.RebornRotations.PVPRotations.$role;/" "$LOCAL_PVP/$role/${f##*/}"
+    count=$((count + 1))
+  done < <(git ls-tree -r --name-only "$UPSTREAM_REF" -- "$NEW_ROOT" | grep -iE '^RotationSolver/Rotations/[^/]+/[^/]+/[^/]*_Default\.PVP\.cs$')
+  echo "    copied $count PvP rotation files"
+  SYNC_PAIRS=()
+fi
 
 for pair in "${SYNC_PAIRS[@]}"; do
   upstream_path="${pair%%|*}"
