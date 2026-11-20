@@ -93,7 +93,7 @@ public partial class CustomRotation
 
 		UpdateHealingActions(role, out _);
 		UpdateDefenseActions(out _);
-		UpdateDispelAndRaiseActions(role, out _);
+		UpdateDispelActions(role, out _);
 		UpdatePositionalActions(role, out _);
 		UpdateMovementActions(out _);
 	}
@@ -147,7 +147,7 @@ public partial class CustomRotation
 		}
 	}
 
-	private void UpdateDispelAndRaiseActions(JobRole role, out IAction? act)
+	private void UpdateDispelActions(JobRole role, out IAction? act)
 	{
 		act = null; // Ensure 'act' is assigned before any return
 
@@ -159,13 +159,6 @@ public partial class CustomRotation
 		};
 		IBaseAction.TargetOverride = null;
 
-		IBaseAction.TargetOverride = TargetType.Death;
-		ActionRaiseShirkGCD = role switch
-		{
-			JobRole.Healer => DataCenter.DeathTarget != null && RaiseSpell(out act, true) ? act : null,
-			_ => null,
-		};
-		IBaseAction.TargetOverride = null;
 	}
 
 	private void UpdatePositionalActions(JobRole role, out IAction? act)
@@ -176,12 +169,6 @@ public partial class CustomRotation
 		{
 			JobRole.Melee => null,
 			JobRole.Tank => TankStance?.CanUse(out act) ?? false ? act : null,
-			_ => null,
-		};
-
-		ActionRaiseShirkAbility = role switch
-		{
-			JobRole.Tank => null,
 			_ => null,
 		};
 

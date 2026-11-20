@@ -60,44 +60,6 @@ public partial class RotationConfigWindow : Window
 
 	public bool CNLanguageClient => _cachedDiagInfo?.Language.ToString() == "Chinese";
 
-	private static readonly string[] _supporters =
-	[
-	"Abracon",
-	"Akurosuki",
-	"Aniane",
-	"Baliha",
-	"BangPowNyoom",
-	"Biscuit",
-	"catfourteen",
-	"Chaos_co",
-	"Chris",
-	"Darkaim",
-	"DeadCode",
-	"Drama",
-	"Elena",
-	"Endings",
-	"Enyo",
-	"Hex",
-	"kaen",
-	"Kialdir",
-	"kuromiromi",
-	"Lemon",
-	"LouBird",
-	"Lyn Undercroft",
-	"Miracle Ace",
-	"Miri",
-	"Moniika",
-	"Nekomimi Bakeneko",
-	"Papaya",
-	"Plogons",
-	"prismagreen",
-	"purrpletime",
-	"Savage",
-	"smf26",
-	"Vaex_Darastrix",
-	"KuwoBlack"
-	];
-
 	// Hints system fields
 	private static readonly string[] _baseUsageHints =
 	[
@@ -123,14 +85,13 @@ public partial class RotationConfigWindow : Window
 		"Manage TargetingTypes via chat: /pvpsolver Settings TargetingTypes add|remove <Type>.",
 		"Auto > Action Usage: allow/deny oGCDs, set AoE style, interrupts, and True North.",
 		"Auto > Healing: adjust thresholds and non-healer healing behavior.",
-		"Healer: customize Raise/Swiftcast and prioritization in Auto > Healing.",
 		"Ground AoEs: Auto > Healing has options to place beneficial ground actions smartly.",
 		"Basic > Timer: tune Action Ahead and Min Updating Time to balance performance vs weaving.",
 		"Basic > Auto Switch: auto on/off for countdowns, deaths, area transitions, and more.",
 		"Teaching Mode highlights targets; color is in UI > Information.",
 		"Job tab: edit DNC partner, SGE Kardia tank, and AST card priorities when on those jobs.",
 		"About > Macros lists available chat/macro commands and helpful syntax.",
-		"About > Links: open config folder, GitHub, Ko-fi, and Discord.",
+		"About > Links: open config folder and GitHub.",
 		"Extra > Internal: Backup/Restore configs safely.",
 		"Extra: optional tweaks like removing animation/cooldown delay.",
 		"Click the cube icon at the bottom-left of the sidebar to copy diagnostic info to clipboard.",
@@ -1124,8 +1085,8 @@ public partial class RotationConfigWindow : Window
 						DrawTarget();
 						break;
 
-					case RotationConfigWindowTab.Duty:
-						DrawDutySpecific();
+					case RotationConfigWindowTab.PvpSpecific:
+						DrawPvpSpecific();
 						break;
 
 					case RotationConfigWindowTab.Extra:
@@ -1159,7 +1120,7 @@ public partial class RotationConfigWindow : Window
 			Configs.BasicAutoSwitch => $"Auto > {UiString.ConfigWindow_Basic_AutoSwitch.GetDescription()}",
 			Configs.AutoActionUsage => $"Auto > {UiString.ConfigWindow_Auto_ActionUsage.GetDescription()}",
 			Configs.HealingActionCondition => $"Auto > {UiString.ConfigWindow_Auto_HealingCondition.GetDescription()}",
-			Configs.DutySpecifcPvP => $"Auto > {UiString.ConfigWindow_Duty_PvP.GetDescription()}",
+			Configs.PvpSpecific => $"Auto > {UiString.ConfigWindow_Duty_PvP.GetDescription()}",
 
 			Configs.TargetConfig => $"Target > {UiString.ConfigWindow_Target_Config.GetDescription()}",
 
@@ -1209,8 +1170,8 @@ public partial class RotationConfigWindow : Window
 				_activeTab = RotationConfigWindowTab.Auto;
 				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Auto_HealingCondition.GetDescription());
 				break;
-			case Configs.DutySpecifcPvP:
-				_activeTab = RotationConfigWindowTab.Duty;
+			case Configs.PvpSpecific:
+				_activeTab = RotationConfigWindowTab.PvpSpecific;
 				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_PvP.GetDescription());
 				break;
 
@@ -1238,23 +1199,23 @@ public partial class RotationConfigWindow : Window
 	}
 
 
-	#region DutySpecifc
-	private static void DrawDutySpecific()
+	#region PvpSpecific
+	private static void DrawPvpSpecific()
 	{
-		_dutySpecificHeader?.Draw();
+		_pvpSpecificHeader?.Draw();
 	}
 
-	private static readonly CollapsingHeaderGroup _dutySpecificHeader = new(new Dictionary<Func<string>, Action>
+	private static readonly CollapsingHeaderGroup _pvpSpecificHeader = new(new Dictionary<Func<string>, Action>
 	{
-		{ UiString.ConfigWindow_Duty_PvP.GetDescription, DrawDutySpecifcPvP },
+		{ UiString.ConfigWindow_Duty_PvP.GetDescription, DrawPvpSpecificSettings },
 	})
 	{
 		HeaderSize = HeaderSize,
 	};
 
-	private static void DrawDutySpecifcPvP()
+	private static void DrawPvpSpecificSettings()
 	{
-		_allSearchable.DrawItems(Configs.DutySpecifcPvP);
+		_allSearchable.DrawItems(Configs.PvpSpecific);
 	}
 
 	#endregion
@@ -1314,67 +1275,6 @@ public partial class RotationConfigWindow : Window
 		{ UiString.ConfigWindow_About_Links.GetDescription, DrawAboutLinks },
 	});
 
-	private static void DrawThanksToSupporters()
-	{
-		// Ko-fi CTA
-		if (ImGui.Button("Join this list!"))
-		{
-			Util.OpenLink("https://ko-fi.com/ltscombatreborn");
-		}
-
-		ImGui.Spacing();
-		ImGui.Separator();
-		ImGui.Spacing();
-
-		// Defensive: ensure we have supporters
-		if (_supporters == null || _supporters.Length == 0)
-		{
-			ImGui.TextWrapped("No supporters to display yet. Thank you for checking!");
-			return;
-		}
-
-		// Header text
-		ImGui.TextWrapped($"Special thanks to the {_supporters.Length} supporters (including those not listed here):");
-
-		ImGui.Spacing();
-
-		// Layout: table of supporter names (multi-column, wraps nicely)
-		const int columns = 3;
-		using var table = ImRaii.Table("SupportersTable", columns, ImGuiTableFlags.SizingStretchProp);
-		if (!table)
-			return;
-
-		// Pre-sort for stable display
-		var names = new List<string>(_supporters);
-		names.Sort(StringComparer.OrdinalIgnoreCase);
-
-		// Compute per-row distribution
-		int perCol = (int)Math.Ceiling(names.Count / (float)columns);
-		int idx = 0;
-
-		for (int col = 0; col < columns; col++)
-		{
-			ImGui.TableNextColumn();
-			int end = Math.Min(idx + perCol, names.Count);
-
-			for (int i = idx; i < end; i++)
-			{
-				string name = names[i];
-
-				// Draw each name as a selectable text; right-click copies to clipboard
-				bool selected = ImGui.Selectable(name, false, ImGuiSelectableFlags.AllowDoubleClick);
-
-				// Small visual break
-				ImGui.Spacing();
-			}
-
-			idx = end;
-		}
-
-		ImGui.Spacing();
-		ImGui.Separator();
-		ImGui.Spacing();
-	}
 	private static void DrawAboutMacros()
 	{
 		// Adjust item spacing for better layout
@@ -1403,7 +1303,6 @@ public partial class RotationConfigWindow : Window
 		DisplayCommandHelp(SpecialCommandType.MoveBack);
 		DisplayCommandHelp(SpecialCommandType.Speed);
 		DisplayCommandHelp(SpecialCommandType.DispelStancePositional);
-		DisplayCommandHelp(SpecialCommandType.RaiseShirk);
 		DisplayCommandHelp(SpecialCommandType.AntiKnockback);
 		DisplayCommandHelp(SpecialCommandType.Burst);
 		DisplayCommandHelp(SpecialCommandType.NoCasting);
@@ -3367,8 +3266,7 @@ public partial class RotationConfigWindow : Window
 		{() => DataCenter.CurrentRotation != null ? "Loaded Rotation Info" : string.Empty, DrawDebugRotationStatus},
 		{() => DataCenter.CurrentRotation != null ? "Base Rotation Info" : string.Empty, DrawDebugBaseStatus},
 		{() => "Player Status", DrawStatus },
-		{() => "Raise Info", DrawRaiseInfo },
-		{() => "Duty Info", DrawDutyInfo },
+		{() => "Territory Info", DrawTerritoryInfo },
 		{() => "Party", DrawParty },
 		{() => "Target Data", DrawTargetData },
 		{() => "Next Action", DrawNextAction },
@@ -3412,7 +3310,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"    {condition}");
 		}
 		ImGui.Text($"OnlineStatus: {Player.OnlineStatus.RowId}");
-		ImGui.Text($"CanBeRaised: {Player.Object.CanBeRaised()}");
 		ImGui.Text($"Current Hp: {Player.Object.CurrentHp}");
 		ImGui.Text($"Effective Hp: {ObjectHelper.GetEffectiveHp(Player.Object)}");
 		ImGui.Text($"Effective Hp Percent: {ObjectHelper.GetEffectiveHpPercent(Player.Object)}");
@@ -3534,51 +3431,7 @@ public partial class RotationConfigWindow : Window
 		}
 	}
 
-	private static void DrawRaiseInfo()
-	{
-		ImGui.Text($"Can Raise: {DataCenter.CanRaise()}");
-		ImGui.Text($"Death Target: {DataCenter.DeathTarget}");
-
-		IEnumerable<IBattleChara> deadPartyMembers = DataCenter.PartyMembers.GetDeath();
-		bool hasDeadParty = false;
-		using (var enumerator = deadPartyMembers.GetEnumerator())
-		{
-			if (enumerator.MoveNext()) hasDeadParty = true;
-		}
-		if (hasDeadParty)
-		{
-			ImGui.Text("Dead Party Members:");
-			foreach (var member in deadPartyMembers)
-			{
-				ImGui.Text($"- {member.Name}");
-			}
-		}
-		else
-		{
-			ImGui.Text("Dead Party Members: None");
-		}
-
-		IEnumerable<IBattleChara> deadAllianceMembers = DataCenter.AllianceMembers.GetDeath();
-		bool hasDeadAlliance = false;
-		using (var enumerator = deadAllianceMembers.GetEnumerator())
-		{
-			if (enumerator.MoveNext()) hasDeadAlliance = true;
-		}
-		if (hasDeadAlliance)
-		{
-			ImGui.Text("Dead Alliance Members:");
-			foreach (var member in deadAllianceMembers)
-			{
-				ImGui.Text($"- {member.Name}");
-			}
-		}
-		else
-		{
-			ImGui.Text("Dead Alliance Members: None");
-		}
-	}
-
-	private static unsafe void DrawDutyInfo()
+	private static unsafe void DrawTerritoryInfo()
 	{
 		ImGui.Spacing();
 		ImGui.Text($"DC State: {DataCenter.State}");
@@ -3699,7 +3552,6 @@ public partial class RotationConfigWindow : Window
 		{
 			ImGui.Text($"Is Status Capped: {StatusHelper.IsStatusCapped(battleChara)}");
 			ImGui.Text($"CanSee: {battleChara.CanSee()}");
-			ImGui.Text($"CanBeRaised: {battleChara.CanBeRaised()}");
 			ImGui.Text($"HP: {battleChara.CurrentHp} / {battleChara.MaxHp}");
 			ImGui.Text($"HealthRatio: {battleChara.GetHealthRatio()}");
 			ImGui.Text($"HitboxRadius: {battleChara.HitboxRadius}");
@@ -3728,9 +3580,7 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Boss Icon: {battleChara.IsBossFromIcon()}");
 			ImGui.Text($"Rank: {battleChara.GetObjectNPC()?.Rank.ToString() ?? string.Empty}");
 			ImGui.Text($"Has Positional: {battleChara.HasPositional()}");
-			ImGui.Text($"IsNpcPartyMember: {battleChara.IsNpcPartyMember()}");
 			ImGui.Text($"IsPlayerCharacterChocobo: {battleChara.IsPlayerCharacterChocobo()}");
-			ImGui.Text($"IsFriendlyBattleNPC: {battleChara.IsFriendlyBattleNPC()}");
 			ImGui.Text($"Is Dying: {battleChara.IsDying()}");
 			ImGui.Text($"Is Alive: {battleChara.IsAlive()}");
 			ImGui.Text($"Is Party: {battleChara.IsParty()}");
@@ -3843,11 +3693,6 @@ public partial class RotationConfigWindow : Window
 		{
 			IPCProvider ipcProvider = new();
 			ipcProvider.ActionCommand("Magick Barrier", 7);
-		}
-		if (ImGui.Button("Test Henchman IPC support"))
-		{
-			IPCProvider ipcProvider = new();
-			ipcProvider.ChangeOperatingMode(StateCommandType.Henched);
 		}
 	}
 

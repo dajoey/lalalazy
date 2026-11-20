@@ -1646,15 +1646,6 @@ public struct ActionTargetInfo(IBaseAction action)
 		{
 			switch (type)
 			{
-				case TargetType.Death:
-					{
-						if (DataCenter.DeathTarget != null)
-						{
-							return DataCenter.DeathTarget;
-						}
-					}
-					break;
-
 				case TargetType.Move:
 					break;
 
@@ -1721,15 +1712,6 @@ public struct ActionTargetInfo(IBaseAction action)
 		{
 			switch (targetOverride)
 			{
-				case TargetType.Death:
-					{
-						if (DataCenter.DeathTarget != null)
-						{
-							return DataCenter.DeathTarget;
-						}
-					}
-					break;
-
 				case TargetType.Move:
 					break;
 

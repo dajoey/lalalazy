@@ -42,16 +42,10 @@ public enum SpecialCommandType : byte
 	DispelStancePositional,
 
 	/// <summary>
-	/// Open a window to use Raise or Shirk.
-	/// </summary>
-	[Description("Open a window to use Raise or Shirk.")]
-	RaiseShirk,
-
-	/// <summary>
 	/// Open a window to move forward.
 	/// </summary>
 	[Description("Open a window to move forward.")]
-	MoveForward,
+	MoveForward = 7,
 
 	/// <summary>
 	/// Open a window to move back.
@@ -126,23 +120,12 @@ public enum StateCommandType : byte
 	[Description("Start the addon in Manual mode. You need to choose the target manually. This will bypass any engage settings that you have set up and will start attacking immediately once something is targeted.")]
 	Manual,
 
-	/// <summary>
-	/// 
-	/// </summary>
-	[Description("This mode is managed by the Autoduty plugin")]
-	AutoDuty,
-
-	/// <summary>
-	/// 
-	/// </summary>
-	[Description("This mode is managed by the Henchman plugin, or any other plugin that requires PvP Solver to just do rotation and not targeting.")]
-	Henched,
 
 	/// <summary>
 	/// 
 	/// </summary>
 	[Description("Optional mode for PvP specific activities.")]
-	PvP,
+	PvP = 6,
 }
 
 /// <summary>

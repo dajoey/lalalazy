@@ -13,7 +13,7 @@ internal partial class Configs : IPluginConfiguration
 	public const string
 		BasicTimer = "BasicTimer",
 		BasicAutoSwitch = "BasicAutoSwitch",
-		DutySpecifcPvP = "DutySpecifcPvP",
+		PvpSpecific = "PvpSpecific",
 		BasicParams = "BasicParams",
 		UiInformation = "UiInformation",
 		UiWindows = "UiWindows",
@@ -41,79 +41,79 @@ internal partial class Configs : IPluginConfiguration
 	public List<TargetingType> TargetingTypes { get; set; } = [];
 
 
-	#region Duty Specific
+	#region PvP Specific
 
 
 	#endregion
 
 	#region PvP
 	[JobConfig, UI("The HP for using Guard.",
-		Filter = DutySpecifcPvP)]
+		Filter = PvpSpecific)]
 	[Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	public float HealthForGuard { get; set; } = 0.15f;
 
-	[ConditionBool, UI("Ignore TTK for PvP purposes.", Filter = DutySpecifcPvP)]
+	[ConditionBool, UI("Ignore TTK for PvP purposes.", Filter = PvpSpecific)]
 	private static readonly bool _ignorePvPTTK = true;
 
-	[ConditionBool, UI("Prioritize A tier tomeliths in Shatter.", Filter = DutySpecifcPvP)]
+	[ConditionBool, UI("Prioritize A tier tomeliths in Shatter.", Filter = PvpSpecific)]
 	private static readonly bool _prioAtomelith = false;
 
-	[ConditionBool, UI("Prioritize B tier tomeliths in Shatter.", Filter = DutySpecifcPvP)]
+	[ConditionBool, UI("Prioritize B tier tomeliths in Shatter.", Filter = PvpSpecific)]
 	private static readonly bool _prioBtomelith = false;
 
-	[JobConfig, UI("Ignore Invincibility for PvP purposes.", Filter = DutySpecifcPvP)]
+	[JobConfig, UI("Ignore Invincibility for PvP purposes.", Filter = PvpSpecific)]
 	private static readonly bool _ignorePvPInvincibility = false;
 
 	[ConditionBool, UI("Auto turn off when dead in PvP.",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _autoOffWhenDeadPvP = true;
 
 	[ConditionBool, UI("Auto turn off when PvP match ends.",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _autoOffPvPMatchEnd = true;
 
 	[ConditionBool, UI("Auto turn on when PvP match starts.",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _autoOnPvPMatchStart = true;
 
 	[ConditionBool, UI("Set PvP Solver to PvP specific state when enabled in PvP zone.",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpStateControl = false;
 
 	[ConditionBool, UI("Don't use any actions while in Guard.",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpGuardControl = true;
 
 	[ConditionBool, UI("Use Purify to remove Stun debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifyStun = true;
 
 	[ConditionBool, UI("Use Purify to remove Silence debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifySilence = true;
 
 	[ConditionBool, UI("Use Purify to remove Deep Freeze debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifyDeepFreeze = true;
 
 	[ConditionBool, UI("Use Purify to remove Miracle of Nature debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifyMiracleOfNature = true;
 
 	[ConditionBool, UI("Use Purify to remove Heavy debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifyHeavy = false;
 
 	[ConditionBool, UI("Use Purify to remove Bind debuff",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpPurifyBind = false;
 
 	[ConditionBool, UI("Lock out GCD cycle if you are below 50% HP and have over 2000 MP for heals (Experimental).",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpGCDLockControl = true;
 
 	[ConditionBool, UI("Allow Sprint when no target is set even if youre in range of hostiles (Experimental).",
-		 Filter = DutySpecifcPvP)]
+		 Filter = PvpSpecific)]
 	private static readonly bool _pvpAllowSprintWithoutTarget = true;
 
 	#endregion
@@ -182,15 +182,10 @@ internal partial class Configs : IPluginConfiguration
 	Filter = BasicAutoSwitch)]
 	private static readonly bool _autoOffSwitchClass = true;
 
-	[ConditionBool, UI("Auto turn off when dead in PvE.",
+	[ConditionBool, UI("Auto turn off when dead.",
 	Description = "Automatically turn off combat state when your character dies.",
 	Filter = BasicAutoSwitch)]
 	private static readonly bool _autoOffWhenDead = true;
-
-	[ConditionBool, UI("Auto turn off when duty is completed.",
-	Description = "Automatically turn off combat state when a duty (instance) ends.",
-	Filter = BasicAutoSwitch)]
-	private static readonly bool _autoOffWhenDutyCompleted = true;
 
 	[ConditionBool, UI("Enable changelog window popup on update",
 	Description = "Show a popup window with the changelog when the plugin updates.",
@@ -277,14 +272,6 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Auto turn on auto mode when party is in combat.",
 			   Parent = nameof(AutoOnYes))]
 	private static readonly bool _startOnPartyIsInCombat2 = false;
-
-	[ConditionBool, UI("Auto turn on auto mode when alliance is in combat.",
-			   Parent = nameof(AutoOnYes))]
-	private static readonly bool _startOnAllianceIsInCombat2 = false;
-
-	[ConditionBool, UI("Auto turn on auto mode when in combat in Bozja/Eureka/Occult Fate/CE",
-			   Parent = nameof(AutoOnYes))]
-	private static readonly bool _startOnFieldOpInCombat2 = false;
 
 	/// <markdown file="Auto" name="Use healing abilities when playing a non-healer role" section="Healing Usage and Control">
 	/// Allow usage of healing abilities when not playing as a healer (such as Vercure, Bloodbath, etc.)
@@ -419,7 +406,7 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Auto-use oGCD abilities", Filter = AutoActionUsage)]
 	private static readonly bool _useAbility = true;
 
-	[ConditionBool, UI("Use defensive actions", Filter = AutoActionUsage, Description = "It is recommended to check this option if you are playing Raids or you can plan the heal and defense ability usage by yourself.")]
+	[ConditionBool, UI("Use defensive actions", Filter = AutoActionUsage, Description = "It is recommended to check this option if you can plan the heal and defense ability usage by yourself.")]
 	private static readonly bool _useDefenseAbility = true;
 
 	[ConditionBool, UI("Automatically use Single Target defensive actions", Filter = AutoActionUsage, Parent = nameof(UseDefenseAbility))]
@@ -456,9 +443,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[ConditionBool, UI("Use movement speed increase abilities when out of combat and in duty.", Parent = nameof(UseAbility))]
 	private static readonly bool _autoSpeedOutOfCombat = true;
-
-	[ConditionBool, UI("Use movement speed increase abilities when out of combat and out of duty.", Parent = nameof(UseAbility))]
-	private static readonly bool _autoSpeedOutOfCombatNoDuty = false;
 
 	[ConditionBool, UI("Use beneficial ground-targeted actions", Description = "1.    Self-Target Fallback:\r\nIf range is zero, always targets the player and returns all affectable targets at the player's position.\r\n2.    Preferred Positions (OnLocations):\r\n•    Tries to get predefined beneficial positions for the current territory.\r\n•    If none are found and the content is a trial or raid, uses fallback points (e.g., 0,0 or 100,100 point as those are the center of arenas most of the time).\r\n•    Picks the closest point to the player, applies a small random offset, and checks if it’s within effect range.\r\n•    If so, returns that as the target area.\r\n3.    Boss Positional Fallback:\r\n•    If the current target is a boss with positional requirements and within range, uses the boss’s position (or a point within range) as the target area.\r\n4.    Party Member Fallback:\r\n•    Gathers party members within range + effect range.\r\n•    Attempts to find a party member who is being attacked (tank or focus target).\r\n•    If found, calculates whether to stay at the player’s position or move closer to the tank, based on distances and effect range.\r\n•    If not found or not needed, defaults to the player’s position.", Filter = HealingActionCondition, Section = 3)]
 	private static readonly bool _useGroundBeneficialAbility = true;
@@ -567,61 +551,8 @@ internal partial class Configs : IPluginConfiguration
 	[Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	public float HealthSelfRatio { get; set; } = 0.4f;
 
-	#region
-	[JobConfig, UI("Prioritize raising dead players over Healing/Defense.",
-		Filter = HealingActionCondition, Section = 2)]
-	private static readonly bool _raisePlayerFirst = false;
-
-	[JobConfig, UI("Raise player by using Swiftcast/Dualcast if available", Description = "If this is disabled, you will never use Swiftcast/Dualcast to raise players.",
-		Filter = HealingActionCondition, Section = 2)]
-	private static readonly bool _raisePlayerBySwift = true;
-
-	[JobConfig, UI("Hard cast Raise logic",
-		Filter = HealingActionCondition, Section = 2)]
-	private readonly HardCastRaiseType _HardCastRaiseType = HardCastRaiseType.HardCastNormal;
-
-	[JobConfig, UI("Raise styles",
-		Filter = HealingActionCondition, Section = 2)]
-	private readonly RaiseType _RaiseType = RaiseType.PartyOnly;
-
-	[JobConfig, UI("Raise players that have the Brink of Death debuff",
-		Filter = HealingActionCondition, Section = 2)]
-	private static readonly bool _raiseBrinkOfDeath = true;
-
-	[JobConfig, UI("Raise non-Healers from bottom of party list to the top (Light Party 2 Healer Behavior)",
-		Filter = HealingActionCondition, Section = 2)]
-	private static readonly bool _h2 = false;
-
-	[JobConfig, UI("Raise Red Mage and Summoners first if no Tanks or Healers are dead",
-		Filter = HealingActionCondition, Section = 2)]
-	private static readonly bool _offRaiserRaise = false;
-
-	#endregion
-
-	/// <markdown file="Auto" name="How early before next GCD should PvP Solver use swiftcast for raise" section="Healing Usage and Control">
-	/// If your cast a GCD and your cooldown is of 2.5 seconds, if a teammate dies when your cooldown starts, the Swiftcast action will wait
-	/// the specified amount of time before your cooldown ends to cast Swiftcast. This is to prevent using your Swiftcast too early and waste it
-	/// if your co-healer manages to raise your target within your global cooldown period.
-	/// </markdown>
-	[JobConfig, UI("How early before next GCD should PvP Solver use swiftcast for raise",
-		Filter = HealingActionCondition, Section = 2)]
-	[Range(0, 1.0f, ConfigUnitType.Seconds, 0.01f)]
-	public float SwiftcastBuffer { get; set; } = 0.6f;
-
-	/// <markdown file="Auto" name="Random delay range for resurrecting players" section="Healing Usage and Control">
-	/// In order to not make is so obvious that you use PvP Solver, casting a raise action will be delayed by a random amount of seconds
-	/// between the two values.
-	/// </markdown>
-	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
-	public Vector2 RaiseDelay2 { get; set; } = new(3f, 3f);
-
 	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 EsunaDelay { get; set; } = new(0f, 0f);
-
-	[Range(0, 10000, ConfigUnitType.None, 100)]
-	[UI("Never raise player if MP is less than this",
-		Filter = HealingActionCondition, Section = 2)]
-	public int LessMPNoRaise { get; set; } = 2400;
 
 	/// <markdown file="Extra" name="HP standard deviation for using AoE heal">
 	/// Controls how much party members' HP must differ before using AoE healing instead
@@ -636,22 +567,6 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Heal party members when not in combat.",
 		Filter = HealingActionCondition, Section = 3)]
 	private static readonly bool _healOutOfCombat = false;
-
-	[ConditionBool, UI("Heal solo instance NPCs (Only enable as needed)", Description = "Experimental.",
-		Filter = HealingActionCondition, Section = 3)]
-	private static readonly bool _friendlyBattleNPCHeal = false;
-
-	[ConditionBool, UI("Heal and raise Party NPCs.",
-		Filter = HealingActionCondition, Section = 3)]
-	private static readonly bool _friendlyPartyNPCHealRaise3 = true;
-
-	[ConditionBool, UI("Treat your chocobo as a party member",
-		Filter = HealingActionCondition, Section = 3)]
-	private static readonly bool _chocoboPartyMember = false;
-
-	[ConditionBool, UI("Treat focus targeted player as party member in alliance raids", Description = "Experimental, includes Chaotic.",
-		Filter = HealingActionCondition, Section = 3)]
-	private static readonly bool _focusTargetIsParty = false;
 
 	[ConditionBool, UI("Heal party members with GCD if there is nothing to do in combat.",
 		Filter = HealingActionCondition, Section = 3)]
@@ -761,18 +676,7 @@ internal partial class Configs : IPluginConfiguration
 	[Range(10, 150, ConfigUnitType.None, 1f)]
 	public int CooldownAdjustMaxMs { get; set; } = 100;
 
-	// Cactbot timeline integration
-	[ConditionBool, UI("Enable cactbot timeline integration (Extremely experimental)",
-		Description = "Connects to OverlayPlugin's WebSocket server and reacts to cactbot broadcast messages (raidwide, tankbuster, knockback, downtime/untargetable).",
-		Filter = Extra)]
-	private static readonly bool _enableCactbotTimeline = false;
-
-	[ConditionBool, UI("Show cactbot event toasts (debug)",
-	Description = "Show a toast when a cactbot broadcast is received and mapped to a RotationSolver special.",
-	Filter = Extra)]
-	private static readonly bool _showCactbotToasts = false;
-
-	[UI("Highlight color.", Parent = nameof(TeachingMode))]
+		[UI("Highlight color.", Parent = nameof(TeachingMode))]
 	public Vector4 TeachingModeColor { get; set; } = new(0f, 1f, 0f, 1f);
 
 	[UI("Target color", Parent = nameof(TargetColor))]
@@ -814,11 +718,6 @@ internal partial class Configs : IPluginConfiguration
 	Filter = TargetConfig)]
 	private static readonly bool _filterOneHPInvincible = true;
 
-	[ConditionBool, UI("Ignore Non-Fate targets while in a Fate and Fate targets if not in Fate.",
-	Description = "When in a Fate, only Fate targets are considered. When not in a Fate, Fate targets are ignored.",
-	Filter = TargetConfig)]
-	private static readonly bool _ignoreNonFateInFate = true;
-
 	[ConditionBool, UI("Move to the furthest position for targeting area movement actions.",
 		Filter = TargetConfig, Section = 2)]
 	private static readonly bool _moveAreaActionFarthest = false;
@@ -838,10 +737,6 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Only attack targets in vision cone",
 				Filter = TargetConfig, Section = 1)]
 	private static readonly bool _onlyAttackInVisionCone = false;
-
-	[ConditionBool, UI("Target Hunt/Relic/Leve priority. (Relic behavior bugged)",
-		Filter = TargetConfig, Section = 1)]
-	private static readonly bool _targetHuntingRelicLevePriority = true;
 
 	[ConditionBool, UI("Ignore target dummies",
 					   Filter = TargetConfig, Section = 1)]

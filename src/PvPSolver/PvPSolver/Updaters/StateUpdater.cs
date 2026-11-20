@@ -50,8 +50,6 @@ internal static class StateUpdater
 			status |= AutoStatus.DefenseArea;
 		if (ShouldAddDefenseSingle())
 			status |= AutoStatus.DefenseSingle;
-		if (ShouldAddRaise())
-			status |= AutoStatus.Raise;
 		if (ShouldAddProvoke())
 			status |= AutoStatus.Provoke;
 		if (ShouldAddTankStance())
@@ -76,11 +74,6 @@ internal static class StateUpdater
 			return true;
 		}
 		return false;
-	}
-
-	private static bool ShouldAddRaise()
-	{
-		return DataCenter.DeathTarget != null;
 	}
 
 	private static bool ShouldAddPositional()
@@ -456,11 +449,6 @@ internal static class StateUpdater
 			return true;
 		}
 
-		if (DataCenter.IsMoving && DataCenter.NotInCombatDelay && !DataCenter.IsInDuty && Service.Config.AutoSpeedOutOfCombatNoDuty)
-		{
-			return true;
-		}
-
 		return false;
 	}
 
@@ -586,8 +574,6 @@ internal static class StateUpdater
 			SpecialCommandType.DispelStancePositional => AutoStatus.Dispel
 								| AutoStatus.TankStance
 								| AutoStatus.Positional,
-			SpecialCommandType.RaiseShirk => AutoStatus.Raise
-								| AutoStatus.Shirk,
 			SpecialCommandType.MoveForward => AutoStatus.MoveForward,
 			SpecialCommandType.MoveBack => AutoStatus.MoveBack,
 			SpecialCommandType.AntiKnockback => AutoStatus.AntiKnockback,

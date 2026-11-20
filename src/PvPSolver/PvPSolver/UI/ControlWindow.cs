@@ -190,11 +190,6 @@ internal class ControlWindow : CtrlWindow
 
 		ImGui.SameLine();
 
-		DrawCommandAction(rotation?.ActionRaiseShirkGCD, rotation?.ActionRaiseShirkAbility,
-			SpecialCommandType.RaiseShirk, Theme.TextSecondary);
-
-		ImGui.SameLine();
-
 
 		DrawCommandAction(rotation?.ActionAntiKnockbackAbility,
 			SpecialCommandType.AntiKnockback, Theme.TextSecondary);

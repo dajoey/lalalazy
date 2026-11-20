@@ -90,102 +90,6 @@ public partial class CustomRotation
 				}
 			}
 
-			IBaseAction.TargetOverride = TargetType.Death;
-
-			HardCastRaiseType hardcastraisetype = Service.Config.HardCastRaiseType;
-
-			if (DataCenter.MergedStatus.HasFlag(AutoStatus.Raise) && DataCenter.CanRaise() && Service.Config.RaisePlayerFirst)
-			{
-				if (RaiseSpell(out act, false))
-				{
-					return act;
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastNormal)
-				{
-					if (RaiseSpell(out act, true))
-					{
-						return act;
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastSwiftCooldown)
-				{
-					if (Raise != null && false)
-					{
-						if (RaiseSpell(out act, true))
-						{
-							return act;
-						}
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastOnlyHealer)
-				{
-					var deadhealers = new HashSet<IBattleChara>();
-					if (DataCenter.PartyMembers != null)
-					{
-						foreach (var battleChara in DataCenter.PartyMembers.GetDeath())
-						{
-							if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-							{
-								deadhealers.Add(battleChara);
-							}
-						}
-					}
-
-					var allhealers = new HashSet<IBattleChara>();
-					if (DataCenter.PartyMembers != null)
-					{
-						foreach (var battleChara in DataCenter.PartyMembers)
-						{
-							if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-							{
-								allhealers.Add(battleChara);
-							}
-						}
-					}
-					if (RaiseSpell(out act, true) && deadhealers.Count == allhealers.Count && deadhealers.Count > 0)
-					{
-						return act;
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastOnlyHealerSwiftCooldown)
-				{
-					if (Raise != null && false)
-					{
-						var deadhealers = new HashSet<IBattleChara>();
-						if (DataCenter.PartyMembers != null)
-						{
-							foreach (var battleChara in DataCenter.PartyMembers.GetDeath())
-							{
-								if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-								{
-									deadhealers.Add(battleChara);
-								}
-							}
-						}
-
-						var allhealers = new HashSet<IBattleChara>();
-						if (DataCenter.PartyMembers != null)
-						{
-							foreach (var battleChara in DataCenter.PartyMembers)
-							{
-								if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-								{
-									allhealers.Add(battleChara);
-								}
-							}
-						}
-						if (RaiseSpell(out act, true) && deadhealers.Count == allhealers.Count && deadhealers.Count > 0)
-						{
-							return act;
-						}
-					}
-				}
-			}
-
 			IBaseAction.TargetOverride = null;
 
 			if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveForward))
@@ -258,100 +162,6 @@ public partial class CustomRotation
 			{
 			}
 
-			IBaseAction.TargetOverride = TargetType.Death;
-
-			if (DataCenter.MergedStatus.HasFlag(AutoStatus.Raise) && DataCenter.CanRaise() && !Service.Config.RaisePlayerFirst)
-			{
-				if (RaiseSpell(out act, false))
-				{
-					return act;
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastNormal)
-				{
-					if (RaiseSpell(out act, true))
-					{
-						return act;
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastSwiftCooldown)
-				{
-					if (Raise != null && false)
-					{
-						if (RaiseSpell(out act, true))
-						{
-							return act;
-						}
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastOnlyHealer)
-				{
-					var deadhealers = new HashSet<IBattleChara>();
-					if (DataCenter.PartyMembers != null)
-					{
-						foreach (var battleChara in DataCenter.PartyMembers.GetDeath())
-						{
-							if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-							{
-								deadhealers.Add(battleChara);
-							}
-						}
-					}
-
-					var allhealers = new HashSet<IBattleChara>();
-					if (DataCenter.PartyMembers != null)
-					{
-						foreach (var battleChara in DataCenter.PartyMembers)
-						{
-							if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-							{
-								allhealers.Add(battleChara);
-							}
-						}
-					}
-					if (RaiseSpell(out act, true) && deadhealers.Count == allhealers.Count && deadhealers.Count > 0)
-					{
-						return act;
-					}
-				}
-
-				if (hardcastraisetype == HardCastRaiseType.HardCastOnlyHealerSwiftCooldown)
-				{
-					if (Raise != null && false)
-					{
-						var deadhealers = new HashSet<IBattleChara>();
-						if (DataCenter.PartyMembers != null)
-						{
-							foreach (var battleChara in DataCenter.PartyMembers.GetDeath())
-							{
-								if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-								{
-									deadhealers.Add(battleChara);
-								}
-							}
-						}
-
-						var allhealers = new HashSet<IBattleChara>();
-						if (DataCenter.PartyMembers != null)
-						{
-							foreach (var battleChara in DataCenter.PartyMembers)
-							{
-								if (TargetFilter.IsJobCategory(battleChara, JobRole.Healer) && !battleChara.IsPlayer())
-								{
-									allhealers.Add(battleChara);
-								}
-							}
-						}
-						if (RaiseSpell(out act, true) && deadhealers.Count == allhealers.Count && deadhealers.Count > 0)
-						{
-							return act;
-						}
-					}
-				}
-			}
-
 			IBaseAction.TargetOverride = null;
 
 			IBaseAction.ShouldEndSpecial = false;
@@ -418,50 +228,6 @@ public partial class CustomRotation
 		return null;
 	}
 
-	private bool RaiseSpell(out IAction? act, bool mustUse)
-	{
-		act = null;
-
-		if (DataCenter.CanRaise())
-		{
-			if (DataCenter.CommandStatus.HasFlag(AutoStatus.Raise))
-			{
-				IBaseAction.ShouldEndSpecial = true;
-
-				if (RaiseGCD(out act))
-				{
-					return true;
-				}
-			}
-			IBaseAction.ShouldEndSpecial = false;
-
-			if (DataCenter.AutoStatus.HasFlag(AutoStatus.Raise))
-			{
-
-				if (RaiseGCD(out act))
-				{
-					if (HasSwift || IsLastAction(DataCenter.IsPvP ? ActionID.SwiftPvP : ActionID.SwiftcastPvE))
-					{
-						return true;
-					}
-
-					if (Service.Config.RaisePlayerBySwift && WeaponRemain <= 0.5f)
-					{
-						return true;
-					}
-
-					if (mustUse && !IsMoving)
-					{
-						return true;
-					}
-				}
-			}
-
-			return false;
-		}
-		return false;
-	}
-
 	/// <summary>
 	/// Attempts to use the Interrupt GCD action.
 	/// </summary>
@@ -475,22 +241,6 @@ public partial class CustomRotation
 			return false;
 		}
 
-		act = null; return false;
-	}
-
-	/// <summary>
-	/// Attempts to use the Raise GCD action.
-	/// </summary>
-	/// <param name="act">The action to be performed.</param>
-	/// <returns>True if the action can be used; otherwise, false.</returns>
-	protected virtual bool RaiseGCD(out IAction? act)
-	{
-		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Raise))
-		{
-			IBaseAction.ShouldEndSpecial = true;
-		}
-
-		IBaseAction.ShouldEndSpecial = false;
 		act = null; return false;
 	}
 

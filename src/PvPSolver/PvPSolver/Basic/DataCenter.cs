@@ -32,8 +32,6 @@ internal static class DataCenter
 
 	public static IBattleChara? ProvokeTarget { get; set; }
 
-	public static IBattleChara? DeathTarget { get; set; }
-
 	public static IBattleChara? DispelTarget { get; set; }
 
 	public static List<IBattleChara> AllTargets { get; set; } = [];
@@ -307,10 +305,6 @@ internal static class DataCenter
 
 	public static bool IsManual { get; set; } = false;
 
-	public static bool IsAutoDuty { get; set; } = false;
-
-	public static bool IsHenched { get; set; } = false;
-
 	public static bool IsPvPStateEnabled { get; set; } = false;
 
 	public static bool IsTargetOnly { get; set; } = false;
@@ -438,27 +432,6 @@ internal static class DataCenter
 
 	#region Job Info
 	public static Job Job => Player.Job;
-
-	public static bool CanRaise()
-	{
-		if (IsPvP)
-		{
-			return false;
-		}
-
-		if ((Role == JobRole.Healer || Job == Job.SMN) && PlayerSyncedLevel() >= 12)
-		{
-			return true;
-		}
-
-		if (Job == Job.RDM && PlayerSyncedLevel() >= 64)
-		{
-			return true;
-		}
-
-
-		return false;
-	}
 
 	public static JobRole Role
 	{

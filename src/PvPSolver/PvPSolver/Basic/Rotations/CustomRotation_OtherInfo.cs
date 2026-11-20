@@ -861,11 +861,6 @@ public partial class CustomRotation
 	public virtual bool CanHealSingleSpell => true;
 
 	/// <summary>
-	/// 
-	/// </summary>
-	public static int RaiseMPMinimum => Service.Config.LessMPNoRaise;
-
-	/// <summary>
 	/// Is PvP Solver enabled.
 	/// </summary>
 	[Description("The state of auto. True for on.")]

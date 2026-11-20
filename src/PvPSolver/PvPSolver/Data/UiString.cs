@@ -93,9 +93,6 @@ namespace RotationSolver.Data
 		[Description("Causes the game to crash")]
 		ConfigWindow_About_Compatibility_Crash,
 
-		[Description("Many thanks to Ko-fi sponsors.")]
-		ConfigWindow_About_ThanksToSupporters,
-
 		[Description("Open Config Folder")]
 		ConfigWindow_About_OpenConfigFolder,
 
@@ -548,9 +545,6 @@ namespace RotationSolver.Data
 
 		[Description("Shirk")]
 		SpecialCommandType_Shirk,
-
-		[Description("Raise")]
-		SpecialCommandType_Raise,
 
 		[Description("Move Forward")]
 		SpecialCommandType_MoveForward,

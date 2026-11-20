@@ -40,51 +40,6 @@ public static class TargetFilter
 
 	#region Find one target
 	/// <summary>
-	/// Get the dead ones in the list.
-	/// </summary>
-	/// <param name="charas">The list of characters.</param>
-	/// <returns>The dead characters.</returns>
-	public static IEnumerable<IBattleChara> GetDeath(this IEnumerable<IBattleChara> charas)
-	{
-		if (charas == null) yield break;
-
-		foreach (IBattleChara item in charas)
-		{
-			if (item == null)
-				continue;
-			if (!item.IsDead)
-				continue;
-			if (item.CurrentHp != 0 || !item.IsTargetable || item.IsTargetMoving() || item.IsEnemy())
-				continue;
-			RaiseType raisetype = Service.Config.RaiseType;
-
-			if (raisetype == RaiseType.AllOutOfDuty)
-			{
-				if (!item.IsParty() && !item.IsOtherPlayerOutOfDuty())
-					continue;
-			}
-			if (raisetype != RaiseType.AllOutOfDuty)
-			{
-				if (!item.IsParty() && !item.IsAllianceMember())
-					continue;
-			}
-			if (item.DistanceToPlayer() > 30)
-				continue;
-			if (!item.CanSee())
-				continue;
-			if (item.HasStatus(false, StatusID.Raise))
-				continue;
-			if (item.HasStatus(false, StatusID.ResurrectionDenied))
-				continue;
-			if (!Service.Config.RaiseBrinkOfDeath && item.HasStatus(false, StatusID.BrinkOfDeath))
-				continue;
-			if (!item.CanBeRaised())
-				continue;
-			yield return item;
-		}
-	}
-
-	/// <summary>
 	/// Get the specific roles members.
 	/// </summary>
 	/// <param name="objects">The list of objects.</param>

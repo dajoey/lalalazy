@@ -257,7 +257,6 @@ public static class ObjectHelper
 		// Tar on me
 		return (battleChara.TargetObject == Player.Object)
 			|| (Player.Object != null && battleChara.TargetObject?.OwnerId == Player.Object.GameObjectId)
-			|| DataCenter.IsHenched
 			|| DataCenter.CurrentTargetToHostileType switch
 			{
 				TargetHostileType.AllTargetsCanAttack => true,
@@ -343,24 +342,6 @@ public static class ObjectHelper
 			|| ActionManager.CanUseActionOnTarget((uint)ActionID.CurePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Struct()));
 	}
 
-	internal static unsafe bool IsOtherPlayerOutOfDuty(this ICharacter obj)
-	{
-		return obj.GameObjectId is not 0
-			&& !DataCenter.IsPvP && obj is IPlayerCharacter
-			&& (ActionManager.CanUseActionOnTarget((uint)ActionID.RaisePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Struct())
-			|| ActionManager.CanUseActionOnTarget((uint)ActionID.CurePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Struct()));
-	}
-
-	internal static unsafe bool CanBeRaised(this IBattleChara battleChara)
-	{
-		if (battleChara == null)
-			return false;
-		if (!battleChara.IsTargetable)
-			return false;
-
-		return ActionManager.CanUseActionOnTarget((uint)ActionID.RaisePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleChara.Struct());
-	}
-
 	internal static unsafe bool IsPlayer(this IBattleChara battleChara)
 	{
 		return battleChara == Player.Object;
@@ -435,26 +416,6 @@ public static class ObjectHelper
 			}
 		}
 
-		if (Service.Config.FriendlyPartyNpcHealRaise3 && battleChara.IsNpcPartyMember())
-		{
-			return true;
-		}
-
-		if (Service.Config.ChocoboPartyMember && battleChara.IsPlayerCharacterChocobo())
-		{
-			return true;
-		}
-
-		if (Service.Config.FriendlyBattleNpcHeal && battleChara.IsFriendlyBattleNPC())
-		{
-			return true;
-		}
-
-		if (Service.Config.FocusTargetIsParty && battleChara.IsFocusTarget() && battleChara.IsAllianceMember())
-		{
-			return true;
-		}
-
 		return false;
 	}
 
@@ -466,31 +427,6 @@ public static class ObjectHelper
 		}
 
 		return battleChara.GameObjectId == Svc.Buddies.PetBuddy.GameObject?.GameObjectId;
-	}
-
-	internal static bool IsNpcPartyMember(this IBattleChara battleChara)
-	{
-		if (battleChara.IsPet())
-		{
-			return false;
-		}
-
-		return battleChara.GetBattleNPCSubKind() == BattleNpcSubKind.NpcPartyMember;
-	}
-
-	internal static bool IsFriendlyBattleNPC(this IBattleChara battleChara)
-	{
-		if (DataCenter.TerritoryID == 952)
-		{
-			return false;
-		}
-
-		if (battleChara.IsPet())
-		{
-			return false;
-		}
-
-		return battleChara.GetNameplateKind() == NameplateKind.FriendlyBattleNPC;
 	}
 
 	internal static bool IsPlayerCharacterChocobo(this IBattleChara battleChara)
@@ -696,16 +632,6 @@ public static class ObjectHelper
 
 		uint icon = battleChara.GetNamePlateIcon();
 
-		if (Service.Config.TargetHuntingRelicLevePriority && (icon == 60092 || icon == 60094 || icon == 60096 || icon == 60097 || icon == 60098 || icon == 71244))
-		{
-			return true;
-		}
-		//60092 Hunt Log
-		//60094 Treasure Mob
-		//60096 Relic Weapon
-		//60097 Hunt Bill
-		//60098 Crescent
-		//71244 Leve Target
 
 		// Quest
 		//71204 Main Quest

@@ -104,8 +104,6 @@ public interface ICustomRotation : ITexture
 	internal IAction? ActionSpeedAbility { get; }
 	internal IAction? ActionDispelStancePositionalGCD { get; }
 	internal IAction? ActionDispelStancePositionalAbility { get; }
-	internal IAction? ActionRaiseShirkGCD { get; }
-	internal IAction? ActionRaiseShirkAbility { get; }
 	internal IAction? ActionAntiKnockbackAbility { get; }
 
 	/// <summary>

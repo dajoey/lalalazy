@@ -20,7 +20,7 @@ public enum TargetHostileType : byte
 	/// <summary>
 	/// All targets when solo in duty, or previously engaged.
 	/// </summary>
-	[Description("All targets when solo in duty (includes Occult Crescent), or previously engaged.")]
+	[Description("All targets when solo in an instance, or previously engaged.")]
 	AllTargetsWhenSoloInDuty,
 
 	/// <summary>
@@ -28,12 +28,6 @@ public enum TargetHostileType : byte
 	/// </summary>
 	[Description("All targets when solo, or previously engaged.")]
 	AllTargetsWhenSolo,
-
-	/// <summary>
-	/// Solo Deep Dungeons: out of combat pull the nearest single enemy; in combat only previously engaged.
-	/// </summary>
-	[Description("Solo Deep Dungeons: if solo, out of combat pull the nearest single enemy; in combat only previously engaged.")]
-	SoloDeepDungeonSmart,
 
 	//[Description("Only attack targets in your parties enemy list")]
 	//TargetIsInEnemiesList,

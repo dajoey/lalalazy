@@ -9,8 +9,6 @@ namespace RotationSolver.Updaters;
 internal static partial class TargetUpdater
 {
 	private static readonly ObjectListDelay<IBattleChara>
-		_raisePartyTargets = new(() => Service.Config.RaiseDelay2),
-		_raiseAllTargets = new(() => Service.Config.RaiseDelay2),
 		_dispelPartyTargets = new(() => Service.Config.EsunaDelay);
 
 
@@ -28,7 +26,6 @@ internal static partial class TargetUpdater
 			DataCenter.PartyMembers.Clear();
 			DataCenter.AllianceMembers.Clear();
 			DataCenter.AllHostileTargets.Clear();
-			DataCenter.DeathTarget = null;
 			DataCenter.DispelTarget = null;
 			DataCenter.ProvokeTarget = null;
 			DataCenter.InterruptTarget = null;
@@ -37,7 +34,6 @@ internal static partial class TargetUpdater
 		}
 
 		UpdateLists();
-		DataCenter.DeathTarget = GetDeathTarget();
 		DataCenter.DispelTarget = GetDispelTarget();
 		DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank || StatusHelper.PlayerHasStatus(true, StatusID.VariantUltimatumSet))
 			? GetFirstHostileTarget(ObjectHelper.CanProvoke)
@@ -66,8 +62,6 @@ internal static partial class TargetUpdater
 
 		// Track party membership by id to avoid O(n^2) Contains checks
 		HashSet<ulong> partyIds = new(capacity: 32);
-
-		RaiseType raisetype = Service.Config.RaiseType;
 
 		// Compute player eye position once
 		Vector3? playerEye = Player.Object?.Position;
@@ -111,34 +105,6 @@ internal static partial class TargetUpdater
 						partyMembers.Add(member);
 						partyIds.Add(member.GameObjectId);
 						continue; // Party members are only added to the party list
-					}
-				}
-				else // Not a party member or hostile, so check alliance status
-				{
-					// Alliance members are based on the raise settings
-					if (raisetype == RaiseType.PartyOnly)
-					{
-						// No alliance member checks
-					}
-					else if (raisetype == RaiseType.AllOutOfDuty)
-					{
-						if (member.IsOtherPlayerOutOfDuty() && !partyIds.Contains(member.GameObjectId)) // Avoid O(n) Contains on list
-						{
-							FFXIVClientStructs.FFXIV.Client.Game.Character.Character* character = member.Character();
-							if (character != null)
-							{
-								allianceMembers.Add(member);
-								continue;
-							}
-						}
-					}
-					else if (member.IsAllianceMember() && !partyIds.Contains(member.GameObjectId))
-					{
-						FFXIVClientStructs.FFXIV.Client.Game.Character.Character* character = member.Character();
-						if (character != null)
-						{
-							allianceMembers.Add(member);
-						}
 					}
 				}
 			}
@@ -216,24 +182,7 @@ internal static partial class TargetUpdater
 		return GetMembers(DataCenter.AllTargets, isParty: true);
 	}
 
-	private static unsafe List<IBattleChara> GetAllianceMembers()
-	{
-		RaiseType raisetype = Service.Config.RaiseType;
-
-		if (raisetype == RaiseType.PartyOnly)
-		{
-			return [];
-		}
-
-		if (raisetype == RaiseType.AllOutOfDuty)
-		{
-			return GetMembers(DataCenter.AllTargets, isParty: false, isAlliance: false, IsOutDuty: true);
-		}
-
-		return GetMembers(DataCenter.AllTargets, isParty: false, isAlliance: true, IsOutDuty: false);
-	}
-
-	private static unsafe List<IBattleChara> GetMembers(List<IBattleChara> source, bool isParty, bool isAlliance = false, bool IsOutDuty = false)
+	private static unsafe List<IBattleChara> GetMembers(List<IBattleChara> source, bool isParty)
 	{
 		List<IBattleChara> members = [];
 		if (source == null) return members;
@@ -244,8 +193,6 @@ internal static partial class TargetUpdater
 			{
 				if (member.IsPet()) continue;
 				if (isParty && !member.IsParty()) continue;
-				if (isAlliance && (!ObjectHelper.IsAllianceMember(member) || member.IsParty())) continue;
-				if (IsOutDuty && (!ObjectHelper.IsOtherPlayerOutOfDuty(member) || member.IsParty())) continue;
 
 				FFXIVClientStructs.FFXIV.Client.Game.Character.Character* character = member.Character();
 				if (character == null) continue;
@@ -317,160 +264,6 @@ internal static partial class TargetUpdater
 			}
 		}
 		return null;
-	}
-
-	private static IBattleChara? GetDeathTarget()
-	{
-		if (!DataCenter.CanRaise())
-		{
-			return null;
-		}
-
-		try
-		{
-			RaiseType raisetype = Service.Config.RaiseType;
-
-			// Collect party deaths and track by id for O(1) membership tests
-			var validRaiseTargets = new List<IBattleChara>();
-			var deathPartyIds = new HashSet<ulong>();
-			if (DataCenter.PartyMembers != null)
-			{
-				if (raisetype != RaiseType.PartyHealersOnly)
-				{
-					foreach (var target in DataCenter.PartyMembers.GetDeath())
-					{
-						validRaiseTargets.Add(target);
-						_ = deathPartyIds.Add(target.GameObjectId);
-					}
-				}
-
-				if (raisetype == RaiseType.PartyHealersOnly)
-				{
-					foreach (var target in DataCenter.PartyMembers.GetDeath())
-					{
-						if (target.IsJobCategory(JobRole.Healer))
-						{
-							validRaiseTargets.Add(target);
-							_ = deathPartyIds.Add(target.GameObjectId);
-						}
-					}
-				}
-			}
-
-			// Add alliance candidates depending on raise mode without N^2 checks
-			if (DataCenter.AllianceMembers != null)
-			{
-				if (raisetype == RaiseType.PartyAndAllianceSupports || raisetype == RaiseType.PartyAndAllianceHealers)
-				{
-					foreach (var member in DataCenter.AllianceMembers.GetDeath())
-					{
-						if (deathPartyIds.Contains(member.GameObjectId)) continue;
-						if (raisetype == RaiseType.PartyAndAllianceHealers)
-						{
-							if (member.IsJobCategory(JobRole.Healer)) validRaiseTargets.Add(member);
-						}
-						else // PartyAndAllianceSupports
-						{
-							if (member.IsJobCategory(JobRole.Healer) || member.IsJobCategory(JobRole.Tank)) validRaiseTargets.Add(member);
-						}
-					}
-				}
-				else if (raisetype == RaiseType.All || raisetype == RaiseType.AllOutOfDuty)
-				{
-					foreach (var target in DataCenter.AllianceMembers.GetDeath())
-					{
-						if (!deathPartyIds.Contains(target.GameObjectId))
-						{
-							validRaiseTargets.Add(target);
-						}
-					}
-				}
-			}
-
-			// Apply raise delay without allocating a new list per frame
-			if (raisetype == RaiseType.PartyOnly)
-			{
-				_raisePartyTargets.Delay(validRaiseTargets);
-				validRaiseTargets.Clear();
-				foreach (var p in _raisePartyTargets) validRaiseTargets.Add(p);
-			}
-			else
-			{
-				_raiseAllTargets.Delay(validRaiseTargets);
-				validRaiseTargets.Clear();
-				foreach (var p in _raiseAllTargets) validRaiseTargets.Add(p);
-			}
-
-			return GetPriorityDeathTarget(validRaiseTargets, raisetype);
-		}
-		catch (Exception ex)
-		{
-			PluginLog.Error($"Error in GetDeathTarget: {ex.Message}");
-			return null;
-		}
-	}
-
-	private static IBattleChara? GetPriorityDeathTarget(List<IBattleChara> validRaiseTargets, RaiseType raiseType = RaiseType.PartyOnly)
-	{
-		if (validRaiseTargets.Count == 0)
-		{
-			return null;
-		}
-
-		List<IBattleChara> deathTanks = [];
-		List<IBattleChara> deathHealers = [];
-		List<IBattleChara> deathOffHealers = [];
-		List<IBattleChara> deathOthers = [];
-
-		foreach (IBattleChara chara in validRaiseTargets)
-		{
-			if (chara.IsJobCategory(JobRole.Tank))
-			{
-				deathTanks.Add(chara);
-			}
-			else if (chara.IsJobCategory(JobRole.Healer))
-			{
-				deathHealers.Add(chara);
-			}
-			else if (Service.Config.OffRaiserRaise && chara.IsJobs(Job.SMN))
-			{
-				deathOffHealers.Add(chara);
-			}
-			else if (Service.Config.OffRaiserRaise && chara.IsJobs(Job.RDM))
-			{
-				deathOffHealers.Add(chara);
-			}
-			else
-			{
-				deathOthers.Add(chara);
-			}
-		}
-
-		if (raiseType == RaiseType.PartyAndAllianceHealers && deathHealers.Count > 0)
-		{
-			return deathHealers[0];
-		}
-
-		if (Service.Config.H2)
-		{
-			deathTanks.Reverse();
-			deathHealers.Reverse();
-			deathOffHealers.Reverse();
-			deathOthers.Reverse();
-		}
-
-		if (deathTanks.Count > 1)
-		{
-			return deathTanks[0];
-		}
-
-		return deathHealers.Count > 0
-			? deathHealers[0]
-			: deathTanks.Count > 0
-			? deathTanks[0]
-			: Service.Config.OffRaiserRaise && deathOffHealers.Count > 0
-			? deathOffHealers[0]
-			: deathOthers.Count > 0 ? deathOthers[0] : null;
 	}
 
 	private static IBattleChara? GetDispelTarget()

@@ -149,9 +149,7 @@ internal static class MajorUpdater
 		if (!_shouldRunThisCycle)
 			return;
 
-		var autoOnEnabled = Service.Config.AutoOnYes && (Service.Config.StartOnAllianceIsInCombat2
-			|| Service.Config.StartOnAttackedBySomeone2
-			|| Service.Config.StartOnFieldOpInCombat2
+		var autoOnEnabled = Service.Config.AutoOnYes && (Service.Config.StartOnAttackedBySomeone2
 			|| Service.Config.StartOnPartyIsInCombat2) && !DataCenter.IsInDutyReplay();
 
 		try

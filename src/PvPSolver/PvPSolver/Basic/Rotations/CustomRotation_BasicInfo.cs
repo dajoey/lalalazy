@@ -126,12 +126,6 @@ public abstract partial class CustomRotation : ICustomRotation
 	public IAction? ActionDispelStancePositionalAbility { get; private set; }
 
 	/// <inheritdoc/>
-	public IAction? ActionRaiseShirkGCD { get; private set; }
-
-	/// <inheritdoc/>
-	public IAction? ActionRaiseShirkAbility { get; private set; }
-
-	/// <inheritdoc/>
 	public IAction? ActionAntiKnockbackAbility { get; private set; }
 
 	/// <inheritdoc/>

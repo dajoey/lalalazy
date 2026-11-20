@@ -52,8 +52,8 @@ internal enum RotationConfigWindowTab : byte
 	[Description("Configure targeting settings.")]
 	[TabIcon(Icon = 16)] Target,
 
-	[Description("Duty specific settings.")]
-	[TabSkip] [TabIcon(Icon = 16)] Duty, // PvE-only: hidden in PvPSolver fork
+	[Description("PvP specific settings.")]
+	[TabSkip] [TabIcon(Icon = 16)] PvpSpecific,
 
 	[Description("Configure optional helpful features.")]
 	[TabIcon(Icon = 51)] Extra,
@@ -72,7 +72,7 @@ internal static class RotationConfigWindowTabExtensions
 			RotationConfigWindowTab.Rotation => "循环",
 			RotationConfigWindowTab.Main => "主窗口",
 			RotationConfigWindowTab.Job => "职业",
-			RotationConfigWindowTab.Duty => "任务",
+			RotationConfigWindowTab.PvpSpecific => "PvP",
 			RotationConfigWindowTab.Actions => "技能",
 			RotationConfigWindowTab.List => "列表",
 			RotationConfigWindowTab.Basic => "基础",

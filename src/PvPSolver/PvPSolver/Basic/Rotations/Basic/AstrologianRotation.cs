@@ -153,7 +153,6 @@ public partial class AstrologianRotation : CustomRotation
 		ImGui.Text($"DrawnCard: {string.Join(", ", DrawnCard)}");
 		ImGui.Text($"DrawnCrownCard: {DrawnCrownCard}");
 		ImGui.Text($"ActiveDraw: {ActiveDraw}");
-		ImGui.Text($"RaiseMPMinimum: {RaiseMPMinimum}");
 	}
 	#endregion
 
