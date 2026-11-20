@@ -569,39 +569,6 @@ public partial class RotationConfigWindow : Window
 						displayName = Player.Job.ToString(); // Use the current player's job name
 					}
 				}
-				else if (item == RotationConfigWindowTab.DutyRotation && Player.Object != null)
-				{
-					if (!DataCenter.IsInDuty || DataCenter.CurrentDutyRotation == null)
-					{
-						continue;
-					}
-
-					if (CNLanguageClient)
-					{
-						displayName = true switch
-						{
-							var _ when DataCenter.IsInOccultCrescentOp => $"副本 - {DutyRotation.ActivePhantomJob}",
-							var _ when DataCenter.InVariantDungeon => "副本 - 多变迷宫",
-							var _ when DataCenter.IsInBozja => "副本 - 博兹雅",
-							var _ when DataCenter.IsInMonsterHunterDuty => "副本 - 怪猎联动",
-							var _ when DataCenter.Orbonne => "Duty - 瓯博讷修道院",
-							_ => "Duty",
-						};
-					}
-					else
-					{
-						displayName = true switch
-						{
-							var _ when DataCenter.IsInOccultCrescentOp => $"Duty - {DutyRotation.ActivePhantomJob}",
-							var _ when DataCenter.InVariantDungeon => "Duty - Variant",
-							var _ when DataCenter.IsInBozja => "Duty - Bozja",
-							var _ when DataCenter.IsInMonsterHunterDuty => "Duty - Monster Hunter",
-							var _ when DataCenter.Orbonne => "Duty - Orbonne Monastery",
-							_ => "Duty",
-						};
-					}
-				}
-
 				// Reverse the order of these to do the non-interop check first
 				if (wholeWidth <= JOB_ICON_WIDTH * Scale && IconSet.GetTexture(_configWindowTabProperties[item].Item2, out IDalamudTextureWrap? icon))
 				{
@@ -638,12 +605,6 @@ public partial class RotationConfigWindow : Window
 
 				// Add a separator after the "Debug" tab
 				if (item == RotationConfigWindowTab.Debug)
-				{
-					ImGui.Separator();
-				}
-
-				// Add a separator after the "Duty" tab
-				if (item == RotationConfigWindowTab.DutyRotation)
 				{
 					ImGui.Separator();
 				}
@@ -794,11 +755,6 @@ public partial class RotationConfigWindow : Window
 			DrawRotationCombo(comboSize, rotations, rotation);
 		}
 
-		if (BMRTimeline_IPCSubscriber.IsEnabled)
-		{
-			ImGui.Separator();
-			Widgets.StateText("BMR Integration Enabled", UiState.Ready);
-		}
 	}
 	private static readonly string[] pairsArray = ["Delete"];
 	private static readonly string[] pairs = ["Delete"];
@@ -833,16 +789,8 @@ public partial class RotationConfigWindow : Window
 			});
 		}
 
-		IDalamudTextureWrap? overlayTexture = null;
-		if (!DataCenter.IsInOccultCrescentOp || DutyRotation.GetPhantomJob() == DutyRotation.PhantomJob.None)
-		{
-			var curCombatType = DataCenter.IsPvP ? CombatType.PvP : CombatType.PvE;
-			IconSet.GetTexture(curCombatType.GetIcon(), out overlayTexture);
-		}
-		else
-		{
-			overlayTexture = IconSet.GetOccultIcon();
-		}
+		var curCombatType = DataCenter.IsPvP ? CombatType.PvP : CombatType.PvE;
+		IconSet.GetTexture(curCombatType.GetIcon(), out IDalamudTextureWrap? overlayTexture);
 
 		if (overlayTexture?.Handle != null)
 		{
@@ -1141,16 +1089,8 @@ public partial class RotationConfigWindow : Window
 						DrawAbout();
 						break;
 
-					case RotationConfigWindowTab.DutyRotation:
-						DrawDutyRotationBody();
-						break;
-
 					case RotationConfigWindowTab.Job:
 						DrawRotation();
-						break;
-
-					case RotationConfigWindowTab.AutoDuty:
-						DrawAutoduty();
 						break;
 
 					case RotationConfigWindowTab.About:
@@ -1220,12 +1160,6 @@ public partial class RotationConfigWindow : Window
 			Configs.BasicAutoSwitch => $"Auto > {UiString.ConfigWindow_Basic_AutoSwitch.GetDescription()}",
 			Configs.AutoActionUsage => $"Auto > {UiString.ConfigWindow_Auto_ActionUsage.GetDescription()}",
 			Configs.HealingActionCondition => $"Auto > {UiString.ConfigWindow_Auto_HealingCondition.GetDescription()}",
-			Configs.DutySpecifcUltimate => $"Auto > {UiString.ConfigWindow_Duty_Ultimate.GetDescription()}",
-			Configs.DutySpecifcSavage => $"Auto > {UiString.ConfigWindow_Duty_Savage.GetDescription()}",
-			Configs.DutySpecifcExtreme => $"Auto > {UiString.ConfigWindow_Duty_Extreme.GetDescription()}",
-			Configs.DutySpecifcAlliance => $"Auto > {UiString.ConfigWindow_Duty_Alliance.GetDescription()}",
-			Configs.DutySpecifcDungeon => $"Auto > {UiString.ConfigWindow_Duty_Dungeon.GetDescription()}",
-			Configs.DutySpecifcFieldOps => $"Auto > {UiString.ConfigWindow_Duty_FieldOps.GetDescription()}",
 			Configs.DutySpecifcPvP => $"Auto > {UiString.ConfigWindow_Duty_PvP.GetDescription()}",
 
 			Configs.TargetConfig => $"Target > {UiString.ConfigWindow_Target_Config.GetDescription()}",
@@ -1276,30 +1210,6 @@ public partial class RotationConfigWindow : Window
 				_activeTab = RotationConfigWindowTab.Auto;
 				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Auto_HealingCondition.GetDescription());
 				break;
-			case Configs.DutySpecifcUltimate:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_Ultimate.GetDescription());
-				break;
-			case Configs.DutySpecifcSavage:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_Savage.GetDescription());
-				break;
-			case Configs.DutySpecifcExtreme:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_Extreme.GetDescription());
-				break;
-			case Configs.DutySpecifcAlliance:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_Alliance.GetDescription());
-				break;
-			case Configs.DutySpecifcDungeon:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_Dungeon.GetDescription());
-				break;
-			case Configs.DutySpecifcFieldOps:
-				_activeTab = RotationConfigWindowTab.Duty;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_FieldOps.GetDescription());
-				break;
 			case Configs.DutySpecifcPvP:
 				_activeTab = RotationConfigWindowTab.Duty;
 				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_PvP.GetDescription());
@@ -1328,165 +1238,6 @@ public partial class RotationConfigWindow : Window
 		}
 	}
 
-	#region DutyRotation
-	private static void DrawDutyRotationBody()
-	{
-		DutyRotation? rotation = DataCenter.CurrentDutyRotation;
-		if (rotation == null)
-			return;
-
-		_dutyRotationHeader.Draw();
-	}
-
-	private static readonly CollapsingHeaderGroup _dutyRotationHeader = new(new()
-	{
-		{ GetDutyRotationStatusHead,  DrawDutyRotationStatus },
-
-		{ UiString.ConfigWindow_DutyRotation_Configuration.GetDescription, DrawDutyRotationConfiguration }
-	});
-
-	private static string GetDutyRotationStatusHead()
-	{
-		DutyRotation? rotation = DataCenter.CurrentDutyRotation;
-		string status = UiString.ConfigWindow_DutyRotation_Status.GetDescription();
-		return rotation == null ? string.Empty : status;
-	}
-
-	private static void DrawDutyRotationStatus()
-	{
-		if (DataCenter.CurrentDutyRotation == null)
-		{
-			return;
-		}
-		DataCenter.CurrentDutyRotation?.DisplayDutyStatus();
-	}
-
-	private static void DrawDutyRotationConfiguration()
-	{
-		DutyRotation? rotation = DataCenter.CurrentDutyRotation;
-		if (rotation == null) return;
-		if (!Player.Available) return;
-
-		IRotationConfigSet set = rotation.Configs;
-
-		bool hasAny = false;
-		foreach (var _ in set.Configs) { hasAny = true; break; }
-		if (hasAny) ImGui.Separator();
-
-		foreach (IRotationConfig config in set.Configs)
-		{
-			if (!config.Type.HasFlag(CombatType.PvE)) continue;
-			if (!ShouldShowRotationConfig(config, set)) continue;
-
-			string typeName = rotation.GetType().FullName ?? rotation.GetType().Name;
-			string key = $"{typeName}.{config.Name}";
-			string name = $"##{config.GetHashCode()}_{key}.Name";
-			string command = ToCommandStr(OtherCommandType.DutyRotations, config.Name, config.DefaultValue);
-			void Reset() => config.Value = config.DefaultValue;
-
-			ImGuiHelper.PrepareGroup(key, command, Reset);
-
-			DutyRotation.PhantomJob phantomJob = DutyRotation.GetPhantomJob();
-
-			if (config is RotationConfigCombo c)
-			{
-				if (c.PhantomJob != DutyRotation.PhantomJob.None && c.PhantomJob != phantomJob) continue;
-				string[] names = c.DisplayValues;
-				string selectedValue = c.Value;
-				int index = -1;
-				for (int i = 0; i < names.Length; i++)
-				{
-					if (names[i].Equals(selectedValue, StringComparison.OrdinalIgnoreCase))
-					{
-						index = i;
-						break;
-					}
-				}
-				if (index == -1) index = 0;
-				string longest = "";
-				for (int i = 0; i < names.Length; i++)
-				{
-					if (names[i].Length > longest.Length) longest = names[i];
-				}
-				ImGui.SetNextItemWidth(ImGui.CalcTextSize(longest).X + (50 * Scale));
-				if (ImGui.Combo(name, ref index, names, names.Length))
-				{
-					c.Value = names[index];
-				}
-			}
-			else if (config is RotationConfigBoolean b)
-			{
-				if (b.PhantomJob != DutyRotation.PhantomJob.None && b.PhantomJob != phantomJob) continue;
-				if (bool.TryParse(config.Value, out bool val))
-				{
-					if (ImGui.Checkbox(name, ref val))
-					{
-						config.Value = val.ToString();
-					}
-					ImGuiHelper.ReactPopup(key, command, Reset);
-				}
-			}
-			else if (config is RotationConfigFloat f)
-			{
-				if (f.PhantomJob != DutyRotation.PhantomJob.None && f.PhantomJob != phantomJob) continue;
-				if (float.TryParse(config.Value, out float val))
-				{
-					ImGui.SetNextItemWidth(Scale * Searchable.DRAG_WIDTH);
-					if (f.UnitType == ConfigUnitType.Percent)
-					{
-						float displayValue = val * 100;
-						if (ImGui.SliderFloat(name, ref displayValue, f.Min * 100, f.Max * 100, $"{displayValue:F1}{f.UnitType.ToSymbol()}"))
-						{
-							config.Value = (displayValue / 100).ToString();
-						}
-					}
-					else
-					{
-						if (ImGui.DragFloat(name, ref val, f.Speed, f.Min, f.Max, $"{val:F2}{f.UnitType.ToSymbol()}"))
-						{
-							config.Value = val.ToString();
-						}
-					}
-					ImguiTooltips.HoveredTooltip(f.UnitType.GetDescription());
-					ImGuiHelper.ReactPopup(key, command, Reset);
-				}
-			}
-			else if (config is RotationConfigString s)
-			{
-				if (s.PhantomJob != DutyRotation.PhantomJob.None && s.PhantomJob != phantomJob) continue;
-				string val = config.Value;
-				ImGui.SetNextItemWidth(ImGui.GetWindowWidth());
-				if (ImGui.InputTextWithHint(name, config.DisplayName, ref val, 128))
-				{
-					config.Value = val;
-				}
-				ImGuiHelper.ReactPopup(key, command, Reset);
-				continue;
-			}
-			else if (config is RotationConfigInt i)
-			{
-				if (i.PhantomJob != DutyRotation.PhantomJob.None && i.PhantomJob != phantomJob) continue;
-				if (int.TryParse(config.Value, out int val))
-				{
-					ImGui.SetNextItemWidth(Scale * Searchable.DRAG_WIDTH);
-					if (ImGui.DragInt(name, ref val, i.Speed, i.Min, i.Max))
-					{
-						config.Value = val.ToString();
-					}
-					ImGuiHelper.ReactPopup(key, command, Reset);
-				}
-			}
-			else
-			{
-				continue;
-			}
-
-			ImGui.SameLine();
-			ImGui.TextWrapped($"{config.DisplayName}");
-			ImGuiHelper.ReactPopup(key, command, Reset, false);
-		}
-	}
-	#endregion
 
 	#region DutySpecifc
 	private static void DrawDutySpecific()
@@ -1496,70 +1247,16 @@ public partial class RotationConfigWindow : Window
 
 	private static readonly CollapsingHeaderGroup _dutySpecificHeader = new(new Dictionary<Func<string>, Action>
 	{
-		{ UiString.ConfigWindow_Duty_Ultimate.GetDescription, DrawDutySpecificUltimate },
-		{ UiString.ConfigWindow_Duty_Savage.GetDescription, DrawDutySpecificSavage },
-		{ UiString.ConfigWindow_Duty_Extreme.GetDescription, DrawDutySpecifcExtreme },
-		{ UiString.ConfigWindow_Duty_ChaoticAlliance.GetDescription, DrawDutySpecifcChaoticAlliance },
-		{ UiString.ConfigWindow_Duty_Alliance.GetDescription, DrawDutySpecifcAlliance },
-		{ UiString.ConfigWindow_Duty_Dungeon.GetDescription, DrawDutySpecifcDungeon },
-		{ UiString.ConfigWindow_Duty_DeepDungeon.GetDescription, DrawDutySpecifcDeepDungeon },
-		{ UiString.ConfigWindow_Duty_VariantDungeon.GetDescription, DrawDutySpecifcVariantDungeon },
-		{ UiString.ConfigWindow_Duty_FieldOps.GetDescription, DrawDutySpecifcFieldOps },
 		{ UiString.ConfigWindow_Duty_PvP.GetDescription, DrawDutySpecifcPvP },
-		{ UiString.ConfigWindow_Duty_TheMaskedCarnivale.GetDescription, DrawDutySpecifcTheMaskedCarnivale },
-		{ UiString.ConfigWindow_Duty_CrucibleOfTheUnbroken.GetDescription, DrawDutySpecifcCrucibleOfTheUnbroken },
 	})
 	{
 		HeaderSize = HeaderSize,
 	};
 
-	private static void DrawDutySpecificUltimate()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcUltimate);
-	}
-	private static void DrawDutySpecificSavage()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcSavage);
-	}
-	private static void DrawDutySpecifcExtreme()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcExtreme);
-	}
-	private static void DrawDutySpecifcChaoticAlliance()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcChaoticAlliance);
-	}
-	private static void DrawDutySpecifcAlliance()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcAlliance);
-	}
-	private static void DrawDutySpecifcDungeon()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcDungeon);
-	}
-	private static void DrawDutySpecifcDeepDungeon()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcDeepDungeon);
-	}
-	private static void DrawDutySpecifcVariantDungeon()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcVariantDungeon);
-	}
-	private static void DrawDutySpecifcFieldOps()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcFieldOps);
 	}
 	private static void DrawDutySpecifcPvP()
 	{
 		_allSearchable.DrawItems(Configs.DutySpecifcPvP);
-	}
-	private static void DrawDutySpecifcTheMaskedCarnivale()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcTheMaskedCarnivale);
-	}
-	private static void DrawDutySpecifcCrucibleOfTheUnbroken()
-	{
-		_allSearchable.DrawItems(Configs.DutySpecifcCrucibleOfTheUnbroken);
 	}
 
 	#endregion
@@ -1870,117 +1567,6 @@ public partial class RotationConfigWindow : Window
 
 	#region Autoduty
 
-	private void DrawAutoduty()
-	{
-		ImGui.TextWrapped("While the PvP Solver developer has made effort to make PvP Solver compatible with Autoduty, please keep in mind that PvP Solver is not designed with botting in mind.");
-		ImGui.Spacing();
-		ImGui.TextWrapped($"Below are plugins used by Autoduty and their current states");
-		ImGui.Spacing();
-
-		// Create a new list of AutoDutyPlugin objects
-		List<AutoDutyPlugin> pluginsToCheck =
-		[
-			new AutoDutyPlugin { Name = "AutoDuty", Url = "https://puni.sh/api/repository/erdelf" },
-			new AutoDutyPlugin { Name = "vnavmesh", Url = "https://puni.sh/api/repository/veyn" },
-			new AutoDutyPlugin { Name = "BossModReborn", Url = "https://raw.githubusercontent.com/FFXIV-CombatReborn/CombatRebornRepo/main/pluginmaster.json" },
-			new AutoDutyPlugin { Name = "Boss Mod", Url = "https://puni.sh/api/repository/veyn" },
-			new AutoDutyPlugin { Name = "Avarice", Url = "https://love.puni.sh/ment.json" },
-			new AutoDutyPlugin { Name = "AutoRetainer", Url = "https://love.puni.sh/ment.json" },
-			new AutoDutyPlugin { Name = "SkipCutscene", Url = "https://raw.githubusercontent.com/KangasZ/DalamudPluginRepository/main/plugin_repository.json" },
-			new AutoDutyPlugin { Name = "AntiAfkKick", Url = "https://raw.githubusercontent.com/NightmareXIV/MyDalamudPlugins/main/pluginmaster.json" },
-			new AutoDutyPlugin { Name = "Gearsetter", Url = "https://puni.sh/api/repository/vera" },
-		];
-
-		// Check if "Boss Mod" and "BossMod Reborn" are enabled
-		bool isBossModEnabled = false;
-		bool isBossModRebornEnabled = false;
-		foreach (var plugin in pluginsToCheck)
-		{
-			if (plugin.Name == "Boss Mod" && plugin.IsEnabled) isBossModEnabled = true;
-			if (plugin.Name == "BossModReborn" && plugin.IsEnabled) isBossModRebornEnabled = true;
-			if (isBossModEnabled && isBossModRebornEnabled) break;
-		}
-
-		// Iterate through the list and check if each plugin is installed and enabled
-		foreach (AutoDutyPlugin plugin in pluginsToCheck)
-		{
-			// Only display information about "Boss Mod" if it is installed and enabled
-			if (plugin.Name == "Boss Mod" && !isBossModEnabled)
-			{
-				continue;
-			}
-
-			bool isEnabled = plugin.IsEnabled;
-			bool isInstalled = plugin.IsInstalled;
-
-			// Add a button to copy the URL to the clipboard if the plugin is not installed
-			if (!isEnabled && !CNLanguageClient)
-			{
-				if (DalamudReflector.HasRepo(plugin.Url) && !isInstalled)
-				{
-					if (ImGui.Button($"Add Plugin##{plugin.Name}"))
-					{
-						PluginLog.Information($"Attempting to add plugin: {plugin.Name} from URL: {plugin.Url}");
-						_ = DalamudReflector.AddPlugin(plugin.Url, plugin.Name).ContinueWith(t =>
-						{
-							if (t.IsCompletedSuccessfully && t.Result)
-							{
-								PluginLog.Information($"Successfully added plugin: {plugin.Name} from URL: {plugin.Url}");
-							}
-							else
-							{
-								PluginLog.Error($"Failed to add plugin: {plugin.Name} from URL: {plugin.Url}");
-							}
-							// Refresh plugin masters after install
-							DalamudReflector.ReloadPluginMasters();
-						});
-					}
-					ImGui.SameLine();
-				}
-				else if (!DalamudReflector.HasRepo(plugin.Url))
-				{
-					if (ImGui.Button($"Add Repo##{plugin.Name}"))
-					{
-						PluginLog.Information($"Attempting to add repository: {plugin.Url}");
-						DalamudReflector.AddRepo(plugin.Url, true);
-						DalamudReflector.ReloadPluginMasters();
-						PluginLog.Information($"Successfully added repository: {plugin.Url}");
-					}
-					ImGui.SameLine();
-				}
-			}
-
-			// Determine the color and text for "Boss Mod"
-			Vector4 color;
-			string text;
-			if (plugin.Name == "Boss Mod" && isBossModEnabled && isBossModRebornEnabled)
-			{
-				color = Theme.StateAmber;
-				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Both Boss Mods cannot be installed and enabled at the same time. Please disable Boss Mod.";
-			}
-			else if (plugin.Name == "Boss Mod" && isBossModEnabled && !isBossModRebornEnabled)
-			{
-				color = isEnabled ? Theme.StateAmber : Theme.StateRed;
-				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Please use BossModReborn instead, BMR has specific integration with PvP Solver that improves PvP Solver's ability to react to combat i.e. Gaze effects.";
-			}
-			else if (plugin.Name == "BossModReborn" && isBossModRebornEnabled && !isBossModEnabled)
-			{
-				color = isEnabled ? Theme.StateGreen : Theme.StateRed;
-				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}.";
-			}
-			else
-			{
-				color = isEnabled ? Theme.StateGreen : Theme.StateRed;
-				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}";
-			}
-
-			ImGui.PushStyleColor(ImGuiCol.Text, color);
-			ImGui.TextWrapped(text);
-			ImGui.PopStyleColor();
-
-			ImGui.Spacing();
-		}
-	}
 
 	private string GetHostileTypeDescription(TargetHostileType type)
 	{
@@ -4002,44 +3588,7 @@ public partial class RotationConfigWindow : Window
 		ImGui.Text($"Combat Time: {DataCenter.CombatTimeRaw}");
 		ImGui.Text($"TerritoryID: {DataCenter.TerritoryID}");
 		ImGui.Text($"TerritoryType: {DataCenter.Territory?.ContentType}");
-		ImGui.Text($"Is in Alliance Raid: {DataCenter.IsInAllianceRaid}");
-		ImGui.Spacing();
 		ImGui.Text($"IsPvP: {DataCenter.IsPvP}");
-		ImGui.Text($"IsInFate: {DataCenter.IsInFate}");
-		if ((IntPtr)FateManager.Instance() != IntPtr.Zero)
-		{
-			ImGui.Text($"Fate ID: {DataCenter.PlayerFateId}");
-		}
-		ImGui.Spacing();
-		ImGui.Text($"IsInBozjanFieldOp: {DataCenter.IsInBozjanFieldOp}");
-		ImGui.Text($"IsInBozjanFieldOpCE: {DataCenter.IsInBozjanFieldOpCE}");
-		ImGui.Text($"IsInDelubrumNormal: {DataCenter.IsInDelubrumNormal}");
-		ImGui.Text($"IsInDelubrumSavage: {DataCenter.IsInDelubrumSavage}");
-		ImGui.Text($"IsInBozja: {DataCenter.IsInBozja}");
-		ImGui.Spacing();
-		ImGui.Text($"In Occult Crescent: {DataCenter.IsInOccultCrescentOp}");
-		ImGui.Text($"Is In ForkedTower: {DataCenter.IsInForkedTower}");
-		ImGui.Text($"FreelancerLevel: {DutyRotation.FreelancerLevel}");
-		ImGui.Text($"KnightLevel: {DutyRotation.KnightLevel}");
-		ImGui.Text($"MonkLevel: {DutyRotation.MonkLevel}");
-		ImGui.Text($"BardLevel: {DutyRotation.BardLevel}");
-		ImGui.Text($"ChemistLevel: {DutyRotation.ChemistLevel}");
-		ImGui.Text($"TimeMageLevel: {DutyRotation.TimeMageLevel}");
-		ImGui.Text($"CannoneerLevel: {DutyRotation.CannoneerLevel}");
-		ImGui.Text($"OracleLevel: {DutyRotation.OracleLevel}");
-		ImGui.Text($"BerserkerLevel: {DutyRotation.BerserkerLevel}");
-		ImGui.Text($"RangerLevel: {DutyRotation.RangerLevel}");
-		ImGui.Text($"ThiefLevel: {DutyRotation.ThiefLevel}");
-		ImGui.Text($"SamuraiLevel: {DutyRotation.SamuraiLevel}");
-		ImGui.Text($"GeomancerLevel: {DutyRotation.GeomancerLevel}");
-		ImGui.Spacing();
-		ImGui.Text($"InVariantDungeon: {DataCenter.InVariantDungeon}");
-		ImGui.Text($"The Merchant's Tale Advanced: {DataCenter.TheMerchantsTaleAdvanced}");
-		ImGui.Text($"The Merchant's Tale: {DataCenter.TheMerchantsTale}");
-		ImGui.Text($"AloaloIsland: {DataCenter.AloaloIsland}");
-		ImGui.Text($"MountRokkon: {DataCenter.MountRokkon}");
-		ImGui.Text($"SildihnSubterrane: {DataCenter.SildihnSubterrane}");
-		ImGui.Spacing();
 		ImGui.Text($"IsCastingMultiHit: {DataCenter.IsCastingMultiHit()}");
 		ImGui.Text($"IsCastingTankVfx: {DataCenter.IsCastingTankVfx()}");
 		ImGui.Text($"IsCastingAreaVfx: {DataCenter.IsCastingAreaVfx()}");
@@ -4175,26 +3724,13 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Others Players Mob: {battleChara.IsOthersPlayersMob()}");
 			ImGui.Text($"Is Alliance: {battleChara.IsAllianceMember()}");
 			ImGui.Text($"Is Enemy Action Check: {battleChara.IsEnemy()}");
-			ImGui.Text($"IsSpecialExecptionImmune: {battleChara.IsSpecialExceptionImmune()}");
 			ImGui.Text($"IsSpecialImmune: {battleChara.IsSpecialImmune()}");
 			ImGui.Text($"IsTopPriorityNamedHostile: {battleChara.IsTopPriorityNamedHostile()}");
 			ImGui.Text($"IsTopPriorityHostile: {battleChara.IsTopPriorityHostile()}");
 			ImGui.Spacing();
-			ImGui.Text($"FateID: {battleChara.FateId().ToString() ?? string.Empty}");
 			ImGui.Text($"EventType: {battleChara.GetEventType().ToString() ?? string.Empty}");
-			ImGui.Text($"IsBozjanCEFateMob: {battleChara.IsBozjanCEMob()}");
 			ImGui.Spacing();
-			ImGui.Text($"IsOccultCEMob: {battleChara.IsOccultCEMob()}");
-			ImGui.Text($"IsOccultFateMob: {battleChara.IsOccultFateMob()}");
-			ImGui.Text($"IsOCUndeadTarget: {battleChara.IsOCUndeadTarget()}");
-			ImGui.Text($"IsOCSlowgaImmuneTarget: {battleChara.IsOCSlowgaImmuneTarget()}");
-			ImGui.Text($"IsOCDoomImmuneTarget: {battleChara.IsOCDoomImmuneTarget()}");
-			ImGui.Text($"IsOCStunImmuneTarget: {battleChara.IsOCStunImmuneTarget()}");
-			ImGui.Text($"IsOCFreezeImmuneTarget: {battleChara.IsOCFreezeImmuneTarget()}");
-			ImGui.Text($"IsOCBlindImmuneTarget: {battleChara.IsOCBlindImmuneTarget()}");
-			ImGui.Text($"IsOCParalysisImmuneTarget: {battleChara.IsOCParalysisImmuneTarget()}");
 			ImGui.Spacing();
-			ImGui.Text($"IsM9SavageImmune: {battleChara.IsM9SavageImmune()}");
 			ImGui.Spacing();
 			ImGui.Text($"Is Current Focus Target: {battleChara.IsFocusTarget()}");
 			ImGui.Text($"TTK: {battleChara.GetTTK()}");
@@ -4222,30 +3758,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Top Priority Hostile: {battleChara.IsTopPriorityHostile()}");
 			ImGui.Text($"Targetable: {battleChara.Struct()->Character.GameObject.TargetableStatus}");
 
-			if (DataCenter.IsInMaskedCarnivale)
-			{
-				ImGui.Spacing();
-				ImGui.Text($"Aspect Resistance (Fire): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Fire)}");
-				ImGui.Text($"Aspect Resistance (Ice): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Ice)}");
-				ImGui.Text($"Aspect Resistance (Wind): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Wind)}");
-				ImGui.Text($"Aspect Resistance (Earth): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Earth)}");
-				ImGui.Text($"Aspect Resistance (Lightning): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Lightning)}");
-				ImGui.Text($"Aspect Resistance (Water): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Water)}");
-				ImGui.Text($"Aspect Resistance (Slashing): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Slashing)}");
-				ImGui.Text($"Aspect Resistance (Piercing): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Piercing)}");
-				ImGui.Text($"Aspect Resistance (Blunt): {MaskedCarnivaleHelper.GetAspectResistance(battleChara, Aspect.Blunt)}");
-				ImGui.Spacing();
-				ImGui.Text($"IsVulnerableToSlow: {MaskedCarnivaleHelper.IsVulnerableToSlow(battleChara)}");
-				ImGui.Text($"IsVulnerableToPetrification: {MaskedCarnivaleHelper.IsVulnerableToPetrification(battleChara)}");
-				ImGui.Text($"IsVulnerableToParalysis: {MaskedCarnivaleHelper.IsVulnerableToParalysis(battleChara)}");
-				ImGui.Text($"IsVulnerableToInterruption: {MaskedCarnivaleHelper.IsVulnerableToInterruption(battleChara)}");
-				ImGui.Text($"IsVulnerableToBlind: {MaskedCarnivaleHelper.IsVulnerableToBlind(battleChara)}");
-				ImGui.Text($"IsVulnerableToStun: {MaskedCarnivaleHelper.IsVulnerableToStun(battleChara)}");
-				ImGui.Text($"IsVulnerableToSleep: {MaskedCarnivaleHelper.IsVulnerableToSleep(battleChara)}");
-				ImGui.Text($"IsVulnerableToBind: {MaskedCarnivaleHelper.IsVulnerableToBind(battleChara)}");
-				ImGui.Text($"IsVulnerableToHeavy: {MaskedCarnivaleHelper.IsVulnerableToHeavy(battleChara)}");
-				ImGui.Text($"IsVulnerableToFlatOrDeath: {MaskedCarnivaleHelper.IsVulnerableToFlatOrDeath(battleChara)}");
-			}
 			ImGui.Spacing();
 			ImGui.Text($"Statuses:");
 			foreach (Dalamud.Game.ClientState.Statuses.IStatus status in battleChara.StatusList)
@@ -4341,11 +3853,6 @@ public partial class RotationConfigWindow : Window
 		{
 			IPCProvider ipcProvider = new();
 			ipcProvider.ActionCommand("Magick Barrier", 7);
-		}
-		if (ImGui.Button("Test AutodutyChangeOperatingMode IPC (AutoDuty, HighHPPercent)"))
-		{
-			IPCProvider ipcProvider = new();
-			ipcProvider.AutodutyChangeOperatingMode(StateCommandType.AutoDuty, TargetingType.HighHPPercent);
 		}
 		if (ImGui.Button("Test Henchman IPC support"))
 		{

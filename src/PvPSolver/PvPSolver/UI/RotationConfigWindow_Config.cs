@@ -237,14 +237,6 @@ public partial class RotationConfigWindow
 
 		ImGui.TextWrapped(UiString.ConfigWindow_Events_Description.GetDescription());
 
-		ImGui.Text(UiString.ConfigWindow_Events_DutyStart.GetDescription());
-		ImGui.SameLine();
-		Service.Config.DutyStart.DisplayMacro();
-
-		ImGui.Text(UiString.ConfigWindow_Events_DutyEnd.GetDescription());
-		ImGui.SameLine();
-		Service.Config.DutyEnd.DisplayMacro();
-
 		ImGui.Separator();
 
 		for (int i = 0; i < Service.Config.Events.Count; i++)

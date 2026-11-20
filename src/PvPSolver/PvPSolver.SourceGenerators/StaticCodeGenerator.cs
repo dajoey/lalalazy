@@ -184,7 +184,6 @@ public class StaticCodeGenerator : IIncrementalGenerator
 	private static void GenerateBaseRotation(SourceProductionContext context)
 	{
 		context.AddSource("CustomRotation.g.cs", Properties.Resources.Action);
-		context.AddSource("DutyRotation.g.cs", Properties.Resources.DutyAction);
 	}
 
 	/// <summary>

@@ -60,9 +60,6 @@ internal enum RotationConfigWindowTab : byte
 
 	[Description("Debug options for developers and rotation writers (disable when not in use).")]
 	[TabIcon(Icon = 5)] Debug,
-
-	[Description("Configure AutoDuty settings and view related information.")]
-	[TabSkip] [TabIcon(Icon = 4)] AutoDuty, // PvE-only: hidden in PvPSolver fork
 }
 
 internal static class RotationConfigWindowTabExtensions
@@ -142,59 +139,6 @@ public readonly struct IncompatiblePlugin
 	}
 
 	public CompatibleType Type { get; init; }
-}
-
-/// <summary>
-/// Struct representing an incompatible plugin.
-/// </summary>
-public readonly struct AutoDutyPlugin
-{
-	public string Name { get; init; }
-	public string Icon { get; init; }
-	public string Url { get; init; }
-	public string Features { get; init; }
-
-	/// <summary>
-	/// Checks if the plugin is enabled.
-	/// </summary>
-	[JsonIgnore]
-	public readonly bool IsEnabled
-	{
-		get
-		{
-			string name = Name;
-			IEnumerable<Dalamud.Plugin.IExposedPlugin> installedPlugins = Svc.PluginInterface.InstalledPlugins;
-			foreach (Dalamud.Plugin.IExposedPlugin x in installedPlugins)
-			{
-				if ((x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || x.InternalName.Equals(name, StringComparison.OrdinalIgnoreCase)) && x.IsLoaded)
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-
-	/// <summary>
-	/// Checks if the plugin is installed.
-	/// </summary>
-	[JsonIgnore]
-	public readonly bool IsInstalled
-	{
-		get
-		{
-			string name = Name;
-			IEnumerable<Dalamud.Plugin.IExposedPlugin> installedPlugins = Svc.PluginInterface.InstalledPlugins;
-			foreach (Dalamud.Plugin.IExposedPlugin x in installedPlugins)
-			{
-				if (x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || x.InternalName.Equals(name, StringComparison.OrdinalIgnoreCase))
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-	}
 }
 
 /// <summary>

@@ -9,11 +9,8 @@ namespace RotationSolver.IPC
 {
 	using System.ComponentModel;
 
-	//internal static class BossModReborn_IPCSubscriber
 	//{
-	//	private static readonly EzIPCDisposalToken[] _disposalTokens = EzIPC.Init(typeof(BossModReborn_IPCSubscriber), "BossMod", SafeWrapper.AnyException);
 
-	//	internal static bool IsEnabled => IPCSubscriber_Common.IsReady("BossModReborn");
 
 	//	[EzIPC("AI.GetPreset", true)] internal static readonly Func<string> Presets_GetActive;
 
@@ -22,11 +19,8 @@ namespace RotationSolver.IPC
 	//	internal static void Dispose() => IPCSubscriber_Common.DisposeAll(_disposalTokens);
 	//}
 
-	//internal static class BossMod_IPCSubscriber
 	//{
-	//	private static readonly EzIPCDisposalToken[] _disposalTokens = EzIPC.Init(typeof(BossMod_IPCSubscriber), "BossMod", SafeWrapper.AnyException);
 
-	//	internal static bool IsEnabled => IPCSubscriber_Common.IsReady("BossMod") || IPCSubscriber_Common.IsReady("BossModReborn");
 
 	//	[EzIPC] internal static readonly Func<uint, bool> HasModuleByDataId;
 	//	[EzIPC] internal static readonly Func<IReadOnlyList<string>, bool, List<string>> Configuration;
@@ -242,7 +236,7 @@ namespace RotationSolver.IPC
 				&& (string.Equals(x.Name, pluginName, StringComparison.OrdinalIgnoreCase)
 					|| string.Equals(x.InternalName, pluginName, StringComparison.OrdinalIgnoreCase)));
 
-		// Same installed-plugin list as IsReady, never the typed-cast lookup (it logged an ERR per call for BossMod.Plugin).
+		// Same installed-plugin list as IsReady, never the typed-cast lookup (it logged an ERR per call for the other plugin).
 		internal static Version Version(string pluginName)
 			=> Svc.PluginInterface.InstalledPlugins.FirstOrDefault(x => x.IsLoaded
 				&& (string.Equals(x.Name, pluginName, StringComparison.OrdinalIgnoreCase)

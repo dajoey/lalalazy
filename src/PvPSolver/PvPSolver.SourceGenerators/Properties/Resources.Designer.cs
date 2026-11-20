@@ -158,7 +158,6 @@ namespace RotationSolver.SourceGenerators.Properties {
         ////// &lt;summary&gt;
         ////// 
         ////// &lt;/summary&gt;
-        ///Dungeons = 2,
         ////// &lt;summary&gt;
         ////// 
         ////// &lt;/summary&gt;
@@ -198,30 +197,6 @@ namespace RotationSolver.SourceGenerators.Properties {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to using RotationSolver.Basic.Actions;
-        ///
-        ///namespace RotationSolver.Basic.Rotations.Duties;
-        ///
-        ////// &lt;summary&gt;
-        ////// The Custom Rotation.
-        ////// &lt;br&gt;Number of Actions: 506&lt;/br&gt;
-        ////// &lt;/summary&gt;
-        ///public abstract partial class DutyRotation
-        ///{
-        ///    private readonly Lazy&lt;IBaseAction&gt; _MagitekCannonPvECreator = new(() =&gt; 
-        ///    {
-        ///        IBaseAction action = new BaseAction((ActionID)1128, true);
-        ///        CustomRotation.LoadActionSetting(ref action);
-        ///    
-        ///        var setting = action.Setting;
-        ///        ModifyMagitekCannon [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string DutyAction {
-            get {
-                return ResourceManager.GetString("DutyAction", resourceCulture);
-            }
-        }
         
         /// <summary>
         ///   Looks up a localized string similar to /// &lt;summary&gt;

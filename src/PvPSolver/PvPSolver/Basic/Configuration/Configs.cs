@@ -13,25 +13,13 @@ internal partial class Configs : IPluginConfiguration
 	public const string
 		BasicTimer = "BasicTimer",
 		BasicAutoSwitch = "BasicAutoSwitch",
-		DutySpecifcCrucibleOfTheUnbroken = "DutySpecifcCrucibleOfTheUnbroken",
-		DutySpecifcTheMaskedCarnivale = "DutySpecifcTheMaskedCarnivale",
 		DutySpecifcPvP = "DutySpecifcPvP",
-		DutySpecifcFieldOps = "DutySpecifcFieldOps",
-		DutySpecifcAlliance = "DutySpecifcAlliance",
-		DutySpecifcDeepDungeon = "DutySpecifcDeepDungeon",
-		DutySpecifcVariantDungeon = "DutySpecifcVariantDungeon",
-		DutySpecifcChaoticAlliance = "DutySpecifcChaoticAlliance",
-		DutySpecifcDungeon = "DutySpecifcDungeon",
-		DutySpecifcUltimate = "DutySpecifcUltimate",
-		DutySpecifcExtreme = "DutySpecifcExtreme",
-		DutySpecifcSavage = "DutySpecifcSavage",
 		BasicParams = "BasicParams",
 		UiInformation = "UiInformation",
 		UiWindows = "UiWindows",
 		PvPSpecificControls = "PvPSpecificControls",
 		AutoActionUsage = "AutoActionUsage",
 		HealingActionCondition = "HealingActionCondition",
-		PhantomDutyRotationConfiguration = "PhantomDutyRotationConfiguration",
 		TargetConfig = "TargetConfig",
 		Extra = "Extra",
 		Rotations = "Rotations",
@@ -52,168 +40,10 @@ internal partial class Configs : IPluginConfiguration
 	public string[] RotationLibs { get; set; } = [];
 	public List<TargetingType> TargetingTypes { get; set; } = [];
 
-	public MacroInfo DutyStart { get; set; } = new MacroInfo();
-	public MacroInfo DutyEnd { get; set; } = new MacroInfo();
 
 	#region Duty Specific
-	[ConditionBool, UI("Prevent specific Flat Damage/Death actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockflatdamagedeathimmuneBLU = false;
 
-	[ConditionBool, UI("Prevent specific Slow actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockslowimmuneBLU = false;
 
-	[ConditionBool, UI("Prevent specific Petrification actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockpetrificationimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Paralysis actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockparalysisimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Interrupt actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockinterruptimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Blind actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockblindimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Stun actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockstunimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Sleep actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blocksleepimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Bind actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockbindimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific Heavy actions from being used against mobs that are immune to those effects.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockheavyimmuneBLU = false;
-
-	[ConditionBool, UI("Prevent specific aspected actions from being used against mobs that are immune to that aspect.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blockimmuneBLU = true;
-
-	[ConditionBool, UI("If a mob is weak to a specific aspect, only use actions of that aspect.", Filter = DutySpecifcTheMaskedCarnivale)]
-	private static readonly bool _blocknonweakBLU = false;
-
-	[ConditionBool, UI("Still allow unaspected actions.", Filter = DutySpecifcTheMaskedCarnivale, Parent = nameof(BlocknonweakBlu))]
-	private static readonly bool _allowunaspectedBLU = true;
-
-	[ConditionBool, UI("O12S - Packet Filter logic.",
-	Description = "Treat OmegaM/OmegaF as immune if you have their corresponding Packet Filter status (also applies to Normal).",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _o12sOmegaMF = true;
-
-	[ConditionBool, UI("M8S - Wolf Pack/Stone Pack logic.",
-	Description = "Treat Wolf of Wind/Wolf of Stone as immune if you don't have the corresponding status for it.",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _m8sWindStone = true;
-
-	[ConditionBool, UI("M9S - Only use cleave logic.",
-	Description = "This should clear up any targeting issues when a nail, the boss, and a flail are near each other at the same time.",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _m9sCleaveOnly = true;
-
-	[ConditionBool, UI("M9S - Cell Targeting logic.",
-	Description = "Treat Cells as immune if you don't have the corresponding status for it.",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _m9sCellTargeting = true;
-
-	[ConditionBool, UI("M9S - Ads Targeting logic.",
-	Description = "Prioritize Doornail or Flail based on role and distance to target.",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _m9sAdsTargeting = true;
-
-	[ConditionBool, UI("M10S - Firesnaking/Watersnaking targeting logic.",
-	Description = "Priotize Red Hot if you have firesnaking buff, and Deep Blue if you have watersnaking buff (also applies to Normal).",
-	Filter = DutySpecifcSavage)]
-	private static readonly bool _m10sBroTargeting = true;
-
-	[ConditionBool, UI("Limitless Blue Extreme - Whaleback logic.",
-	Description = "Treat Bismark Shell/Bismark Corona as immune if you don't have the Whaleback status",
-	Filter = DutySpecifcExtreme)]
-	private static readonly bool _limitlessBlueTargeting = true;
-
-	[ConditionBool, UI("Cinder Drift Extreme - Pall Targeting logic.",
-	Description = "Treat Pall of Rage/Pall of Grief as immune if you don't have the corresponding status for it.",
-	Filter = DutySpecifcExtreme)]
-	private static readonly bool _cinderDriftPallTargeting = true;
-
-	[ConditionBool, UI("The Epic of Alexander (Ultimate) - Jagd Doll logic.",
-	Description = "Treat Jagd Doll ads as immune when HP is less than 25%.",
-	Filter = DutySpecifcUltimate)]
-	private static readonly bool _teaJagdDoll = true;
-
-	[ConditionBool, UI("The Epic of Alexander (Ultimate) - True Heart logic.",
-	Description = "Treat True Heart ad as immune.",
-	Filter = DutySpecifcUltimate)]
-	private static readonly bool _teaTrueHeart = true;
-
-	[ConditionBool, UI("The Omega Protocol (Ultimate) - Packet Filter logic.",
-	Description = "Treat OmegaM/OmegaF as immune if you have their corresponding Packet Filter status.",
-	Filter = DutySpecifcUltimate)]
-	private static readonly bool _topOmegaMF = true;
-
-	[ConditionBool, UI("Futures Rewritten (Ultimate) - Crystal Of Darkness logic.",
-	Description = "Treat Crystal Of Darkness ad as immune.",
-	Filter = DutySpecifcUltimate)]
-	private static readonly bool _fruCrystalOfDarkness = true;
-
-	[ConditionBool, UI("The Ghimlyt Dark - Colossus Rubricatus ad.",
-	Description = "Treat Colossus Rubricatus as immune while its casting scripted action which leads to its death.",
-	Filter = DutySpecifcDungeon)]
-	private static readonly bool _colossusRubricatusImmune = true;
-
-	[ConditionBool, UI("Dohn Mheg - Liars Lyre mechancic.",
-	Description = "Treat Liars Lyre as immune if you don't have the Unfooled status.",
-	Filter = DutySpecifcDungeon)]
-	private static readonly bool _dohnMhegLyre = true;
-
-	[ConditionBool, UI("The Meso Terminal - Thanatos logic.",
-	Description = "Treat Jailers in second boss fight as immune if you don't have corresponding buff.",
-	Filter = DutySpecifcDungeon)]
-	private static readonly bool _jailerImmune = true;
-
-	[ConditionBool, UI("Forked Tower - Dead Star logic.",
-	Description = "Treat Triton/Nereid/Phobos as immune if you don't have the corresponding status for it.",
-	Filter = DutySpecifcFieldOps)]
-	private static readonly bool _forkedtowerDeadStar = true;
-
-	[ConditionBool, UI("Pilgrim's Traverse - Eminent Grief logic.",
-	Description = "Treat Eminent Grief as immune if you don't have Light Vengeance buff, and treat Devoured Eater as immune if you don't have Dark Vengeance buff.",
-	Filter = DutySpecifcDeepDungeon)]
-	private static readonly bool _eminent = true;
-
-	[ConditionBool, UI("The Labyrinth of the Ancients - Thanatos logic.",
-	Description = "Treat Thanatos as immune if you don't have Astral Realignment buff.",
-	Filter = DutySpecifcAlliance)]
-	private static readonly bool _thanatosImmune = true;
-
-	[ConditionBool, UI("The Void Ark - Irminsul and Sawtooth logic.",
-	Description = "Treat Irminsul and Sawtooth as immune if you don't have corresponding buff.",
-	Filter = DutySpecifcAlliance)]
-	private static readonly bool _irminsulSawtoothImmune = true;
-
-	[ConditionBool, UI("The Puppets' Bunker - Superior Flight Unit logic.",
-	Description = "Treat each Superior Flight Unit as immune if you don't have corresponding buff.",
-	Filter = DutySpecifcAlliance)]
-	private static readonly bool _superiorFlightUnitImmune = true;
-
-	[ConditionBool, UI("The Tower at Paradigm's Breach - Hansel and Gretel logic.",
-	Description = "Treat each Hansel/Gretel as immune if you are at an angle that would cause you to take rebound damage from the shield mechanic.",
-	Filter = DutySpecifcAlliance)]
-	private static readonly bool _hanselorGretelShieldedImmune = true;
-
-	[ConditionBool, UI("Jeuno: The First Walk - The Ark Angels logic.",
-	Description = "Treat each Ark Angel as immune if you don't have corresponding buff.",
-	Filter = DutySpecifcAlliance)]
-	private static readonly bool _jeunoBossImmune = true;
-
-	[ConditionBool, UI("Cloud of Darkness - Ads phase logic.",
-	Description = "Treat Cloud of Darkness/Stygian as immune if you don't have corresponding buff.",
-	Filter = DutySpecifcChaoticAlliance)]
-	private static readonly bool _codImmune = true;
-
-	[ConditionBool, UI("The Sil'dihn Subterrane - Drakefamily ads logic.",
-	Description = "Custom logic to treat certain drakes as immune to kill them in a specific order for the purposes Variant path 12.",
-	Filter = DutySpecifcVariantDungeon)]
-	private static readonly bool _drakeImmune = true;
 	#endregion
 
 	#region PvP
@@ -316,8 +146,6 @@ internal partial class Configs : IPluginConfiguration
 	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
 	private static readonly bool _interceptPassing = true;
 
-	[UI("Intercepted action execution window (amount of time PvP Solver is allowed to attempt to use an action after it has been intercepted)",
-	Filter = AutoActionUsage, Section = 5)]
 	[Range(1, 10, ConfigUnitType.Seconds)]
 	public float InterceptActionTime { get; set; } = 5;
 
@@ -401,8 +229,6 @@ internal partial class Configs : IPluginConfiguration
 	Filter = AutoActionUsage)]
 	private static readonly bool _useKnockback = true;
 
-	[UI("Use damaging gap closer abilites if the distance to your target is less than this.",
-		Filter = AutoActionUsage)]
 	[Range(0, 30, ConfigUnitType.Yalms, 1f)]
 	public float DistanceForMoving2 { get; set; } = 3f;
 
@@ -569,7 +395,6 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Disable hostile actions if something is casting an action on the Gaze/Stop list (EXPERIMENTAL)", Filter = AutoActionUsage, Section = 4)]
 	private static readonly bool _castingStop = false;
 
-	[UI("Configurable amount of time before the cast finishes that PvP Solver stops taking actions", Filter = AutoActionUsage, Section = 4, Parent = nameof(CastingStop))]
 	[Range(0, 15, ConfigUnitType.Seconds)]
 	public float CastingStopTime { get; set; } = 2.5f;
 
@@ -603,25 +428,7 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Automatically use AOE defensive actions", Filter = AutoActionUsage, Parent = nameof(UseDefenseAbility))]
 	private static readonly bool _useAOEDefense = true;
 
-	[ConditionBool, UI("Use BossModReborn timeline for proactive mitigation",
-		Description = "When enabled and BossModReborn is loaded, PvP Solver will use its timeline data to trigger defensive abilities before raidwides and tankbusters hit.",
-		Filter = AutoActionUsage, Parent = nameof(UseDefenseAbility))]
-	private static readonly bool _useBMRTimeline = false;
 
-	[UI("Seconds before raidwide to use area mitigation", Parent = nameof(UseBmrTimeline))]
-	[Range(1, 15, ConfigUnitType.Seconds, 0.5f)]
-	public float BMRRaidwideMitWindow { get; set; } = 5f;
-
-	[UI("Seconds before tankbuster to use single mitigation", Parent = nameof(UseBmrTimeline),
-		PvEFilter = JobFilterType.Tank)]
-	[Range(1, 10, ConfigUnitType.Seconds, 0.5f)]
-	public float BMRTankbusterMitWindow { get; set; } = 3f;
-
-	[UI("Seconds before knockback to use anti-knockback", Parent = nameof(UseBmrTimeline))]
-	[Range(1, 10, ConfigUnitType.Seconds, 0.5f)]
-	public float BMRKnockbackWindow { get; set; } = 3f;
-	[UI("Number of hostiles", Parent = nameof(UseDefenseAbility),
-		PvEFilter = JobFilterType.Tank)]
 	[Range(1, 8, ConfigUnitType.None, 0.05f)]
 	public int AutoDefenseNumber { get; set; } = 2;
 
@@ -727,12 +534,9 @@ internal partial class Configs : IPluginConfiguration
 	private static readonly bool _setBluActions2 = false;
 
 	#region Float
-	[UI("Auto turn off PvP Solver when combat is over for more than...",
-		Parent = nameof(AutoOffAfterCombat))]
 	[Range(0, 600, ConfigUnitType.Seconds)]
 	public float AutoOffAfterCombatTime { get; set; } = 30;
 
-	[UI("The angle of your vision cone", Parent = nameof(OnlyAttackInVisionCone))]
 	[Range(0, 90, ConfigUnitType.Degree, 0.02f)]
 	public float AngleOfVisionCone { get; set; } = 45;
 
@@ -748,28 +552,18 @@ internal partial class Configs : IPluginConfiguration
 	/// This setting exists to leave you time to approach and enter in melee range of the enemy without wasting
 	/// a GCD.
 	/// </markdown>
-	[UI("Melee Range action using offset",
-		Filter = AutoActionUsage, Section = 3,
-		PvEFilter = JobFilterType.Melee, PvPFilter = JobFilterType.Melee)]
 	[Range(0, 5, ConfigUnitType.Yalms, 0.02f)]
 	public float MeleeRangeOffset { get; set; } = 1;
 
-	[UI("When their minimum HP is lower than this.", Parent = nameof(HealWhenNothingTodo))]
 	[Range(0, 1, ConfigUnitType.Percent, 0.002f)]
 	public float HealWhenNothingTodoBelow { get; set; } = 0.8f;
 
-	[UI("Heal tank first if their HP is lower than this.",
-		Filter = HealingActionCondition, Section = 1)]
 	[Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	public float HealthTankRatio { get; set; } = 0.45f;
 
-	[UI("Heal healer first if their HP is lower than this.",
-		Filter = HealingActionCondition, Section = 1)]
 	[Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	public float HealthHealerRatio { get; set; } = 0.4f;
 
-	[UI("Heal self first if your HP is lower than this.",
-		Filter = HealingActionCondition, Section = 1)]
 	[Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	public float HealthSelfRatio { get; set; } = 0.4f;
 
@@ -818,13 +612,9 @@ internal partial class Configs : IPluginConfiguration
 	/// In order to not make is so obvious that you use PvP Solver, casting a raise action will be delayed by a random amount of seconds
 	/// between the two values.
 	/// </markdown>
-	[UI("Random delay range for resurrecting players.",
-		Filter = HealingActionCondition, Section = 2)]
 	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 RaiseDelay2 { get; set; } = new(3f, 3f);
 
-	[UI("Random delay range for dispelling statuses.",
-		Filter = HealingActionCondition, Section = 2)]
 	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 EsunaDelay { get; set; } = new(0f, 0f);
 
@@ -840,8 +630,6 @@ internal partial class Configs : IPluginConfiguration
 	/// when HP differences are larger (less selective). Adjust only if you want to fine-tune
 	/// AoE heal behavior.
 	/// </markdown>
-	[UI("HP standard deviation for using AoE heal.", Description = "Controls how much party members' HP must differ before using AoE healing instead of single-target heals. Lower values require party members to have more similar HP for AoE healing to trigger (more selective). Higher values allow AoE healing even when HP differences are larger (less selective). Adjust only if you want to fine-tune AoE heal behavior.",
-	Filter = Extra)]
 	[Range(0, 0.5f, ConfigUnitType.Percent, 0.02f)]
 	public float HealthDifference { get; set; } = 0.25f;
 
@@ -877,28 +665,18 @@ internal partial class Configs : IPluginConfiguration
 	/// The duration of special windows opened by /pvpsolver commands by default.
 	/// (Found in Main => Macros)
 	/// </markdown>
-	[UI("The duration of special windows opened by /pvpsolver commands by default.",
-		Filter = BasicTimer, Section = 1)]
 	[Range(1, 20, ConfigUnitType.Seconds, 1f)]
 	public float SpecialDuration { get; set; } = 3;
 
-	[UI("Random range of delay for PvP Solver to stop attacking when the target is dead or immune to damage.",
-		Parent = nameof(UseStopCasting))]
 	[Range(0, 3, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 StopCastingDelay { get; set; } = new(0.5f, 1);
 
-	[UI("The range of random delay before interrupting hostile targets.",
-		Filter = AutoActionUsage, Section = 3,
-		PvEFilter = JobFilterType.Interrupt, PvPFilter = JobFilterType.NoJob)]
 	[Range(0, 3, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 InterruptDelay { get; set; } = new(0.5f, 1);
 
-	[UI("Provoke random delay range.", Parent = nameof(AutoProvokeForTank))]
 	[Range(0, 10, ConfigUnitType.Seconds, 0.05f)]
 	public Vector2 ProvokeDelay { get; set; } = new(0.5f, 1);
 
-	[UI("Not In Combat random delay range.",
-		Filter = BasicParams)]
 	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 NotInCombatDelay { get; set; } = new(2, 3);
 
@@ -906,49 +684,36 @@ internal partial class Configs : IPluginConfiguration
 	/// Delay between showing the clicking/pressing effect on the actions
 	/// in your hotbars.
 	/// </markdown>
-	[UI("Clicking actions random delay range.",
-		Filter = BasicTimer)]
 	[Range(0.00f, 0.25f, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 ClickingDelay { get; set; } = new(0.1f, 0.2f);
 
-	[UI("Downtime healing delay range.", Parent = nameof(HealWhenNothingTodo))]
 	[Range(0, 5, ConfigUnitType.Seconds, 0.05f)]
 	public Vector2 HealWhenNothingTodoDelay { get; set; } = new(0.5f, 1);
 
 	/// <markdown file="Basic" name="How soon before countdown is finished to start casting or attacking">
 	/// How soon before countdown is finished to start casting or attacking.
 	/// </markdown>
-	[UI("How soon before countdown is finished to start casting or attacking.",
-		Filter = BasicTimer, Section = 1, PvPFilter = JobFilterType.NoJob)]
 	[Range(0, 0.7f, ConfigUnitType.Seconds, 0.002f)]
 	public float CountDownAhead { get; set; } = 0.4f;
 
-	[UI("Cooldown window icon size")]
 	[Range(0, 80, ConfigUnitType.Pixels, 0.2f)]
 	public float CooldownWindowIconSize { get; set; } = 30;
 
-	[UI("Next Action Size Ratio", Parent = nameof(ShowControlWindow))]
 	[Range(0, 10, ConfigUnitType.Percent, 0.02f)]
 	public float ControlWindowNextSizeRatio { get; set; } = 1.5f;
 
-	[UI("GCD icon size", Parent = nameof(ShowControlWindow))]
 	[Range(0, 80, ConfigUnitType.Pixels, 0.2f)]
 	public float ControlWindowGCDSize { get; set; } = 40;
 
-	[UI("oGCD icon size", Parent = nameof(ShowControlWindow))]
 	[Range(0, 80, ConfigUnitType.Pixels, 0.2f)]
 	public float ControlWindow0GCDSize { get; set; } = 30;
 
-	[UI("Control Progress Height")]
 	[Range(2, 30, ConfigUnitType.Yalms)]
 	public float ControlProgressHeight { get; set; } = 8;
 
-	[UI("Stop healing when time to kill is lower than:", Parent = nameof(UseHealWhenNotAHealer))]
 	[Range(0, 30, ConfigUnitType.Seconds, 0.02f)]
 	public float AutoHealTimeToKill { get; set; } = 8f;
 
-	[UI("The minimum time between updating PvP Solver information. (Raising this will help with framerate issues but can cause issues with rotation performance)",
-	Filter = BasicTimer)]
 	[JobConfig, Range(0, 0.3f, ConfigUnitType.Seconds, 0.002f)]
 	public float MinUpdatingTime { get; set; } = 0.00f;
 
@@ -968,7 +733,7 @@ internal partial class Configs : IPluginConfiguration
 	/// Do NOT use with XivAlexander or NoClippy - this should automatically disable itself if they are detected, but double check first!
 	/// </summary>
 	[ConditionBool, UI("Remove extra lag-induced animation lock delay from instant casts (read tooltip!)",
-	Description = "Do NOT use with XivAlexander, BMR tweaks enabled, or NoClippy - this should automatically disable itself if they are detected, but double check first!",
+	Description = "Do NOT use with XivAlexander or NoClippy - this should automatically disable itself if they are detected, but double check first!",
 	Filter = Extra)]
 	private static readonly bool _removeAnimationLockDelay = false;
 
@@ -978,13 +743,9 @@ internal partial class Configs : IPluginConfiguration
 	/// Setting this to 20ms will enable triple-weaving when using autorotation. The minimum setting to remove triple-weaving is 26ms.
 	/// The minimum of 20ms has been accepted by FFLogs and should not cause issues with your logs.
 	/// </summary>
-	[UI("Animation lock max. simulated delay (read tooltip!)",
-	Description = "Configures the maximum simulated delay in milliseconds when using animation lock removal - this is required and cannot be reduced to zero. Setting this to 20ms will enable triple-weaving when using autorotation. The minimum setting to remove triple-weaving is 26ms. The minimum of 20ms has been accepted by FFLogs and should not cause issues with your logs.",
-	Parent = nameof(RemoveAnimationLockDelay), Filter = Extra)]
 	[Range(20, 50, ConfigUnitType.None, 1f)]
 	public int AnimationLockDelayMax2 { get; set; } = 26;
 
-	[UI("Animation lock delay smoothing factor", Parent = nameof(RemoveAnimationLockDelay), Filter = Extra)]
 	[Range(0.3f, 0.95f, ConfigUnitType.None, 0.01f)]
 	public float AnimLockDelaySmoothing { get; set; } = 0.3f;
 
@@ -997,7 +758,6 @@ internal partial class Configs : IPluginConfiguration
 	Filter = Extra)]
 	private static readonly bool _removeCooldownDelay = false;
 
-	[UI("Max cooldown adjustment (ms)", Parent = nameof(RemoveCooldownDelay), Filter = Extra)]
 	[Range(10, 150, ConfigUnitType.None, 1f)]
 	public int CooldownAdjustMaxMs { get; set; } = 100;
 
@@ -1107,14 +867,9 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig)]
 	private static readonly bool _targetDelayEnable = false;
 
-	[UI("Range of time before locking onto aggro'd or new target to attack", Description = "(Do not set too low, can rip newly aggro'd dungeon mobs off tanks).",
-		Filter = TargetConfig, Parent = nameof(TargetDelayEnable))]
 	[Range(0, 3, ConfigUnitType.Seconds)]
 	public Vector2 TargetDelay { get; set; } = new(0f, 0f);
 
-	[UI("The size of the sector angle that can be selected as the moveable target",
-		Description = "If the selection mode is based on character facing, i.e., targets within the character's viewpoint are moveable targets.\nIf the selection mode is screen-centered, i.e., targets within a sector drawn upward from the character's point are movable targets.",
-		Filter = TargetConfig, Section = 2)]
 	[Range(0, 90, ConfigUnitType.Degree, 0.02f)]
 	public float MoveTargetAngle { get; set; } = 24;
 
@@ -1122,18 +877,12 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig, Section = 3)]
 	private static readonly bool _dummyBoss = true;
 
-	[UI("If target's TTK is higher than this, regard it as boss.",
-		Filter = TargetConfig, Section = 1)]
 	[Range(10, 1800, ConfigUnitType.Seconds, 0.02f)]
 	public float BossTimeToKill { get; set; } = 90;
 
-	[UI("If target's TTK is lower than this, regard it as dying.",
-				Filter = TargetConfig, Section = 1)]
 	[Range(0, 60, ConfigUnitType.Seconds, 0.02f)]
 	public float DyingTimeToKill { get; set; } = 10;
 
-	[UI("If target's HP percentage is lower than this, regard it as dying.",
-				Filter = TargetConfig, Section = 1)]
 	[Range(0, 0.1f, ConfigUnitType.Percent, 0.01f)]
 	public float IsDyingConfig { get; set; } = 0.02f;
 
@@ -1150,9 +899,6 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig)]
 	private static readonly bool _stickyTarget = true;
 
-	[UI("Ignore self-applied statuses with more remaining time than this when deciding to stay on target",
-		Description = "Guards against being held on a target by a long or effectively permanent aura. Statuses with more time left than this do not hold the target.",
-		Filter = TargetConfig, Parent = nameof(StickyTarget))]
 	[Range(1, 60, ConfigUnitType.Seconds, 0.02f)]
 	public float StickyTargetMaxRemaining { get; set; } = 30f;
 
@@ -1271,7 +1017,6 @@ internal partial class Configs : IPluginConfiguration
 	[JobChoiceConfig]
 	private readonly ConcurrentDictionary<string, string> _rotationConfigurations = new();
 
-	public ConcurrentDictionary<uint, string> DutyRotationChoice = new();
 
 	public void Save()
 	{

@@ -167,11 +167,6 @@ internal static class MajorUpdater
 			// Target updater always needs to be first to update
 			MacroUpdater.UpdateMacro();
 
-			// Through the presence latch, so an unload seen here resets the BMR timings once (BMRTimeline_IPCSubscriber).
-			if (BMRTimeline_IPCSubscriber.IsEnabled)
-			{
-				BossModUpdater.Update();
-			}
 
 			StateUpdater.UpdateState();
 

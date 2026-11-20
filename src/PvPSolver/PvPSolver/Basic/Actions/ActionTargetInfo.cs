@@ -364,109 +364,6 @@ public struct ActionTargetInfo(IBaseAction action)
 			return false;
 		}
 
-		if (DataCenter.Job == Job.BLU && DataCenter.IsInMaskedCarnivale)
-		{
-			if (Service.Config.BlockflatdamagedeathimmuneBlu && action.Setting.IsFlatDamageDeath
-			&& !MaskedCarnivaleHelper.IsVulnerableToFlatOrDeath(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to flat/death — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockslowimmuneBlu && action.Setting.IsSlowSpell
-			&& !MaskedCarnivaleHelper.IsVulnerableToSlow(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to slow — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockpetrificationimmuneBlu && action.Setting.IsPetrificationSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToPetrification(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to petrification — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockparalysisimmuneBlu && action.Setting.IsParalysisSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToParalysis(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to paralysis — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockinterruptimmuneBlu && action.Setting.IsInterruptSpell
-			&& !MaskedCarnivaleHelper.IsVulnerableToInterruption(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to interruption — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockblindimmuneBlu && action.Setting.IsBlindSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToBlind(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to blind — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockstunimmuneBlu && action.Setting.IsStunSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToStun(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to stun — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlocksleepimmuneBlu && action.Setting.IsSleepSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToSleep(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to sleep — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockbindimmuneBlu && action.Setting.IsBindSpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToBind(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to bind — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockheavyimmuneBlu && action.Setting.IsHeavySpell
-				&& !MaskedCarnivaleHelper.IsVulnerableToHeavy(battleChara))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is not vulnerable to heavy — skipping {action.Info.Name}.");
-				return false;
-			}
-
-			if (Service.Config.BlockimmuneBlu && !MaskedCarnivaleHelper.IsActionAspectAllowed(battleChara, action))
-			{
-				if (Service.Config.InDebug) PluginLog.Debug($"[CheckResistance] {battleChara.Name} is immune to action {action.Info.Name} aspect (BlockimmuneBLU).");
-				return false;
-			}
-
-			if (Service.Config.BlocknonweakBlu && !MaskedCarnivaleHelper.HasNoResistancesOrImmunities(battleChara))
-			{
-
-				// shouldCheckWeakness is true if the action has at least one non-unaspected aspect
-				// (or any aspect when AllowunaspectedBlu is off).
-				// When AllowunaspectedBlu is on, purely unaspected actions leave this false,
-				// bypassing BlocknonweakBlu so they are always allowed regardless of mob weakness.
-				bool shouldCheckWeakness = false;
-				if (action.Info.Aspects != null)
-				{
-					for (int i = 0; i < action.Info.Aspects.Count; i++)
-					{
-						if ((action.Info.Aspects[i] != Aspect.Unaspected && Service.Config.AllowunaspectedBlu) || !Service.Config.AllowunaspectedBlu)
-						{
-							shouldCheckWeakness = true;
-							break;
-						}
-					}
-				}
-				if (shouldCheckWeakness && !MaskedCarnivaleHelper.IsActionAspectWeak(battleChara, action))
-				{
-					return false;
-				}
-			}
-		}
 
 		try
 		{
@@ -862,37 +759,6 @@ public struct ActionTargetInfo(IBaseAction action)
 		// Use fallback points if no beneficial positions are found
 		if (pts.Length == 0)
 		{
-			bool isTrial = DataCenter.Territory?.ContentType == TerritoryContentType.Trials;
-			bool isRaid = DataCenter.Territory?.ContentType == TerritoryContentType.Raids;
-			int partyCount = 0;
-			if (DataCenter.PartyMembers != null)
-			{
-				foreach (var p in DataCenter.PartyMembers)
-				{
-					if (p is IPlayerCharacter)
-					{
-						partyCount++;
-					}
-				}
-			}
-			if (isTrial || (isRaid && partyCount >= 8))
-			{
-				Vector3[] fallbackPoints = [Vector3.Zero, new Vector3(100, 0, 100)];
-				Vector3 closestFallback = fallbackPoints[0];
-				float minDistance = Vector3.Distance(player.Position, fallbackPoints[0]);
-
-				for (int i = 1; i < fallbackPoints.Length; i++)
-				{
-					float distance = Vector3.Distance(player.Position, fallbackPoints[i]);
-					if (distance < minDistance)
-					{
-						closestFallback = fallbackPoints[i];
-						minDistance = distance;
-					}
-				}
-
-				pts = [closestFallback];
-			}
 		}
 
 		// Find the closest point and apply a small random offset, then clamp within cast range
@@ -1855,9 +1721,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				TargetType.Range => battleChara != null ? RandomRangeTarget(battleChara) : null,
 				TargetType.Magical => battleChara != null ? RandomMagicalTarget(battleChara) : null,
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
-				TargetType.DarkCannon => FindDarkCannonTarget(),
-				TargetType.ShockCannon => FindShockCannonTarget(),
-				TargetType.PhantomBell => FindPhantomBell(),
 				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
 				TargetType.MimicryTarget => FindMimicryTarget(),
@@ -1933,9 +1796,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				TargetType.Range => battleChara != null ? RandomRangeTarget(battleChara) : null,
 				TargetType.Magical => battleChara != null ? RandomMagicalTarget(battleChara) : null,
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
-				TargetType.DarkCannon => FindDarkCannonTarget(),
-				TargetType.ShockCannon => FindShockCannonTarget(),
-				TargetType.PhantomBell => FindPhantomBell(),
 				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
 				TargetType.MimicryTarget => FindMimicryTarget(),
@@ -2335,78 +2195,6 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 			return null;
 		}
-
-		IBattleChara? FindDarkCannonTarget()
-		{
-			if (battleChara != null)
-			{
-				if (PhantomRotation.CannoneerLevel < 4)
-				{
-					return FindHostile();
-				}
-				else
-				{
-					foreach (var hostile in battleChara)
-					{
-						if (!hostile.IsOCBlindImmuneTarget() && hostile.InCombat())
-						{
-							return hostile;
-						}
-					}
-				}
-			}
-			return null;
-		}
-
-		IBattleChara? FindShockCannonTarget()
-		{
-			if (battleChara != null)
-			{
-				foreach (var hostile in battleChara)
-				{
-					if (!hostile.IsOCParalysisImmuneTarget() && hostile.InCombat())
-					{
-						return hostile;
-					}
-				}
-			}
-			return null;
-		}
-
-		IBattleChara? FindPhantomBell()
-		{
-			var partyMembers = DataCenter.PartyMembers;
-			var allMembers = new List<IBattleChara>();
-			if (DataCenter.AllTargets != null)
-			{
-				foreach (var x in DataCenter.AllTargets)
-				{
-					if (x != null && !x.IsEnemy() && (!x.HasStatus(true, StatusID.BattleBell) || !x.HasStatus(false, StatusID.BattleBell)))
-					{
-						allMembers.Add(x);
-					}
-				}
-			}
-			if (partyMembers != null && partyMembers.Count > 0)
-			{
-				var bePartyAttackedTarget = FindTargetByType(partyMembers, TargetType.BeAttacked, 0, SpecialActionType.None, targetOverride, isFriendly);
-				var beAllAttackedTarget = FindTargetByType(allMembers, TargetType.BeAttacked, 0, SpecialActionType.None, targetOverride, isFriendly);
-				// Compare by reference or GameObjectId (safer for IBattleChara)
-				if (bePartyAttackedTarget != null && beAllAttackedTarget != null &&
-					bePartyAttackedTarget.GameObjectId == beAllAttackedTarget.GameObjectId)
-				{
-					return bePartyAttackedTarget;
-				}
-			}
-
-			// Fallback: only return self if self does NOT have BattleBell
-			if (!StatusHelper.PlayerHasStatus(true, StatusID.BattleBell) || !StatusHelper.PlayerHasStatus(false, StatusID.BattleBell))
-			{
-				return Player.Object;
-			}
-			return null;
-		}
-
 		IBattleChara? FindPhantomRespite()
 		{
 			List<IBattleChara> partyMembers = [];
@@ -3898,10 +3686,7 @@ public enum TargetType : byte
 	TheSpear,
 	Kardia,
 	Deployment,
-	PhantomBell,
 	PhantomRespite,
-	DarkCannon,
-	ShockCannon,
 	Farthest,
 	Nearest,
 	PvPHealers,

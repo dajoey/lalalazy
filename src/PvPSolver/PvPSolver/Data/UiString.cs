@@ -30,10 +30,6 @@ namespace RotationSolver.Data
 
 		[Description("No rotation is loaded here. Job options are in the PvP Solver settings window (/pvpsolver).")]
 		ConfigWindow_NoRotation,
-
-		[Description("Current duty logic.")]
-		ConfigWindow_DutyRotationDesc,
-
 		[Description("Remove")]
 		ConfigWindow_List_Remove,
 
@@ -109,14 +105,8 @@ namespace RotationSolver.Data
 		[Description("Configuration")]
 		ConfigWindow_Rotation_Configuration,
 
-		[Description("Duty Configuration")]
-		ConfigWindow_DutyRotation_Configuration,
-
 		[Description("Status")]
 		ConfigWindow_Rotation_Status,
-
-		[Description("Duty Rotation Status")]
-		ConfigWindow_DutyRotation_Status,
 
 		[Description("Used to customize when PvP Solver uses specific actions automatically. Click on an action's icon in the left list. Below, you may set the conditions for when that specific action is used. Each action can have different conditions to override the default rotation behavior.")]
 		ConfigWindow_Actions_Description,
@@ -442,12 +432,6 @@ namespace RotationSolver.Data
 		[Description("In this window, you can set which macro will be triggered after using an action.")]
 		ConfigWindow_Events_Description,
 
-		[Description("Duty Start: ")]
-		ConfigWindow_Events_DutyStart,
-
-		[Description("Duty End: ")]
-		ConfigWindow_Events_DutyEnd,
-
 		[Description("Delete Event")]
 		ConfigWindow_Events_RemoveEvent,
 
@@ -460,41 +444,8 @@ namespace RotationSolver.Data
 		[Description("Rotation is null. Please log in or switch jobs!")]
 		ConfigWindow_Condition_RotationNullWarning,
 
-		[Description("Ultimate")]
-		ConfigWindow_Duty_Ultimate,
-
-		[Description("Savage")]
-		ConfigWindow_Duty_Savage,
-
-		[Description("Chaotic Alliance Raid")]
-		ConfigWindow_Duty_ChaoticAlliance,
-
-		[Description("Extreme")]
-		ConfigWindow_Duty_Extreme,
-
-		[Description("Dungeon")]
-		ConfigWindow_Duty_Dungeon,
-
-		[Description("Deep Dungeon")]
-		ConfigWindow_Duty_DeepDungeon,
-
-		[Description("Variant Dungeon")]
-		ConfigWindow_Duty_VariantDungeon,
-
-		[Description("Alliance Raid")]
-		ConfigWindow_Duty_Alliance,
-
-		[Description("Field Ops")]
-		ConfigWindow_Duty_FieldOps,
-
 		[Description("PvP")]
 		ConfigWindow_Duty_PvP,
-
-		[Description("The Masked Carnivale")]
-		ConfigWindow_Duty_TheMaskedCarnivale,
-
-		[Description("Crucible of the Unbroken")]
-		ConfigWindow_Duty_CrucibleOfTheUnbroken,
 
 		[Description("Delay its transition to true")]
 		ActionSequencer_Delay_Description,
