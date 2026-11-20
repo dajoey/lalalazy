@@ -17,49 +17,6 @@ public partial class GunbreakerRotation : CustomRotation
 	public static byte AmmoComboStep => JobGauge.AmmoComboStep;
 
 	/// <summary>
-	/// Gets the maximum amount of ammo available.
-	/// </summary>
-	public static byte MaxAmmo()
-	{
-		if (HasBloodfest)
-		{
-			if (CartridgeChargeIiTrait.EnoughLevel)
-				return 6;
-			return 4;
-		}
-		if (CartridgeChargeIiTrait.EnoughLevel)
-			return 3;
-		if (CartridgeChargeTrait.EnoughLevel)
-			return 2;
-		return 0;
-	}
-
-	/// <summary>
-	/// Gets the maximum amount of ammo available not accounting for Bloodfest.
-	/// </summary>
-	public static byte NormalMaxAmmo()
-	{
-		if (CartridgeChargeIiTrait.EnoughLevel)
-			return 3;
-		if (CartridgeChargeTrait.EnoughLevel)
-			return 2;
-		return 0;
-	}
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public static byte OvercappedAmmo()
-	{
-		return (byte)(Ammo - NormalMaxAmmo());
-	}
-
-	/// <summary>
-	/// Gets whether the current ammo is at the maximum allowed.
-	/// </summary>
-	public static bool IsAmmoCapped => Ammo == MaxAmmo();
-
-	/// <summary>
 	/// Gets the max combo time of the Gnashing Fang combo.
 	/// </summary>
 	public static short MaxTimerDuration => JobGauge.MaxTimerDuration;
@@ -142,8 +99,6 @@ public partial class GunbreakerRotation : CustomRotation
 		//ImGui.Text("NoMercyWindow: " + NoMercyWindow.ToString());
 		ImGui.Text("Ammo: " + Ammo.ToString());
 		ImGui.Text("AmmoComboStep: " + AmmoComboStep.ToString());
-		ImGui.Text("MaxAmmo: " + MaxAmmo().ToString());
-		ImGui.Text("Is Ammo Capped: " + IsAmmoCapped.ToString());
 		ImGui.Text("MaxTimerDuration: " + MaxTimerDuration.ToString());
 		ImGui.Spacing();
 		ImGui.Spacing();

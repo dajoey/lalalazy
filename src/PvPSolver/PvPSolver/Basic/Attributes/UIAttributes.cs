@@ -57,12 +57,6 @@ public enum JobFilterType : byte
 {
 	None,
 	NoJob,
-	NoHealer,
-	Healer,
-	Interrupt,
-	Dispel,
-	Tank,
-	Melee,
 }
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 

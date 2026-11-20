@@ -25,11 +25,6 @@ public partial class CustomRotation
 			return false;
 		}
 
-		if (DataCenter.Job == ECommons.ExcelServices.Job.BLU && !DataCenter.IsMoving && StatusHelper.PlayerHasStatus(true, StatusID.PhantomFlurry) && !StatusHelper.PlayerWillStatusEnd(1, true, StatusID.PhantomFlurry))
-		{
-			return false;
-		}
-
 		IBaseAction.ForceEnable = true;
 		if (act is IBaseAction a && a != null && !a.Info.IsRealGCD && a.CanUse(out _, usedUp: true, skipAoeCheck: true, skipStatusProvideCheck: true))
 		{
@@ -90,14 +85,6 @@ public partial class CustomRotation
 		IBaseAction.ShouldEndSpecial = false;
 
 		IBaseAction.TargetOverride = null;
-		if (DataCenter.CommandStatus.HasFlag(AutoStatus.TankStance))
-		{
-			IBaseAction.ShouldEndSpecial = true;
-		}
-		if (DataCenter.MergedStatus.HasFlag(AutoStatus.TankStance) && (TankStance?.CanUse(out act) ?? false))
-		{
-			return true;
-		}
 		IBaseAction.ShouldEndSpecial = false;
 
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.AntiKnockback))
@@ -202,11 +189,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.Provoke))
 		{
-			if (!HasTankStance && (TankStance?.CanUse(out act) ?? false))
-			{
-				return true;
-			}
-
 			IBaseAction.TargetOverride = TargetType.Provoke;
 			if (ProvokeAbility(nextGCD, out act))
 			{

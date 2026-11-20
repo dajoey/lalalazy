@@ -26,11 +26,6 @@ public partial class CustomRotation
 
 		IBaseAction.ForceEnable = false;
 
-		if (DataCenter.Job == ECommons.ExcelServices.Job.BLU && StatusHelper.PlayerHasStatus(true, StatusID.PhantomFlurry))
-		{
-			return null;
-		}
-
 		if (DataCenter.Job == ECommons.ExcelServices.Job.NIN && StatusHelper.PlayerHasStatus(true, StatusID.Mudra) && DataCenter.DefaultGCDRemain >= 0.625f)
 		{
 			return null;

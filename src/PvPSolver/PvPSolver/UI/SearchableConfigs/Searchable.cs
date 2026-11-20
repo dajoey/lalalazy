@@ -15,61 +15,6 @@ internal readonly struct JobFilter
 			case JobFilterType.NoJob:
 				JobRoles = [];
 				break;
-
-			case JobFilterType.NoHealer:
-				JobRoles =
-				[
-					JobRole.Tank,
-					JobRole.Melee,
-					JobRole.RangedMagical,
-					JobRole.RangedPhysical,
-				];
-				break;
-
-			case JobFilterType.Healer:
-				JobRoles =
-				[
-					JobRole.Healer,
-				];
-				break;
-
-			case JobFilterType.Interrupt:
-				JobRoles =
-				[
-					JobRole.Tank,
-					JobRole.Melee,
-					JobRole.RangedPhysical,
-				];
-				Jobs =
-				[
-					Job.BLU,
-				];
-				break;
-
-			case JobFilterType.Dispel:
-				JobRoles =
-				[
-					JobRole.Healer,
-				];
-				Jobs =
-				[
-					Job.BRD,
-				];
-				break;
-
-			case JobFilterType.Tank:
-				JobRoles =
-				[
-					JobRole.Tank,
-				];
-				break;
-
-			case JobFilterType.Melee:
-				JobRoles =
-				[
-					JobRole.Melee,
-				];
-				break;
 		}
 	}
 

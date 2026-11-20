@@ -137,12 +137,14 @@ namespace RotationSolver.SourceGenerators.Properties {
         
         /// <summary>
         ///   Looks up a localized string similar to /// &lt;summary&gt;
-        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/56&quot;&gt;&lt;strong&gt;Snap Punch&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [56] [Weaponskill]
-        ////// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Can only be executed when in coeurl form. Additional Effect: Changes form to opo-opo Duration: 30s&lt;/para&gt;
+        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/142&quot;&gt;&lt;strong&gt;Blizzard&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (THM BLM) [142] [Spell]
+        ////// &lt;para&gt;Deals ice damage with a potency of 180. Additional Effect: Grants Umbral Ice or removes Astral Fire&lt;/para&gt;
         ////// &lt;/summary&gt;
-        ///SnapPunchPvE = 56,
+        ///BlizzardPvE = 142,
         ////// &lt;summary&gt;
-        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/66&quot;&gt;&lt;strong&gt;Demolish&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [66] [Weaponski [rest of string was truncated]&quot;;.
+        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/7411&quot;&gt;&lt;strong&gt;Heated Split Shot&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (MCH) [7411] [Weaponskill]
+        ////// &lt;para&gt;Delivers an attack with a potency of .&lt;/para&gt;
+        ////// &lt;/summ [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ActionId {
             get {
@@ -187,18 +189,19 @@ namespace RotationSolver.SourceGenerators.Properties {
         ///   Looks up a localized string similar to using ECommons.DalamudServices;
         ///using ECommons.ExcelServices;
         ///using RotationSolver.Basic.Actions;
-        ///using RotationSolver.Basic.Traits;
         ///
         ///namespace RotationSolver.Basic.Rotations.Basic;
         ////// &lt;summary&gt;
         ////// &lt;see href=&quot;https://na.finalfantasyxiv.com/jobguide/paladin&quot;&gt;&lt;strong&gt;paladin&lt;/strong&gt;&lt;/see&gt;
         ////// &lt;br&gt;Number of Actions: 17&lt;/br&gt;
-        ////// &lt;br&gt;Number of Traits: 19&lt;/br&gt;
         ////// &lt;/summary&gt;
         ///[Jobs(Job.PLD, Job.GLA)]
         ///public abstract partial class PaladinRotation : CustomRotation
         ///{
-        ///    static PLDGauge JobGauge =&gt; S [rest of string was truncated]&quot;;.
+        ///    static PLDGauge JobGauge =&gt; Svc.Gauges.Get&lt;PLDGauge&gt;();
+        ///
+        ///#region Actions
+        ///    private readonly Laz [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string Rotation {
             get {

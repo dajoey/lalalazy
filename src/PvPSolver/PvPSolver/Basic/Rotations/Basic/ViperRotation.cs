@@ -20,11 +20,6 @@ public partial class ViperRotation : CustomRotation
 	public static byte RattlingCoilStacks => JobGauge.RattlingCoilStacks;
 
 	/// <summary>
-	/// Gets Max stacks of Rattling Coil.
-	/// </summary>
-	public static byte MaxRattling => EnhancedVipersRattleTrait.EnoughLevel ? (byte)3 : (byte)2;
-
-	/// <summary>
 	/// Gets Serpent Offering stacks and gauge.
 	/// </summary>
 	public static byte SerpentOffering => JobGauge.SerpentOffering;
@@ -33,11 +28,6 @@ public partial class ViperRotation : CustomRotation
 	///  Gets value indicating the use of 1st, 2nd, 3rd, 4th generation and Ouroboros.
 	/// </summary>
 	public static byte AnguineTributeStacks => JobGauge.AnguineTribute;
-
-	/// <summary>
-	/// Gets Max stacks of Anguine Tribute.
-	/// </summary>
-	public static byte MaxAnguine => EnhancedSerpentsLineageTrait.EnoughLevel ? (byte)5 : (byte)4;
 
 	#region DreadCombo
 	/// <summary>
@@ -165,8 +155,8 @@ public partial class ViperRotation : CustomRotation
 	public override void DisplayBaseStatus()
 	{
 		ImGui.Text($"SerpentOffering: {SerpentOffering}/100");
-		ImGui.Text($"RattlingCoilStacks: {RattlingCoilStacks}/{MaxRattling}");
-		ImGui.Text($"AnguineTributeStacks: {AnguineTributeStacks}/{MaxAnguine}");
+		ImGui.Text($"RattlingCoilStacks: {RattlingCoilStacks}");
+		ImGui.Text($"AnguineTributeStacks: {AnguineTributeStacks}");
 		ImGui.Text($"VicewinderHasCharges: {VicewinderHasCharges}");
 		ImGui.Text($"VicepitHasCharges: {VicepitHasCharges}");
 		ImGui.Spacing();
@@ -200,7 +190,6 @@ public partial class ViperRotation : CustomRotation
 		ImGui.Text("HuntersTime: " + HuntersTime.ToString());
 		ImGui.Text("HunterOrSwiftEndsFirst: " + (HunterOrSwiftEndsFirst?.ToString() ?? "null"));
 		ImGui.Spacing();
-		ImGui.Text("MaxAnguine: " + MaxAnguine.ToString());
 		ImGui.Text("HasSteel: " + HasSteel.ToString());
 		ImGui.Text("HasReavers: " + HasReavers.ToString());
 		ImGui.Text("NoHone: " + NoHone.ToString());

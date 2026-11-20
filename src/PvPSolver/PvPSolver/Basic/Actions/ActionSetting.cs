@@ -47,15 +47,6 @@ public class ActionSetting
 	public IBaseAction[]? Ninjutsu { get; set; } = null;
 
 	/// <summary>
-	/// For BLU morph actions: the action ID of the parent BLU action that must be in an
-	/// active BLU slot for this action to appear in the UI.
-	/// For example, Cold Fog (23267) for White Death, Chelonian Gate (23273) for Divine Cataract.
-	/// When non-zero, <see cref="ActionBasicInfo.IsOnSlot"/> delegates to whether this ID is in
-	/// <see cref="DataCenter.BluSlots"/> instead of checking the morph action's own ID.
-	/// </summary>
-	public uint RequiredBluSlotActionId { get; set; } = 0;
-
-	/// <summary>
 	/// The override of the <see cref="ActionBasicInfo.MPNeed"/>.
 	/// </summary>
 	public Func<uint?>? MPOverride { get; set; } = null;

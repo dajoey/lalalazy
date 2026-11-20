@@ -1,5 +1,4 @@
 ﻿using ECommons.ExcelServices;
-using RotationSolver.Basic.Traits;
 namespace RotationSolver.Basic.Rotations;
 
 /// <summary>
@@ -68,11 +67,6 @@ public interface ICustomRotation : ITexture
 	/// Gets all actions, including base and item actions, associated with this rotation.
 	/// </summary>
 	IAction[] AllActions { get; }
-
-	/// <summary>
-	/// Gets all traits associated with this rotation.
-	/// </summary>
-	IBaseTrait[] AllTraits { get; }
 
 	/// <summary>
 	/// Gets all boolean properties associated with this rotation.

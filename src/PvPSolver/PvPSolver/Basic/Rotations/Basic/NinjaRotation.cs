@@ -17,11 +17,6 @@ public partial class NinjaRotation : CustomRotation
 	public static byte Kazematoi => JobGauge.Kazematoi;
 
 	/// <summary>
-	/// Is enough level for Jin
-	/// </summary>
-	public static bool HasJin => IncreaseAttackSpeedTrait.EnoughLevel;
-
-	/// <summary>
 	/// Checks if no ninjutsu action is currently selected or if the Rabbit Medium has been invoked.
 	/// </summary>
 	public static bool NoNinjutsu => !IsExecutingMudra;
@@ -91,7 +86,6 @@ public partial class NinjaRotation : CustomRotation
 	{
 		ImGui.Text($"Ninki: {Ninki}");
 		ImGui.Text($"Kazematoi: {Kazematoi}");
-		ImGui.Text($"HasJin: {HasJin}");
 		ImGui.Text($"NoNinjutsu: {NoNinjutsu}");
 		ImGui.Text($"RaijuStacks: {RaijuStacks}");
 	}

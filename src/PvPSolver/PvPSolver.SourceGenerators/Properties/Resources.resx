@@ -946,12 +946,6 @@ Protect = 146,
 Protect_147 = 147,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/148"&gt;&lt;strong&gt;Raise&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Teetering on the brink of consciousness.&lt;/para&gt;
-/// &lt;/summary&gt;
-Raise = 148,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/149"&gt;&lt;strong&gt;Stun&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Unable to execute actions.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -6830,12 +6824,6 @@ MagicVulnerabilityUp_1138 = 1138,
 PhysicalDamageUp_1139 = 1139,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1140"&gt;&lt;strong&gt;Raise&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Teetering on the brink of consciousness.&lt;/para&gt;
-/// &lt;/summary&gt;
-Raise_1140 = 1140,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1141"&gt;&lt;strong&gt;Heavy&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Movement speed is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -7486,12 +7474,6 @@ GiantDominance = 1248,
 /// &lt;para&gt;Next spell will require no time to cast.&lt;/para&gt;
 /// &lt;/summary&gt;
 Dualcast = 1249,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1250"&gt;&lt;strong&gt;True North&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;All action direction requirements are nullified.&lt;/para&gt;
-/// &lt;/summary&gt;
-TrueNorth = 1250,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1251"&gt;&lt;strong&gt;Turret Reset&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
@@ -10215,22 +10197,10 @@ Bleeding_1714 = 1714,
 Malodorous = 1715,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1716"&gt;&lt;strong&gt;Boost&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Potency of next offensive spell is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-Boost_1716 = 1716,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1717"&gt;&lt;strong&gt;Off-guard&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Damage taken is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
 Offguard = 1717,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1718"&gt;&lt;strong&gt;Waxing Nocturne&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Damage dealt and movement speed are increased. Waning Nocturne will take hold when the effect ends.&lt;/para&gt;
-/// &lt;/summary&gt;
-WaxingNocturne = 1718,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1719"&gt;&lt;strong&gt;Mighty Guard&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
@@ -10279,12 +10249,6 @@ Cursekeeper = 1725,
 /// &lt;para&gt;Unable to execute actions.&lt;/para&gt;
 /// &lt;/summary&gt;
 Fetters_1726 = 1726,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1727"&gt;&lt;strong&gt;Waning Nocturne&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Unable to auto-attack or use spells weaponskills and abilities.&lt;/para&gt;
-/// &lt;/summary&gt;
-WaningNocturne = 1727,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1728"&gt;&lt;strong&gt;Contractual Obligation&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
@@ -12498,12 +12462,6 @@ MeatilyShielded = 2116,
 MeatShield = 2117,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2118"&gt;&lt;strong&gt;Harmonized&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Potency of next physical damage spell is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-Harmonized = 2118,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2119"&gt;&lt;strong&gt;Cactguard&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Damage taken is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -12534,24 +12492,6 @@ UmbralAttenuation = 2122,
 PhysicalAttenuation = 2123,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2124"&gt;&lt;strong&gt;Aetheric Mimicry: Tank&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Copying the aetheric properties of a tank.&lt;/para&gt;
-/// &lt;/summary&gt;
-AethericMimicryTank = 2124,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2125"&gt;&lt;strong&gt;Aetheric Mimicry: DPS&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Copying the aetheric properties of a DPS.&lt;/para&gt;
-/// &lt;/summary&gt;
-AethericMimicryDps = 2125,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2126"&gt;&lt;strong&gt;Aetheric Mimicry: Healer&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Copying the aetheric properties of a healer.&lt;/para&gt;
-/// &lt;/summary&gt;
-AethericMimicryHealer = 2126,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2127"&gt;&lt;strong&gt;Brush with Death&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Your resolve has deserted you. You are unable to perform actions that would result in your death.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -12568,12 +12508,6 @@ BurningBrand = 2128,
 /// &lt;para&gt;Branded with a mark of ice and unable to deal damage to Igeyorhm's shade. Ice damage taken is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
 FreezingBrand = 2129,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2130"&gt;&lt;strong&gt;Surpanakha's Fury&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Potency of Surpanakha is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-SurpanakhasFury = 2130,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2131"&gt;&lt;strong&gt;Battle High I&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
@@ -13820,12 +13754,6 @@ BannerOfLimitlessGrace = 2353,
 BannerOfTranscendentFinesse = 2354,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2355"&gt;&lt;strong&gt;Reraise&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Chance of automatic revival upon KO.&lt;/para&gt;
-/// &lt;/summary&gt;
-Reraise = 2355,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2356"&gt;&lt;strong&gt;Lost Incense&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Enmity is increased and damage taken is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -14642,12 +14570,6 @@ ChelonianGate = 2496,
 AuspiciousTrance = 2497,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2498"&gt;&lt;strong&gt;Basic Instinct&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Movement speed damage dealt and healing potency are increased. Mighty Guard will not reduce damage dealt while Basic Instinct is in effect.&lt;/para&gt;
-/// &lt;/summary&gt;
-BasicInstinct = 2498,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2499"&gt;&lt;strong&gt;Incendiary Burns&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Sustaining fire damage over time.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -14664,12 +14586,6 @@ DragonForce = 2500,
 /// &lt;para&gt;Experiencing dizziness. Certain attacks will cause additional effects.&lt;/para&gt;
 /// &lt;/summary&gt;
 Lightheaded_2501 = 2501,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2502"&gt;&lt;strong&gt;Phantom Flurry&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Executing Phantom Flurry.&lt;/para&gt;
-/// &lt;/summary&gt;
-PhantomFlurry = 2502,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2503"&gt;&lt;strong&gt;Aetherial Ward&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
@@ -29701,65 +29617,15 @@ UnnamedStatus_5250 = 5250,
   </data>
   <data name="ActionId" xml:space="preserve">
     <value>/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/56"&gt;&lt;strong&gt;Snap Punch&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [56] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Can only be executed when in coeurl form. Additional Effect: Changes form to opo-opo Duration: 30s&lt;/para&gt;
-/// &lt;/summary&gt;
-SnapPunchPvE = 56,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/66"&gt;&lt;strong&gt;Demolish&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [66] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Can only be executed when in coeurl form. Additional Effect: Grants 2 stacks of Coeurl's Fury Coeurl's Fury Effect: Increases potency of by 150 Additional Effect: Changes form to opo-opo Duration: 30s&lt;/para&gt;
-/// &lt;/summary&gt;
-DemolishPvE = 66,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/88"&gt;&lt;strong&gt;Chaos Thrust&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (LNC DRG) [88] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 100. 140 when executed from a target's rear. Combo Action: Disembowel Combo Potency: 220 Rear Combo Potency: 260 Combo Bonus: Damage over time Potency: 40 Duration: 24s&lt;/para&gt;
-/// &lt;/summary&gt;
-ChaosThrustPvE = 88,
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#action/142"&gt;&lt;strong&gt;Blizzard&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (THM BLM) [142] [Spell]
 /// &lt;para&gt;Deals ice damage with a potency of 180. Additional Effect: Grants Umbral Ice or removes Astral Fire&lt;/para&gt;
 /// &lt;/summary&gt;
 BlizzardPvE = 142,
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/2255"&gt;&lt;strong&gt;Aeolian Edge&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (ROG NIN) [2255] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Combo Action: Gust Slash Combo Potency: Rear Combo Potency:&lt;/para&gt;
-/// &lt;/summary&gt;
-AeolianEdgePvE = 2255,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/2258"&gt;&lt;strong&gt;Trick Attack&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (ROG NIN) [2258] [Ability]
-/// &lt;para&gt;Delivers an attack with a potency of 300. 400 when executed from a target's rear. Additional Effect: Increases damage you deal target by 10% Duration: 15s Can only be executed while under the effect of Hidden.&lt;/para&gt;
-/// &lt;/summary&gt;
-TrickAttackPvE = 2258,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/3554"&gt;&lt;strong&gt;Fang and Claw&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (DRG) [3554] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Combo Action: Combo Potency: Flank Combo Potency:&lt;/para&gt;
-/// &lt;/summary&gt;
-FangAndClawPvE = 3554,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/3556"&gt;&lt;strong&gt;Wheeling Thrust&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (DRG) [3556] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Combo Action: Combo Potency: Rear Combo Potency:&lt;/para&gt;
-/// &lt;/summary&gt;
-WheelingThrustPvE = 3556,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/3563"&gt;&lt;strong&gt;Armor Crush&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (NIN) [3563] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Combo Action: Gust Slash Combo Potency: Flank Combo Potency: Combo Bonus: Grants 2 stacks of Kazematoi Kazematoi Effect: Increases potency of Aeolian Edge by 100 Maximum Stacks: 5&lt;/para&gt;
-/// &lt;/summary&gt;
-ArmorCrushPvE = 3563,
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#action/7411"&gt;&lt;strong&gt;Heated Split Shot&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (MCH) [7411] [Weaponskill]
 /// &lt;para&gt;Delivers an attack with a potency of .&lt;/para&gt;
 /// &lt;/summary&gt;
 HeatedSplitShotPvE = 7411,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/7481"&gt;&lt;strong&gt;Gekko&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (SAM) [7481] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Combo Action: Jinpu Combo Potency: Rear Combo Potency: Combo Bonus: Grants Getsu&lt;/para&gt;
-/// &lt;/summary&gt;
-GekkoPvE = 7481,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/7482"&gt;&lt;strong&gt;Kasha&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (SAM) [7482] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Combo Action: Shifu Combo Potency: Flank Combo Potency: Combo Bonus: Grants Ka&lt;/para&gt;
-/// &lt;/summary&gt;
-KashaPvE = 7482,
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#action/9971"&gt;&lt;strong&gt;Optical Sight&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvP&lt;/i&gt; (All Classes) [9971] [Special]
 /// &lt;para&gt;Deals damage with a potency of 30,000 to all opposing players and warmachina near point of impact. 3,000 when attacking a mammet or object.&lt;/para&gt;
@@ -29810,21 +29676,6 @@ CeruleumRefillPvP = 9981,
 /// &lt;para&gt;Exit the warmachina.&lt;/para&gt;
 /// &lt;/summary&gt;
 DismountPvP = 10057,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/24382"&gt;&lt;strong&gt;Gibbet&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (RPR) [24382] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Enhanced Gibbet Potency: Flank Enhanced Potency: Additional Effect: Grants Enhanced Gallows Duration: 60s The action Blood Stalk changes to Unveiled Gallows while under the effect of Enhanced Gallows. Can only be executed while under the effect of Soul Reaver.&lt;/para&gt;
-/// &lt;/summary&gt;
-GibbetPvE = 24382,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/24383"&gt;&lt;strong&gt;Gallows&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (RPR) [24383] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Enhanced Gallows Potency: Rear Enhanced Potency: Additional Effect: Grants Enhanced Gibbet Duration: 60s The action Blood Stalk changes to Unveiled Gibbet while under the effect of Enhanced Gibbet. Can only be executed while under the effect of Soul Reaver.&lt;/para&gt;
-/// &lt;/summary&gt;
-GallowsPvE = 24383,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/25772"&gt;&lt;strong&gt;Chaotic Spring&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (DRG) [25772] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Combo Action: Combo Potency: Rear Combo Potency: Combo Bonus: Damage over time Potency: 45 Duration: 24s&lt;/para&gt;
-/// &lt;/summary&gt;
-ChaoticSpringPvE = 25772,
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#action/29054"&gt;&lt;strong&gt;Guard&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvP&lt;/i&gt; (Jobs of the Disciples of War or Magic) [29054] [Ability]
 /// &lt;para&gt;Reduces damage taken by 90% and grants immunity to Stun Heavy Bind Silence Deep Freeze and knockback and draw-in effects. Duration: 4s Movement speed is reduced by 33% for the duration of this effect. Effect ends upon reuse using another action or when the effect duration expires.&lt;/para&gt;
@@ -30850,51 +30701,6 @@ FireIiiPvP = 30896,
 /// &lt;para&gt;Deals ice damage with a potency of 6,000. Additional Effect: Grants Umbral Ice II Duration: 15s Effect cannot be stacked with Astral Fire. Can only be executed while under the effect of Umbral Ice. ※Action changes to Blizzard IV upon execution. ※This action cannot be assigned to a hotbar.&lt;/para&gt;
 /// &lt;/summary&gt;
 BlizzardIiiPvP = 30897,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34610"&gt;&lt;strong&gt;Flanksting Strike&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34610] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Potencies are increased by 100 while under the effect of Flankstung Venom. Additional Effect: Grants Hindstung Venom Hindstung Venom Effect: Increases potency of Hindsting Strike by 100 Duration: 60s Effect cannot be stacked with other viper venom effects. Can only be executed after successfully landing Hunter's Sting. ※This action cannot be assigned to a hotbar. ※Hunter's Sting changes to Flanksting Strike when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-FlankstingStrikePvE = 34610,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34611"&gt;&lt;strong&gt;Flanksbane Fang&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34611] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Potencies are increased by 100 while under the effect of Flanksbane Venom. Additional Effect: Grants Hindsbane Venom Hindsbane Venom Effect: Increases potency of Hindsbane Fang by 100 Duration: 60s Effect cannot be stacked with other viper venom effects. Can only be executed after successfully landing Hunter's Sting. ※This action cannot be assigned to a hotbar. ※Swiftskin's Sting changes to Flanksbane Fang when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-FlanksbaneFangPvE = 34611,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34612"&gt;&lt;strong&gt;Hindsting Strike&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34612] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Potencies are increased by 100 while under the effect of Hindstung Venom. Additional Effect: Grants Flanksbane Venom Flanksbane Venom Effect: Increases potency of Flanksbane Fang by 100 Duration: 60s Effect cannot be stacked with other viper venom effects. Can only be executed after successfully landing Swiftskin's Sting. ※This action cannot be assigned to a hotbar. ※Hunter's Sting changes to Hindsting Strike when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-HindstingStrikePvE = 34612,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34613"&gt;&lt;strong&gt;Hindsbane Fang&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34613] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's rear. Potencies are increased by 100 while under the effect of Hindsbane Venom. Additional Effect: Grants Flankstung Venom Flankstung Venom Effect: Increases potency of Flanksting Strike by 100 Duration: 60s Effect cannot be stacked with other viper venom effects. Can only be executed after successfully landing Swiftskin's Sting. ※This action cannot be assigned to a hotbar. ※Swiftskin's Sting changes to Hindsbane Fang when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-HindsbaneFangPvE = 34613,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34621"&gt;&lt;strong&gt;Hunter's Coil&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34621] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 570. 620 when executed from a target's flank. Additional Effect: Grants Hunter's Instinct Hunter's Instinct Effect: Increases damage dealt by 10% Duration: 40s Can only be executed after successfully landing Vicewinder or Swiftskin's Coil. This weaponskill does not share a recast timer with any other actions.&lt;/para&gt;
-/// &lt;/summary&gt;
-HuntersCoilPvE = 34621,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/34622"&gt;&lt;strong&gt;Swiftskin's Coil&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (VPR) [34622] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 570. 620 when executed from a target's rear. Additional Effect: Grants Swiftscaled Swiftscaled Effect: Reduces weaponskill cast time and recast time spell cast time and recast time and auto-attack delay by 15% Duration: 40s Can only be executed after successfully landing Vicewinder or Hunter's Coil. This weaponskill does not share a recast timer with any other actions.&lt;/para&gt;
-/// &lt;/summary&gt;
-SwiftskinsCoilPvE = 34622,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/36947"&gt;&lt;strong&gt;Pouncing Coeurl&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (MNK) [36947] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 310. 370 when executed from a target's flank. Coeurl's Fury Potency: 460 Flank Coeurl's Fury Potency: 520 Can only be executed when in coeurl form. Additional Effect: Changes form to opo-opo Duration: 30s&lt;/para&gt;
-/// &lt;/summary&gt;
-PouncingCoeurlPvE = 36947,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/36970"&gt;&lt;strong&gt;Executioner's Gibbet&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (RPR) [36970] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 700. 760 when executed from a target's flank. Enhanced Gibbet Potency: 760 Flank Enhanced Potency: 820 Additional Effect: Grants Enhanced Gallows Duration: 60s The action Blood Stalk changes to Unveiled Gallows while under the effect of Enhanced Gallows. Can only be executed while under the effect of Executioner. ※This action cannot be assigned to a hotbar. ※Gibbet changes to Executioner's Gibbet when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-ExecutionersGibbetPvE = 36970,
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#action/36971"&gt;&lt;strong&gt;Executioner's Gallows&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (RPR) [36971] [Weaponskill]
-/// &lt;para&gt;Delivers an attack with a potency of 700. 760 when executed from a target's rear. Enhanced Gallows Potency: 760 Rear Enhanced Potency: 820 Additional Effect: Grants Enhanced Gibbet Duration: 60s The action Blood Stalk changes to Unveiled Gibbet while under the effect of Enhanced Gibbet. Can only be executed while under the effect of Executioner. ※This action cannot be assigned to a hotbar. ※Gallows changes to Executioner's Gallows when requirements for execution are met.&lt;/para&gt;
-/// &lt;/summary&gt;
-ExecutionersGallowsPvE = 36971,
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#action/39157"&gt;&lt;strong&gt;Steel Fangs&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvP&lt;/i&gt; (VPR) [39157] [Weaponskill]
 /// &lt;para&gt;Delivers an attack with a potency of 5,000. ※This action cannot be assigned to a hotbar.&lt;/para&gt;
@@ -32418,13 +32224,11 @@ public abstract partial class CustomRotation
     <value>using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using RotationSolver.Basic.Actions;
-using RotationSolver.Basic.Traits;
 
 namespace RotationSolver.Basic.Rotations.Basic;
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/paladin"&gt;&lt;strong&gt;paladin&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 17&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 19&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.PLD, Job.GLA)]
 public abstract partial class PaladinRotation : CustomRotation
@@ -32839,119 +32643,11 @@ private IBaseAction PhalanxPvP =&gt; _PhalanxPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; PhalanxPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50207"&gt;&lt;strong&gt;Divine Magic Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [207]
-    /// &lt;para&gt;Halves MP cost for all spells while preventing casting interruptions via damage taken. Grants the following effects after successfully completing a combo with Royal Authority: Combo Bonus: Grants Divine Might Divine Might Effect: Allows next Holy Spirit or Holy Circle to be cast immediately with increased potency Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DivineMagicMasteryTrait { get; } = new BaseTrait(207);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50209"&gt;&lt;strong&gt;Oath Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [209]
-    /// &lt;para&gt;Increases Oath Gauge by 5 each time an auto-attack lands.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait OathMasteryTrait { get; } = new BaseTrait(209);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50246"&gt;&lt;strong&gt;Chivalry&lt;/strong&gt;&lt;/see&gt; (PLD) [246]
-    /// &lt;para&gt;Restores MP when using Riot Blade or Spirits Within.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ChivalryTrait { get; } = new BaseTrait(246);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50260"&gt;&lt;strong&gt;Rage of Halone Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [260]
-    /// &lt;para&gt;Upgrades Rage of Halone to Royal Authority.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RageOfHaloneMasteryTrait { get; } = new BaseTrait(260);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50261"&gt;&lt;strong&gt;Enhanced Prominence&lt;/strong&gt;&lt;/see&gt; (PLD) [261]
-    /// &lt;para&gt;Grants the following effects after successfully completing a combo with Prominence: Combo Bonus: Restores MP Combo Bonus: Grants Divine Might Divine Might Effect: Allows next Holy Spirit or Holy Circle to be cast immediately with increased potency Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedProminenceTrait { get; } = new BaseTrait(261);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50262"&gt;&lt;strong&gt;Enhanced Sheltron&lt;/strong&gt;&lt;/see&gt; (PLD) [262]
-    /// &lt;para&gt;Extends the duration of Sheltron to 6 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSheltronTrait { get; } = new BaseTrait(262);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50263"&gt;&lt;strong&gt;Enhanced Requiescat&lt;/strong&gt;&lt;/see&gt; (PLD) [263]
-    /// &lt;para&gt;Grants the effect of Confiteor Ready upon landing Requiescat. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRequiescatTrait { get; } = new BaseTrait(263);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50264"&gt;&lt;strong&gt;Sword Oath&lt;/strong&gt;&lt;/see&gt; (PLD) [264]
-    /// &lt;para&gt;Grants Atonement Ready after successfully completing a combo with Royal Authority. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SwordOathTrait { get; } = new BaseTrait(264);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50412"&gt;&lt;strong&gt;Sheltron Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [412]
-    /// &lt;para&gt;Upgrades Sheltron to Holy Sheltron.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SheltronMasteryTrait { get; } = new BaseTrait(412);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50413"&gt;&lt;strong&gt;Enhanced Intervention&lt;/strong&gt;&lt;/see&gt; (PLD) [413]
-    /// &lt;para&gt;Extends the duration of Intervention to 8 seconds. Grants Knight's Resolve to target reducing damage taken by 10%. Duration: 4s Grants Knight's Benediction to target gradually restoring HP over time. Cure Potency: 250 Duration: 12s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedInterventionTrait { get; } = new BaseTrait(413);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50414"&gt;&lt;strong&gt;Divine Magic Mastery II&lt;/strong&gt;&lt;/see&gt; (PLD) [414]
-    /// &lt;para&gt;Adds a healing effect to Holy Spirit Holy Circle and Confiteor. Cure Potency: 400&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DivineMagicMasteryIiTrait { get; } = new BaseTrait(414);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50415"&gt;&lt;strong&gt;Spirits Within Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [415]
-    /// &lt;para&gt;Upgrades Spirits Within to Expiacion.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SpiritsWithinMasteryTrait { get; } = new BaseTrait(415);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50416"&gt;&lt;strong&gt;Enhanced Divine Veil&lt;/strong&gt;&lt;/see&gt; (PLD) [416]
-    /// &lt;para&gt;Adds a healing effect to Divine Veil. Cure Potency: 400&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDivineVeilTrait { get; } = new BaseTrait(416);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50504"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [504]
-    /// &lt;para&gt;Increases the potency of Fast Blade to 200 Riot Blade to 140 Royal Authority to 140 Holy Spirit to 350 Atonement to 400 Supplication to 420 and Sepulchre to 440.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(504);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50564"&gt;&lt;strong&gt;Sentinel Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [564]
-    /// &lt;para&gt;Upgrades Sentinel to Guardian.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SentinelMasteryTrait { get; } = new BaseTrait(564);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50565"&gt;&lt;strong&gt;Requiescat Mastery&lt;/strong&gt;&lt;/see&gt; (PLD) [565]
-    /// &lt;para&gt;Upgrades Requiescat to Imperator.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RequiescatMasteryTrait { get; } = new BaseTrait(565);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50566"&gt;&lt;strong&gt;Enhanced Blade of Valor&lt;/strong&gt;&lt;/see&gt; (PLD) [566]
-    /// &lt;para&gt;Grants the effect of Blade of Honor Ready upon landing Blade of Valor. Duration: 30s Imperator changes to Blade of Honor while under the effect of Blade of Honor Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBladeOfValorTrait { get; } = new BaseTrait(566);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50650"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (PLD) [650]
-    /// &lt;para&gt;Increases the potency of Fast Blade to 220 Riot Blade to 170 Royal Authority to 200 Holy Spirit to 400 Atonement to 460 Supplication to 500 Sepulchre to 540 Confiteor to 500 Blade of Faith to 260 Blade of Truth to 380 and Blade of Valor to 500.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(650);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50665"&gt;&lt;strong&gt;Enhanced Fight or Flight&lt;/strong&gt;&lt;/see&gt; (PLD) [665]
-    /// &lt;para&gt;Grants Goring Blade Ready upon executing Fight or Flight. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFightOrFlightTrait { get; } = new BaseTrait(665);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        DivineMagicMasteryTrait, OathMasteryTrait, ChivalryTrait, RageOfHaloneMasteryTrait, EnhancedProminenceTrait, EnhancedSheltronTrait, EnhancedRequiescatTrait, SwordOathTrait, SheltronMasteryTrait, EnhancedInterventionTrait, DivineMagicMasteryIiTrait, SpiritsWithinMasteryTrait, EnhancedDivineVeilTrait, MeleeMasteryTrait, SentinelMasteryTrait, RequiescatMasteryTrait, EnhancedBladeOfValorTrait, MeleeMasteryIiTrait, EnhancedFightOrFlightTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/monk"&gt;&lt;strong&gt;monk&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 14&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 17&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.MNK, Job.PGL)]
 public abstract partial class MonkRotation : CustomRotation
@@ -33297,109 +32993,11 @@ private IBaseAction MeteodrivePvP =&gt; _MeteodrivePvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; MeteodrivePvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50160"&gt;&lt;strong&gt;Deep Meditation&lt;/strong&gt;&lt;/see&gt; (MNK) [160]
-    /// &lt;para&gt;Grants an 80% chance that a chakra will open upon dealing critical damage with a weaponskill.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DeepMeditationTrait { get; } = new BaseTrait(160);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50245"&gt;&lt;strong&gt;Deep Meditation II&lt;/strong&gt;&lt;/see&gt; (MNK) [245]
-    /// &lt;para&gt;Guarantees that a chakra will open upon dealing critical damage with a weaponskill.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DeepMeditationIiTrait { get; } = new BaseTrait(245);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50366"&gt;&lt;strong&gt;Enhanced Greased Lightning II&lt;/strong&gt;&lt;/see&gt; (MNK) [366]
-    /// &lt;para&gt;Reduces weaponskill cast time and recast time spell cast time and recast time and auto-attack delay by 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedGreasedLightningIiTrait { get; } = new BaseTrait(366);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50367"&gt;&lt;strong&gt;Enhanced Greased Lightning III&lt;/strong&gt;&lt;/see&gt; (MNK) [367]
-    /// &lt;para&gt;Reduces weaponskill cast time and recast time spell cast time and recast time and auto-attack delay by 20%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedGreasedLightningIiiTrait { get; } = new BaseTrait(367);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50428"&gt;&lt;strong&gt;Steel Peak Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [428]
-    /// &lt;para&gt;Upgrades Steel Peak to The Forbidden Chakra and Steeled Meditation to Forbidden Meditation.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SteelPeakMasteryTrait { get; } = new BaseTrait(428);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50429"&gt;&lt;strong&gt;Howling Fist Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [429]
-    /// &lt;para&gt;Upgrades Inspirited Meditation to Enlightened Meditation and Howling Fist to Enlightenment.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HowlingFistMasteryTrait { get; } = new BaseTrait(429);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50430"&gt;&lt;strong&gt;Arm of the Destroyer Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [430]
-    /// &lt;para&gt;Upgrades Arm of the Destroyer to Shadow of the Destroyer.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ArmOfTheDestroyerMasteryTrait { get; } = new BaseTrait(430);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50431"&gt;&lt;strong&gt;Enhanced Thunderclap&lt;/strong&gt;&lt;/see&gt; (MNK) [431]
-    /// &lt;para&gt;Allows a third charge of Thunderclap.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedThunderclapTrait { get; } = new BaseTrait(431);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50432"&gt;&lt;strong&gt;Enhanced Brotherhood&lt;/strong&gt;&lt;/see&gt; (MNK) [432]
-    /// &lt;para&gt;Guarantees that a chakra will open when you are under the effect of Meditative Brotherhood and execute a weaponskill or cast a spell.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBrotherhoodTrait { get; } = new BaseTrait(432);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50433"&gt;&lt;strong&gt;Enhanced Perfect Balance&lt;/strong&gt;&lt;/see&gt; (MNK) [433]
-    /// &lt;para&gt;When under the effect of Perfect Balance grants Beast Chakra in accordance with the form granted by the executed weaponskills. Weaponskills granting opo-opo form will also grant Coeurl Chakra. Weaponskills granting raptor form will also grant Opo-opo Chakra. Weaponskills granting coeurl form will also grant Raptor Chakra.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPerfectBalanceTrait { get; } = new BaseTrait(433);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50512"&gt;&lt;strong&gt;Flint Strike Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [512]
-    /// &lt;para&gt;Upgrades Flint Strike to Rising Phoenix.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait FlintStrikeMasteryTrait { get; } = new BaseTrait(512);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50513"&gt;&lt;strong&gt;Tornado Kick Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [513]
-    /// &lt;para&gt;Upgrades Tornado Kick to Phantom Rush.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TornadoKickMasteryTrait { get; } = new BaseTrait(513);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50518"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [518]
-    /// &lt;para&gt;Increases the potency of Bootshine to 220 True Strike to 300 Snap Punch to 270 Twin Snakes to 380 Demolish to 320 Dragon Kick to 280 and The Forbidden Chakra to 400.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(518);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50577"&gt;&lt;strong&gt;Beast Chakra Mastery&lt;/strong&gt;&lt;/see&gt; (MNK) [577]
-    /// &lt;para&gt;Upgrades Bootshine to Leaping Opo True Strike to Rising Raptor Snap Punch to Pouncing Coeurl and Elixir Field to Elixir Burst.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BeastChakraMasteryTrait { get; } = new BaseTrait(577);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50578"&gt;&lt;strong&gt;Enhanced Riddle of Wind&lt;/strong&gt;&lt;/see&gt; (MNK) [578]
-    /// &lt;para&gt;Grants Wind's Rumination upon executing Riddle of Wind. Duration: 15s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRiddleOfWindTrait { get; } = new BaseTrait(578);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50579"&gt;&lt;strong&gt;Enhanced Riddle of Fire&lt;/strong&gt;&lt;/see&gt; (MNK) [579]
-    /// &lt;para&gt;Grants Fire's Rumination upon executing Riddle of Fire. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRiddleOfFireTrait { get; } = new BaseTrait(579);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50660"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (MNK) [660]
-    /// &lt;para&gt;Increases the potency of Twin Snakes to 420 Demolish to 360 Dragon Kick to 320 Six-sided Star to 780 and Phantom Rush to 1,500.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(660);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        DeepMeditationTrait, DeepMeditationIiTrait, EnhancedGreasedLightningIiTrait, EnhancedGreasedLightningIiiTrait, SteelPeakMasteryTrait, HowlingFistMasteryTrait, ArmOfTheDestroyerMasteryTrait, EnhancedThunderclapTrait, EnhancedBrotherhoodTrait, EnhancedPerfectBalanceTrait, FlintStrikeMasteryTrait, TornadoKickMasteryTrait, MeleeMasteryTrait, BeastChakraMasteryTrait, EnhancedRiddleOfWindTrait, EnhancedRiddleOfFireTrait, MeleeMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/warrior"&gt;&lt;strong&gt;warrior&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 14&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 18&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.WAR, Job.MRD)]
 public abstract partial class WarriorRotation : CustomRotation
@@ -33745,114 +33343,11 @@ private IBaseAction PrimalScreamPvP =&gt; _PrimalScreamPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; PrimalScreamPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50157"&gt;&lt;strong&gt;Enhanced Infuriate&lt;/strong&gt;&lt;/see&gt; (WAR) [157]
-    /// &lt;para&gt;Reduces Infuriate recast time by 5 seconds upon landing Fell Cleave or Decimate on most targets.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedInfuriateTrait { get; } = new BaseTrait(157);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50218"&gt;&lt;strong&gt;Berserk Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [218]
-    /// &lt;para&gt;Upgrades Berserk to Inner Release.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BerserkMasteryTrait { get; } = new BaseTrait(218);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50249"&gt;&lt;strong&gt;The Beast Within&lt;/strong&gt;&lt;/see&gt; (WAR) [249]
-    /// &lt;para&gt;Increases Beast Gauge when landing Maim or Storm's Path in a combo.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TheBeastWithinTrait { get; } = new BaseTrait(249);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50265"&gt;&lt;strong&gt;Inner Beast Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [265]
-    /// &lt;para&gt;Upgrades Inner Beast to Fell Cleave.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait InnerBeastMasteryTrait { get; } = new BaseTrait(265);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50266"&gt;&lt;strong&gt;Steel Cyclone Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [266]
-    /// &lt;para&gt;Upgrades Steel Cyclone to Decimate.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SteelCycloneMasteryTrait { get; } = new BaseTrait(266);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50267"&gt;&lt;strong&gt;Nascent Chaos&lt;/strong&gt;&lt;/see&gt; (WAR) [267]
-    /// &lt;para&gt;Infuriate grants the effect of Nascent Chaos upgrading Decimate to Chaotic Cyclone when the Beast Gauge is 50 or greater. Upon reaching level 80 Nascent Chaos will also upgrade Fell Cleave to Inner Chaos. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait NascentChaosTrait { get; } = new BaseTrait(267);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50268"&gt;&lt;strong&gt;Mastering the Beast&lt;/strong&gt;&lt;/see&gt; (WAR) [268]
-    /// &lt;para&gt;Increases Beast Gauge when landing Mythril Tempest in a combo.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MasteringTheBeastTrait { get; } = new BaseTrait(268);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50269"&gt;&lt;strong&gt;Enhanced Thrill of Battle&lt;/strong&gt;&lt;/see&gt; (WAR) [269]
-    /// &lt;para&gt;Adds an additional effect to Thrill of Battle that increases HP recovery via healing actions by 20%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedThrillOfBattleTrait { get; } = new BaseTrait(269);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50417"&gt;&lt;strong&gt;Enhanced Shake It Off&lt;/strong&gt;&lt;/see&gt; (WAR) [417]
-    /// &lt;para&gt;Adds a healing effect to Shake It Off. Cure Potency: 300&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedShakeItOffTrait { get; } = new BaseTrait(417);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50418"&gt;&lt;strong&gt;Raw Intuition Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [418]
-    /// &lt;para&gt;Upgrades Raw Intuition to Bloodwhetting.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RawIntuitionMasteryTrait { get; } = new BaseTrait(418);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50419"&gt;&lt;strong&gt;Enhanced Nascent Flash&lt;/strong&gt;&lt;/see&gt; (WAR) [419]
-    /// &lt;para&gt;Extends the duration of Nascent Flash and Nascent Glint to 8 seconds. Grants Stem the Flow to target reducing damage taken by 10%. Duration: 4s Grants Stem the Tide to target nullifying damage equivalent to a heal of 400 potency. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedNascentFlashTrait { get; } = new BaseTrait(419);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50420"&gt;&lt;strong&gt;Enhanced Equilibrium&lt;/strong&gt;&lt;/see&gt; (WAR) [420]
-    /// &lt;para&gt;Grants healing over time to self. Cure Potency: 200 Duration: 15s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEquilibriumTrait { get; } = new BaseTrait(420);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50421"&gt;&lt;strong&gt;Enhanced Onslaught&lt;/strong&gt;&lt;/see&gt; (WAR) [421]
-    /// &lt;para&gt;Allows a third charge of Onslaught.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedOnslaughtTrait { get; } = new BaseTrait(421);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50505"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [505]
-    /// &lt;para&gt;Increases the potency of Heavy Swing to 200 Maim to 150 Storm's Path to 160 and Storm's Eye to 160.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(505);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50567"&gt;&lt;strong&gt;Vengeance Mastery&lt;/strong&gt;&lt;/see&gt; (WAR) [567]
-    /// &lt;para&gt;Upgrades Vengeance to Damnation.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VengeanceMasteryTrait { get; } = new BaseTrait(567);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50568"&gt;&lt;strong&gt;Enhanced Inner Release&lt;/strong&gt;&lt;/see&gt; (WAR) [568]
-    /// &lt;para&gt;Grants a stack of Burgeoning Fury upon landing Fell Cleave or Decimate while under the effect of Inner Release. Duration: 30s Maximum Stacks: 3 At maximum stacks become Wrathful upgrading Inner Release to Primal Wrath.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedInnerReleaseTrait { get; } = new BaseTrait(568);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50569"&gt;&lt;strong&gt;Enhanced Primal Rend&lt;/strong&gt;&lt;/see&gt; (WAR) [569]
-    /// &lt;para&gt;Grants the effect of Primal Ruination Ready after executing Primal Rend. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPrimalRendTrait { get; } = new BaseTrait(569);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50654"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (WAR) [654]
-    /// &lt;para&gt;Increases the potency of Heavy Swing to 240 Maim to 190 Storm's Path to 220 Storm's Eye to 220 Fell Cleave to 580 and Upheaval to 420.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(654);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        EnhancedInfuriateTrait, BerserkMasteryTrait, TheBeastWithinTrait, InnerBeastMasteryTrait, SteelCycloneMasteryTrait, NascentChaosTrait, MasteringTheBeastTrait, EnhancedThrillOfBattleTrait, EnhancedShakeItOffTrait, RawIntuitionMasteryTrait, EnhancedNascentFlashTrait, EnhancedEquilibriumTrait, EnhancedOnslaughtTrait, MeleeMasteryTrait, VengeanceMasteryTrait, EnhancedInnerReleaseTrait, EnhancedPrimalRendTrait, MeleeMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/dragoon"&gt;&lt;strong&gt;dragoon&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 14&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 13&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.DRG, Job.LNC)]
 public abstract partial class DragoonRotation : CustomRotation
@@ -34198,89 +33693,11 @@ private IBaseAction SkyHighPvP =&gt; _SkyHighPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SkyHighPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50163"&gt;&lt;strong&gt;Life of the Dragon&lt;/strong&gt;&lt;/see&gt; (DRG) [163]
-    /// &lt;para&gt;Upgrades Blood of the Dragon to Life of the Dragon. Life of the Dragon Effect: Increases damage dealt by 15% Upon successfully landing Geirskogul grants Nastrond Ready. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LifeOfTheDragonTrait { get; } = new BaseTrait(163);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50247"&gt;&lt;strong&gt;Lance Mastery&lt;/strong&gt;&lt;/see&gt; (DRG) [247]
-    /// &lt;para&gt;Increases the potency of True Thrust to 230 Vorpal Thrust to 130 Piercing Talon to 200 Enhanced Piercing Talon to 350 and Disembowel to 140. Grants Draconian Fire if Drakesbane is executed following Fang and Claw or Wheeling Thrust. Duration: 30s Effect of Draconian Fire ends upon execution of any melee weaponskill. Upgrades True Thrust to Raiden Thrust while under the effect of Draconian Fire.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LanceMasteryTrait { get; } = new BaseTrait(247);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50275"&gt;&lt;strong&gt;Jump Mastery&lt;/strong&gt;&lt;/see&gt; (DRG) [275]
-    /// &lt;para&gt;Upgrades Jump to High Jump.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait JumpMasteryTrait { get; } = new BaseTrait(275);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50434"&gt;&lt;strong&gt;Enhanced Jump&lt;/strong&gt;&lt;/see&gt; (DRG) [434]
-    /// &lt;para&gt;Increases the potency of Jump to 320.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedJumpTrait { get; } = new BaseTrait(434);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50435"&gt;&lt;strong&gt;Enhanced Coerthan Torment&lt;/strong&gt;&lt;/see&gt; (DRG) [435]
-    /// &lt;para&gt;Grants the effect of Draconian Fire after successfully completing a combo with Coerthan Torment. Duration: 30s Effect of Draconian Fire ends upon execution of any melee weaponskill. Upgrades Doom Spike to Draconian Fury while under the effect of Draconian Fire.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedCoerthanTormentTrait { get; } = new BaseTrait(435);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50437"&gt;&lt;strong&gt;Lance Mastery II&lt;/strong&gt;&lt;/see&gt; (DRG) [437]
-    /// &lt;para&gt;Upgrades Full Thrust to Heavens' Thrust and Chaos Thrust to Chaotic Spring. Also increases the potency of Drakesbane to 400.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LanceMasteryIiTrait { get; } = new BaseTrait(437);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50438"&gt;&lt;strong&gt;Enhanced Life Surge&lt;/strong&gt;&lt;/see&gt; (DRG) [438]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Life Surge. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedLifeSurgeTrait { get; } = new BaseTrait(438);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50508"&gt;&lt;strong&gt;Lance Mastery III&lt;/strong&gt;&lt;/see&gt; (DRG) [508]
-    /// &lt;para&gt;Increases the potency of Geirskogul to 280 and Nastrond to 720. Allows for the sharpening of the Firstminds' Focus upon successfully landing Raiden Thrust or Draconian Fury up to a maximum of 2 units.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LanceMasteryIiiTrait { get; } = new BaseTrait(508);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50580"&gt;&lt;strong&gt;Enhanced Winged Glide&lt;/strong&gt;&lt;/see&gt; (DRG) [580]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Winged Glide. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedWingedGlideTrait { get; } = new BaseTrait(580);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50581"&gt;&lt;strong&gt;Enhanced Dragonfire Dive&lt;/strong&gt;&lt;/see&gt; (DRG) [581]
-    /// &lt;para&gt;Grants Dragon's Flight upon executing Dragonfire Dive. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDragonfireDiveTrait { get; } = new BaseTrait(581);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50582"&gt;&lt;strong&gt;Lance Mastery IV&lt;/strong&gt;&lt;/see&gt; (DRG) [582]
-    /// &lt;para&gt;Upgrades Vorpal Thrust to Lance Barrage and Disembowel to Spiral Blow.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LanceMasteryIvTrait { get; } = new BaseTrait(582);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50583"&gt;&lt;strong&gt;Enhanced Stardiver&lt;/strong&gt;&lt;/see&gt; (DRG) [583]
-    /// &lt;para&gt;Grants Starcross Ready upon executing Stardiver. Duration: 20s Effect ends when Life of the Dragon expires.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedStardiverTrait { get; } = new BaseTrait(583);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50653"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (DRG) [653]
-    /// &lt;para&gt;Increases the potency of Fang and Claw to 140 Wheeling Thrust to 140 Drakesbane to 460 Raiden Thrust to 320 Stardiver to 840 Heavens' Thrust to 160 Chaotic Spring to 140 and Wyrmwind Thrust to 440.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(653);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        LifeOfTheDragonTrait, LanceMasteryTrait, JumpMasteryTrait, EnhancedJumpTrait, EnhancedCoerthanTormentTrait, LanceMasteryIiTrait, EnhancedLifeSurgeTrait, LanceMasteryIiiTrait, EnhancedWingedGlideTrait, EnhancedDragonfireDiveTrait, LanceMasteryIvTrait, EnhancedStardiverTrait, MeleeMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/bard"&gt;&lt;strong&gt;bard&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 13&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 18&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.BRD, Job.ARC)]
 public abstract partial class BardRotation : CustomRotation
@@ -34603,114 +34020,11 @@ private IBaseAction FinalFantasiaPvP =&gt; _FinalFantasiaPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; FinalFantasiaPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50168"&gt;&lt;strong&gt;Bite Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [168]
-    /// &lt;para&gt;Upgrades Venomous Bite and Windbite to Caustic Bite and Stormbite respectively.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BiteMasteryTrait { get; } = new BaseTrait(168);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50169"&gt;&lt;strong&gt;Enhanced Empyreal Arrow&lt;/strong&gt;&lt;/see&gt; (BRD) [169]
-    /// &lt;para&gt;Guarantees the trigger of the additional effects for current Mage's Ballad Army's Paeon and the Wanderer's Minuet when Empyreal Arrow hits a target.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEmpyrealArrowTrait { get; } = new BaseTrait(169);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50282"&gt;&lt;strong&gt;Straight Shot Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [282]
-    /// &lt;para&gt;Upgrades Straight Shot to Refulgent Arrow.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait StraightShotMasteryTrait { get; } = new BaseTrait(282);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50284"&gt;&lt;strong&gt;Bite Mastery II&lt;/strong&gt;&lt;/see&gt; (BRD) [284]
-    /// &lt;para&gt;Adds to Stormbite Caustic Bite and Iron Jaws a 35% chance to grant Hawk's Eye. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BiteMasteryIiTrait { get; } = new BaseTrait(284);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50285"&gt;&lt;strong&gt;Heavy Shot Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [285]
-    /// &lt;para&gt;Upgrades Heavy Shot to Burst Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HeavyShotMasteryTrait { get; } = new BaseTrait(285);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50286"&gt;&lt;strong&gt;Enhanced Army's Paeon&lt;/strong&gt;&lt;/see&gt; (BRD) [286]
-    /// &lt;para&gt;While under the effect of Army's Paeon with at least one stack of Repertoire singing Mage's Ballad or the Wanderer's Minuet will grant Army's Muse reducing weaponskill cast time and recast time spell cast time and recast time and auto-attack delay. Duration: 10s Allowing the effect of Army's Paeon and accumulated stacks of Repertoire to expire without singing Mage's Ballad or the Wanderer's Minuet will grant Army's Ethos. Duration: 30s While under the effect of Army's Ethos singing Mage's Ballad or the Wanderer's Minuet will grant Army's Muse. Both Army's Ethos and Army's Muse require stacks of Repertoire the number of which will determine the potency of the latter. 1 Repertoire: 1% 2 Repertoire: 2% 3 Repertoire: 4% 4 Repertoire: 12%&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedArmysPaeonTrait { get; } = new BaseTrait(286);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50287"&gt;&lt;strong&gt;Soul Voice&lt;/strong&gt;&lt;/see&gt; (BRD) [287]
-    /// &lt;para&gt;Increases Soul Voice Gauge by 5 each time Repertoire is granted.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SoulVoiceTrait { get; } = new BaseTrait(287);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50444"&gt;&lt;strong&gt;Quick Nock Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [444]
-    /// &lt;para&gt;Upgrades Quick Nock to Ladonsbite.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait QuickNockMasteryTrait { get; } = new BaseTrait(444);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50445"&gt;&lt;strong&gt;Enhanced Bloodletter&lt;/strong&gt;&lt;/see&gt; (BRD) [445]
-    /// &lt;para&gt;Allows a third charge of Bloodletter and Rain of Death.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBloodletterTrait { get; } = new BaseTrait(445);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50446"&gt;&lt;strong&gt;Enhanced Apex Arrow&lt;/strong&gt;&lt;/see&gt; (BRD) [446]
-    /// &lt;para&gt;Grants Blast Arrow Ready upon executing Apex Arrow after the Soul Voice Gauge has reached 80 or higher. Duration: 10s Apex Arrow becomes Blast Arrow while under this effect.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedApexArrowTrait { get; } = new BaseTrait(446);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50447"&gt;&lt;strong&gt;Enhanced Troubadour&lt;/strong&gt;&lt;/see&gt; (BRD) [447]
-    /// &lt;para&gt;Reduces Troubadour recast time to 90 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTroubadourTrait { get; } = new BaseTrait(447);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50448"&gt;&lt;strong&gt;Minstrel's Coda&lt;/strong&gt;&lt;/see&gt; (BRD) [448]
-    /// &lt;para&gt;Grants Mage's Coda Army's Coda or Wanderer's Coda upon singing Mage's Ballad Army's Paeon or the Wanderer's Minuet respectively.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MinstrelsCodaTrait { get; } = new BaseTrait(448);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50598"&gt;&lt;strong&gt;Wide Volley Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [598]
-    /// &lt;para&gt;Upgrades Wide Volley to Shadowbite.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait WideVolleyMasteryTrait { get; } = new BaseTrait(598);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50599"&gt;&lt;strong&gt;Bloodletter Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [599]
-    /// &lt;para&gt;Upgrades Bloodletter to Heartbreak Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BloodletterMasteryTrait { get; } = new BaseTrait(599);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50600"&gt;&lt;strong&gt;Enhanced Barrage&lt;/strong&gt;&lt;/see&gt; (BRD) [600]
-    /// &lt;para&gt;Grants Resonant Arrow Ready upon executing Barrage. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBarrageTrait { get; } = new BaseTrait(600);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50601"&gt;&lt;strong&gt;Enhanced Troubadour II&lt;/strong&gt;&lt;/see&gt; (BRD) [601]
-    /// &lt;para&gt;Improves Troubadour's damage reduction effect to 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTroubadourIiTrait { get; } = new BaseTrait(601);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50602"&gt;&lt;strong&gt;Enhanced Radiant Finale&lt;/strong&gt;&lt;/see&gt; (BRD) [602]
-    /// &lt;para&gt;Grants Radiant Encore Ready upon executing Radiant Finale. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRadiantFinaleTrait { get; } = new BaseTrait(602);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50668"&gt;&lt;strong&gt;Ranged Mastery&lt;/strong&gt;&lt;/see&gt; (BRD) [668]
-    /// &lt;para&gt;Increases the potency of Empyreal Arrow to 260 Sidewinder to 400 Refulgent Arrow to 280 Burst Shot to 220 and Apex Arrow to 140 up to 700.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RangedMasteryTrait { get; } = new BaseTrait(668);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        BiteMasteryTrait, EnhancedEmpyrealArrowTrait, StraightShotMasteryTrait, BiteMasteryIiTrait, HeavyShotMasteryTrait, EnhancedArmysPaeonTrait, SoulVoiceTrait, QuickNockMasteryTrait, EnhancedBloodletterTrait, EnhancedApexArrowTrait, EnhancedTroubadourTrait, MinstrelsCodaTrait, WideVolleyMasteryTrait, BloodletterMasteryTrait, EnhancedBarrageTrait, EnhancedTroubadourIiTrait, EnhancedRadiantFinaleTrait, RangedMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/whitemage"&gt;&lt;strong&gt;white mage&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 9&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 16&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.WHM, Job.CNJ)]
 public abstract partial class WhiteMageRotation : CustomRotation
@@ -34941,104 +34255,11 @@ private IBaseAction AfflatusPurgationPvP =&gt; _AfflatusPurgationPvPCreator.Valu
 private sealed protected override IBaseAction LimitBreakPvP =&gt; AfflatusPurgationPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50181"&gt;&lt;strong&gt;Stone Mastery II&lt;/strong&gt;&lt;/see&gt; (WHM) [181]
-    /// &lt;para&gt;Upgrades Stone II to Stone III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait StoneMasteryIiTrait { get; } = new BaseTrait(181);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50182"&gt;&lt;strong&gt;Stone Mastery III&lt;/strong&gt;&lt;/see&gt; (WHM) [182]
-    /// &lt;para&gt;Upgrades Stone III to Stone IV.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait StoneMasteryIiiTrait { get; } = new BaseTrait(182);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50196"&gt;&lt;strong&gt;Secret of the Lily&lt;/strong&gt;&lt;/see&gt; (WHM) [196]
-    /// &lt;para&gt;Adds a Lily to your Healing Gauge for every 20 seconds you are engaged in combat up to a maximum of 3.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SecretOfTheLilyTrait { get; } = new BaseTrait(196);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50307"&gt;&lt;strong&gt;Aero Mastery II&lt;/strong&gt;&lt;/see&gt; (WHM) [307]
-    /// &lt;para&gt;Upgrades Aero II to Dia.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AeroMasteryIiTrait { get; } = new BaseTrait(307);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50308"&gt;&lt;strong&gt;Stone Mastery IV&lt;/strong&gt;&lt;/see&gt; (WHM) [308]
-    /// &lt;para&gt;Upgrades Stone IV to Glare.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait StoneMasteryIvTrait { get; } = new BaseTrait(308);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50309"&gt;&lt;strong&gt;Transcendent Afflatus&lt;/strong&gt;&lt;/see&gt; (WHM) [309]
-    /// &lt;para&gt;Adds a Blood Lily to the Healing Gauge that blooms after three uses of Afflatus Solace or Afflatus Rapture.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TranscendentAfflatusTrait { get; } = new BaseTrait(309);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50310"&gt;&lt;strong&gt;Enhanced Asylum&lt;/strong&gt;&lt;/see&gt; (WHM) [310]
-    /// &lt;para&gt;Adds an additional effect to Asylum that increases HP recovery via healing actions by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAsylumTrait { get; } = new BaseTrait(310);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50487"&gt;&lt;strong&gt;Glare Mastery&lt;/strong&gt;&lt;/see&gt; (WHM) [487]
-    /// &lt;para&gt;Upgrades Glare to Glare III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait GlareMasteryTrait { get; } = new BaseTrait(487);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50488"&gt;&lt;strong&gt;Holy Mastery&lt;/strong&gt;&lt;/see&gt; (WHM) [488]
-    /// &lt;para&gt;Upgrades Holy to Holy III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HolyMasteryTrait { get; } = new BaseTrait(488);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50489"&gt;&lt;strong&gt;Enhanced Healing Magic&lt;/strong&gt;&lt;/see&gt; (WHM) [489]
-    /// &lt;para&gt;Increases the healing potency of Cure to 500 Medica to 400 Cure II to 800 Regen to 250 Cure III to 600 Medica II to 250 Medica II's Regen effect to 150 Afflatus Solace to 800 and Afflatus Rapture to 400.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedHealingMagicTrait { get; } = new BaseTrait(489);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50490"&gt;&lt;strong&gt;Enhanced Divine Benison&lt;/strong&gt;&lt;/see&gt; (WHM) [490]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Divine Benison. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDivineBenisonTrait { get; } = new BaseTrait(490);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50623"&gt;&lt;strong&gt;Enhanced Presence of Mind&lt;/strong&gt;&lt;/see&gt; (WHM) [623]
-    /// &lt;para&gt;Presence of Mind grants 3 stacks of Sacred Sight upon execution. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPresenceOfMindTrait { get; } = new BaseTrait(623);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50624"&gt;&lt;strong&gt;Medica Mastery&lt;/strong&gt;&lt;/see&gt; (WHM) [624]
-    /// &lt;para&gt;Upgrades Medica II to Medica III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MedicaMasteryTrait { get; } = new BaseTrait(624);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50625"&gt;&lt;strong&gt;Enhanced Tetragrammaton&lt;/strong&gt;&lt;/see&gt; (WHM) [625]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Tetragrammaton. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTetragrammatonTrait { get; } = new BaseTrait(625);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50626"&gt;&lt;strong&gt;Enhanced Temperance&lt;/strong&gt;&lt;/see&gt; (WHM) [626]
-    /// &lt;para&gt;Temperance grants Divine Grace upon execution. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTemperanceTrait { get; } = new BaseTrait(626);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50651"&gt;&lt;strong&gt;White Magic Mastery&lt;/strong&gt;&lt;/see&gt; (WHM) [651]
-    /// &lt;para&gt;Increases the potency of Dia and its damage over time to 85 Afflatus Misery to 1,400 and Glare III to 350.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait WhiteMagicMasteryTrait { get; } = new BaseTrait(651);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        StoneMasteryIiTrait, StoneMasteryIiiTrait, SecretOfTheLilyTrait, AeroMasteryIiTrait, StoneMasteryIvTrait, TranscendentAfflatusTrait, EnhancedAsylumTrait, GlareMasteryTrait, HolyMasteryTrait, EnhancedHealingMagicTrait, EnhancedDivineBenisonTrait, EnhancedPresenceOfMindTrait, MedicaMasteryTrait, EnhancedTetragrammatonTrait, EnhancedTemperanceTrait, WhiteMagicMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/blackmage"&gt;&lt;strong&gt;black mage&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 21&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 17&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.BLM, Job.THM)]
 public abstract partial class BlackMageRotation : CustomRotation
@@ -35545,109 +34766,11 @@ private IBaseAction SoulResonancePvP =&gt; _SoulResonancePvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SoulResonancePvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50171"&gt;&lt;strong&gt;Thunder Mastery&lt;/strong&gt;&lt;/see&gt; (BLM) [171]
-    /// &lt;para&gt;Upgrades Thunder to Thunder III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ThunderMasteryTrait { get; } = new BaseTrait(171);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50172"&gt;&lt;strong&gt;Thunder Mastery II&lt;/strong&gt;&lt;/see&gt; (BLM) [172]
-    /// &lt;para&gt;Upgrades Thunder II to Thunder IV.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ThunderMasteryIiTrait { get; } = new BaseTrait(172);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50174"&gt;&lt;strong&gt;Enhanced Enochian&lt;/strong&gt;&lt;/see&gt; (BLM) [174]
-    /// &lt;para&gt;Grants the effect of Polyglot upon maintaining Enochian for 30 seconds. Also improves Enochian's magic damage increase to 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnochianTrait { get; } = new BaseTrait(174);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50295"&gt;&lt;strong&gt;Umbral Heart&lt;/strong&gt;&lt;/see&gt; (BLM) [295]
-    /// &lt;para&gt;Grants stacks of Umbral Heart upon casting Freeze or executing Manafont or Umbral Soul.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait UmbralHeartTrait { get; } = new BaseTrait(295);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50297"&gt;&lt;strong&gt;Enhanced Polyglot&lt;/strong&gt;&lt;/see&gt; (BLM) [297]
-    /// &lt;para&gt;Allows the stacking of a second Polyglot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPolyglotTrait { get; } = new BaseTrait(297);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50322"&gt;&lt;strong&gt;Enhanced Enochian II&lt;/strong&gt;&lt;/see&gt; (BLM) [322]
-    /// &lt;para&gt;Improves Enochian's magic damage increase to 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnochianIiTrait { get; } = new BaseTrait(322);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50460"&gt;&lt;strong&gt;Enochian&lt;/strong&gt;&lt;/see&gt; (BLM) [460]
-    /// &lt;para&gt;Increases damage dealt by 5% while under the effect of Astral Fire or Umbral Ice.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnochianTrait { get; } = new BaseTrait(460);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50461"&gt;&lt;strong&gt;Enhanced Foul&lt;/strong&gt;&lt;/see&gt; (BLM) [461]
-    /// &lt;para&gt;Allows for the immediate casting of Foul.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFoulTrait { get; } = new BaseTrait(461);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50462"&gt;&lt;strong&gt;Aspect Mastery IV&lt;/strong&gt;&lt;/see&gt; (BLM) [462]
-    /// &lt;para&gt;Upgrades Fire II and Blizzard II to High Fire II and High Blizzard II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AspectMasteryIvTrait { get; } = new BaseTrait(462);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50463"&gt;&lt;strong&gt;Enhanced Manafont&lt;/strong&gt;&lt;/see&gt; (BLM) [463]
-    /// &lt;para&gt;Reduces Manafont recast time to 100 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedManafontTrait { get; } = new BaseTrait(463);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50465"&gt;&lt;strong&gt;Aspect Mastery V&lt;/strong&gt;&lt;/see&gt; (BLM) [465]
-    /// &lt;para&gt;Adds a Paradox marker to your Elemental Gauge. The marker is made active after reaching Astral Fire III then swapping to the opposite element. Conversely the marker can also be made active after reaching Umbral Ice III and gaining 3 Umbral Hearts then swapping to the opposite element. The marker is made inactive when the effect of Astral Fire or Umbral Ice expires. Fire and Blizzard become Paradox when the Paradox marker is made active.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AspectMasteryVTrait { get; } = new BaseTrait(465);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50509"&gt;&lt;strong&gt;Enhanced Enochian III&lt;/strong&gt;&lt;/see&gt; (BLM) [509]
-    /// &lt;para&gt;Improves Enochian's magic damage increase to 22%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnochianIiiTrait { get; } = new BaseTrait(509);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50613"&gt;&lt;strong&gt;Thunder Mastery III&lt;/strong&gt;&lt;/see&gt; (BLM) [613]
-    /// &lt;para&gt;Upgrades Thunder III to High Thunder and Thunder IV to High Thunder II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ThunderMasteryIiiTrait { get; } = new BaseTrait(613);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50614"&gt;&lt;strong&gt;Enhanced Ley Lines&lt;/strong&gt;&lt;/see&gt; (BLM) [614]
-    /// &lt;para&gt;The location of Ley Lines can be reset while its effect is active.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedLeyLinesTrait { get; } = new BaseTrait(614);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50615"&gt;&lt;strong&gt;Enhanced Polyglot II&lt;/strong&gt;&lt;/see&gt; (BLM) [615]
-    /// &lt;para&gt;Allows the stacking of a third Polyglot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPolyglotIiTrait { get; } = new BaseTrait(615);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50616"&gt;&lt;strong&gt;Enhanced Astral Fire&lt;/strong&gt;&lt;/see&gt; (BLM) [616]
-    /// &lt;para&gt;Grants a stack of Astral Soul upon landing Fire IV or Flare. Maximum Stacks: 6 Allows for the immediate casting of Despair.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAstralFireTrait { get; } = new BaseTrait(616);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50659"&gt;&lt;strong&gt;Enhanced Enochian IV&lt;/strong&gt;&lt;/see&gt; (BLM) [659]
-    /// &lt;para&gt;Improves Enochian's magic damage increase to 27%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnochianIvTrait { get; } = new BaseTrait(659);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        ThunderMasteryTrait, ThunderMasteryIiTrait, EnhancedEnochianTrait, UmbralHeartTrait, EnhancedPolyglotTrait, EnhancedEnochianIiTrait, EnochianTrait, EnhancedFoulTrait, AspectMasteryIvTrait, EnhancedManafontTrait, AspectMasteryVTrait, EnhancedEnochianIiiTrait, ThunderMasteryIiiTrait, EnhancedLeyLinesTrait, EnhancedPolyglotIiTrait, EnhancedAstralFireTrait, EnhancedEnochianIvTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/summoner"&gt;&lt;strong&gt;summoner&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 17&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 20&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.SMN, Job.ACN)]
 public abstract partial class SummonerRotation : CustomRotation
@@ -36062,124 +35185,11 @@ private IBaseAction SummonBahamutPvP =&gt; _SummonBahamutPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SummonBahamutPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50178"&gt;&lt;strong&gt;Enhanced Dreadwyrm Trance&lt;/strong&gt;&lt;/see&gt; (SMN) [178]
-    /// &lt;para&gt;Upgrades Dreadwyrm Trance to Summon Bahamut.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDreadwyrmTranceTrait { get; } = new BaseTrait(178);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50468"&gt;&lt;strong&gt;Ruby Summoning Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [468]
-    /// &lt;para&gt;Upgrades Summon Ruby to Summon Ifrit.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RubySummoningMasteryTrait { get; } = new BaseTrait(468);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50469"&gt;&lt;strong&gt;Topaz Summoning Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [469]
-    /// &lt;para&gt;Upgrades Summon Topaz to Summon Titan.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TopazSummoningMasteryTrait { get; } = new BaseTrait(469);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50470"&gt;&lt;strong&gt;Emerald Summoning Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [470]
-    /// &lt;para&gt;Upgrades Summon Emerald to Summon Garuda.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EmeraldSummoningMasteryTrait { get; } = new BaseTrait(470);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50471"&gt;&lt;strong&gt;Enkindle&lt;/strong&gt;&lt;/see&gt; (SMN) [471]
-    /// &lt;para&gt;Enhances the signature attack of summons upgrading Ifrit-Egi's Burning Strike to Inferno Titan-Egi's Rock Buster to Earthen Fury and Garuda-Egi's Aerial Slash to Aerial Blast.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnkindleTrait { get; } = new BaseTrait(471);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50473"&gt;&lt;strong&gt;Ruin Mastery II&lt;/strong&gt;&lt;/see&gt; (SMN) [473]
-    /// &lt;para&gt;Upgrades Ruin II to Ruin III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RuinMasteryIiTrait { get; } = new BaseTrait(473);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50474"&gt;&lt;strong&gt;Aethercharge Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [474]
-    /// &lt;para&gt;Upgrades Aethercharge to Dreadwyrm Trance.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AetherchargeMasteryTrait { get; } = new BaseTrait(474);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50475"&gt;&lt;strong&gt;Enhanced Energy Siphon&lt;/strong&gt;&lt;/see&gt; (SMN) [475]
-    /// &lt;para&gt;Grants Further Ruin upon executing Energy Drain or Energy Siphon.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnergySiphonTrait { get; } = new BaseTrait(475);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50476"&gt;&lt;strong&gt;Ruin Mastery III&lt;/strong&gt;&lt;/see&gt; (SMN) [476]
-    /// &lt;para&gt;Enhances Gemshine according to your current elemental attunement. Fire Attunement Upgrade: Ruby Rite Earth Attunement Upgrade: Topaz Rite Wind Attunement Upgrade: Emerald Rite&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RuinMasteryIiiTrait { get; } = new BaseTrait(476);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50477"&gt;&lt;strong&gt;Outburst Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [477]
-    /// &lt;para&gt;Upgrades Outburst to Tri-disaster.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait OutburstMasteryTrait { get; } = new BaseTrait(477);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50478"&gt;&lt;strong&gt;Outburst Mastery II&lt;/strong&gt;&lt;/see&gt; (SMN) [478]
-    /// &lt;para&gt;Enhances Precious Brilliance according to your current elemental attunement. Fire Attunement Upgrade: Ruby Catastrophe Earth Attunement Upgrade: Topaz Catastrophe Wind Attunement Upgrade: Emerald Catastrophe&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait OutburstMasteryIiTrait { get; } = new BaseTrait(478);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50479"&gt;&lt;strong&gt;Ruin Mastery IV&lt;/strong&gt;&lt;/see&gt; (SMN) [479]
-    /// &lt;para&gt;Increases the potency of Ruin III to 310 Ruby Rite to 510 Topaz Rite to 330 and Emerald Rite to 230.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RuinMasteryIvTrait { get; } = new BaseTrait(479);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50480"&gt;&lt;strong&gt;Enhanced Radiant Aegis&lt;/strong&gt;&lt;/see&gt; (SMN) [480]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Radiant Aegis. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRadiantAegisTrait { get; } = new BaseTrait(480);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50481"&gt;&lt;strong&gt;Enkindle II&lt;/strong&gt;&lt;/see&gt; (SMN) [481]
-    /// &lt;para&gt;Upgrades Summon Ifrit to Summon Ifrit II Summon Titan to Summon Titan II and Summon Garuda to Summon Garuda II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnkindleIiTrait { get; } = new BaseTrait(481);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50502"&gt;&lt;strong&gt;Enhanced Summon Bahamut&lt;/strong&gt;&lt;/see&gt; (SMN) [502]
-    /// &lt;para&gt;Upgrades Summon Bahamut to Summon Phoenix when Demi-Bahamut returns from summoning.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSummonBahamutTrait { get; } = new BaseTrait(502);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50503"&gt;&lt;strong&gt;Elemental Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [503]
-    /// &lt;para&gt;Grants Ifrit's Favor upon executing Summon Ifrit Titan's Favor upon executing Topaz Rite or Topaz Catastrophe and Garuda's Favor upon executing Summon Garuda. Enhances Astral Flow according to your current elemental favor. Ifrit's Favor Upgrade: Crimson Cyclone Titan's Favor Upgrade: Mountain Buster Garuda's Favor Upgrade: Slipstream&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ElementalMasteryTrait { get; } = new BaseTrait(503);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50617"&gt;&lt;strong&gt;Enhanced Fester&lt;/strong&gt;&lt;/see&gt; (SMN) [617]
-    /// &lt;para&gt;Upgrades Fester to Necrotize.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFesterTrait { get; } = new BaseTrait(617);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50618"&gt;&lt;strong&gt;Enhanced Searing Light&lt;/strong&gt;&lt;/see&gt; (SMN) [618]
-    /// &lt;para&gt;Grants Ruby's Glimmer after executing Searing Light. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSearingLightTrait { get; } = new BaseTrait(618);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50619"&gt;&lt;strong&gt;Enhanced Summon Bahamut II&lt;/strong&gt;&lt;/see&gt; (SMN) [619]
-    /// &lt;para&gt;Allows the summoning of Solar Bahamut in addition to Demi-Phoenix and Demi-Bahamut.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSummonBahamutIiTrait { get; } = new BaseTrait(619);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50664"&gt;&lt;strong&gt;Arcane Mastery&lt;/strong&gt;&lt;/see&gt; (SMN) [664]
-    /// &lt;para&gt;Increases the potency of Ruin III to 400 Astral Impulse to 500 Ruin IV to 520 Ruby Rite to 580 Topaz Rite to 340 Emerald Rite to 280 Fountain of Fire to 580 Crimson Strike to 520 Crimson Cyclone to 520 Mountain Buster to 160 Slipstream to 520 Inferno to 800 Earthen Fury to 800 and Aerial Blast to 800.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ArcaneMasteryTrait { get; } = new BaseTrait(664);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        EnhancedDreadwyrmTranceTrait, RubySummoningMasteryTrait, TopazSummoningMasteryTrait, EmeraldSummoningMasteryTrait, EnkindleTrait, RuinMasteryIiTrait, AetherchargeMasteryTrait, EnhancedEnergySiphonTrait, RuinMasteryIiiTrait, OutburstMasteryTrait, OutburstMasteryIiTrait, RuinMasteryIvTrait, EnhancedRadiantAegisTrait, EnkindleIiTrait, EnhancedSummonBahamutTrait, ElementalMasteryTrait, EnhancedFesterTrait, EnhancedSearingLightTrait, EnhancedSummonBahamutIiTrait, ArcaneMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/scholar"&gt;&lt;strong&gt;scholar&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 11&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 14&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.SCH)]
 public abstract partial class ScholarRotation : CustomRotation
@@ -36456,94 +35466,11 @@ private IBaseAction SeraphismPvP =&gt; _SeraphismPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SeraphismPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50184"&gt;&lt;strong&gt;Broil Mastery II&lt;/strong&gt;&lt;/see&gt; (SCH) [184]
-    /// &lt;para&gt;Upgrades Broil to Broil II and increases the potency of Ruin II to 180.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BroilMasteryIiTrait { get; } = new BaseTrait(184);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50214"&gt;&lt;strong&gt;Broil Mastery&lt;/strong&gt;&lt;/see&gt; (SCH) [214]
-    /// &lt;para&gt;Upgrades Ruin to Broil and increases the potency of Ruin II to 160 and Art of War to 165.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BroilMasteryTrait { get; } = new BaseTrait(214);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50311"&gt;&lt;strong&gt;Corruption Mastery II&lt;/strong&gt;&lt;/see&gt; (SCH) [311]
-    /// &lt;para&gt;Upgrades Bio II to Biolysis.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CorruptionMasteryIiTrait { get; } = new BaseTrait(311);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50312"&gt;&lt;strong&gt;Broil Mastery III&lt;/strong&gt;&lt;/see&gt; (SCH) [312]
-    /// &lt;para&gt;Upgrades Broil II to Broil III and increases the potency of Ruin II to 200.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BroilMasteryIiiTrait { get; } = new BaseTrait(312);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50313"&gt;&lt;strong&gt;Enhanced Sacred Soil&lt;/strong&gt;&lt;/see&gt; (SCH) [313]
-    /// &lt;para&gt;Adds an additional effect to Sacred Soil that grants healing over time.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSacredSoilTrait { get; } = new BaseTrait(313);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50324"&gt;&lt;strong&gt;Corruption Mastery&lt;/strong&gt;&lt;/see&gt; (SCH) [324]
-    /// &lt;para&gt;Upgrades Bio to Bio II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CorruptionMasteryTrait { get; } = new BaseTrait(324);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50491"&gt;&lt;strong&gt;Broil Mastery IV&lt;/strong&gt;&lt;/see&gt; (SCH) [491]
-    /// &lt;para&gt;Upgrades Broil III to Broil IV and increases the potency of Ruin II to 220.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BroilMasteryIvTrait { get; } = new BaseTrait(491);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50492"&gt;&lt;strong&gt;Art of War Mastery&lt;/strong&gt;&lt;/see&gt; (SCH) [492]
-    /// &lt;para&gt;Upgrades Art of War to Art of War II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ArtOfWarMasteryTrait { get; } = new BaseTrait(492);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50493"&gt;&lt;strong&gt;Enhanced Healing Magic&lt;/strong&gt;&lt;/see&gt; (SCH) [493]
-    /// &lt;para&gt;Increases the healing potency of Physick to 450 Embrace to 180 and Seraphic Veil to 180. Increases the barrier potency of Adloquium to 180% the amount healed and Succor to 160% the amount healed.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedHealingMagicTrait { get; } = new BaseTrait(493);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50494"&gt;&lt;strong&gt;Enhanced Deployment Tactics&lt;/strong&gt;&lt;/see&gt; (SCH) [494]
-    /// &lt;para&gt;Reduces Deployment Tactics recast time to 90 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDeploymentTacticsTrait { get; } = new BaseTrait(494);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50627"&gt;&lt;strong&gt;Enhanced Chain Stratagem&lt;/strong&gt;&lt;/see&gt; (SCH) [627]
-    /// &lt;para&gt;Grants Impact Imminent upon using Chain Stratagem. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedChainStratagemTrait { get; } = new BaseTrait(627);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50628"&gt;&lt;strong&gt;Succor Mastery&lt;/strong&gt;&lt;/see&gt; (SCH) [628]
-    /// &lt;para&gt;Upgrades Succor to Concitation.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SuccorMasteryTrait { get; } = new BaseTrait(628);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50629"&gt;&lt;strong&gt;Enhanced Recitation&lt;/strong&gt;&lt;/see&gt; (SCH) [629]
-    /// &lt;para&gt;Reduces Recitation recast time to 60 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRecitationTrait { get; } = new BaseTrait(629);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50656"&gt;&lt;strong&gt;Tactician's Mastery&lt;/strong&gt;&lt;/see&gt; (SCH) [656]
-    /// &lt;para&gt;Increases the potency of Biolysis's damage over time effect to 85 and Broil IV to 320.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TacticiansMasteryTrait { get; } = new BaseTrait(656);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        BroilMasteryIiTrait, BroilMasteryTrait, CorruptionMasteryIiTrait, BroilMasteryIiiTrait, EnhancedSacredSoilTrait, CorruptionMasteryTrait, BroilMasteryIvTrait, ArtOfWarMasteryTrait, EnhancedHealingMagicTrait, EnhancedDeploymentTacticsTrait, EnhancedChainStratagemTrait, SuccorMasteryTrait, EnhancedRecitationTrait, TacticiansMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/ninja"&gt;&lt;strong&gt;ninja&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 19&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 17&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.NIN, Job.ROG)]
 public abstract partial class NinjaRotation : CustomRotation
@@ -37004,109 +35931,11 @@ private IBaseAction SeitonTenchuPvP =&gt; _SeitonTenchuPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SeitonTenchuPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50165"&gt;&lt;strong&gt;Shukiho&lt;/strong&gt;&lt;/see&gt; (NIN) [165]
-    /// &lt;para&gt;Increases Ninki Gauge by 5 upon successfully landing certain weaponskills or completing certain combos.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ShukihoTrait { get; } = new BaseTrait(165);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50166"&gt;&lt;strong&gt;Enhanced Shukuchi&lt;/strong&gt;&lt;/see&gt; (NIN) [166]
-    /// &lt;para&gt;Resets the recast timer for Shukuchi upon executing Katon Raiton or Hyoton on most targets.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedShukuchiTrait { get; } = new BaseTrait(166);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50250"&gt;&lt;strong&gt;Enhanced Kassatsu&lt;/strong&gt;&lt;/see&gt; (NIN) [250]
-    /// &lt;para&gt;Upgrades Katon and Hyoton to Goka Mekkyaku and Hyosho Ranryu while under the effect of Kassatsu.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedKassatsuTrait { get; } = new BaseTrait(250);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50279"&gt;&lt;strong&gt;Enhanced Shukuchi II&lt;/strong&gt;&lt;/see&gt; (NIN) [279]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Shukuchi. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedShukuchiIiTrait { get; } = new BaseTrait(279);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50280"&gt;&lt;strong&gt;Shukiho II&lt;/strong&gt;&lt;/see&gt; (NIN) [280]
-    /// &lt;para&gt;Increases Ninki Gauge by 10 upon successfully completing a combo with Aeolian Edge or Armor Crush.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ShukihoIiTrait { get; } = new BaseTrait(280);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50439"&gt;&lt;strong&gt;Shukiho III&lt;/strong&gt;&lt;/see&gt; (NIN) [439]
-    /// &lt;para&gt;Increases Ninki Gauge by 15 upon successfully completing a combo with Aeolian Edge or Armor Crush.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ShukihoIiiTrait { get; } = new BaseTrait(439);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50440"&gt;&lt;strong&gt;Enhanced Meisui&lt;/strong&gt;&lt;/see&gt; (NIN) [440]
-    /// &lt;para&gt;Increases the potency of Bhavacakra to 500 while under the effect of Meisui. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedMeisuiTrait { get; } = new BaseTrait(440);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50441"&gt;&lt;strong&gt;Enhanced Raiton&lt;/strong&gt;&lt;/see&gt; (NIN) [441]
-    /// &lt;para&gt;Grants a stack of Raiju Ready upon executing Raiton. Maximum Stacks: 3 Duration: 30s Effect of Raiju Ready ends upon execution of any melee weaponskill.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedRaitonTrait { get; } = new BaseTrait(441);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50515"&gt;&lt;strong&gt;Adept Assassination&lt;/strong&gt;&lt;/see&gt; (NIN) [515]
-    /// &lt;para&gt;Upgrades Assassinate to Dream Within a Dream.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AdeptAssassinationTrait { get; } = new BaseTrait(515);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50516"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (NIN) [516]
-    /// &lt;para&gt;Increases the potency of Gust Slash to 120 Aeolian Edge to 140 and Armor Crush to 140.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(516);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50522"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (NIN) [522]
-    /// &lt;para&gt;Increases the potency of Spinning Edge to 220 Gust Slash to 160 and Throwing Dagger to 200.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(522);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50584"&gt;&lt;strong&gt;Increase Attack Speed&lt;/strong&gt;&lt;/see&gt; (NIN) [584]
-    /// &lt;para&gt;Reduces weaponskill cast time and recast time spell cast time and recast time and auto-attack delay by 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait IncreaseAttackSpeedTrait { get; } = new BaseTrait(584);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50585"&gt;&lt;strong&gt;Mug Mastery&lt;/strong&gt;&lt;/see&gt; (NIN) [585]
-    /// &lt;para&gt;Upgrades Mug to Dokumori.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MugMasteryTrait { get; } = new BaseTrait(585);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50586"&gt;&lt;strong&gt;Trick Attack Mastery&lt;/strong&gt;&lt;/see&gt; (NIN) [586]
-    /// &lt;para&gt;Upgrades Trick Attack to Kunai's Bane.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TrickAttackMasteryTrait { get; } = new BaseTrait(586);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50587"&gt;&lt;strong&gt;Enhanced Dokumori&lt;/strong&gt;&lt;/see&gt; (NIN) [587]
-    /// &lt;para&gt;Grants Higi upon executing Dokumori. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDokumoriTrait { get; } = new BaseTrait(587);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50588"&gt;&lt;strong&gt;Enhanced Ten Chi Jin&lt;/strong&gt;&lt;/see&gt; (NIN) [588]
-    /// &lt;para&gt;Grants Tenri Jindo Ready upon executing Ten Chi Jin. Duration: 30s Ten Chi Jin changes to Tenri Jindo while under the effect of Tenri Jindo Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTenChiJinTrait { get; } = new BaseTrait(588);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50661"&gt;&lt;strong&gt;Melee Mastery III&lt;/strong&gt;&lt;/see&gt; (NIN) [661]
-    /// &lt;para&gt;Increases the potency of Spinning Edge to 300 Gust Slash to 240 Aeolian Edge to 220 Fuma Shuriken to 500 Raiton to 740 Suiton to 580 Armor Crush to 240 Bhavacakra to 400 Bhavacakra while under the effect of Meisui to 550 Forked Raiju to 700 and Fleeting Raiju to 700.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiiTrait { get; } = new BaseTrait(661);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        ShukihoTrait, EnhancedShukuchiTrait, EnhancedKassatsuTrait, EnhancedShukuchiIiTrait, ShukihoIiTrait, ShukihoIiiTrait, EnhancedMeisuiTrait, EnhancedRaitonTrait, AdeptAssassinationTrait, MeleeMasteryTrait, MeleeMasteryIiTrait, IncreaseAttackSpeedTrait, MugMasteryTrait, TrickAttackMasteryTrait, EnhancedDokumoriTrait, EnhancedTenChiJinTrait, MeleeMasteryIiiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/machinist"&gt;&lt;strong&gt;machinist&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 14&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 21&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.MCH)]
 public abstract partial class MachinistRotation : CustomRotation
@@ -37452,129 +36281,11 @@ private IBaseAction MarksmansSpitePvP =&gt; _MarksmansSpitePvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; MarksmansSpitePvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50117"&gt;&lt;strong&gt;Increased Action Damage&lt;/strong&gt;&lt;/see&gt; (MCH) [117]
-    /// &lt;para&gt;Increases base action damage and autoturret damage by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait IncreasedActionDamageTrait { get; } = new BaseTrait(117);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50119"&gt;&lt;strong&gt;Increased Action Damage II&lt;/strong&gt;&lt;/see&gt; (MCH) [119]
-    /// &lt;para&gt;Increases base action damage and autoturret damage by 20%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait IncreasedActionDamageIiTrait { get; } = new BaseTrait(119);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50288"&gt;&lt;strong&gt;Split Shot Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [288]
-    /// &lt;para&gt;Upgrades Split Shot to Heated Split Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SplitShotMasteryTrait { get; } = new BaseTrait(288);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50289"&gt;&lt;strong&gt;Slug Shot Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [289]
-    /// &lt;para&gt;Upgrades Slug Shot to Heated Slug Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SlugShotMasteryTrait { get; } = new BaseTrait(289);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50290"&gt;&lt;strong&gt;Clean Shot Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [290]
-    /// &lt;para&gt;Upgrades Clean Shot to Heated Clean Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CleanShotMasteryTrait { get; } = new BaseTrait(290);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50291"&gt;&lt;strong&gt;Hot Shot Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [291]
-    /// &lt;para&gt;Upgrades Hot Shot to Air Anchor.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HotShotMasteryTrait { get; } = new BaseTrait(291);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50292"&gt;&lt;strong&gt;Charged Action Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [292]
-    /// &lt;para&gt;Allows a third charge of Gauss Round and Ricochet.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ChargedActionMasteryTrait { get; } = new BaseTrait(292);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50293"&gt;&lt;strong&gt;Enhanced Wildfire&lt;/strong&gt;&lt;/see&gt; (MCH) [293]
-    /// &lt;para&gt;Improves Wildfire's potency increase for landing weaponskills to 240.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedWildfireTrait { get; } = new BaseTrait(293);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50294"&gt;&lt;strong&gt;Promotion&lt;/strong&gt;&lt;/see&gt; (MCH) [294]
-    /// &lt;para&gt;Upgrades Rook Autoturret and Rook Overdrive to Automaton Queen and Queen Overdrive respectively.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PromotionTrait { get; } = new BaseTrait(294);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50449"&gt;&lt;strong&gt;Spread Shot Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [449]
-    /// &lt;para&gt;Upgrades Spread Shot to Scattergun.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SpreadShotMasteryTrait { get; } = new BaseTrait(449);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50450"&gt;&lt;strong&gt;Enhanced Reassemble&lt;/strong&gt;&lt;/see&gt; (MCH) [450]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Reassemble. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedReassembleTrait { get; } = new BaseTrait(450);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50451"&gt;&lt;strong&gt;Queen's Gambit&lt;/strong&gt;&lt;/see&gt; (MCH) [451]
-    /// &lt;para&gt;After executing Pile Bunker the Automaton Queen will also execute Crowned Collider.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait QueensGambitTrait { get; } = new BaseTrait(451);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50452"&gt;&lt;strong&gt;Enhanced Tactician&lt;/strong&gt;&lt;/see&gt; (MCH) [452]
-    /// &lt;para&gt;Reduces Tactician recast time to 90 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTacticianTrait { get; } = new BaseTrait(452);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50517"&gt;&lt;strong&gt;Marksman's Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [517]
-    /// &lt;para&gt;Increases the potency of Heated Split Shot to 200 Heated Slug Shot to 120 and Heated Clean Shot to 120.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MarksmansMasteryTrait { get; } = new BaseTrait(517);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50603"&gt;&lt;strong&gt;Heat Blast Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [603]
-    /// &lt;para&gt;Upgrades Heat Blast to Blazing Shot.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HeatBlastMasteryTrait { get; } = new BaseTrait(603);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50604"&gt;&lt;strong&gt;Double-barrel Mastery&lt;/strong&gt;&lt;/see&gt; (MCH) [604]
-    /// &lt;para&gt;Upgrades Gauss Round to Double Check and Ricochet to Checkmate.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DoublebarrelMasteryTrait { get; } = new BaseTrait(604);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50605"&gt;&lt;strong&gt;Enhanced Multiweapon&lt;/strong&gt;&lt;/see&gt; (MCH) [605]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Drill and Bioblaster. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedMultiweaponTrait { get; } = new BaseTrait(605);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50606"&gt;&lt;strong&gt;Enhanced Multiweapon II&lt;/strong&gt;&lt;/see&gt; (MCH) [606]
-    /// &lt;para&gt;Grants Excavator Ready upon executing Chain Saw. Duration: 30s Chain Saw changes to Excavator while under the effect of Excavator Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedMultiweaponIiTrait { get; } = new BaseTrait(606);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50607"&gt;&lt;strong&gt;Enhanced Tactician II&lt;/strong&gt;&lt;/see&gt; (MCH) [607]
-    /// &lt;para&gt;Improves Tactician's damage reduction effect to 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTacticianIiTrait { get; } = new BaseTrait(607);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50608"&gt;&lt;strong&gt;Enhanced Barrel Stabilizer&lt;/strong&gt;&lt;/see&gt; (MCH) [608]
-    /// &lt;para&gt;Grants Full Metal Machinist upon executing Barrel Stabilizer. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBarrelStabilizerTrait { get; } = new BaseTrait(608);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50658"&gt;&lt;strong&gt;Marksman's Mastery II&lt;/strong&gt;&lt;/see&gt; (MCH) [658]
-    /// &lt;para&gt;Increases the potency of Auto Crossbow to 180 Heated Split Shot to 220 Drill to 660 Heated Slug Shot to 140 Heated Clean Shot to 160 Blazing Shot to 240 Air Anchor to 660 and Chain Saw to 660.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MarksmansMasteryIiTrait { get; } = new BaseTrait(658);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        IncreasedActionDamageTrait, IncreasedActionDamageIiTrait, SplitShotMasteryTrait, SlugShotMasteryTrait, CleanShotMasteryTrait, HotShotMasteryTrait, ChargedActionMasteryTrait, EnhancedWildfireTrait, PromotionTrait, SpreadShotMasteryTrait, EnhancedReassembleTrait, QueensGambitTrait, EnhancedTacticianTrait, MarksmansMasteryTrait, HeatBlastMasteryTrait, DoublebarrelMasteryTrait, EnhancedMultiweaponTrait, EnhancedMultiweaponIiTrait, EnhancedTacticianIiTrait, EnhancedBarrelStabilizerTrait, MarksmansMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/darkknight"&gt;&lt;strong&gt;dark knight&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 15&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 13&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.DRK)]
 public abstract partial class DarkKnightRotation : CustomRotation
@@ -37943,89 +36654,11 @@ private IBaseAction EventidePvP =&gt; _EventidePvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; EventidePvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50158"&gt;&lt;strong&gt;Blackblood&lt;/strong&gt;&lt;/see&gt; (DRK) [158]
-    /// &lt;para&gt;Allows for Blood Gauge accumulation upon the landing of certain actions.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BlackbloodTrait { get; } = new BaseTrait(158);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50159"&gt;&lt;strong&gt;Enhanced Blackblood&lt;/strong&gt;&lt;/see&gt; (DRK) [159]
-    /// &lt;para&gt;Allows for Blood Gauge accumulation upon the landing of any weaponskill or spell while under the effect of Blood Weapon.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBlackbloodTrait { get; } = new BaseTrait(159);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50271"&gt;&lt;strong&gt;Darkside Mastery&lt;/strong&gt;&lt;/see&gt; (DRK) [271]
-    /// &lt;para&gt;Upgrades Flood of Darkness and Edge of Darkness to Flood of Shadow and Edge of Shadow respectively.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DarksideMasteryTrait { get; } = new BaseTrait(271);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50319"&gt;&lt;strong&gt;Tank Mastery&lt;/strong&gt;&lt;/see&gt; (DRK) [319]
-    /// &lt;para&gt;Reduces damage taken by 20%. Furthermore grants a bonus to maximum HP based on your vitality attribute and a bonus to damage dealt based on your strength attribute.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TankMasteryTrait { get; } = new BaseTrait(319);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50422"&gt;&lt;strong&gt;Enhanced Unmend&lt;/strong&gt;&lt;/see&gt; (DRK) [422]
-    /// &lt;para&gt;Reduces recast time of Shadowstride by 5 seconds when executing Unmend on most targets.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedUnmendTrait { get; } = new BaseTrait(422);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50423"&gt;&lt;strong&gt;Enhanced Living Shadow II&lt;/strong&gt;&lt;/see&gt; (DRK) [423]
-    /// &lt;para&gt;Upgrades Flood of Shadow executed by your simulacrum to Shadowbringer which delivers an attack to all enemies in a straight line before it with a potency of 570 for the first enemy and 25% less for all remaining enemies.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedLivingShadowIiTrait { get; } = new BaseTrait(423);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50506"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (DRK) [506]
-    /// &lt;para&gt;Increases the potency of Hard Slash to 180 Syphon Strike to 120 and Souleater to 140.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(506);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50511"&gt;&lt;strong&gt;Enhanced Living Shadow&lt;/strong&gt;&lt;/see&gt; (DRK) [511]
-    /// &lt;para&gt;Increases the potency of attacks dealt by your simulacrum to 420.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedLivingShadowTrait { get; } = new BaseTrait(511);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50570"&gt;&lt;strong&gt;Blood Weapon Mastery&lt;/strong&gt;&lt;/see&gt; (DRK) [570]
-    /// &lt;para&gt;Upgrades Blood Weapon to Delirium.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait BloodWeaponMasteryTrait { get; } = new BaseTrait(570);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50571"&gt;&lt;strong&gt;Shadow Wall Mastery&lt;/strong&gt;&lt;/see&gt; (DRK) [571]
-    /// &lt;para&gt;Upgrades Shadow Wall to Shadowed Vigil.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ShadowWallMasteryTrait { get; } = new BaseTrait(571);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50572"&gt;&lt;strong&gt;Enhanced Delirium&lt;/strong&gt;&lt;/see&gt; (DRK) [572]
-    /// &lt;para&gt;Upgrades Bloodspiller and Quietus to Scarlet Delirium and Impalement respectively.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDeliriumTrait { get; } = new BaseTrait(572);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50573"&gt;&lt;strong&gt;Enhanced Living Shadow III&lt;/strong&gt;&lt;/see&gt; (DRK) [573]
-    /// &lt;para&gt;Grants the effect of Scorn after executing Living Shadow. Duration: 30s Additionally upgrades Carve and Spit executed by your simulacrum to Disesteem which delivers an attack to all enemies in a straight line before it with a potency of 620 for the first enemy and 25% less for all remaining enemies.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedLivingShadowIiiTrait { get; } = new BaseTrait(573);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50663"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (DRK) [663]
-    /// &lt;para&gt;Increases the potency of Hard Slash to 300 Syphon Strike to 240 Souleater to 260 Stalwart Soul to 120 Carve and Spit to 540 Bloodspiller to 600 and Quietus to 240.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(663);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        BlackbloodTrait, EnhancedBlackbloodTrait, DarksideMasteryTrait, TankMasteryTrait, EnhancedUnmendTrait, EnhancedLivingShadowIiTrait, MeleeMasteryTrait, EnhancedLivingShadowTrait, BloodWeaponMasteryTrait, ShadowWallMasteryTrait, EnhancedDeliriumTrait, EnhancedLivingShadowIiiTrait, MeleeMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/astrologian"&gt;&lt;strong&gt;astrologian&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 16&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 20&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.AST)]
 public abstract partial class AstrologianRotation : CustomRotation
@@ -38417,124 +37050,11 @@ private IBaseAction CelestialRiverPvP =&gt; _CelestialRiverPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; CelestialRiverPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50122"&gt;&lt;strong&gt;Maim and Mend&lt;/strong&gt;&lt;/see&gt; (AST) [122]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendTrait { get; } = new BaseTrait(122);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50124"&gt;&lt;strong&gt;Enhanced Benefic&lt;/strong&gt;&lt;/see&gt; (AST) [124]
-    /// &lt;para&gt;Grants a 15% chance that your next Benefic II will restore critical HP. Duration: 15s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBeneficTrait { get; } = new BaseTrait(124);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50125"&gt;&lt;strong&gt;Maim and Mend II&lt;/strong&gt;&lt;/see&gt; (AST) [125]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 30%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiTrait { get; } = new BaseTrait(125);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50186"&gt;&lt;strong&gt;Combust Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [186]
-    /// &lt;para&gt;Upgrades Combust to Combust II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CombustMasteryTrait { get; } = new BaseTrait(186);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50187"&gt;&lt;strong&gt;Malefic Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [187]
-    /// &lt;para&gt;Upgrades Malefic to Malefic II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaleficMasteryTrait { get; } = new BaseTrait(187);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50188"&gt;&lt;strong&gt;Malefic Mastery II&lt;/strong&gt;&lt;/see&gt; (AST) [188]
-    /// &lt;para&gt;Upgrades Malefic II to Malefic III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaleficMasteryIiTrait { get; } = new BaseTrait(188);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50189"&gt;&lt;strong&gt;Hyper Lightspeed&lt;/strong&gt;&lt;/see&gt; (AST) [189]
-    /// &lt;para&gt;Reduces Lightspeed recast time to 60 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HyperLightspeedTrait { get; } = new BaseTrait(189);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50314"&gt;&lt;strong&gt;Combust Mastery II&lt;/strong&gt;&lt;/see&gt; (AST) [314]
-    /// &lt;para&gt;Upgrades Combust II to Combust III.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CombustMasteryIiTrait { get; } = new BaseTrait(314);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50315"&gt;&lt;strong&gt;Malefic Mastery III&lt;/strong&gt;&lt;/see&gt; (AST) [315]
-    /// &lt;para&gt;Upgrades Malefic III to Malefic IV.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaleficMasteryIiiTrait { get; } = new BaseTrait(315);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50316"&gt;&lt;strong&gt;Enhanced Essential Dignity&lt;/strong&gt;&lt;/see&gt; (AST) [316]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Essential Dignity. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEssentialDignityTrait { get; } = new BaseTrait(316);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50497"&gt;&lt;strong&gt;Malefic Mastery IV&lt;/strong&gt;&lt;/see&gt; (AST) [497]
-    /// &lt;para&gt;Upgrades Malefic IV to Fall Malefic.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaleficMasteryIvTrait { get; } = new BaseTrait(497);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50498"&gt;&lt;strong&gt;Gravity Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [498]
-    /// &lt;para&gt;Upgrades Gravity to Gravity II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait GravityMasteryTrait { get; } = new BaseTrait(498);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50499"&gt;&lt;strong&gt;Enhanced Healing Magic&lt;/strong&gt;&lt;/see&gt; (AST) [499]
-    /// &lt;para&gt;Increases the healing potency of Benefic to 500 Helios to 400 Benefic II to 800 Aspected Benefic to 250 Aspected Benefic's Regen effect to 250 Aspected Helios to 250 and Aspected Helios's Regen effect to 150.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedHealingMagicTrait { get; } = new BaseTrait(499);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50500"&gt;&lt;strong&gt;Enhanced Celestial Intersection&lt;/strong&gt;&lt;/see&gt; (AST) [500]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Celestial Intersection. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedCelestialIntersectionTrait { get; } = new BaseTrait(500);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50631"&gt;&lt;strong&gt;Minor Arcana Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [631]
-    /// &lt;para&gt;Lord of Crowns can be drawn when executing Astral Draw and Lady of Crowns can be drawn when executing Umbral Draw.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MinorArcanaMasteryTrait { get; } = new BaseTrait(631);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50632"&gt;&lt;strong&gt;Enhanced Divination&lt;/strong&gt;&lt;/see&gt; (AST) [632]
-    /// &lt;para&gt;Grants Divining upon executing Divination. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDivinationTrait { get; } = new BaseTrait(632);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50633"&gt;&lt;strong&gt;Aspected Helios Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [633]
-    /// &lt;para&gt;Upgrades Aspected Helios to Helios Conjunction.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AspectedHeliosMasteryTrait { get; } = new BaseTrait(633);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50634"&gt;&lt;strong&gt;Enhanced Essential Dignity II&lt;/strong&gt;&lt;/see&gt; (AST) [634]
-    /// &lt;para&gt;Allows a third charge of Essential Dignity.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEssentialDignityIiTrait { get; } = new BaseTrait(634);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50635"&gt;&lt;strong&gt;Enhanced Neutral Sect&lt;/strong&gt;&lt;/see&gt; (AST) [635]
-    /// &lt;para&gt;Grants Suntouched upon executing Neutral Sect. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedNeutralSectTrait { get; } = new BaseTrait(635);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50673"&gt;&lt;strong&gt;Magick Mastery&lt;/strong&gt;&lt;/see&gt; (AST) [673]
-    /// &lt;para&gt;Increases the potency of Combust III's damage over time to 70 Fall Malefic to 270 Gravity II to 140 and Macrocosmos to 270.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MagickMasteryTrait { get; } = new BaseTrait(673);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        MaimAndMendTrait, EnhancedBeneficTrait, MaimAndMendIiTrait, CombustMasteryTrait, MaleficMasteryTrait, MaleficMasteryIiTrait, HyperLightspeedTrait, CombustMasteryIiTrait, MaleficMasteryIiiTrait, EnhancedEssentialDignityTrait, MaleficMasteryIvTrait, GravityMasteryTrait, EnhancedHealingMagicTrait, EnhancedCelestialIntersectionTrait, MinorArcanaMasteryTrait, EnhancedDivinationTrait, AspectedHeliosMasteryTrait, EnhancedEssentialDignityIiTrait, EnhancedNeutralSectTrait, MagickMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/samurai"&gt;&lt;strong&gt;samurai&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 16&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 15&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.SAM)]
 public abstract partial class SamuraiRotation : CustomRotation
@@ -38926,99 +37446,11 @@ private IBaseAction ZantetsukenPvP =&gt; _ZantetsukenPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; ZantetsukenPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50208"&gt;&lt;strong&gt;Kenki Mastery II&lt;/strong&gt;&lt;/see&gt; (SAM) [208]
-    /// &lt;para&gt;Increases Kenki Gauge when landing all weaponskills excluding Iaijutsu.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait KenkiMasteryIiTrait { get; } = new BaseTrait(208);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50215"&gt;&lt;strong&gt;Kenki Mastery&lt;/strong&gt;&lt;/see&gt; (SAM) [215]
-    /// &lt;para&gt;Increases Kenki Gauge when landing select weaponskills or when taking damage while under the effect of Third Eye.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait KenkiMasteryTrait { get; } = new BaseTrait(215);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50277"&gt;&lt;strong&gt;Enhanced Iaijutsu&lt;/strong&gt;&lt;/see&gt; (SAM) [277]
-    /// &lt;para&gt;Reduces Iaijutsu cast time to 1.3 seconds. Also grants Tsubame-gaeshi Ready after executing iaijutsu excluding Higanbana. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedIaijutsuTrait { get; } = new BaseTrait(277);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50278"&gt;&lt;strong&gt;Enhanced Fugetsu and Fuka&lt;/strong&gt;&lt;/see&gt; (SAM) [278]
-    /// &lt;para&gt;Improves Fugetsu's damage increase to 13% and Fuka's reduction to weaponskill cast time and recast time spell cast time and recast time and auto-attack delay to 13%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFugetsuAndFukaTrait { get; } = new BaseTrait(278);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50443"&gt;&lt;strong&gt;Enhanced Meikyo Shisui&lt;/strong&gt;&lt;/see&gt; (SAM) [443]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Meikyo Shisui. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedMeikyoShisuiTrait { get; } = new BaseTrait(443);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50514"&gt;&lt;strong&gt;Enhanced Ikishoten&lt;/strong&gt;&lt;/see&gt; (SAM) [514]
-    /// &lt;para&gt;Grants Ogi Namikiri Ready upon execution of Ikishoten. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedIkishotenTrait { get; } = new BaseTrait(514);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50519"&gt;&lt;strong&gt;Fuga Mastery&lt;/strong&gt;&lt;/see&gt; (SAM) [519]
-    /// &lt;para&gt;Upgrades Fuga to Fuko.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait FugaMasteryTrait { get; } = new BaseTrait(519);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50520"&gt;&lt;strong&gt;Way of the Samurai&lt;/strong&gt;&lt;/see&gt; (SAM) [520]
-    /// &lt;para&gt;Increases the potency of Hakaze to 200 Jinpu to 120 and Shifu to 120.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait WayOfTheSamuraiTrait { get; } = new BaseTrait(520);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50521"&gt;&lt;strong&gt;Way of the Samurai II&lt;/strong&gt;&lt;/see&gt; (SAM) [521]
-    /// &lt;para&gt;Increases the potency of Gekko Kasha and Yukikaze to 110.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait WayOfTheSamuraiIiTrait { get; } = new BaseTrait(521);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50589"&gt;&lt;strong&gt;Third Eye Mastery&lt;/strong&gt;&lt;/see&gt; (SAM) [589]
-    /// &lt;para&gt;Upgrades Third Eye to Tengentsu.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ThirdEyeMasteryTrait { get; } = new BaseTrait(589);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50590"&gt;&lt;strong&gt;Hakaze Mastery&lt;/strong&gt;&lt;/see&gt; (SAM) [590]
-    /// &lt;para&gt;Upgrades Hakaze to Gyofu.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HakazeMasteryTrait { get; } = new BaseTrait(590);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50591"&gt;&lt;strong&gt;Enhanced Hissatsu&lt;/strong&gt;&lt;/see&gt; (SAM) [591]
-    /// &lt;para&gt;Reduces Hissatsu: Guren and Hissatsu: Senei recast time to 60 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedHissatsuTrait { get; } = new BaseTrait(591);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50592"&gt;&lt;strong&gt;Enhanced Ikishoten II&lt;/strong&gt;&lt;/see&gt; (SAM) [592]
-    /// &lt;para&gt;Grants Zanshin Ready upon executing Ikishoten. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedIkishotenIiTrait { get; } = new BaseTrait(592);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50593"&gt;&lt;strong&gt;Enhanced Meikyo Shisui II&lt;/strong&gt;&lt;/see&gt; (SAM) [593]
-    /// &lt;para&gt;Grants Tendo upon executing Meikyo Shisui. Duration: 30s Tenka Goken changes to Tendo Goken and Midare Setsugekka changes to Tendo Setsugekka while under the effect of Tendo.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedMeikyoShisuiIiTrait { get; } = new BaseTrait(593);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50655"&gt;&lt;strong&gt;Way of the Samurai III&lt;/strong&gt;&lt;/see&gt; (SAM) [655]
-    /// &lt;para&gt;Increases the potency of Jinpu to 140 Shifu to 140 Enhanced Enpi to 270 Gekko to 160 Higanbana damage over time to 50 Kasha to 160 Yukikaze to 160 Midare Setsugekka to 640 Kaeshi: Setsugekka to 640 Shoha to 640 Ogi Namikiri to 1,000 and Kaeshi: Namikiri to 1,000.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait WayOfTheSamuraiIiiTrait { get; } = new BaseTrait(655);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        KenkiMasteryIiTrait, KenkiMasteryTrait, EnhancedIaijutsuTrait, EnhancedFugetsuAndFukaTrait, EnhancedMeikyoShisuiTrait, EnhancedIkishotenTrait, FugaMasteryTrait, WayOfTheSamuraiTrait, WayOfTheSamuraiIiTrait, ThirdEyeMasteryTrait, HakazeMasteryTrait, EnhancedHissatsuTrait, EnhancedIkishotenIiTrait, EnhancedMeikyoShisuiIiTrait, WayOfTheSamuraiIiiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/redmage"&gt;&lt;strong&gt;red mage&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 14&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 15&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.RDM)]
 public abstract partial class RedMageRotation : CustomRotation
@@ -39364,169 +37796,11 @@ private IBaseAction SouthernCrossPvP =&gt; _SouthernCrossPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; SouthernCrossPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50195"&gt;&lt;strong&gt;Enhanced Jolt&lt;/strong&gt;&lt;/see&gt; (RDM) [195]
-    /// &lt;para&gt;Upgrades Jolt to Jolt II. Also increases the potency of Verthunder and Veraero to 360 and the potency of Verfire and Verstone to 300.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedJoltTrait { get; } = new BaseTrait(195);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50200"&gt;&lt;strong&gt;Maim and Mend&lt;/strong&gt;&lt;/see&gt; (RDM) [200]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendTrait { get; } = new BaseTrait(200);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50201"&gt;&lt;strong&gt;Maim and Mend II&lt;/strong&gt;&lt;/see&gt; (RDM) [201]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 30%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiTrait { get; } = new BaseTrait(201);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50216"&gt;&lt;strong&gt;Dualcast&lt;/strong&gt;&lt;/see&gt; (RDM) [216]
-    /// &lt;para&gt;Grants the effect of Dualcast upon casting any spell with a cast time. While under the effect of Dualcast your next spell will require no time to cast. Effect is canceled upon execution of any action other than an ability. Auto-attacks do not cancel effect. Duration: 15s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DualcastTrait { get; } = new BaseTrait(216);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50303"&gt;&lt;strong&gt;Scatter Mastery&lt;/strong&gt;&lt;/see&gt; (RDM) [303]
-    /// &lt;para&gt;Upgrades Scatter to Impact.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ScatterMasteryTrait { get; } = new BaseTrait(303);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50304"&gt;&lt;strong&gt;Enhanced Displacement&lt;/strong&gt;&lt;/see&gt; (RDM) [304]
-    /// &lt;para&gt;Increases Displacement and Engagement potency to 180.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDisplacementTrait { get; } = new BaseTrait(304);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50306"&gt;&lt;strong&gt;Red Magic Mastery&lt;/strong&gt;&lt;/see&gt; (RDM) [306]
-    /// &lt;para&gt;Reduces Contre Sixte recast timer to 35 seconds and increases the potency of both Verthunder II and Veraero II to 120.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RedMagicMasteryTrait { get; } = new BaseTrait(306);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50482"&gt;&lt;strong&gt;Mana Stack&lt;/strong&gt;&lt;/see&gt; (RDM) [482]
-    /// &lt;para&gt;Adds a Mana Stack to your Balance Gauge upon landing Enchanted Riposte Enchanted Zwerchhau Enchanted Redoublement Enchanted Moulinet Enchanted Moulinet Deux or Enchanted Moulinet Trois up to a maximum of 3. Upon gaining 3 Mana Stacks Verthunder and Verthunder II are upgraded to Verflare. Upon learning Verholy gaining 3 Mana Stacks also upgrades Veraero and Veraero II to Verholy.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ManaStackTrait { get; } = new BaseTrait(482);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50483"&gt;&lt;strong&gt;Red Magic Mastery II&lt;/strong&gt;&lt;/see&gt; (RDM) [483]
-    /// &lt;para&gt;Upgrades Verthunder to Verthunder III and Veraero to Veraero III. Upon gaining 3 Mana Stacks Verthunder III is upgraded to Verflare and Veraero III is upgraded to Verholy.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RedMagicMasteryIiTrait { get; } = new BaseTrait(483);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50484"&gt;&lt;strong&gt;Red Magic Mastery III&lt;/strong&gt;&lt;/see&gt; (RDM) [484]
-    /// &lt;para&gt;Upgrades Jolt II to Jolt III. Also increases the potency of Enchanted Riposte to 280 Verthunder II to 140 Veraero II to 140 Verfire to 340 Verstone to 340 Enchanted Zwerchhau to 150 Enchanted Redoublement to 130 Impact to 210 and Enchanted Reprise to 340.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait RedMagicMasteryIiiTrait { get; } = new BaseTrait(484);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50485"&gt;&lt;strong&gt;Enhanced Acceleration&lt;/strong&gt;&lt;/see&gt; (RDM) [485]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Acceleration. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAccelerationTrait { get; } = new BaseTrait(485);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50620"&gt;&lt;strong&gt;Enhanced Embolden&lt;/strong&gt;&lt;/see&gt; (RDM) [620]
-    /// &lt;para&gt;Grants Thorned Flourish upon executing Embolden. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEmboldenTrait { get; } = new BaseTrait(620);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50621"&gt;&lt;strong&gt;Enhanced Acceleration II&lt;/strong&gt;&lt;/see&gt; (RDM) [621]
-    /// &lt;para&gt;Grants Grand Impact Ready upon executing Acceleration. Duration: 30s Jolt III and Impact change to Grand Impact while under the effect of Grand Impact Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAccelerationIiTrait { get; } = new BaseTrait(621);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50622"&gt;&lt;strong&gt;Enhanced Manafication&lt;/strong&gt;&lt;/see&gt; (RDM) [622]
-    /// &lt;para&gt;Grants Prefulgence Ready upon executing Manafication. Duration: 30s Manafication changes to Prefulgence while under the effect of Prefulgence Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedManaficationTrait { get; } = new BaseTrait(622);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50652"&gt;&lt;strong&gt;Enchanted Blade Mastery&lt;/strong&gt;&lt;/see&gt; (RDM) [652]
-    /// &lt;para&gt;Increases the potency of Enchanted Riposte to 340 Verfire to 380 Verstone to 380 Enchanted Zwerchhau to 190 Fleche to 480 Enchanted Redoublement to 190 Contre Sixte to 420 Verflare to 650 Verholy to 650 Enchanted Reprise to 420 Scorch to 750 Veraero III to 440 Verthunder III to 440 and Resolution to 850.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnchantedBladeMasteryTrait { get; } = new BaseTrait(652);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        EnhancedJoltTrait, MaimAndMendTrait, MaimAndMendIiTrait, DualcastTrait, ScatterMasteryTrait, EnhancedDisplacementTrait, RedMagicMasteryTrait, ManaStackTrait, RedMagicMasteryIiTrait, RedMagicMasteryIiiTrait, EnhancedAccelerationTrait, EnhancedEmboldenTrait, EnhancedAccelerationIiTrait, EnhancedManaficationTrait, EnchantedBladeMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
-}
-
-/// &lt;summary&gt;
-/// &lt;see href="https://na.finalfantasyxiv.com/jobguide/bluemage"&gt;&lt;strong&gt;blue mage&lt;/strong&gt;&lt;/see&gt;
-/// &lt;br&gt;Number of Actions: 0&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 6&lt;/br&gt;
-/// &lt;/summary&gt;
-[Jobs(Job.BLU)]
-public abstract partial class BlueMageRotation : CustomRotation
-{
-    
-
-#region Actions
-
-    private IBaseAction[] _AllBaseActions = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseAction[] AllBaseActions =&gt; _AllBaseActions ??= [
-        
-        ..base.AllBaseActions,
-    ];
-
-
-
-
-
-
-#endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50219"&gt;&lt;strong&gt;Learning&lt;/strong&gt;&lt;/see&gt; (BLU) [219]
-    /// &lt;para&gt;Infrequently grants the ability to discern the secrets of enemy actions wielded in battle and make them your own.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait LearningTrait { get; } = new BaseTrait(219);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50220"&gt;&lt;strong&gt;Maim and Mend&lt;/strong&gt;&lt;/see&gt; (BLU) [220]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendTrait { get; } = new BaseTrait(220);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50221"&gt;&lt;strong&gt;Maim and Mend II&lt;/strong&gt;&lt;/see&gt; (BLU) [221]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 20%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiTrait { get; } = new BaseTrait(221);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50222"&gt;&lt;strong&gt;Maim and Mend III&lt;/strong&gt;&lt;/see&gt; (BLU) [222]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 30%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiiTrait { get; } = new BaseTrait(222);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50223"&gt;&lt;strong&gt;Maim and Mend IV&lt;/strong&gt;&lt;/see&gt; (BLU) [223]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 40%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIvTrait { get; } = new BaseTrait(223);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50224"&gt;&lt;strong&gt;Maim and Mend V&lt;/strong&gt;&lt;/see&gt; (BLU) [224]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 50%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendVTrait { get; } = new BaseTrait(224);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        LearningTrait, MaimAndMendTrait, MaimAndMendIiTrait, MaimAndMendIiiTrait, MaimAndMendIvTrait, MaimAndMendVTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/gunbreaker"&gt;&lt;strong&gt;gunbreaker&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 18&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 14&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.GNB)]
 public abstract partial class GunbreakerRotation : CustomRotation
@@ -39964,94 +38238,11 @@ private IBaseAction RelentlessRushPvP =&gt; _RelentlessRushPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; RelentlessRushPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50257"&gt;&lt;strong&gt;Cartridge Charge&lt;/strong&gt;&lt;/see&gt; (GNB) [257]
-    /// &lt;para&gt;Stores a Cartridge in your Powder Gauge after successfully completing a combo with Solid Barrel. Maximum Cartridges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CartridgeChargeTrait { get; } = new BaseTrait(257);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50258"&gt;&lt;strong&gt;Enhanced Brutal Shell&lt;/strong&gt;&lt;/see&gt; (GNB) [258]
-    /// &lt;para&gt;Grants the effect of Brutal Shell after successfully completing a combo with Brutal Shell. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBrutalShellTrait { get; } = new BaseTrait(258);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50259"&gt;&lt;strong&gt;Danger Zone Mastery&lt;/strong&gt;&lt;/see&gt; (GNB) [259]
-    /// &lt;para&gt;Upgrades Danger Zone to Blasting Zone.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DangerZoneMasteryTrait { get; } = new BaseTrait(259);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50320"&gt;&lt;strong&gt;Tank Mastery&lt;/strong&gt;&lt;/see&gt; (GNB) [320]
-    /// &lt;para&gt;Reduces damage taken by 20%. Furthermore grants a bonus to maximum HP based on your vitality attribute and a bonus to damage dealt based on your strength attribute.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TankMasteryTrait { get; } = new BaseTrait(320);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50424"&gt;&lt;strong&gt;Heart of Stone Mastery&lt;/strong&gt;&lt;/see&gt; (GNB) [424]
-    /// &lt;para&gt;Upgrades Heart of Stone to Heart of Corundum.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HeartOfStoneMasteryTrait { get; } = new BaseTrait(424);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50425"&gt;&lt;strong&gt;Enhanced Aurora&lt;/strong&gt;&lt;/see&gt; (GNB) [425]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Aurora. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAuroraTrait { get; } = new BaseTrait(425);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50426"&gt;&lt;strong&gt;Enhanced Continuation&lt;/strong&gt;&lt;/see&gt; (GNB) [426]
-    /// &lt;para&gt;Become Ready to Blast after executing Burst Strike. Duration: 10s Continuation changes to Hypervelocity while under the effect of Ready to Blast.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedContinuationTrait { get; } = new BaseTrait(426);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50427"&gt;&lt;strong&gt;Cartridge Charge II&lt;/strong&gt;&lt;/see&gt; (GNB) [427]
-    /// &lt;para&gt;Increases Powder Gauge capacity to 3 Cartridges. While under the effect of Bloodfest increases the maximum capacity to 6. Executing Bloodfest stores 3 Cartridges.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait CartridgeChargeIiTrait { get; } = new BaseTrait(427);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50507"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (GNB) [507]
-    /// &lt;para&gt;Increases the potency of Keen Edge to 200 Brutal Shell to 160 and Solid Barrel to 140.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(507);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50574"&gt;&lt;strong&gt;Nebula Mastery&lt;/strong&gt;&lt;/see&gt; (GNB) [574]
-    /// &lt;para&gt;Upgrades Nebula to Great Nebula.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait NebulaMasteryTrait { get; } = new BaseTrait(574);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50575"&gt;&lt;strong&gt;Enhanced Continuation II&lt;/strong&gt;&lt;/see&gt; (GNB) [575]
-    /// &lt;para&gt;Become Ready to Raze after executing Fated Circle. Duration: 10s Continuation changes to Fated Brand when Ready to Raze.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedContinuationIiTrait { get; } = new BaseTrait(575);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50576"&gt;&lt;strong&gt;Enhanced Bloodfest&lt;/strong&gt;&lt;/see&gt; (GNB) [576]
-    /// &lt;para&gt;Grants the effect of Ready to Reign after executing Bloodfest. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedBloodfestTrait { get; } = new BaseTrait(576);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50666"&gt;&lt;strong&gt;Enhanced No Mercy&lt;/strong&gt;&lt;/see&gt; (GNB) [666]
-    /// &lt;para&gt;Become Ready to Break after executing No Mercy. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedNoMercyTrait { get; } = new BaseTrait(666);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50667"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (GNB) [667]
-    /// &lt;para&gt;Increases the potency of Keen Edge to 300 Brutal Shell to 240 Solid Barrel to 240 Burst Strike to 420 Gnashing Fang to 440 Savage Claw to 500 Wicked Talon to 560 Jugular Rip to 220 Abdomen Tear to 260 Eye Gouge to 300 Blasting Zone to 800 and Hypervelocity to 180.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(667);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        CartridgeChargeTrait, EnhancedBrutalShellTrait, DangerZoneMasteryTrait, TankMasteryTrait, HeartOfStoneMasteryTrait, EnhancedAuroraTrait, EnhancedContinuationTrait, CartridgeChargeIiTrait, MeleeMasteryTrait, NebulaMasteryTrait, EnhancedContinuationIiTrait, EnhancedBloodfestTrait, EnhancedNoMercyTrait, MeleeMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/dancer"&gt;&lt;strong&gt;dancer&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 19&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 16&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.DNC)]
 public abstract partial class DancerRotation : CustomRotation
@@ -40512,104 +38703,11 @@ private IBaseAction ContradancePvP =&gt; _ContradancePvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; ContradancePvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50251"&gt;&lt;strong&gt;Increased Action Damage&lt;/strong&gt;&lt;/see&gt; (DNC) [251]
-    /// &lt;para&gt;Increases base action damage by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait IncreasedActionDamageTrait { get; } = new BaseTrait(251);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50252"&gt;&lt;strong&gt;Fourfold Fantasy&lt;/strong&gt;&lt;/see&gt; (DNC) [252]
-    /// &lt;para&gt;Grants a Fourfold Feather upon landing certain actions. Maximum Stacks: 4&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait FourfoldFantasyTrait { get; } = new BaseTrait(252);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50253"&gt;&lt;strong&gt;Increased Action Damage II&lt;/strong&gt;&lt;/see&gt; (DNC) [253]
-    /// &lt;para&gt;Increases base action damage by 20%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait IncreasedActionDamageIiTrait { get; } = new BaseTrait(253);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50254"&gt;&lt;strong&gt;Enhanced En Avant&lt;/strong&gt;&lt;/see&gt; (DNC) [254]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of En Avant. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnAvantTrait { get; } = new BaseTrait(254);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50255"&gt;&lt;strong&gt;Esprit&lt;/strong&gt;&lt;/see&gt; (DNC) [255]
-    /// &lt;para&gt;Grants Esprit to self and nearby party members upon successfully executing Standard Finish or Technical Finish. Esprit Effect: Increases Esprit Gauge by 5 upon successfully landing Cascade Reverse Cascade Fountain Fountainfall Windmill Rising Windmill Bladeshower or Bloodshower. When party members successfully land a weaponskill or cast a spell has a chance of increasing Esprit Gauge by 10. Chance of triggering party member effect differs according to job.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EspritTrait { get; } = new BaseTrait(255);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50256"&gt;&lt;strong&gt;Enhanced En Avant II&lt;/strong&gt;&lt;/see&gt; (DNC) [256]
-    /// &lt;para&gt;Allows a third charge of En Avant.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnAvantIiTrait { get; } = new BaseTrait(256);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50453"&gt;&lt;strong&gt;Enhanced Technical Finish&lt;/strong&gt;&lt;/see&gt; (DNC) [453]
-    /// &lt;para&gt;Grants Flourishing Finish after executing Technical Finish. Duration: 30s Technical Finish becomes Tillana while under this effect.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTechnicalFinishTrait { get; } = new BaseTrait(453);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50454"&gt;&lt;strong&gt;Enhanced Esprit&lt;/strong&gt;&lt;/see&gt; (DNC) [454]
-    /// &lt;para&gt;Increases Esprit Gauge by 10 upon successfully landing Reverse Cascade Fountainfall Rising Windmill or Bloodshower.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEspritTrait { get; } = new BaseTrait(454);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50455"&gt;&lt;strong&gt;Enhanced Flourish&lt;/strong&gt;&lt;/see&gt; (DNC) [455]
-    /// &lt;para&gt;Grants Fourfold Fan Dance upon executing Flourish. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFlourishTrait { get; } = new BaseTrait(455);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50456"&gt;&lt;strong&gt;Enhanced Shield Samba&lt;/strong&gt;&lt;/see&gt; (DNC) [456]
-    /// &lt;para&gt;Reduces Shield Samba recast time to 90 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedShieldSambaTrait { get; } = new BaseTrait(456);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50457"&gt;&lt;strong&gt;Enhanced Devilment&lt;/strong&gt;&lt;/see&gt; (DNC) [457]
-    /// &lt;para&gt;Grants Flourishing Starfall upon executing Devilment. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedDevilmentTrait { get; } = new BaseTrait(457);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50609"&gt;&lt;strong&gt;Enhanced Standard Finish&lt;/strong&gt;&lt;/see&gt; (DNC) [609]
-    /// &lt;para&gt;Grants Last Dance Ready upon executing Standard Finish. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedStandardFinishTrait { get; } = new BaseTrait(609);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50610"&gt;&lt;strong&gt;Enhanced Flourish II&lt;/strong&gt;&lt;/see&gt; (DNC) [610]
-    /// &lt;para&gt;Grants Finishing Move Ready upon executing Flourish. Duration: 30s Standard Step changes to Finishing Move while under the effect of Finishing Move Ready.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedFlourishIiTrait { get; } = new BaseTrait(610);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50611"&gt;&lt;strong&gt;Enhanced Shield Samba II&lt;/strong&gt;&lt;/see&gt; (DNC) [611]
-    /// &lt;para&gt;Improves Shield Samba's damage reduction effect to 15%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedShieldSambaIiTrait { get; } = new BaseTrait(611);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50612"&gt;&lt;strong&gt;Enhanced Technical Finish II&lt;/strong&gt;&lt;/see&gt; (DNC) [612]
-    /// &lt;para&gt;Grants Dance of the Dawn Ready upon executing Technical Finish. Duration: 30s Saber Dance changes to Dance of the Dawn while under the effect of Dance of the Dawn Ready and the Esprit Gauge is 50 or higher.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTechnicalFinishIiTrait { get; } = new BaseTrait(612);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50662"&gt;&lt;strong&gt;Dynamic Dancer&lt;/strong&gt;&lt;/see&gt; (DNC) [662]
-    /// &lt;para&gt;Increases the potency of Cascade to 220 Fountain to 120 Double Standard Finish to 850 Reverse Cascade to 280 Fan Dance to 180 Fountainfall to 340 Fan Dance III to 220 Quadruple Technical Finish to 1,300 Saber Dance to 540 and Fan Dance IV to 460.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait DynamicDancerTrait { get; } = new BaseTrait(662);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        IncreasedActionDamageTrait, FourfoldFantasyTrait, IncreasedActionDamageIiTrait, EnhancedEnAvantTrait, EspritTrait, EnhancedEnAvantIiTrait, EnhancedTechnicalFinishTrait, EnhancedEspritTrait, EnhancedFlourishTrait, EnhancedShieldSambaTrait, EnhancedDevilmentTrait, EnhancedStandardFinishTrait, EnhancedFlourishIiTrait, EnhancedShieldSambaIiTrait, EnhancedTechnicalFinishIiTrait, DynamicDancerTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/reaper"&gt;&lt;strong&gt;reaper&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 18&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 14&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.RPR)]
 public abstract partial class ReaperRotation : CustomRotation
@@ -41047,94 +39145,11 @@ private IBaseAction TenebraeLemurumPvP =&gt; _TenebraeLemurumPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; TenebraeLemurumPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50379"&gt;&lt;strong&gt;Soul Gauge&lt;/strong&gt;&lt;/see&gt; (RPR) [379]
-    /// &lt;para&gt;Allows for Soul Gauge accumulation upon the landing of certain weaponskills and magic actions or defeating enemies under the effect of Death's Design.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SoulGaugeTrait { get; } = new BaseTrait(379);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50380"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (RPR) [380]
-    /// &lt;para&gt;Increases the potency of Slice to 300 Waxing Slice to 140 Shadow of Death to 300 Harpe to 300 Spinning Scythe to 140 Infernal Slice to 140 Whorl of Death to 100 and Nightmare Scythe to 120.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(380);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50381"&gt;&lt;strong&gt;Enhanced Avatar&lt;/strong&gt;&lt;/see&gt; (RPR) [381]
-    /// &lt;para&gt;Grants the effect of Soul Reaver upon successfully landing Blood Stalk or Grim Swathe. Duration: 30s Effect ends upon execution of any weaponskill or magic attack.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedAvatarTrait { get; } = new BaseTrait(381);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50382"&gt;&lt;strong&gt;Hellsgate&lt;/strong&gt;&lt;/see&gt; (RPR) [382]
-    /// &lt;para&gt;Upon executing Hell's Ingress or Hell's Egress leave behind a Hellsgate and grant Threshold to self. Duration: 10s Hell's Ingress changes to Regress after executing Hell's Egress and vice versa.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait HellsgateTrait { get; } = new BaseTrait(382);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50383"&gt;&lt;strong&gt;Tempered Soul&lt;/strong&gt;&lt;/see&gt; (RPR) [383]
-    /// &lt;para&gt;Allows the accumulation of charges for consecutive uses of Soul Slice and Soul Scythe. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait TemperedSoulTrait { get; } = new BaseTrait(383);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50384"&gt;&lt;strong&gt;Shroud Gauge&lt;/strong&gt;&lt;/see&gt; (RPR) [384]
-    /// &lt;para&gt;Allows for Shroud Gauge accumulation upon the landing of Gibbet Gallows or Guillotine.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait ShroudGaugeTrait { get; } = new BaseTrait(384);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50385"&gt;&lt;strong&gt;Enhanced Arcane Crest&lt;/strong&gt;&lt;/see&gt; (RPR) [385]
-    /// &lt;para&gt;Grants Crest of Time Returned to self and nearby party members gradually restoring HP over time. This effect is only granted when the Crest of Time Borrowed barrier is completely absorbed. Cure Potency: 50 Duration: 15s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedArcaneCrestTrait { get; } = new BaseTrait(385);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50386"&gt;&lt;strong&gt;Void Soul&lt;/strong&gt;&lt;/see&gt; (RPR) [386]
-    /// &lt;para&gt;Grants Void Shroud upon landing Void Reaping Cross Reaping or Grim Reaping.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VoidSoulTrait { get; } = new BaseTrait(386);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50387"&gt;&lt;strong&gt;Enhanced Arcane Circle&lt;/strong&gt;&lt;/see&gt; (RPR) [387]
-    /// &lt;para&gt;Grants Circle of Sacrifice to you and nearby party members upon executing Arcane Circle. Duration: 5s When you or party members under this effect successfully land a weaponskill or cast a spell you may gain a stack of Immortal Sacrifice up to a maximum of 8. Duration: 30s Also grants Bloodsown Circle to self allowing you to receive stacks of Immortal Sacrifice from party members under the effect of your Circle of Sacrifice. Duration: 6s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedArcaneCircleTrait { get; } = new BaseTrait(387);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50523"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (RPR) [523]
-    /// &lt;para&gt;Increases the potency of Slice to 320 Waxing Slice to 160 and Infernal Slice to 180.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(523);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50594"&gt;&lt;strong&gt;Enhanced Enshroud&lt;/strong&gt;&lt;/see&gt; (RPR) [594]
-    /// &lt;para&gt;Grants Oblatio upon executing Enshroud. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedEnshroudTrait { get; } = new BaseTrait(594);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50596"&gt;&lt;strong&gt;Enhanced Gluttony&lt;/strong&gt;&lt;/see&gt; (RPR) [596]
-    /// &lt;para&gt;Grants 2 stacks of Executioner upon executing Gluttony. Duration: 30s Effect cannot be stacked with Soul Reaver. Effect ends upon execution of any weaponskill or magic attack. Gibbet changes to Executioner's Gibbet Gallows changes to Executioner's Gallows and Guillotine changes to Executioner's Guillotine while under the effect of Executioner.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedGluttonyTrait { get; } = new BaseTrait(596);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50597"&gt;&lt;strong&gt;Enhanced Plentiful Harvest&lt;/strong&gt;&lt;/see&gt; (RPR) [597]
-    /// &lt;para&gt;Grants Perfectio Occulta upon executing Plentiful Harvest. Duration: 30s Perfectio Occulta changes to Perfectio Parata upon executing Communio. Effect of Perfectio Parata ends upon gaining the effect of Lemure Shroud.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPlentifulHarvestTrait { get; } = new BaseTrait(597);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50657"&gt;&lt;strong&gt;Melee Mastery III&lt;/strong&gt;&lt;/see&gt; (RPR) [657]
-    /// &lt;para&gt;Increases the potency of Slice to 420 Waxing Slice to 260 Infernal Slice to 280 Soul Slice to 520 Gibbet to 500 Gallows to 500 Unveiled Gibbet to 440 Unveiled Gallows to 440 Void Reaping to 560 Cross Reaping to 560 Harvest Moon to 800 and Lemure's Slice to 280.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiiTrait { get; } = new BaseTrait(657);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        SoulGaugeTrait, MeleeMasteryTrait, EnhancedAvatarTrait, HellsgateTrait, TemperedSoulTrait, ShroudGaugeTrait, EnhancedArcaneCrestTrait, VoidSoulTrait, EnhancedArcaneCircleTrait, MeleeMasteryIiTrait, EnhancedEnshroudTrait, EnhancedGluttonyTrait, EnhancedPlentifulHarvestTrait, MeleeMasteryIiiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/sage"&gt;&lt;strong&gt;sage&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 11&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 16&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.SGE)]
 public abstract partial class SageRotation : CustomRotation
@@ -41411,104 +39426,11 @@ private IBaseAction MesotesPvP =&gt; _MesotesPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; MesotesPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50368"&gt;&lt;strong&gt;Maim and Mend&lt;/strong&gt;&lt;/see&gt; (SGE) [368]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendTrait { get; } = new BaseTrait(368);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50369"&gt;&lt;strong&gt;Maim and Mend II&lt;/strong&gt;&lt;/see&gt; (SGE) [369]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 30%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiTrait { get; } = new BaseTrait(369);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50370"&gt;&lt;strong&gt;Addersgall&lt;/strong&gt;&lt;/see&gt; (SGE) [370]
-    /// &lt;para&gt;Grants 1 stack of Addersgall automatically every twenty seconds. Maximum Stacks: 3 Can be charged outside of combat.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AddersgallTrait { get; } = new BaseTrait(370);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50371"&gt;&lt;strong&gt;Somanoutic Oath&lt;/strong&gt;&lt;/see&gt; (SGE) [371]
-    /// &lt;para&gt;Increases the potency of Dosis to 250 Phlegma to 330 and Eukrasian Dosis to 35.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SomanouticOathTrait { get; } = new BaseTrait(371);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50372"&gt;&lt;strong&gt;Somanoutic Oath II&lt;/strong&gt;&lt;/see&gt; (SGE) [372]
-    /// &lt;para&gt;Increases the potency of Dosis to 300 Phlegma to 400 and Eukrasian Dosis to 40.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SomanouticOathIiTrait { get; } = new BaseTrait(372);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50373"&gt;&lt;strong&gt;Addersting&lt;/strong&gt;&lt;/see&gt; (SGE) [373]
-    /// &lt;para&gt;Grants 1 stack of Addersting when the barrier granted by Eukrasian Diagnosis to any party member or the barrier granted by Eukrasian Prognosis to self is completely absorbed. Maximum Stacks: 3&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait AdderstingTrait { get; } = new BaseTrait(373);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50374"&gt;&lt;strong&gt;Offensive Magic Mastery&lt;/strong&gt;&lt;/see&gt; (SGE) [374]
-    /// &lt;para&gt;Upgrades Dosis to Dosis II Phlegma to Phlegma II and Eukrasian Dosis to Eukrasian Dosis II. Also increases the potency of Toxikon to 300.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait OffensiveMagicMasteryTrait { get; } = new BaseTrait(374);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50375"&gt;&lt;strong&gt;Enhanced Kerachole&lt;/strong&gt;&lt;/see&gt; (SGE) [375]
-    /// &lt;para&gt;Adds an additional effect to Kerachole that grants healing over time.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedKeracholeTrait { get; } = new BaseTrait(375);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50376"&gt;&lt;strong&gt;Offensive Magic Mastery II&lt;/strong&gt;&lt;/see&gt; (SGE) [376]
-    /// &lt;para&gt;Upgrades Dosis II to Dosis III Phlegma II to Phlegma III Eukrasian Dosis II to Eukrasian Dosis III Dyskrasia to Dyskrasia II and Toxikon to Toxikon II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait OffensiveMagicMasteryIiTrait { get; } = new BaseTrait(376);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50377"&gt;&lt;strong&gt;Enhanced Healing Magic&lt;/strong&gt;&lt;/see&gt; (SGE) [377]
-    /// &lt;para&gt;Increases the healing potency of Diagnosis to 450 and Kardia to 170. Also increases the strength of barriers granted by Eukrasian Diagnosis to 180% the amount of HP restored and Eukrasian Prognosis to 320% the amount of HP restored.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedHealingMagicTrait { get; } = new BaseTrait(377);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50378"&gt;&lt;strong&gt;Enhanced Zoe&lt;/strong&gt;&lt;/see&gt; (SGE) [378]
-    /// &lt;para&gt;Reduces Zoe recast time to 90 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedZoeTrait { get; } = new BaseTrait(378);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50510"&gt;&lt;strong&gt;Physis Mastery&lt;/strong&gt;&lt;/see&gt; (SGE) [510]
-    /// &lt;para&gt;Upgrades Physis to Physis II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PhysisMasteryTrait { get; } = new BaseTrait(510);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50636"&gt;&lt;strong&gt;Enhanced Soteria&lt;/strong&gt;&lt;/see&gt; (SGE) [636]
-    /// &lt;para&gt;Reduces Soteria recast time to 60 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSoteriaTrait { get; } = new BaseTrait(636);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50637"&gt;&lt;strong&gt;Eukrasian Prognosis Mastery&lt;/strong&gt;&lt;/see&gt; (SGE) [637]
-    /// &lt;para&gt;Upgrades Eukrasian Prognosis to Eukrasian Prognosis II.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EukrasianPrognosisMasteryTrait { get; } = new BaseTrait(637);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50638"&gt;&lt;strong&gt;Enhanced Physis II&lt;/strong&gt;&lt;/see&gt; (SGE) [638]
-    /// &lt;para&gt;Extends the duration of the effect increasing HP recovered by healing actions to 15 seconds.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPhysisIiTrait { get; } = new BaseTrait(638);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50669"&gt;&lt;strong&gt;Magick Mastery&lt;/strong&gt;&lt;/see&gt; (SGE) [669]
-    /// &lt;para&gt;Increases the potency of Dosis III to 380 Eukrasian Dosis III to 85 Toxikon II to 380 and Pneuma to 380.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MagickMasteryTrait { get; } = new BaseTrait(669);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        MaimAndMendTrait, MaimAndMendIiTrait, AddersgallTrait, SomanouticOathTrait, SomanouticOathIiTrait, AdderstingTrait, OffensiveMagicMasteryTrait, EnhancedKeracholeTrait, OffensiveMagicMasteryIiTrait, EnhancedHealingMagicTrait, EnhancedZoeTrait, PhysisMasteryTrait, EnhancedSoteriaTrait, EukrasianPrognosisMasteryTrait, EnhancedPhysisIiTrait, MagickMasteryTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/viper"&gt;&lt;strong&gt;viper&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 31&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 13&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.VPR)]
 public abstract partial class ViperRotation : CustomRotation
@@ -42245,89 +40167,11 @@ private IBaseAction WorldswallowerPvP =&gt; _WorldswallowerPvPCreator.Value;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; WorldswallowerPvP;
 
 #endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50524"&gt;&lt;strong&gt;Viper's Fangs&lt;/strong&gt;&lt;/see&gt; (VPR) [524]
-    /// &lt;para&gt;Allows the execution of Death Rattle. Can only be executed upon successfully landing Flanksting Strike Flanksbane Fang Hindsting Strike or Hindsbane Fang.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VipersFangsTrait { get; } = new BaseTrait(524);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50525"&gt;&lt;strong&gt;Viper's Maw&lt;/strong&gt;&lt;/see&gt; (VPR) [525]
-    /// &lt;para&gt;Allows the execution of Last Lash. Can only be executed after successfully landing Jagged Maw or Bloodied Maw.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VipersMawTrait { get; } = new BaseTrait(525);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50526"&gt;&lt;strong&gt;Viper's Bite&lt;/strong&gt;&lt;/see&gt; (VPR) [526]
-    /// &lt;para&gt;Allows the execution of Twinfang Bite and Twinblood Bite. Can only be executed after successfully landing Hunter's Coil or Swiftskin's Coil.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VipersBiteTrait { get; } = new BaseTrait(526);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50527"&gt;&lt;strong&gt;Viper's Thresh&lt;/strong&gt;&lt;/see&gt; (VPR) [527]
-    /// &lt;para&gt;Allows the execution of Twinfang Thresh and Twinblood Thresh. Can only be executed after successfully landing Hunter's Den or Swiftskin's Den.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VipersThreshTrait { get; } = new BaseTrait(527);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50528"&gt;&lt;strong&gt;Viper's Rattle&lt;/strong&gt;&lt;/see&gt; (VPR) [528]
-    /// &lt;para&gt;Grants 1 stack of Rattling Coil upon successfully landing Vicewinder or Vicepit.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait VipersRattleTrait { get; } = new BaseTrait(528);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50529"&gt;&lt;strong&gt;Enhanced Slither&lt;/strong&gt;&lt;/see&gt; (VPR) [529]
-    /// &lt;para&gt;Allows a third charge of Slither.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSlitherTrait { get; } = new BaseTrait(529);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50530"&gt;&lt;strong&gt;Enhanced Viper's Rattle&lt;/strong&gt;&lt;/see&gt; (VPR) [530]
-    /// &lt;para&gt;Allows the stacking of a third Rattling Coil.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedVipersRattleTrait { get; } = new BaseTrait(530);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50531"&gt;&lt;strong&gt;Serpent's Lineage&lt;/strong&gt;&lt;/see&gt; (VPR) [531]
-    /// &lt;para&gt;Allows for Serpent Offerings Gauge accumulation upon the landing of certain actions. Furthermore adds an additional effect to Serpent's Ire that grants Ready to Reawaken. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SerpentsLineageTrait { get; } = new BaseTrait(531);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50532"&gt;&lt;strong&gt;Uncoiled Fangs&lt;/strong&gt;&lt;/see&gt; (VPR) [532]
-    /// &lt;para&gt;Allows the execution of Uncoiled Twinfang or Uncoiled Twinblood after successfully landing Uncoiled Fury.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait UncoiledFangsTrait { get; } = new BaseTrait(532);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50533"&gt;&lt;strong&gt;Enhanced Serpent's Lineage&lt;/strong&gt;&lt;/see&gt; (VPR) [533]
-    /// &lt;para&gt;Allows the stacking of a fifth Anguine Tribute in the Serpent Offerings Gauge. Furthermore allows the execution of Ouroboros while under the effect of Reawakened.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSerpentsLineageTrait { get; } = new BaseTrait(533);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50534"&gt;&lt;strong&gt;Serpent's Legacy&lt;/strong&gt;&lt;/see&gt; (VPR) [534]
-    /// &lt;para&gt;Allows the execution of First Legacy after successfully landing First Generation Second Legacy after successfully landing Second Generation Third Legacy after successfully landing Third Generation and Fourth Legacy after successfully landing Fourth Generation.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait SerpentsLegacyTrait { get; } = new BaseTrait(534);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50674"&gt;&lt;strong&gt;Melee Mastery&lt;/strong&gt;&lt;/see&gt; (VPR) [674]
-    /// &lt;para&gt;Increases the potency of Steel Fangs to 200 Reaving Fangs to 200 Hunter's Sting to 300 and Swiftskin's Sting to 300.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryTrait { get; } = new BaseTrait(674);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50675"&gt;&lt;strong&gt;Melee Mastery II&lt;/strong&gt;&lt;/see&gt; (VPR) [675]
-    /// &lt;para&gt;Increases the potency of Flanksting Strike Flanksbane Fang Hindsting Strike and Hindsbane Fang to 340.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MeleeMasteryIiTrait { get; } = new BaseTrait(675);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        VipersFangsTrait, VipersMawTrait, VipersBiteTrait, VipersThreshTrait, VipersRattleTrait, EnhancedSlitherTrait, EnhancedVipersRattleTrait, SerpentsLineageTrait, UncoiledFangsTrait, EnhancedSerpentsLineageTrait, SerpentsLegacyTrait, MeleeMasteryTrait, MeleeMasteryIiTrait,
-        ..base.AllTraits,
-    ];
-#endregion
 }
 
 /// &lt;summary&gt;
 /// &lt;see href="https://na.finalfantasyxiv.com/jobguide/pictomancer"&gt;&lt;strong&gt;pictomancer&lt;/strong&gt;&lt;/see&gt;
 /// &lt;br&gt;Number of Actions: 27&lt;/br&gt;
-/// &lt;br&gt;Number of Traits: 16&lt;/br&gt;
 /// &lt;/summary&gt;
 [Jobs(Job.PCT)]
 public abstract partial class PictomancerRotation : CustomRotation
@@ -42971,98 +40815,6 @@ private IBaseAction AdventOfChocobastionPvP =&gt; _AdventOfChocobastionPvPCreato
 /// &lt;/summary&gt;
 private sealed protected override IBaseAction LimitBreakPvP =&gt; AdventOfChocobastionPvP;
 
-#endregion
-
-#region Traits
-
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50537"&gt;&lt;strong&gt;Palette Gauge&lt;/strong&gt;&lt;/see&gt; (PCT) [537]
-    /// &lt;para&gt;Allows for Palette Gauge accumulation upon the landing of Water in Blue and Water II in Blue.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PaletteGaugeTrait { get; } = new BaseTrait(537);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50538"&gt;&lt;strong&gt;Enhanced Artistry&lt;/strong&gt;&lt;/see&gt; (PCT) [538]
-    /// &lt;para&gt;Grants White Paint upon the landing of Water in Blue Water II in Blue Thunder in Magenta and Thunder II in Magenta.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedArtistryTrait { get; } = new BaseTrait(538);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50539"&gt;&lt;strong&gt;Enhanced Smudge&lt;/strong&gt;&lt;/see&gt; (PCT) [539]
-    /// &lt;para&gt;Increases movement speed after executing Smudge. Duration: 5s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedSmudgeTrait { get; } = new BaseTrait(539);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50540"&gt;&lt;strong&gt;Enhanced Pictomancy II&lt;/strong&gt;&lt;/see&gt; (PCT) [540]
-    /// &lt;para&gt;Hammer Stamp changes to Hammer Brush upon execution which in turn changes to Polishing Hammer upon execution. Additionally allows the accumulation of charges for consecutive uses of Striking Muse. Maximum Charges: 2&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPictomancyIiTrait { get; } = new BaseTrait(540);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50541"&gt;&lt;strong&gt;Enhanced Tempera&lt;/strong&gt;&lt;/see&gt; (PCT) [541]
-    /// &lt;para&gt;Allows the execution of Tempera Grassa. Can only be executed while under the effect of Tempera Coat.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedTemperaTrait { get; } = new BaseTrait(541);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50542"&gt;&lt;strong&gt;Enhanced Palette&lt;/strong&gt;&lt;/see&gt; (PCT) [542]
-    /// &lt;para&gt;Grants Monochrome Tones upon executing Subtractive Palette. Monochrome Tones Effect: Converts one stack of White Paint into Black Paint&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPaletteTrait { get; } = new BaseTrait(542);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50543"&gt;&lt;strong&gt;Enhanced Pictomancy III&lt;/strong&gt;&lt;/see&gt; (PCT) [543]
-    /// &lt;para&gt;Grants Rainbow Bright upon consuming all stacks of Hyperphantasia. Stacks may be depleted by casting aetherhue spells. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPictomancyIiiTrait { get; } = new BaseTrait(543);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50544"&gt;&lt;strong&gt;Enhanced Pictomancy V&lt;/strong&gt;&lt;/see&gt; (PCT) [544]
-    /// &lt;para&gt;Grants Starstruck upon executing Starry Muse. Duration: 20s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPictomancyVTrait { get; } = new BaseTrait(544);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50545"&gt;&lt;strong&gt;Enhanced Pictomancy IV&lt;/strong&gt;&lt;/see&gt; (PCT) [545]
-    /// &lt;para&gt;Allows a third charge of Living Muse. In addition Claw Motif and Maw Motif may now be performed after executing Living Muse.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPictomancyIvTrait { get; } = new BaseTrait(545);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50546"&gt;&lt;strong&gt;Enhanced Pictomancy&lt;/strong&gt;&lt;/see&gt; (PCT) [546]
-    /// &lt;para&gt;Grants 5 stacks of Hyperphantasia upon executing Starry Muse. Duration: 30s&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait EnhancedPictomancyTrait { get; } = new BaseTrait(546);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50670"&gt;&lt;strong&gt;Maim and Mend&lt;/strong&gt;&lt;/see&gt; (PCT) [670]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 10%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendTrait { get; } = new BaseTrait(670);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50671"&gt;&lt;strong&gt;Maim and Mend II&lt;/strong&gt;&lt;/see&gt; (PCT) [671]
-    /// &lt;para&gt;Increases base action damage and HP restoration by 30%.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait MaimAndMendIiTrait { get; } = new BaseTrait(671);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50672"&gt;&lt;strong&gt;Pictomancy Mastery&lt;/strong&gt;&lt;/see&gt; (PCT) [672]
-    /// &lt;para&gt;Increases the potency of Fire in Red to 310 Aero in Green to 350 Water in Blue to 390 Pom Muse to 700 Winged Muse to 700 Mog of the Ages to 800 and Hammer Stamp to 420.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PictomancyMasteryTrait { get; } = new BaseTrait(672);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50676"&gt;&lt;strong&gt;Pictomancy Mastery II&lt;/strong&gt;&lt;/see&gt; (PCT) [676]
-    /// &lt;para&gt;Increases the potency of Fire in Red to 380 Aero in Green to 420 Water in Blue to 460 Fire II in Red to 150 Aero II in Green to 170 Water II in Blue to 190 Hammer Stamp to 500 Blizzard in Cyan to 680 Stone in Yellow to 720 Thunder in Magenta to 760 Blizzard II in Cyan to 330 Stone II in Yellow to 350 and Thunder II in Magenta to 370.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PictomancyMasteryIiTrait { get; } = new BaseTrait(676);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50677"&gt;&lt;strong&gt;Pictomancy Mastery III&lt;/strong&gt;&lt;/see&gt; (PCT) [677]
-    /// &lt;para&gt;Increases the potency of Fire in Red to 420 Aero in Green to 460 Water in Blue to 500 Pom Muse to 800 Winged Muse to 800 Mog of the Ages to 1,000 Hammer Stamp to 540 Blizzard in Cyan to 750 Stone in Yellow to 790 Thunder in Magenta to 830 and Holy in White to 500.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PictomancyMasteryIiiTrait { get; } = new BaseTrait(677);
-    /// &lt;summary&gt;
-    /// &lt;see href="https://garlandtools.org/db/#action/50678"&gt;&lt;strong&gt;Pictomancy Mastery IV&lt;/strong&gt;&lt;/see&gt; (PCT) [678]
-    /// &lt;para&gt;Increases the potency of Fire in Red to 490 Aero in Green to 530 Water in Blue to 570 Fire II in Red to 180 Aero II in Green to 200 Water II in Blue to 220 Hammer Stamp to 560 Blizzard in Cyan to 860 Stone in Yellow to 900 Thunder in Magenta to 940 Blizzard II in Cyan to 360 Stone II in Yellow to 380 Thunder II in Magenta to 400 Holy in White to 570 Hammer Brush to 580 Polishing Hammer to 600 and Comet in Black to 940.&lt;/para&gt;
-    /// &lt;/summary&gt;
-    public static IBaseTrait PictomancyMasteryIvTrait { get; } = new BaseTrait(678);
-
-    private IBaseTrait[] _AllTraits = null;
-    
-    /// &lt;inheritdoc/&gt;
-    public override IBaseTrait[] AllTraits =&gt; _AllTraits ??= [
-        PaletteGaugeTrait, EnhancedArtistryTrait, EnhancedSmudgeTrait, EnhancedPictomancyIiTrait, EnhancedTemperaTrait, EnhancedPaletteTrait, EnhancedPictomancyIiiTrait, EnhancedPictomancyVTrait, EnhancedPictomancyIvTrait, EnhancedPictomancyTrait, MaimAndMendTrait, MaimAndMendIiTrait, PictomancyMasteryTrait, PictomancyMasteryIiTrait, PictomancyMasteryIiiTrait, PictomancyMasteryIvTrait,
-        ..base.AllTraits,
-    ];
 #endregion
 }</value>
   </data>

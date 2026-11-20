@@ -97,7 +97,6 @@ internal static class MiscUpdater
 			Job.SMN => BitmapFontIcon.Summoner,
 			Job.RDM => BitmapFontIcon.RedMage,
 			Job.PCT => BitmapFontIcon.Pictomancer,
-			Job.BLU => BitmapFontIcon.BlueMage,
 			Job.MNK => BitmapFontIcon.Monk,
 			Job.SAM => BitmapFontIcon.Samurai,
 			Job.DRG => BitmapFontIcon.Dragoon,

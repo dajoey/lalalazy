@@ -379,21 +379,6 @@ internal partial class Configs : IPluginConfiguration
 	[UI("HP%% needed to use single/self targetted mitigation on Tanks", Parent = nameof(UseDefenseAbility))]
 	private readonly float _healthForAutoDefense = 1;
 
-	[ConditionBool, UI("Automatically activate tank stance", Parent = nameof(UseAbility))]
-	private static readonly bool _autoTankStance = true;
-
-	[ConditionBool, UI("Auto provoke when there is another tank in party", Description = "Automatically use provoke when an enemy is attacking a non-tank member of the party while there is more than one tank in party.",
-		Parent = nameof(UseAbility))]
-	private static readonly bool _autoProvokeForTank = true;
-
-	/// <markdown file="Auto" name="Auto True North" section="Healing Usage and Control" subsection="RotationSolver.Basic.Configuration.Configs._useAbility">
-	/// Whether to cast True North when playing as a melee DPS when you do not have the right
-	/// positional on the enemy.
-	/// </markdown>
-	[ConditionBool, UI("Auto True North (Melee DPS)",
-		Parent = nameof(UseAbility))]
-	private static readonly bool _autoUseTrueNorth = true;
-
 	[ConditionBool, UI("Use movement speed increase abilities when out of combat and in duty.", Parent = nameof(UseAbility))]
 	private static readonly bool _autoSpeedOutOfCombat = true;
 
@@ -466,9 +451,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[ConditionBool, UI("Record knockback actions", Filter = List2)]
 	private static readonly bool _recordKnockbackies = false;
-
-	[ConditionBool, UI("Set Blue Mage Actions Automatically", Description = "When using a Blue Mage Rotation, PvP Solver can automatically set your spell book to the spells required by that rotation.", Filter = Extra)]
-	private static readonly bool _setBluActions2 = false;
 
 	#region Float
 	[Range(0, 600, ConfigUnitType.Seconds)]

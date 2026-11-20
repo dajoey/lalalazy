@@ -36,9 +36,9 @@ public enum SpecialCommandType : byte
 	DefenseSingle,
 
 	/// <summary>
-	/// Open a window to use Esuna, tank stance actions or True North.
+	/// Open a window to use Esuna.
 	/// </summary>
-	[Description("Open a window to use Esuna, tank stance actions or True North.")]
+	[Description("Open a window to use Esuna.")]
 	DispelStancePositional,
 
 	/// <summary>

@@ -81,7 +81,7 @@ public partial class RotationConfigWindow : Window
 		"Target tab: tweak target selection, vision cone, engage behavior, and dummy/boss handling.",
 		"Target tab: set /pvpsolver Cycle behaviour and targeting delays.",
 		"Manage TargetingTypes via chat: /pvpsolver Settings TargetingTypes add|remove <Type>.",
-		"Auto > Action Usage: allow/deny oGCDs, set AoE style, interrupts, and True North.",
+		"Auto > Action Usage: allow/deny oGCDs, set AoE style, and interrupts.",
 		"Auto > Healing: adjust thresholds and non-healer healing behavior.",
 		"Ground AoEs: Auto > Healing has options to place beneficial ground actions smartly.",
 		"Basic > Timer: tune Action Ahead and Min Updating Time to balance performance vs weaving.",

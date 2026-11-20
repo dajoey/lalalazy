@@ -71,36 +71,6 @@
       <FileName>Rotations\Basic\SGE_Base.cs</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="RotationSolver.Rotations.Basic.BLU_Base">
-    <Position X="23.75" Y="2.5" Width="2" />
-    <NestedTypes>
-      <Enum Name="RotationSolver.Rotations.Basic.BLU_Base.BLUID" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>Rotations\Basic\BLU_Base.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Enum>
-      <Enum Name="RotationSolver.Rotations.Basic.BLU_Base.BLUAttackType" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>Rotations\Basic\BLU_Base.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Enum>
-      <Enum Name="RotationSolver.Rotations.Basic.BLU_Base.BLUActionType" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>Rotations\Basic\BLU_Base.cs</NewMemberFileName>
-        </TypeIdentifier>
-      </Enum>
-      <Class Name="RotationSolver.Rotations.Basic.BLU_Base.BLUAction" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>Rotations\Basic\BLU_Base.cs</NewMemberFileName>
-        </TypeIdentifier>
-        <Lollipop Position="0.2" />
-      </Class>
-    </NestedTypes>
-    <TypeIdentifier>
-      <HashCode>yklKQVgAhPYrHIlAMfglZ6xrCerhDAyLGhiAOgYdskE=</HashCode>
-      <FileName>Rotations\Basic\BLU_Base.cs</FileName>
-    </TypeIdentifier>
-  </Class>
   <Class Name="RotationSolver.Rotations.Basic.BLM_Base">
     <Position X="14.5" Y="14.75" Width="2" />
     <NestedTypes>

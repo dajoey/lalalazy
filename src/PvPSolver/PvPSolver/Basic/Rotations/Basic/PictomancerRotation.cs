@@ -135,8 +135,6 @@ public partial class PictomancerRotation : CustomRotation
 		ImGui.Text($"isMawMuseReady: {IsMawMuseReady}");
 		ImGui.Text($"isHammerMuseReady: {IsHammerMuseReady}");
 		ImGui.Text($"isStarryMuseReady: {IsStarryMuseReady}");
-		ImGui.Text($"MaxStrikingMuse: {MaxStrikingMuse}");
-		ImGui.Text($"Level100: {Level100}");
 		ImGui.Text($"HasSubtractivePalette: {HasSubtractivePalette}");
 		ImGui.Text($"HasAetherhues: {HasAetherhues}");
 		ImGui.Text($"HasAetherhues2: {HasAetherhues2}");
@@ -150,19 +148,6 @@ public partial class PictomancerRotation : CustomRotation
 	}
 	#endregion
 
-	#region Job States
-
-	/// <summary>
-	/// Number of max charges Striking Muse can have
-	/// </summary>
-	public static byte MaxStrikingMuse => EnhancedPictomancyIiTrait.EnoughLevel ? (byte)2 : (byte)1;
-
-	/// <summary>
-	/// Determines if player is max level or not
-	/// </summary>
-	public static bool Level100 => EnhancedPictomancyVTrait.EnoughLevel;
-
-	#endregion
 
 	#region Statuses
 	/// <summary>

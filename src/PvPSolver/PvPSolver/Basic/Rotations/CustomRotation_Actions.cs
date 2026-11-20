@@ -1,5 +1,4 @@
-﻿using RotationSolver.Basic.Traits;
-
+﻿
 namespace RotationSolver.Basic.Rotations;
 
 public partial class CustomRotation
@@ -166,8 +165,6 @@ public partial class CustomRotation
 	}
 
 	#endregion
-	private protected virtual IBaseAction? TankStance => null;
-
 	private protected virtual IBaseAction? LimitBreakPvP => null;
 
 	/// <summary>
@@ -187,11 +184,6 @@ public partial class CustomRotation
 			return [.. list];
 		}
 	}
-
-	/// <summary>
-	/// All traits of this action.
-	/// </summary>
-	public virtual IBaseTrait[] AllTraits { get; } = [];
 
 	private PropertyInfo[]? _allBools;
 

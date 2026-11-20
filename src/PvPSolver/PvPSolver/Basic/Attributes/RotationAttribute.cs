@@ -19,7 +19,7 @@ public class RotationAttribute(string name, CombatType type) : Attribute
 	public CombatType Type => type;
 
 	/// <summary>
-	/// Whether this rotation is for the Reborn or Evolved job kits. Ignored for BLU and BST.
+	/// Whether this rotation is for the Reborn or Evolved job kits.
 	/// </summary>
 	public RotationType RotationType { get; set; } = RotationType.Reborn;
 

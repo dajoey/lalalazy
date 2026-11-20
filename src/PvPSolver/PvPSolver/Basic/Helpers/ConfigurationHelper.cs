@@ -6,32 +6,6 @@ namespace RotationSolver.Basic.Helpers;
 
 internal static class ConfigurationHelper
 {
-	public static readonly SortedList<ActionID, EnemyPositional> ActionPositional = new()
-	{
-		{ ActionID.FangAndClawPvE, EnemyPositional.Flank },
-		{ ActionID.WheelingThrustPvE, EnemyPositional.Rear },
-		{ ActionID.ChaosThrustPvE, EnemyPositional.Rear },
-		{ ActionID.ChaoticSpringPvE, EnemyPositional.Rear },
-		{ ActionID.DemolishPvE, EnemyPositional.Rear },
-		{ ActionID.SnapPunchPvE, EnemyPositional.Flank },
-		{ ActionID.PouncingCoeurlPvE, EnemyPositional.Flank },
-		{ ActionID.TrickAttackPvE, EnemyPositional.Rear },
-		{ ActionID.AeolianEdgePvE, EnemyPositional.Rear },
-		{ ActionID.ArmorCrushPvE, EnemyPositional.Flank },
-		{ ActionID.GibbetPvE, EnemyPositional.Flank },
-		{ ActionID.ExecutionersGibbetPvE, EnemyPositional.Flank },
-		{ ActionID.GallowsPvE, EnemyPositional.Rear },
-		{ ActionID.ExecutionersGallowsPvE, EnemyPositional.Rear },
-		{ ActionID.GekkoPvE, EnemyPositional.Rear },
-		{ ActionID.KashaPvE, EnemyPositional.Flank },
-		{ ActionID.FlankstingStrikePvE, EnemyPositional.Flank },
-		{ ActionID.FlanksbaneFangPvE, EnemyPositional.Flank },
-		{ ActionID.HindstingStrikePvE, EnemyPositional.Rear },
-		{ ActionID.HindsbaneFangPvE, EnemyPositional.Rear },
-		{ ActionID.HuntersCoilPvE, EnemyPositional.Flank },
-		{ ActionID.SwiftskinsCoilPvE, EnemyPositional.Rear }
-	};
-
 	public static readonly uint[] BadStatus =
 	[
 		583, // No items
@@ -51,7 +25,6 @@ internal static class ConfigurationHelper
         573, // Not learned or not high enough level
         572, // Unable to use action
         5209, // Action out of charges
-        9301, // BLU action not in slot
     ];
 
 	public static readonly uint[] BadStatusAbility =
@@ -62,7 +35,6 @@ internal static class ConfigurationHelper
         573, // Not learned or not high enough level
         572, // Unable to use action
         5209, // Action out of charges
-        9301, // BLU action not in slot
     ];
 
 	public static VirtualKey ToVirtual(this ConsoleModifiers modifiers)
@@ -253,11 +225,6 @@ internal static class ConfigurationHelper
 		}
 
 		if (job == Job.RDM && cat.RDM)
-		{
-			return true;
-		}
-
-		if (job == Job.BLU && cat.BLU)
 		{
 			return true;
 		}

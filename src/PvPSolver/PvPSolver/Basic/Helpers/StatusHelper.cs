@@ -154,14 +154,6 @@ public static class StatusHelper
 	/// <summary>
 	/// 
 	/// </summary>
-	public static StatusID[] NoPositionalStatus { get; } =
-	[
-		StatusID.TrueNorth,
-	];
-
-	/// <summary>
-	/// 
-	/// </summary>
 	public static StatusID[] DoomHealStatus { get; } =
 	[
 		StatusID.Doom_1769,

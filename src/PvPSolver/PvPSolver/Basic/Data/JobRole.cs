@@ -112,6 +112,6 @@ public static class JobRoleExtension
 	private static readonly Job[] HealerJobs = [Job.WHM, Job.SCH, Job.AST, Job.SGE, Job.CNJ];
 	private static readonly Job[] MeleeJobs = [Job.MNK, Job.DRG, Job.NIN, Job.SAM, Job.RPR, Job.VPR, Job.LNC, Job.ROG];
 	private static readonly Job[] RangedPhysicalJobs = [Job.BRD, Job.MCH, Job.DNC, Job.ARC];
-	private static readonly Job[] RangedMagicalJobs = [Job.BLM, Job.SMN, Job.RDM, Job.BLU, Job.PCT, Job.ACN, Job.THM, Job.ARC];
+	private static readonly Job[] RangedMagicalJobs = [Job.BLM, Job.SMN, Job.RDM, Job.PCT, Job.ACN, Job.THM, Job.ARC];
 	private static readonly Job[] AllDpsJobs = [.. MeleeJobs, .. RangedPhysicalJobs, .. RangedMagicalJobs];
 }

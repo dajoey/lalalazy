@@ -10,7 +10,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using RotationSolver.Basic.Configuration;
 using static RotationSolver.Basic.Configuration.ConfigTypes;
 using AttackType = RotationSolver.Basic.Data.AttackType;
-using CombatRole = RotationSolver.Basic.Data.CombatRole;
 using Player = ECommons.GameHelpers.Player;
 
 namespace RotationSolver.Basic.Actions;
@@ -1685,7 +1684,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
 				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
-				TargetType.MimicryTarget => FindMimicryTarget(),
 				TargetType.TheSpear => FindTheSpear(),
 				TargetType.TheBalance => FindTheBalance(),
 				TargetType.Kardia => FindKardia(),
@@ -1751,7 +1749,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
 				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
-				TargetType.MimicryTarget => FindMimicryTarget(),
 				TargetType.TheSpear => FindTheSpear(),
 				TargetType.TheBalance => FindTheBalance(),
 				TargetType.Kardia => FindKardia(),
@@ -2316,32 +2313,12 @@ public struct ActionTargetInfo(IBaseAction action)
 				return Player.Object;
 			}
 
-			// If there are two party members and the other is the player's chocobo,
-			// treat this as effectively solo and return the player.
-			if (DataCenter.PartyMembers.Count == 2 && Player.Object != null)
-			{
-				bool hasPlayer = false;
-				bool hasChocobo = false;
-				foreach (var m in DataCenter.PartyMembers)
-				{
-					if (m == null) continue;
-					if (m.GameObjectId == Player.Object.GameObjectId) hasPlayer = true;
-					else if (ObjectHelper.IsPlayerCharacterChocobo(m)) hasChocobo = true;
-				}
-
-				if (hasPlayer && hasChocobo)
-				{
-					return Player.Object;
-				}
-			}
-
 			// Build filtered candidate list
 			List<IBattleChara> candidates = [];
 			foreach (IBattleChara m in DataCenter.PartyMembers)
 			{
 				if (m == null) continue;
 				if (m == Player.Object) continue; // never card self
-				if (ObjectHelper.IsPlayerCharacterChocobo(m)) continue;
 				if (m.IsDead) continue;
 				if (m.IsConditionCannotTarget()) continue;
 				//if (StatusHelper.IsStatusCapped(m)) continue; // cannot receive more statuses
@@ -2435,32 +2412,12 @@ public struct ActionTargetInfo(IBaseAction action)
 				return Player.Object;
 			}
 
-			// If there are two party members and the other is the player's chocobo,
-			// treat this as effectively solo and return the player.
-			if (DataCenter.PartyMembers.Count == 2 && Player.Object != null)
-			{
-				bool hasPlayer = false;
-				bool hasChocobo = false;
-				foreach (var m in DataCenter.PartyMembers)
-				{
-					if (m == null) continue;
-					if (m.GameObjectId == Player.Object.GameObjectId) hasPlayer = true;
-					else if (ObjectHelper.IsPlayerCharacterChocobo(m)) hasChocobo = true;
-				}
-
-				if (hasPlayer && hasChocobo)
-				{
-					return Player.Object;
-				}
-			}
-
 			// Build filtered candidate list
 			List<IBattleChara> candidates = [];
 			foreach (IBattleChara m in DataCenter.PartyMembers)
 			{
 				if (m == null) continue;
 				if (m == Player.Object) continue; // never card self
-				if (ObjectHelper.IsPlayerCharacterChocobo(m)) continue;
 				if (m.IsDead) continue;
 				if (m.IsConditionCannotTarget()) continue;
 				//if (StatusHelper.IsStatusCapped(m)) continue; // cannot receive more statuses
@@ -3487,53 +3444,6 @@ public struct ActionTargetInfo(IBaseAction action)
 		return null;
 	}
 
-	private static IBattleChara? FindMimicryTarget()
-	{
-		if (DataCenter.AllTargets == null)
-		{
-			return null;
-		}
-
-		IBattleChara? bestTarget = null;
-		float bestDistance = float.MaxValue;
-
-		foreach (var target in DataCenter.AllTargets)
-		{
-			if (target != null && IsNeededRole(target))
-			{
-				float distance = Player.Object != null ? Player.DistanceTo(target.Position) : float.MaxValue;
-				if (distance < bestDistance)
-				{
-					bestDistance = distance;
-					bestTarget = target;
-				}
-			}
-		}
-
-		return bestTarget;
-	}
-
-	private static bool IsNeededRole(IBattleChara character)
-	{
-		if (Player.Object == null)
-		{
-			return false;
-		}
-
-		if (character.GameObjectId == Player.Object.GameObjectId)
-		{
-			return false;
-		}
-
-		if (character is not IPlayerCharacter player || player.ClassJob.Value.IsLimitedJob)
-		{
-			return false;
-		}
-
-		CombatRole? neededRole = DataCenter.BluRole;
-		return neededRole != null && neededRole != CombatRole.NonCombat && (int)neededRole == (int)player.GetRole();
-	}
-
 	internal static IBattleChara? RandomPhysicalTarget(IEnumerable<IBattleChara> tars)
 	{
 		return RandomPickByJobs(tars, Job.VPR, Job.WAR, Job.GNB, Job.MNK, Job.SAM, Job.DRG, Job.MCH, Job.DNC)
@@ -3634,7 +3544,6 @@ public enum TargetType : byte
 	Magical,
 	Self,
 	DancePartner,
-	MimicryTarget,
 	TheBalance,
 	TheSpear,
 	Kardia,

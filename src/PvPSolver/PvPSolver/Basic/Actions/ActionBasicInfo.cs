@@ -271,15 +271,7 @@ public readonly struct ActionBasicInfo
 	{
 		get
 		{
-			// BLU morph actions: only visible when their parent action is in an active BLU slot
-			if (_action.Setting.RequiredBluSlotActionId != 0)
-			{
-				return DataCenter.BluSlots.Contains(_action.Setting.RequiredBluSlotActionId);
-			}
-
-			return _action.Action.ClassJob.RowId == (uint)Job.BLU
-				? DataCenter.BluSlots.Contains(ID)
-				: IsPvP == DataCenter.IsPvP;
+			return IsPvP == DataCenter.IsPvP;
 		}
 	}
 

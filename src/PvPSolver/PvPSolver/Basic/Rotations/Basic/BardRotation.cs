@@ -45,11 +45,6 @@ public partial class BardRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public static byte BloodletterMax => EnhancedBloodletterTrait.EnoughLevel ? (byte)3 : (byte)2;
-
-	/// <summary>
-	/// 
-	/// </summary>
 	/// <param name="gctCount"></param>
 	/// <param name="offset"></param>
 	/// <returns></returns>
@@ -103,7 +98,6 @@ public partial class BardRotation : CustomRotation
 		ImGui.Text("SoulVoice: " + SoulVoice.ToString());
 		ImGui.Text("SongTimeRaw: " + SongTimeRaw.ToString());
 		ImGui.Text("SongTime: " + SongTime.ToString());
-		ImGui.Text("BloodletterMax: " + BloodletterMax.ToString());
 	}
 	#endregion
 

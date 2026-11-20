@@ -391,11 +391,6 @@ public static class ObjectHelper
 		return battleChara.GameObjectId == Svc.Buddies.PetBuddy.GameObject?.GameObjectId;
 	}
 
-	internal static bool IsPlayerCharacterChocobo(this IBattleChara battleChara)
-	{
-		return battleChara.GetBattleNPCSubKind() == (BattleNpcSubKind)9;
-	}
-
 	internal static bool IsFocusTarget(this IBattleChara battleChara)
 	{
 		return Svc.Targets.FocusTarget != null && Svc.Targets.FocusTarget.GameObjectId == battleChara.GameObjectId;

@@ -83,7 +83,6 @@ internal static class ActionUpdater
 		var now = DateTime.Now;
 		SetAction(NextGCDAction?.AdjustedID ?? 0);
 		UpdateCombatTime(now);
-		UpdateSlots();
 		UpdateMoving(now);
 		UpdateLifetime(now);
 		UpdateMPTimer(now);
@@ -118,24 +117,6 @@ internal static class ActionUpdater
 		DataCenter.CombatTimeRaw = _startCombatTime == DateTime.MinValue
 			? 0
 			: (float)(now - _startCombatTime).TotalSeconds;
-	}
-
-	private static unsafe void UpdateSlots()
-	{
-		ActionManager* actionManager = ActionManager.Instance();
-		if (actionManager == null)
-		{
-			return;
-		}
-
-		if (DataCenter.Job == ECommons.ExcelServices.Job.BLU)
-		{
-			for (int i = 0; i < DataCenter.BluSlots.Length; i++)
-			{
-				DataCenter.BluSlots[i] = actionManager->GetActiveBlueMageActionInSlot(i);
-			}
-		}
-
 	}
 
 	private static bool _lastIsMoving = false;

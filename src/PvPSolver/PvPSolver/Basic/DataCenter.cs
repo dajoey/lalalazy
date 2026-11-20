@@ -15,7 +15,6 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using Action = Lumina.Excel.Sheets.Action;
 using CharacterManager = FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterManager;
-using CombatRole = RotationSolver.Basic.Data.CombatRole;
 
 namespace RotationSolver.Basic;
 
@@ -273,8 +272,6 @@ internal static class DataCenter
 	internal static float MovingRaw { get; set; }
 	internal static float DeadTimeRaw { get; set; }
 	internal static float AliveTimeRaw { get; set; }
-
-	public static uint[] BluSlots { get; internal set; } = new uint[24];
 
 	private static DateTime _specialStateStartTime = DateTime.MinValue;
 	private static double SpecialTimeElapsed => (DateTime.Now - _specialStateStartTime).TotalSeconds;
@@ -750,7 +747,6 @@ internal static class DataCenter
 	private static readonly Queue<ActionRec> _actions = new(QUEUECAPACITY);
 	private static readonly Queue<DamageRec> _damages = new(QUEUECAPACITY);
 
-	internal static CombatRole? BluRole => CurrentRotation is BlueMageRotation ? BlueMageRotation.BlueId : null;
 	public static float DPSTaken
 	{
 		get

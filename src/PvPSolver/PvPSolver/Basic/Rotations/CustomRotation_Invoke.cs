@@ -165,12 +165,7 @@ public partial class CustomRotation
 	{
 		act = null; // Ensure 'act' is assigned before any return
 
-		ActionDispelStancePositionalAbility = role switch
-		{
-			JobRole.Melee => null,
-			JobRole.Tank => TankStance?.CanUse(out act) ?? false ? act : null,
-			_ => null,
-		};
+		ActionDispelStancePositionalAbility = null;
 
 		ActionAntiKnockbackAbility = AntiKnockback(role, RecuperatePvP, out act) ? act : null;
 	}

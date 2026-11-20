@@ -17,11 +17,6 @@ public enum AutoStatus : uint
 	Interrupt = 1 << 0,
 
 	/// <summary>
-	/// We should use tank stance.
-	/// </summary>
-	TankStance = 1 << 1,
-
-	/// <summary>
 	/// We should provoke some enemy.
 	/// </summary>
 	Provoke = 1 << 2,

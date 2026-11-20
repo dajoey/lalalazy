@@ -36,8 +36,6 @@ internal static class StateUpdater
 			status |= AutoStatus.Interrupt;
 		if (ShouldAddAntiKnockback())
 			status |= AutoStatus.AntiKnockback;
-		if (ShouldAddPositional())
-			status |= AutoStatus.Positional;
 		if (ShouldAddHealAreaAbility())
 			status |= AutoStatus.HealAreaAbility;
 		if (ShouldAddHealAreaSpell())
@@ -52,8 +50,6 @@ internal static class StateUpdater
 			status |= AutoStatus.DefenseSingle;
 		if (ShouldAddProvoke())
 			status |= AutoStatus.Provoke;
-		if (ShouldAddTankStance())
-			status |= AutoStatus.TankStance;
 		if (ShouldAddSpeed())
 			status |= AutoStatus.Speed;
 
@@ -72,46 +68,6 @@ internal static class StateUpdater
 		if (DataCenter.DispelTarget != null)
 		{
 			return true;
-		}
-		return false;
-	}
-
-	private static bool ShouldAddPositional()
-	{
-		if (DataCenter.Role == JobRole.Melee && ActionUpdater.NextGCDAction != null && Service.Config.AutoUseTrueNorth)
-		{
-			uint id = ActionUpdater.NextGCDAction.ID;
-			IBattleChara? target = ActionUpdater.NextGCDAction.Target.Target;
-			if (target == null)
-			{
-				return false;
-			}
-
-			if (target.IsDead)
-			{
-				return false;
-			}
-
-			unsafe
-			{
-				if (target.Struct() == null)
-				{
-					return false;
-				}
-			}
-
-			try
-			{
-				if (ConfigurationHelper.ActionPositional.TryGetValue((ActionID)id, out EnemyPositional positional)
-					&& target.HasPositional() && positional != target.FindEnemyPositional())
-				{
-					return true;
-				}
-			}
-			catch
-			{
-				return false;
-			}
 		}
 		return false;
 	}
@@ -423,23 +379,16 @@ internal static class StateUpdater
 	{
 		bool isInCombatOrProvokeAnything = DataCenter.InCombat || Service.Config.ProvokeAnything;
 		bool isTankOrHasUltimatum = DataCenter.Role == JobRole.Tank;
-		bool shouldAutoProvoke = Service.Config.AutoProvokeForTank || CountAllianceTanks() < 2;
 		bool hasProvokeTarget = DataCenter.ProvokeTarget != null;
 
 		return isInCombatOrProvokeAnything
 			&& isTankOrHasUltimatum
-			&& shouldAutoProvoke
 			&& hasProvokeTarget;
 	}
 
 	private static bool ShouldAddInterrupt()
 	{
 		return DataCenter.InCombat && DataCenter.InterruptTarget != null && Service.Config.InterruptibleMoreCheck;
-	}
-
-	private static bool ShouldAddTankStance()
-	{
-		return Service.Config.AutoTankStance && DataCenter.Role == JobRole.Tank && !AnyAllianceTankWithStance() && !CustomRotation.HasTankStance;
 	}
 
 	private static bool ShouldAddSpeed()
@@ -572,7 +521,6 @@ internal static class StateUpdater
 			SpecialCommandType.DefenseArea => AutoStatus.DefenseArea,
 			SpecialCommandType.DefenseSingle => AutoStatus.DefenseSingle,
 			SpecialCommandType.DispelStancePositional => AutoStatus.Dispel
-								| AutoStatus.TankStance
 								| AutoStatus.Positional,
 			SpecialCommandType.MoveForward => AutoStatus.MoveForward,
 			SpecialCommandType.MoveBack => AutoStatus.MoveBack,
@@ -589,30 +537,5 @@ internal static class StateUpdater
 		}
 
 		return status;
-	}
-
-	private static int CountAllianceTanks()
-	{
-		int count = 0;
-		foreach (IBattleChara member in DataCenter.AllianceMembers)
-		{
-			if (member.IsJobCategory(JobRole.Tank))
-			{
-				count++;
-			}
-		}
-		return count;
-	}
-
-	private static bool AnyAllianceTankWithStance()
-	{
-		foreach (IBattleChara member in DataCenter.AllianceMembers)
-		{
-			if (member.IsJobCategory(JobRole.Tank) && member.CurrentHp != 0 && member.HasStatus(false, StatusHelper.TankStanceStatus))
-			{
-				return true;
-			}
-		}
-		return false;
 	}
 }

@@ -9,52 +9,10 @@ public partial class SageRotation : CustomRotation
 	/// </summary>
 	public static bool HasEukrasia => JobGauge.Eukrasia;
 
-	/// <summary>
-	/// Gets the amount of Addersgall available.
-	/// </summary>
-	public static byte Addersgall => AddersgallTrait.EnoughLevel ? JobGauge.Addersgall : (byte)0;
-
-	/// <summary>
-	/// Gets the amount of Addersting available.
-	/// </summary>
-	public static byte Addersting => AdderstingTrait.EnoughLevel ? JobGauge.Addersting : (byte)0;
-
-	private static float AddersgallTimerRaw => JobGauge.AddersgallTimer / 1000f;
-
-	/// <summary>
-	/// Gets the amount of milliseconds elapsed until the next Addersgall is available.
-	/// This counts from 0 to 20_000.
-	/// </summary>
-	public static float AddersgallTime => AddersgallTrait.EnoughLevel ? AddersgallTimerRaw - DataCenter.DefaultGCDRemain : 0;
-
-	/// <summary>
-	/// Used to determine if the cooldown for the next Addersgall will end within a specified time frame.
-	/// </summary>
-	/// <param name="time"></param>
-	/// <returns></returns>
-	protected static bool AddersgallEndAfter(float time)
-	{
-		return AddersgallTime <= time;
-	}
-
-	/// <summary>
-	/// Used to determine if the cooldown for the next Addersgall will end within a specified number of GCDs.
-	/// </summary>
-	/// <param name="gctCount"></param>
-	/// <param name="offset"></param>
-	/// <returns></returns>
-	protected static bool AddersgallEndAfterGCD(uint gctCount = 0, float offset = 0)
-	{
-		return AddersgallEndAfter(GCDTime(gctCount, offset));
-	}
-
 	/// <inheritdoc/>
 	public override void DisplayBaseStatus()
 	{
 		ImGui.Text("HasEukrasia: " + HasEukrasia.ToString());
-		ImGui.Text("Addersgall: " + Addersgall.ToString());
-		ImGui.Text("Addersting: " + Addersting.ToString());
-		ImGui.Text("AddersgallTime: " + AddersgallTime.ToString());
 	}
 	#endregion
 

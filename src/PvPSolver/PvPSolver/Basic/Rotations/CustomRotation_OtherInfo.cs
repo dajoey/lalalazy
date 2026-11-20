@@ -56,12 +56,6 @@ public partial class CustomRotation
 	/// 
 	/// </summary>
 	[Description("Has tank stance")]
-	public static bool HasTankStance => StatusHelper.PlayerHasStatus(true, StatusHelper.TankStanceStatus);
-
-	/// <summary>
-	/// 
-	/// </summary>
-	[Description("Has tank stance")]
 	public static bool HasTankInvuln => StatusHelper.PlayerHasStatus(true, StatusHelper.NoNeedHealingStatus);
 
 	/// <summary>
@@ -379,12 +373,6 @@ public partial class CustomRotation
 	/// </summary>
 	[Description("Has companion")]
 	public static bool HasCompanion => DataCenter.HasCompanion;
-
-	/// <summary>
-	/// True if the player has their chocobo companion out.
-	/// </summary>
-	[Description("Has Chocobo")]
-	public static bool HasChocobo => Svc.Buddies.CompanionBuddy != null;
 
 	/// <summary>
 	/// Party member.

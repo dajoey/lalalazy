@@ -12,11 +12,6 @@ public partial class WarriorRotation : CustomRotation
 	public static byte BeastGauge => JobGauge.BeastGauge;
 
 	/// <summary>
-	/// 
-	/// </summary>
-	public static byte OnslaughtMax => EnhancedOnslaughtTrait.EnoughLevel ? (byte)3 : (byte)2;
-
-	/// <summary>
 	/// Holds the remaining amount of InnerRelease stacks
 	/// </summary>
 	public static byte InnerReleaseStacks
@@ -49,7 +44,6 @@ public partial class WarriorRotation : CustomRotation
 		ImGui.Text("InnerReleaseStacks: " + InnerReleaseStacks.ToString());
 		ImGui.Text("BerserkStacks: " + BerserkStacks.ToString());
 		ImGui.Text("BeastGaugeValue: " + BeastGauge.ToString());
-		ImGui.Text("OnslaughtMax: " + OnslaughtMax.ToString());
 	}
 	#endregion
 

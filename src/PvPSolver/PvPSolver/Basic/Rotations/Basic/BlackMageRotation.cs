@@ -126,12 +126,6 @@ public partial class BlackMageRotation : CustomRotation
 	/// </summary>
 	public static byte MaxSoulCount => DataCenter.PlayerSyncedLevel() >= 35 ? (byte)3 : DataCenter.PlayerSyncedLevel() >= 20 ? (byte)2 : (byte)1;
 
-	/// <summary>
-	/// A check with variable max stacks of Polyglot based on the trait level.
-	/// </summary>
-	public static bool IsPolyglotStacksMaxed => EnhancedPolyglotIiTrait.EnoughLevel
-				? PolyglotStacks == 3
-				: EnhancedPolyglotTrait.EnoughLevel ? PolyglotStacks == 2 : PolyglotStacks == 1;
 	#endregion
 
 	#region Status Tracking
@@ -182,7 +176,6 @@ public partial class BlackMageRotation : CustomRotation
 		ImGui.Text("HasThunder: " + HasThunder.ToString());
 		ImGui.Separator();
 		ImGui.Text("PolyglotStacks: " + PolyglotStacks.ToString());
-		ImGui.Text("IsPolyglotStacksMaxed: " + IsPolyglotStacksMaxed.ToString());
 		ImGui.Separator();
 		ImGui.Text("InUmbralIce: " + InUmbralIce.ToString());
 		ImGui.Text("InAstralFire: " + InAstralFire.ToString());
