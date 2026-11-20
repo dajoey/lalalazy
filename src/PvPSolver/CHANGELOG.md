@@ -1,3 +1,15 @@
+## v0.1.2.25 (2026-11-20) [testing]
+- PvE remnant removal, round 3 (whole-plugin audit): the remaining PvE-only settings, commands and code paths are gone, so the settings windows, commands and help text describe a PvP plugin only.
+- Raise: every Raise/resurrection setting (Auto > Healing), the dead-player target selection (TargetUpdater), the Raise/Shirk special command with its Control-window button, and the Raise Info debug panel are removed. Raise could never run in PvP (DataCenter.CanRaise returned false there).
+- AutoDuty and Henchman operating modes are removed: the AutoDuty and Henched state commands, the AutodutyChangeOperatingMode IPC call and the IsAutoDuty and IsHenched flags. The Off and PvP states are unchanged and PvP keeps its numeric value.
+- Action interception is removed: the UseAction hook (ActionQueueManager), the Intercepted Action window, the nine intercept settings, the per-action Intercepted toggle and the Intercepting special state. It never ran in PvP (the hook was gated on not being in PvP).
+- Settings removed: auto-off on duty completion, auto-on when the alliance or a field operation is in combat, out-of-duty movement speed, Cactbot timeline integration (two settings), Fate target filtering, Hunt/Relic/Leve target priority, party NPC and solo-instance NPC healing, the chocobo and focus-target party-member options, and the Solo Deep Dungeons targeting mode.
+- Dead PvE code removed: alliance-raid detection and the raid timer (DataCenter), duty-action tracking, Variant and Occult status handling, the Wrath Combo IPC subscriber, the raid language table, the supporters list and its unused window code.
+- The hidden Duty settings tab is now the PvP specific tab (it only holds the PvP specific settings) and the Duty Info debug panel is now the Territory Info panel.
+- RotationHarness shape checks updated for the removed AutoDuty state function (308 checks).
+- No changes to the 21 PvP rotation bodies; removed command and mode values keep the numeric values of the remaining ones, so saved settings and IPC callers are unaffected.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.24 (2026-11-20) [testing]
 - PvE remnant removal, round 2: the whole duty-rotation engine, BMR boss-timeline integration, raid/fate/occult-crescent targeting (special-immune chain, M10S bro targeting, Forlorn/Fate/quest-mob priority settings), Territory Info rotation hooks, and the duty rotation command are gone. PvPSolver now reads and behaves as a complete, purpose-built PvP plugin.
 - RotationHarness shape checks updated to the PvP-only reality; BmrReadyHarness retired (it asserted the removed BMR integration).

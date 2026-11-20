@@ -23,7 +23,7 @@ internal class OtherConfiguration
 	/// **`It is recommended to click on the reset button after every patch.`**
 	/// 
 	/// PvP Solver will use group mitigation if any enemy in the enmity list is casting
-	/// one of the listed actions. Usually those actions are raid-wides.
+	/// one of the listed actions. Usually those actions are party-wide hits.
 	/// </markdown>
 	public static HashSet<uint> HostileCastingArea = [];
 
@@ -38,8 +38,8 @@ internal class OtherConfiguration
 	/// <markdown file="List" name="Knockback" section="Actions">
 	/// **`It is recommended to click on the reset button after every patch.`**
 	///
-	/// **Click on "Record knockback actions" at your own peril. Some duties expect you take the
-	/// knockback in order to reach a proper safe-spot, like in Sil'dihn Subterrane (Savage).**
+	/// **Click on "Record knockback actions" at your own peril. Some encounters expect the knockback to be taken
+	/// in order to reach a proper safe-spot.**
 	/// 
 	/// PvP Solver will use anti-knockback actions when you would be hit by one of the listed actions.
 	/// </markdown>
@@ -60,7 +60,7 @@ internal class OtherConfiguration
 	/// <markdown file="List" name="Beneficial Positions" section="Map-Specific Settings">
 	/// Adds a preferred location used for ground **healing** AoE abilities (example: Earthly Star).
 	///
-	/// You can add multiple locations, in case a boss fight moves you to another platform, like M4S - Wicked Thunder.
+	/// You can add multiple locations, in case the map has several platforms.
 	/// </markdown>
 	public static Dictionary<uint, Vector3[]> BeneficialPositions = [];
 
