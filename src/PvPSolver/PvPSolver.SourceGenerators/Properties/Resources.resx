@@ -3799,40 +3799,10 @@ DamageDown_628 = 628,
 Infirmity_629 = 629,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/630"&gt;&lt;strong&gt;Heavy&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Chocobo speed is reduced.&lt;/para&gt;
-/// &lt;/summary&gt;
-Heavy_630 = 630,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/631"&gt;&lt;strong&gt;Tireless&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Chocobo has limitless stamina.&lt;/para&gt;
-/// &lt;/summary&gt;
-Tireless = 631,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/632"&gt;&lt;strong&gt;Frenzied&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Chocobo is panicked and accelerating out of control.&lt;/para&gt;
-/// &lt;/summary&gt;
-Frenzied = 632,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/633"&gt;&lt;strong&gt;Lamed&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Chocobo is injured and cannot accelerate.&lt;/para&gt;
-/// &lt;/summary&gt;
-Lamed = 633,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/634"&gt;&lt;strong&gt;Silenced&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Chocobo has lost its wark and cannot use race abilities.&lt;/para&gt;
 /// &lt;/summary&gt;
 Silenced = 634,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/635"&gt;&lt;strong&gt;Distracted&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Chocobo is discomposed and refuses to use race items.&lt;/para&gt;
-/// &lt;/summary&gt;
-Distracted = 635,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/636"&gt;&lt;strong&gt;Brand of the Sullen&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
@@ -6330,18 +6300,6 @@ VulnerabilityUp_1054 = 1054,
 /// &lt;para&gt;Unable to execute actions.&lt;/para&gt;
 /// &lt;/summary&gt;
 Fetters_1055 = 1055,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1056"&gt;&lt;strong&gt;Mimic&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Repeating any ability or item used by forerunning chocobos.&lt;/para&gt;
-/// &lt;/summary&gt;
-Mimic = 1056,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1057"&gt;&lt;strong&gt;Feather Field&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Effects inflicted by other chocobos' fields are nullified.&lt;/para&gt;
-/// &lt;/summary&gt;
-FeatherField = 1057,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1058"&gt;&lt;strong&gt;Super Sprint&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)

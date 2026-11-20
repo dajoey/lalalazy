@@ -1,3 +1,9 @@
+## v0.1.2.29 (2026-11-20) [testing]
+- PvE remnant removal, round 5 completion: the remaining PvE marker hits of the previous build are removed; no behaviour change in PvP.
+- Removed the six PvE boss-specific lock-on effect paths (Necron, Kam'lanaut and four Arcadion tank-buster effects) from DataCenter.TankbusterPaths; the two generic tank lock-on effects remain.
+- Removed seven chocobo-race statuses that no code references from the generated StatusID table (Heavy_630, Tireless, Frenzied, Lamed, Distracted, Mimic, FeatherField).
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.28 (2026-11-20) [testing]
 - PvE remnant removal, round 5: the PvE engine mechanics that the earlier rounds left in place are removed, so the source describes a PvP plugin only; no behaviour change in PvP.
 - Auto True North removed: the "Auto True North (Melee DPS)" setting, StateUpdater.ShouldAddPositional, the 22-entry action-to-positional map (ConfigurationHelper.ActionPositional) and StatusHelper.NoPositionalStatus are gone, so the 22 PvE action ids that only that map named and the True North status leave the generated ActionID and StatusID tables. The Dispel/Stance/Positional special command keeps its Positional flag and its numeric value; its description now reads "Open a window to use Esuna."

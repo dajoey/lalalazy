@@ -5,8 +5,9 @@
     <InternalName>PvPSolver</InternalName>
     <Punchline>PvP-only auto-rotation</Punchline>
     <Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-    <Version>0.1.2.28</Version>
-    <Changelog>v0.1.2.28 - 2026-11-20: PvE remnant removal, round 5. The Auto True North setting and positional map, the tank-stance and provoke-for-tank settings, the Blue Mage code and setting, chocobo companion handling, job traits, the unused job-filter types and the Raise statuses are removed. No PvP behaviour change.
+    <Version>0.1.2.29</Version>
+    <Changelog>v0.1.2.29 - 2026-11-20: PvE remnant removal, round 5 completion. Six PvE boss-specific tank-buster effect paths and seven unreferenced chocobo-race statuses are removed. No PvP behaviour change.
+v0.1.2.28 - 2026-11-20: PvE remnant removal, round 5. The Auto True North setting and positional map, the tank-stance and provoke-for-tank settings, the Blue Mage code and setting, chocobo companion handling, job traits, the unused job-filter types and the Raise statuses are removed. No PvP behaviour change.
 v0.1.2.27 - 2026-11-20: PvE remnant removal, round 4. The generated PvE catalog (PvE action ids, per-job PvE action properties, PvE-content statuses, the content-type enum), the Raise and duty-action leftovers, the PvE filter attribute, 89 unused UI strings and several PvE-only engine tables are removed. No PvP behaviour change.
 v0.1.2.26 - 2026-11-20: Follow-up cleanup to 0.1.2.25 from the PvE audit. A tooltip, two duty-specific VFX paths, two unused strings and legacy commented code are removed. No PvP behaviour change.
 v0.1.2.25 - 2026-11-20: PvE remnant removal, round 3. Raise settings, logic and the Raise/Shirk command, the AutoDuty and Henchman modes, the action-interception system, and the remaining duty, alliance-raid, Fate, hunt, NPC-healing, Cactbot and supporter settings are removed. No PvP rotation change.
