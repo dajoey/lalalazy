@@ -1,7 +1,6 @@
 ﻿using ECommons.DalamudServices;
 using System.Globalization;
 using RotationSolver.Basic.Configuration;
-using RotationSolver.Basic.Rotations.Duties;
 using RotationSolver.Data;
 using RotationSolver.Updaters;
 
@@ -21,30 +20,6 @@ public static partial class RSCommands
 				ExecuteRotationCommand(str);
 				break;
 
-			case OtherCommandType.DutyRotations:
-				ExecuteDutyRotationCommand(str);
-				break;
-
-			case OtherCommandType.DoActions:
-				DoActionCommand(str);
-				break;
-
-			case OtherCommandType.ToggleActions:
-				ToggleActionCommand(str);
-				break;
-
-			case OtherCommandType.Settings:
-				DoSettingCommand(str);
-				break;
-
-			case OtherCommandType.NextAction:
-				DoAction();
-				break;
-		}
-	}
-
-	private static void ExecuteCycleCommand()
-	{
 		if (Service.Config.CycleType == CycleType.CycleNormal)
 		{
 			CycleStateWithOneTargetTypes();
@@ -78,16 +53,6 @@ public static partial class RSCommands
 		DoRotationCommand(customCombo, str);
 	}
 
-	private static void ExecuteDutyRotationCommand(string str)
-	{
-		DutyRotation? dutyRotation = DataCenter.CurrentDutyRotation;
-		if (dutyRotation == null)
-		{
-			return;
-		}
-
-		DoDutyRotationCommand(dutyRotation, str);
-	}
 
 	private static void DoSettingCommand(string str)
 	{
@@ -309,20 +274,14 @@ public static partial class RSCommands
 		string trimStr = str.Trim();
 
 		var rotationActions = RotationUpdater.CurrentRotationActions ?? [];
-		var dutyActions = DataCenter.CurrentDutyRotation?.AllActions ?? [];
 
-		int totalLength = rotationActions.Length + dutyActions.Length;
+		int totalLength = rotationActions.Length;
 		List<IAction> allActionsList = new(totalLength);
 		HashSet<IAction> seen = [];
 		for (int i = 0; i < rotationActions.Length; i++)
 		{
 			if (seen.Add(rotationActions[i]))
 				allActionsList.Add(rotationActions[i]);
-		}
-		for (int i = 0; i < dutyActions.Length; i++)
-		{
-			if (seen.Add(dutyActions[i]))
-				allActionsList.Add(dutyActions[i]);
 		}
 		IAction[] allActions = [.. allActionsList];
 
@@ -393,20 +352,14 @@ public static partial class RSCommands
 		if (double.IsFinite(time))
 		{
 			var rotationActions = RotationUpdater.CurrentRotationActions ?? [];
-			var dutyActions = DataCenter.CurrentDutyRotation?.AllActions ?? [];
 
-			int totalLength = rotationActions.Length + dutyActions.Length;
+			int totalLength = rotationActions.Length;
 			List<IAction> allActionsList = new(totalLength);
 			HashSet<IAction> seen = [];
 			for (int i = 0; i < rotationActions.Length; i++)
 			{
 				if (seen.Add(rotationActions[i]))
 					allActionsList.Add(rotationActions[i]);
-			}
-			for (int i = 0; i < dutyActions.Length; i++)
-			{
-				if (seen.Add(dutyActions[i]))
-					allActionsList.Add(dutyActions[i]);
 			}
 			IAction[] allActions = [.. allActionsList];
 
@@ -454,22 +407,4 @@ public static partial class RSCommands
 		//PluginLog.Debug(UiString.CommandsInsertActionFailure.GetDescription());
 	}
 
-	private static void DoDutyRotationCommand(DutyRotation dutyRotation, string str)
-	{
-		IRotationConfigSet configs = dutyRotation.Configs;
-		foreach (IRotationConfig config in configs)
-		{
-			if (config.DoCommand(configs, str))
-			{
-				if (Service.Config.ShowToggledSettingInChat)
-				{
-					Svc.Chat.Print($"Changed setting {config.DisplayName} to {config.Value}");
-				}
-				return;
-			}
-		}
-
-		// Only log if all commands failed
-		//PluginLog.Debug(UiString.CommandsInsertActionFailure.GetDescription());
-	}
 }

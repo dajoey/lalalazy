@@ -3,7 +3,6 @@ using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
 using Lumina.Excel.Sheets;
-using RotationSolver.Basic.Rotations.Duties;
 using RotationSolver.Helpers;
 
 
@@ -17,11 +16,9 @@ internal static class RotationUpdater
 	internal static Dictionary<Job, Dictionary<CombatType, List<ICustomRotation>>> CustomRotationsLookup { get; private set; } = [];
 
 	internal static CustomRotationGroup[] CustomRotations { get; set; } = [];
-	internal static SortedList<uint, Type[]> DutyRotations { get; set; } = [];
 
 	public static IAction[] CurrentRotationActions { get; private set; } = [];
 
-	private static string _curDutyRotationName = string.Empty;
 
 	/// <summary>
 	/// Loads custom rotation groups from the current assembly
@@ -30,12 +27,6 @@ internal static class RotationUpdater
 	{
 		List<Assembly> assemblies = [typeof(RotationUpdater).Assembly];
 
-		// PvPSolver is a PvP-only mod. Duty rotations (Bozja, Emanation, MonsterHunter,
-		// Orbonne, Phantom, Variant) are pure PvE content with zero PvP relevance.
-		// Skip loading them entirely to reduce memory and startup time.
-		DutyRotations = new SortedList<uint, Type[]>();
-		CustomRotations = LoadCustomRotationGroup(assemblies);
-		PluginLog.Information($"LoadBuiltInRotations: found {CustomRotations.Length} rotation groups");
 
 		Dictionary<JobRole, List<CustomRotationGroup>> customRotationsGroupedByJobRole = [];
 		foreach (CustomRotationGroup customRotationGroup in CustomRotations)
@@ -69,46 +60,6 @@ internal static class RotationUpdater
 		}
 	}
 
-	private static SortedList<uint, Type[]> LoadDutyRotationGroup(List<Assembly> assemblies)
-	{
-		List<Type> rotationList = [];
-		foreach (Assembly assembly in assemblies)
-		{
-			foreach (Type type in TryGetTypes(assembly))
-			{
-				if (type.IsAssignableTo(typeof(DutyRotation))
-					&& !type.IsAbstract && type.GetConstructor([]) != null)
-				{
-					rotationList.Add(type);
-				}
-			}
-		}
-
-		Dictionary<uint, List<Type>> result = [];
-		foreach (Type type in rotationList)
-		{
-			uint[] territories = type.GetCustomAttribute<DutyTerritoryAttribute>()?.TerritoryIds ?? [];
-
-			foreach (uint id in territories)
-			{
-				if (result.TryGetValue(id, out List<Type>? list))
-				{
-					list.Add(type);
-				}
-				else
-				{
-					result[id] = [type];
-				}
-			}
-		}
-
-		SortedList<uint, Type[]> sorted = [];
-		foreach (var pair in result)
-		{
-			sorted.Add(pair.Key, [.. pair.Value]);
-		}
-		return sorted;
-	}
 
 	private static CustomRotationGroup[] LoadCustomRotationGroup(List<Assembly> assemblies)
 	{
@@ -200,8 +151,7 @@ internal static class RotationUpdater
 
 	public static IEnumerable<IGrouping<string, IAction>>? AllGroupedActions
 		=> GroupActions([
-			.. DataCenter.CurrentRotation?.AllActions ?? [],
-			.. DataCenter.CurrentDutyRotation?.AllActions ?? []]);
+			.. DataCenter.CurrentRotation?.AllActions ?? []]);
 
 	public static IEnumerable<IGrouping<string, IAction>>? GroupActions(IEnumerable<IAction> actions)
 	{
@@ -338,66 +288,6 @@ internal static class RotationUpdater
 	public static void UpdateRotation()
 	{
 		UpdateCustomRotation();
-		UpdateDutyRotation();
-	}
-
-	private static void UpdateDutyRotation()
-	{
-		if (!DutyRotations.TryGetValue(Svc.ClientState.TerritoryType, out Type[]? rotations))
-		{
-			// Unload the current duty rotation if leaving a duty
-			if (DataCenter.CurrentDutyRotation != null)
-			{
-				DataCenter.CurrentDutyRotation.Dispose();
-				DataCenter.CurrentDutyRotation = null;
-				_curDutyRotationName = string.Empty;
-			}
-			return;
-		}
-
-		_ = Service.Config.DutyRotationChoice.TryGetValue(Svc.ClientState.TerritoryType, out string? value);
-		string name = value ?? string.Empty;
-		if (name == _curDutyRotationName && DataCenter.CurrentDutyRotation != null)
-		{
-			return; // No change, so we don't need to update
-		}
-
-		Type? type = GetChosenType(rotations, name);
-		if (type != DataCenter.CurrentDutyRotation?.GetType())
-		{
-			DataCenter.CurrentDutyRotation?.Dispose();
-			DataCenter.CurrentDutyRotation = GetRotation(type);
-			_curDutyRotationName = name;
-		}
-
-		static DutyRotation? GetRotation(Type? t)
-		{
-			if (t == null)
-			{
-				return null;
-			}
-
-			try
-			{
-				return (DutyRotation?)Activator.CreateInstance(t);
-			}
-			catch (Exception ex)
-			{
-				BasicWarningHelper.AddSystemWarning($"Failed to create the rotation: {t.Name}");
-				PluginLog.Error($"Failed to create the rotation: {t.Name}: {ex.Message}");
-				return null;
-			}
-		}
-	}
-
-	/// <summary>
-	///     Last (job, combat type) pair the "no rotation found" warning was emitted for, so a
-	///     persistent miss is reported once instead of once per frame. Reset on a successful load.
-	/// </summary>
-	private static (Job Job, CombatType Type)? _lastNoRotationLogged;
-
-	private static void UpdateCustomRotation()
-	{
 		if (Player.Object == null || CustomRotations.Length == 0)
 		{
 			return;
@@ -575,41 +465,6 @@ internal static class RotationUpdater
 		PluginLog.Information($"InitReferenceDict for {currentJob}: added {addedPvE} PvE, {addedPvP} PvP rotations");
 	}
 
-	private static Type? GetChosenType(IEnumerable<Type> types, string name)
-	{
-		Type? rotation = null;
-		foreach (var r in types)
-		{
-			if (MatchesRotationName(r, name))
-			{
-				rotation = r;
-				break;
-			}
-		}
-
-		if (rotation == null)
-		{
-			foreach (var r in types)
-			{
-				if (r.Assembly.FullName != null && r.Assembly.FullName.Contains("DefaultRotations", StringComparison.OrdinalIgnoreCase))
-				{
-					rotation = r;
-					break;
-				}
-			}
-		}
-
-		if (rotation == null)
-		{
-			foreach (var r in types)
-			{
-				rotation = r;
-				break;
-			}
-		}
-
-		return rotation;
-	}
 
 	private static bool MatchesRotationName(Type type, string? name)
 	{

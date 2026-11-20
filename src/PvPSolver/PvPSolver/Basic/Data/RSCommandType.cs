@@ -186,7 +186,6 @@ public enum OtherCommandType : byte
 	/// Open the rotations.
 	/// </summary>
 	[Description("Open the duty rotations.")]
-	DutyRotations,
 
 	/// <summary>
 	/// Perform the actions.

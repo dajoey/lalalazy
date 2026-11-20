@@ -1,7 +1,5 @@
 ﻿using ECommons.Logging;
 using System.Collections.Concurrent;
-using RotationSolver.Basic.Rotations.Duties;
-using static RotationSolver.Basic.Rotations.Duties.DutyRotation;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
@@ -12,7 +10,6 @@ internal abstract class RotationConfigBase : IRotationConfig
 {
 	private readonly PropertyInfo _property;
 	private readonly ICustomRotation? _rotation;
-	private readonly DutyRotation? _dutyRotation;
 
 	/// <summary>
 	/// Gets the name of the configuration.
@@ -35,9 +32,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 	public CombatType Type { get; }
 
 	/// <summary>
-	/// Gets the Phantom Job for the configuration.
 	/// </summary>
-	public PhantomJob PhantomJob { get; }
 
 	/// <summary>
 	/// Gets the parent of this configuration.
@@ -138,49 +133,6 @@ internal abstract class RotationConfigBase : IRotationConfig
 	/// </summary>
 	/// <param name="rotation">The custom rotation instance.</param>
 	/// <param name="property">The property information.</param>
-	protected RotationConfigBase(DutyRotation rotation, PropertyInfo property)
-	{
-		_property = property ?? throw new ArgumentNullException(nameof(property));
-		_dutyRotation = rotation ?? throw new ArgumentNullException(nameof(rotation));
-
-		Name = property.Name;
-		DefaultValue = property.GetValue(rotation)?.ToString() ?? string.Empty;
-		RotationConfigAttribute? attr = property.GetCustomAttribute<RotationConfigAttribute>();
-		if (attr != null)
-		{
-			DisplayName = attr.Name;
-			Type = attr.Type;
-			PhantomJob = attr.PhantomJob;
-			Parent = attr.Parent;
-
-			// Use ParentValue from the attribute if specified
-			if (attr.ParentValue != null)
-			{
-				ParentValue = attr.ParentValue;
-			}
-			// Otherwise, get the actual value from the parent property
-			else if (!string.IsNullOrEmpty(Parent))
-			{
-				PropertyInfo? parentProperty = rotation.GetType().GetProperty(Parent);
-				if (parentProperty != null)
-				{
-					ParentValue = parentProperty.GetValue(rotation);
-				}
-			}
-		}
-		else
-		{
-			DisplayName = Name;
-			Type = CombatType.None;
-			Parent = string.Empty;
-		}
-
-		// Set up initial value
-		if (Store(false) is { } stored && stored.TryGetValue(Name, out string? value))
-		{
-			SetValue(value);
-		}
-	}
 
 	/// <summary>
 	/// Sets the value of the property.
@@ -194,7 +146,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 			return;
 		}
 
-		object? currentRotation = _rotation == null ? _dutyRotation : _rotation;
+		object? currentRotation = _rotation;
 		if (currentRotation == null)
 		{
 			return; // can't possible update a null rotation

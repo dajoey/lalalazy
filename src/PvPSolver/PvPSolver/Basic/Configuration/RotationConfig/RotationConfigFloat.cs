@@ -1,4 +1,3 @@
-﻿using RotationSolver.Basic.Rotations.Duties;
 using System.Globalization;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
@@ -58,25 +57,6 @@ internal class RotationConfigFloat : RotationConfigBase
 	/// </summary>
 	/// <param name="rotation">The custom rotation instance.</param>
 	/// <param name="property">The property information.</param>
-	public RotationConfigFloat(DutyRotation rotation, PropertyInfo property)
-		: base(rotation, property)
-	{
-		RangeAttribute? attr = property.GetCustomAttribute<RangeAttribute>();
-		if (attr != null)
-		{
-			Min = attr.MinValue;
-			Max = attr.MaxValue;
-			Speed = attr.Speed;
-			UnitType = attr.UnitType;
-		}
-		else
-		{
-			Min = 0.0f;
-			Max = 1.0f;
-			Speed = 0.005f;
-			UnitType = ConfigUnitType.Percent;
-		}
-	}
 
 	/// <summary>
 	/// Executes a command to update the float configuration.

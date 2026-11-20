@@ -218,7 +218,6 @@ public sealed class HotbarDisabledColor : DrawingHighlightHotbarBase
 		HashSet<uint> baseIds = [];
 
 		Collect(DataCenter.CurrentRotation?.AllActions);
-		Collect(DataCenter.CurrentDutyRotation?.AllActions);
 
 		void Collect(IEnumerable<IAction>? actions)
 		{

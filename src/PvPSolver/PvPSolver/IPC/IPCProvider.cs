@@ -160,7 +160,7 @@ namespace RotationSolver.IPC
 		/// Changes a plugin setting or triggers an auxiliary command via IPC.
 		/// </summary>
 		/// <param name="otherType">
-		/// The <see cref="OtherCommandType"/> category of command to execute, such as DoActions, ToggleActions, Settings, NextAction, Rotations, or DutyRotations.
+		/// The <see cref="OtherCommandType"/> category of command to execute, such as DoActions, ToggleActions, Settings, NextAction, or Rotations.
 		/// </param>
 		/// <param name="str">
 		/// The string value representing the modification or parameter for the command.

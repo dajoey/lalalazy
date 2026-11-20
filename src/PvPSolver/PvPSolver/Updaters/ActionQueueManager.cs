@@ -129,11 +129,10 @@ namespace RotationSolver.Updaters
 						{
 							// More efficient action lookup - avoid creating new collections
 							var rotationActions = RotationUpdater.CurrentRotationActions ?? [];
-							var dutyActions = DataCenter.CurrentDutyRotation?.AllActions ?? [];
 
 							//PluginLog.Debug($"[ActionQueueManager] Detected player input: ID={actionID}, AdjustedID={adjustedActionId}");
 
-							var matchingAction = ((ActionID)adjustedActionId).GetActionFromID(false, rotationActions, dutyActions);
+							var matchingAction = ((ActionID)adjustedActionId).GetActionFromID(false, rotationActions, []);
 
 							if (matchingAction != null && !BlackListedInterceptActionsContains((ActionID)matchingAction.ID))
 							{

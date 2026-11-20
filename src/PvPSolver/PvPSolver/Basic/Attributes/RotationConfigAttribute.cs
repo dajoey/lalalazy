@@ -1,4 +1,3 @@
-﻿using static RotationSolver.Basic.Rotations.Duties.DutyRotation;
 
 namespace RotationSolver.Basic.Attributes;
 
@@ -29,10 +28,6 @@ public class RotationConfigAttribute(CombatType type) : Attribute
 	/// </summary>
 	public object? ParentValue { get; set; }
 
-	/// <summary>
-	/// Phantom Job for this config.
-	/// </summary>
-	public PhantomJob PhantomJob { get; set; } = PhantomJob.None;
 
 	/// <summary>
 	/// Tooltip for this config.

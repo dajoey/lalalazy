@@ -34,9 +34,6 @@ internal enum RotationConfigWindowTab : byte
 	[Description("Rotation specific configs.")]
 	[TabIcon(Icon = 4)] Job,
 
-	[Description("Configure Duty Rotation.")]
-	[TabSkip] [TabIcon(Icon = 4)] DutyRotation, // PvE-only: hidden in PvPSolver fork
-
 	[Description("Configure abilities and custom conditions for your current job.")]
 	[TabIcon(Icon = 4)] Actions,
 

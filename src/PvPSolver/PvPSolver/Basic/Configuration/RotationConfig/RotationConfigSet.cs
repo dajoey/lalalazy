@@ -1,5 +1,4 @@
 ﻿using ECommons.Logging;
-using RotationSolver.Basic.Rotations.Duties;
 using System.Collections;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
@@ -72,53 +71,6 @@ public class RotationConfigSet : IRotationConfigSet
 	/// </summary>
 	/// <param name="rotation">The custom rotation instance.</param>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="rotation"/> is <c>null</c>.</exception>
-	public RotationConfigSet(DutyRotation rotation)
-	{
-		if (rotation == null)
-		{
-			throw new ArgumentNullException(nameof(rotation));
-		}
-
-		foreach (PropertyInfo prop in rotation.GetType().GetRuntimeProperties())
-		{
-			RotationConfigAttribute? attr = prop.GetCustomAttribute<RotationConfigAttribute>();
-			if (attr == null)
-			{
-				continue;
-			}
-
-			Type type = prop.PropertyType;
-			if (type == null)
-			{
-				continue;
-			}
-
-			if (type == typeof(bool))
-			{
-				_ = Configs.Add(new RotationConfigBoolean(rotation, prop));
-			}
-			else if (type.IsEnum)
-			{
-				_ = Configs.Add(new RotationConfigCombo(rotation, prop));
-			}
-			else if (type == typeof(float))
-			{
-				_ = Configs.Add(new RotationConfigFloat(rotation, prop));
-			}
-			else if (type == typeof(int))
-			{
-				_ = Configs.Add(new RotationConfigInt(rotation, prop));
-			}
-			else if (type == typeof(string))
-			{
-				_ = Configs.Add(new RotationConfigString(rotation, prop));
-			}
-			else
-			{
-				PluginLog.Error($"Failed to find the rotation config type for property '{prop.Name}' with type '{type.FullName ?? type.Name}'");
-			}
-		}
-	}
 
 	/// <summary>
 	/// Returns an enumerator that iterates through the collection.

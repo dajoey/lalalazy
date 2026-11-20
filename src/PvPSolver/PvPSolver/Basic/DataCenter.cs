@@ -174,7 +174,6 @@ internal static class DataCenter
 		new(HP_RECORD_TIME + 1);
 
 	public static ICustomRotation? CurrentRotation { get; internal set; }
-	public static DutyRotation? CurrentDutyRotation { get; internal set; }
 
 	public static Dictionary<string, DateTime> SystemWarnings { get; set; } = [];
 	public static bool HoldingRestore = false;
@@ -638,15 +637,7 @@ internal static class DataCenter
 			return true;
 		}
 
-		if (DutyRotation.ChemistLevel >= 3)
-		{
-			return true;
-		}
 
-		if (StatusHelper.PlayerHasStatus(false, StatusID.VariantRaiseSet))
-		{
-			return true;
-		}
 		return false;
 	}
 

@@ -68,10 +68,6 @@ public partial class CustomRotation
 			return false;
 		}
 
-		if (!DataCenter.MergedStatus.HasFlag(AutoStatus.NoCasting) && DataCenter.CurrentDutyRotation?.EmergencyAbility(nextGCD, out act) == true)
-		{
-			return true;
-		}
 		if (!DataCenter.MergedStatus.HasFlag(AutoStatus.NoCasting) && EmergencyAbility(nextGCD, out act))
 		{
 			return true;
@@ -82,10 +78,6 @@ public partial class CustomRotation
 		IBaseAction.TargetOverride = TargetType.Interrupt;
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.Interrupt) && !StatusHelper.PlayerHasStatus(true, StatusID.Mudra))
 		{
-			if (DataCenter.CurrentDutyRotation?.InterruptAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (MyInterruptAbility(role, nextGCD, out act))
 			{
 				return true;
@@ -95,10 +87,6 @@ public partial class CustomRotation
 		IBaseAction.TargetOverride = TargetType.Dispel;
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.Dispel))
 		{
-			if (DataCenter.CurrentDutyRotation?.DispelAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (DispelAbility(nextGCD, out act))
 			{
 				return true;
@@ -133,10 +121,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.AntiKnockback) && !StatusHelper.PlayerHasStatus(true, StatusID.Mudra))
 		{
-			if (DataCenter.CurrentDutyRotation?.AntiKnockbackAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (AntiKnockback(role, nextGCD, out act))
 			{
 				return true;
@@ -160,10 +144,6 @@ public partial class CustomRotation
 		{
 			IBaseAction.AllEmpty = true;
 			IBaseAction.ShouldEndSpecial = true;
-			if (DataCenter.CurrentDutyRotation?.HealAreaAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
 			{
 				if (HealAreaAbility(nextGCD, out act))
@@ -178,10 +158,6 @@ public partial class CustomRotation
 		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaAbility) && (CanHealAreaAbility || DataCenter.IsInOccultCrescentOp))
 		{
 			IBaseAction.AutoHealCheck = true;
-			if (DataCenter.CurrentDutyRotation?.HealAreaAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
 			{
 				if (HealAreaAbility(nextGCD, out act))
@@ -196,10 +172,6 @@ public partial class CustomRotation
 		{
 			IBaseAction.AllEmpty = true;
 			IBaseAction.ShouldEndSpecial = true;
-			if (DataCenter.CurrentDutyRotation?.HealSingleAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
 			{
 				if (HealSingleAbility(nextGCD, out act))
@@ -214,10 +186,6 @@ public partial class CustomRotation
 		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealSingleAbility) && (CanHealSingleAbility || DataCenter.IsInOccultCrescentOp))
 		{
 			IBaseAction.AutoHealCheck = true;
-			if (DataCenter.CurrentDutyRotation?.HealSingleAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
 			{
 				if (HealSingleAbility(nextGCD, out act))
@@ -236,10 +204,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Speed))
 		{
-			if (DataCenter.CurrentDutyRotation?.SpeedAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (SpeedAbility(nextGCD, out act))
 			{
 				return true;
@@ -274,10 +238,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.DefenseArea))
 		{
-			if (DataCenter.CurrentDutyRotation?.DefenseAreaAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (DefenseAreaAbility(nextGCD, out act) || (role is JobRole.Melee or JobRole.RangedPhysical or JobRole.RangedMagical && DefenseSingleAbility(nextGCD, out act)))
 			{
 				return true;
@@ -291,10 +251,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.DefenseSingle))
 		{
-			if (DataCenter.CurrentDutyRotation?.DefenseSingleAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			bool defenseSingleFound = DefenseSingleAbility(nextGCD, out act);
 			if (RotationSolver.Decisions.DefenseSingleGate.EndsStage(defenseSingleFound, DataCenter.IsPvP, DataCenter.IsHostileCastingToTank,
 				StatusHelper.PlayerHasStatus(true, StatusID.Vengeance), StatusHelper.PlayerHasStatus(true, StatusID.Damnation)))
@@ -313,10 +269,6 @@ public partial class CustomRotation
 		IBaseAction.AllEmpty = true;
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveForward) && Player != null && !StatusHelper.PlayerHasStatus(true, StatusID.Bind))
 		{
-			if (DataCenter.CurrentDutyRotation?.MoveForwardAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (MoveForwardAbility(nextGCD, out act))
 			{
 				return true;
@@ -330,10 +282,6 @@ public partial class CustomRotation
 		}
 		if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveBack) && MoveBackAbility(nextGCD, out act))
 		{
-			if (DataCenter.CurrentDutyRotation?.MoveBackAbility(nextGCD, out act) == true)
-			{
-				return true;
-			}
 			if (MoveBackAbility(nextGCD, out act))
 			{
 				return true;
@@ -352,19 +300,11 @@ public partial class CustomRotation
 		// instead of JobRange; JobRange itself is shared and unchanged.
 		bool hasHostilesForAttack = DataCenter.NumberOfHostilesInRangeOf(RotationSolver.Decisions.AttackRangeGate.Radius(
 			DataCenter.IsPvP, DataCenter.Role == JobRole.Melee, DataCenter.JobRange)) > 0;
-		if (hasHostilesForAttack && DataCenter.CurrentDutyRotation?.AttackAbility(nextGCD, out act) == true)
-		{
-			return true;
-		}
 		if (hasHostilesForAttack && AttackAbility(nextGCD, out act))
 		{
 			return true;
 		}
 
-		if (DataCenter.CurrentDutyRotation?.GeneralAbility(nextGCD, out act) == true)
-		{
-			return true;
-		}
 		if (GeneralAbility(nextGCD, out act))
 		{
 			return true;

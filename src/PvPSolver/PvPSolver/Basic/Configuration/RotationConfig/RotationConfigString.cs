@@ -1,4 +1,3 @@
-﻿using RotationSolver.Basic.Rotations.Duties;
 
 namespace RotationSolver.Basic.Configuration.RotationConfig;
 
@@ -22,10 +21,6 @@ internal class RotationConfigString : RotationConfigBase
 	/// </summary>
 	/// <param name="rotation">The custom rotation instance.</param>
 	/// <param name="property">The property information.</param>
-	public RotationConfigString(DutyRotation rotation, PropertyInfo property)
-		: base(rotation, property)
-	{
-	}
 
 	/// <summary>
 	/// Executes a command to update the string configuration.
