@@ -26,16 +26,6 @@ public partial class CustomRotation
 
 		IBaseAction.ForceEnable = false;
 
-		//if (DataCenter.Job == ECommons.ExcelServices.Job.PLD && IsLastAction(ActionID.PassageOfArmsPvE) && StatusHelper.PlayerHasStatus(true, StatusID.PassageOfArms))
-		//{
-		//	return null;
-		//}
-
-		//if (DataCenter.Job == ECommons.ExcelServices.Job.AST && IsLastAction(ActionID.CollectiveUnconsciousPvE) && StatusHelper.PlayerHasStatus(true, StatusID.CollectiveUnconscious_848))
-		//{
-		//	return null;
-		//}
-
 		if (DataCenter.Job == ECommons.ExcelServices.Job.BLU && StatusHelper.PlayerHasStatus(true, StatusID.PhantomFlurry))
 		{
 			return null;
@@ -225,11 +215,6 @@ public partial class CustomRotation
 	protected virtual bool MyInterruptGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		act = null; return false;
 	}
 
@@ -241,11 +226,6 @@ public partial class CustomRotation
 	protected virtual bool DispelGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Dispel))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -335,11 +315,6 @@ public partial class CustomRotation
 			}
 		}
 
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		act = null!; return false;
 	}
 
@@ -352,11 +327,6 @@ public partial class CustomRotation
 	protected virtual bool MoveForwardGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.MoveForward))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -375,11 +345,6 @@ public partial class CustomRotation
 	protected virtual bool HealSingleGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.HealSingleSpell))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -398,11 +363,6 @@ public partial class CustomRotation
 	protected virtual bool HealAreaGCD(out IAction? action)
 	{
 		action = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.HealAreaSpell))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -421,11 +381,6 @@ public partial class CustomRotation
 	protected virtual bool DefenseSingleGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.DefenseSingle))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -444,11 +399,6 @@ public partial class CustomRotation
 	protected virtual bool DefenseAreaGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.DefenseArea))
 		{
 			IBaseAction.ShouldEndSpecial = true;
@@ -466,16 +416,6 @@ public partial class CustomRotation
 	protected virtual bool GeneralGCD(out IAction? act)
 	{
 		act = null;
-		if (ShouldSkipAction())
-		{
-			return false;
-		}
-
 		act = null; return false;
-	}
-
-	private bool ShouldSkipAction()
-	{
-		return DataCenter.CommandStatus.HasFlag(AutoStatus.Raise) && Role is JobRole.Healer && (HasSwift || IsLastAction(DataCenter.IsPvP ? ActionID.SwiftPvP : ActionID.SwiftcastPvE));
 	}
 }

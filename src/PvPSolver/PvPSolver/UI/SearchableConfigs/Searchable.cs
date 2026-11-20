@@ -33,18 +33,6 @@ internal readonly struct JobFilter
 				];
 				break;
 
-			case JobFilterType.Raise:
-				JobRoles =
-				[
-					JobRole.Healer,
-				];
-				Jobs =
-				[
-					Job.RDM,
-					Job.SMN,
-				];
-				break;
-
 			case JobFilterType.Interrupt:
 				JobRoles =
 				[
@@ -239,14 +227,12 @@ internal abstract class Searchable(PropertyInfo property) : ISearchable
 	public uint Color { get; set; } = 0;
 
 	public JobFilter PvPFilter { get; set; }
-	public JobFilter PvEFilter { get; set; }
 
 	public virtual bool ShowInChild => true;
 
 	public unsafe void Draw()
 	{
-		// Determine the appropriate filter based on the context (PvP or PvE)
-		JobFilter filter = DataCenter.IsPvP ? PvPFilter : PvEFilter;
+		JobFilter filter = PvPFilter;
 
 		// Check if the filter allows drawing
 		if (!filter.CanDraw)

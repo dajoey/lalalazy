@@ -163,15 +163,9 @@ public static class IconSet
 	/// <returns>True if the texture was found; otherwise, false.</returns>
 	public static bool GetTexture(this ActionID actionID, out IDalamudTextureWrap texture)
 	{
-		const uint SPRINT_PVE_ICON_ID = 104;
-
 		if (actionID == ActionID.None)
 		{
 			return GetTexture(0, out texture, 0);
-		}
-		if (actionID == ActionID.SprintPvE)
-		{
-			return GetTexture(SPRINT_PVE_ICON_ID, out texture, 0);
 		}
 
 		if (!_actionIcons.TryGetValue(actionID, out uint iconId))

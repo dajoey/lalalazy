@@ -50,11 +50,6 @@ public class UIAttribute(string name) : Attribute
 	/// Gets or sets the filter for PvP.
 	/// </summary>
 	public JobFilterType PvPFilter { get; set; }
-
-	/// <summary>
-	/// Gets or sets the filter for PvE.
-	/// </summary>
-	public JobFilterType PvEFilter { get; set; }
 }
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -64,7 +59,6 @@ public enum JobFilterType : byte
 	NoJob,
 	NoHealer,
 	Healer,
-	Raise,
 	Interrupt,
 	Dispel,
 	Tank,

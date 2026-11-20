@@ -29,11 +29,6 @@ internal static class MovingUpdater
 			return;
 		}
 
-		// Config flags for special statuses/actions
-		bool cfgFlame = Service.Config?.PosFlameThrower == true;
-		bool cfgPassage = Service.Config?.PosPassageOfArms == true;
-		bool cfgImpro = Service.Config?.PosImprovisation == true;
-
 		// Action
 		ActionID action;
 		if (DateTime.Now - RSCommands._lastUsedTime < TimeSpan.FromMilliseconds(100f))
@@ -49,17 +44,9 @@ internal static class MovingUpdater
 			action = 0;
 		}
 
-		// Special actions
-		bool specialActions = ActionManager.GetAdjustedCastTime(ActionType.Action, (uint)action) > 0
-							  || (cfgFlame && Service.GetAdjustedActionId(ActionID.FlameThrowerPvE) == action)
-							  || (cfgPassage && Service.GetAdjustedActionId(ActionID.PassageOfArmsPvE) == action)
-							  || (cfgImpro && Service.GetAdjustedActionId(ActionID.ImprovisationPvE) == action);
+		// Casting actions
+		bool specialActions = ActionManager.GetAdjustedCastTime(ActionType.Action, (uint)action) > 0;
 
-		// Special statuses
-		bool specialStatus = (cfgFlame && StatusHelper.PlayerHasStatus(true, StatusID.Flamethrower))
-							 || (cfgPassage && StatusHelper.PlayerHasStatus(true, StatusID.PassageOfArms))
-							 || (cfgImpro && StatusHelper.PlayerHasStatus(true, StatusID.Improvisation));
-
-		Service.CanMove = !specialStatus && !specialActions;
+		Service.CanMove = !specialActions;
 	}
 }

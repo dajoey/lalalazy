@@ -3438,7 +3438,6 @@ public partial class RotationConfigWindow : Window
 	private static unsafe void DrawParty()
 	{
 		ImGui.Text($"Number of Party Members: {DataCenter.PartyMembers.Count}");
-		ImGui.Text($"Number of Alliance Members: {DataCenter.AllianceMembers.Count}");
 		ImGui.Text($"Average Party HP Percent: {DataCenter.PartyMembersAverHP * 100}");
 		ImGui.Text($"Average Lowest Party HP Percent: {DataCenter.LowestPartyMembersAverHP * 100}");
 		int doomedCount = 0;
@@ -3565,7 +3564,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Boss Icon: {battleChara.IsBossFromIcon()}");
 			ImGui.Text($"Rank: {battleChara.GetObjectNPC()?.Rank.ToString() ?? string.Empty}");
 			ImGui.Text($"Has Positional: {battleChara.HasPositional()}");
-			ImGui.Text($"IsPlayerCharacterChocobo: {battleChara.IsPlayerCharacterChocobo()}");
 			ImGui.Text($"Is Dying: {battleChara.IsDying()}");
 			ImGui.Text($"Is Alive: {battleChara.IsAlive()}");
 			ImGui.Text($"Is Party: {battleChara.IsParty()}");

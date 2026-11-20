@@ -29,7 +29,7 @@ public struct ActionTargetInfo(IBaseAction action)
 	/// <summary>
 	/// The effect range of this action.
 	/// </summary>
-	public readonly float EffectRange => (ActionID)action.Info.ID == ActionID.LiturgyOfTheBellPvE ? 20 : action.Action.EffectRange;
+	public readonly float EffectRange => action.Action.EffectRange;
 
 	/// <summary>
 	/// Is this action single target.
@@ -276,13 +276,8 @@ public struct ActionTargetInfo(IBaseAction action)
 
 	private readonly List<ActionID> _specialActions =
 	[
-		ActionID.AethericMimicryPvE,
-		ActionID.EruptionPvE,
 		ActionID.BishopAutoturretPvP,
 		ActionID.CometPvP,
-		ActionID.DotonPvE,
-		ActionID.DotonPvE_18880,
-		ActionID.FeatherRainPvE,
 		ActionID.SaltAndDarknessPvP,
 	];
 

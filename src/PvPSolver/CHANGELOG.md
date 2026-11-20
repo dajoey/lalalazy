@@ -1,3 +1,14 @@
+## v0.1.2.27 (2026-11-20) [testing]
+- PvE remnant removal, round 4 (whole-plugin audit leftovers): inert PvE text and dead code that no PvP path reaches are removed; no behaviour change in PvP.
+- Source generator catalog (PvPSolver.SourceGenerators/Properties/Resources.resx): the generated tables now carry PvP content only. ActionID drops from 1,904 to 382 members (1,522 PvE action ids removed; every PvP member and the few ids the engine still probes are kept), CustomRotation and the 21 job base rotations drop their per-action PvE properties (1,424 to 348 action entries, including the PvE limit-break overrides), StatusID drops 62 PvE-content statuses (Fate, Eureka, Variant, Occult, food and duty-action effects), and the unused TerritoryContentType enum (duty, raid, Eureka and other PvE content types) is gone with its generator method. The resource file shrinks from 4.3 MB to 2.2 MB.
+- Raise leftovers removed: AutoStatus.Raise, JobFilterType.Raise, CustomRotation.ShouldSkipAction (nine no-op callers in CustomRotation_GCD), the CustomRotation.Raise virtual, ActionBasicInfo.RaiseAction, the cancel-cast-on-Raise-status check in MiscUpdater, and the unused ObjectHelper.IsFriendly extension with its Raise probe.
+- The isDutyAction constructor parameter and the IsDutyAction flag are removed from BaseAction and ActionBasicInfo, along with the matching context-menu test; the generated action constructors no longer pass it.
+- The PvEFilter attribute chain (UIAttribute, ISearchable, Searchable, SearchableCollection and seven Configs entries) is removed; the legacy settings window applies only the PvP visibility filter.
+- Removed 89 UiString entries that had no call sites.
+- The Debug tab no longer lists the alliance member count or the chocobo flag.
+- Removed PvE-only engine tables and checks no PvP action can match: IActionHelper.HealingActions and MovingActions (with the melee-range check that read MovingActions), the PvE entries of the special-ability list and the Liturgy of the Bell range override in ActionTargetInfo, the Sprint icon override, the White Mage Freecure and Thin Air MP checks with ThinAirState and HasThinAir, the Passage of Arms, Flamethrower and Improvisation movement-lock checkboxes (Extra settings, saved values ignored), and the commented-out Passage of Arms and Collective Unconscious code.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.26 (2026-11-20) [testing]
 - Follow-up cleanup to 0.1.2.25 from the whole-plugin PvE audit; no behaviour change in PvP.
 - The "Use beneficial ground-targeted actions" tooltip no longer describes trial and raid fallback positions; it now says arena.

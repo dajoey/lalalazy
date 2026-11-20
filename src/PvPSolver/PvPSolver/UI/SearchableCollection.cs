@@ -37,7 +37,6 @@ internal class SearchableCollection
 				continue;
 			}
 
-			item.PvEFilter = new(ui.PvEFilter);
 			item.PvPFilter = new(ui.PvPFilter);
 
 			pairs.Add(new(ui, item));

@@ -62,11 +62,6 @@ public enum AutoStatus : uint
 	HealSingleSpell = 1 << 9,
 
 	/// <summary>
-	/// We should raise.
-	/// </summary>
-	Raise = 1 << 10,
-
-	/// <summary>
 	/// We should use positional abilities.
 	/// </summary>
 	Positional = 1 << 11,

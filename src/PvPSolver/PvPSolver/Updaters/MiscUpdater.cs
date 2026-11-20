@@ -152,9 +152,6 @@ internal static class MiscUpdater
 			&& castTarget.IsEnemy()
 			&& castTarget.CurrentHp == 0;
 
-		// Cancel raise cast if target already has Raise status
-		bool tarHasRaise = castTarget != null && castTarget.HasStatus(false, StatusID.Raise);
-
 		float[] statusTimes = GetStatusTimes();
 
 		float minStatusTime = float.MaxValue;
@@ -182,7 +179,7 @@ internal static class MiscUpdater
 				is IBaseAction { Setting.GCDSingleHeal: true }
 			&& (DataCenter.MergedStatus & (AutoStatus.HealAreaSpell | AutoStatus.HealSingleSpell)) == 0;
 
-		if (_tarStopCastDelay.Delay(tarDead) || stopDueStatus || tarHasRaise || shouldStopHealing)
+		if (_tarStopCastDelay.Delay(tarDead) || stopDueStatus || shouldStopHealing)
 		{
 			UIState* uiState = UIState.Instance();
 			if (uiState != null)

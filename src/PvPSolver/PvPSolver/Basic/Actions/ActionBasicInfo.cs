@@ -47,7 +47,7 @@ public readonly struct ActionBasicInfo
 	/// <summary>
 	/// Gets the icon ID of the action.
 	/// </summary>
-	public readonly uint IconID => ID == (uint)ActionID.SprintPvE ? 104u : _action.Action.Icon;
+	public readonly uint IconID => _action.Action.Icon;
 
 	/// <summary>
 	/// Gets the adjusted ID of the action, considering any modifications.
@@ -228,11 +228,6 @@ public readonly struct ActionBasicInfo
 	public readonly bool NeedToFaceTarget => _action.Action.NeedToFaceTarget;
 
 	/// <summary>
-	/// Determines if the action has the "Raise" behavior, which allows it to target dead allies for resurrection.
-	/// </summary>
-	public readonly bool RaiseAction => _action.Action.DeadTargetBehaviour == 1;
-
-	/// <summary>
 	/// Gets the cast type of the action.
 	/// </summary>
 	public readonly CastType CastType => (CastType)_action.Action.CastType;
@@ -329,16 +324,10 @@ public readonly struct ActionBasicInfo
 	public bool IsRealGCD { get; }
 
 	/// <summary>
-	/// Determines whether the action is a duty action.
-	/// </summary>
-	public bool IsDutyAction { get; }
-
-	/// <summary>
 	/// Initializes a new instance of the <see cref="ActionBasicInfo"/> struct.
 	/// </summary>
 	/// <param name="action">The base action.</param>
-	/// <param name="isDutyAction">Indicates whether the action is a duty action.</param>
-	public ActionBasicInfo(IBaseAction action, bool isDutyAction)
+	public ActionBasicInfo(IBaseAction action)
 	{
 		_action = action;
 		IsGeneralGCD = _action.Action.IsGeneralGCD();
@@ -355,7 +344,6 @@ public readonly struct ActionBasicInfo
 			is ActionCate.Ability;
 		IsSystemAction = (ActionCate?)_action.Action.ActionCategory.Value.RowId
 			is ActionCate.System or ActionCate.System_11;
-		IsDutyAction = isDutyAction;
 	}
 
 	/// <summary>
@@ -526,21 +514,6 @@ public readonly struct ActionBasicInfo
 		if (DataCenter.CurrentMp >= MPNeed)
 		{
 			return true;
-		}
-
-		if (Player.Job == Job.WHM)
-		{
-			// Freecure makes the next Cure II cost 0 MP
-			if (ID == (uint)ActionID.CureIiPvE && StatusHelper.PlayerHasStatus(true, StatusID.Freecure))
-			{
-				return true;
-			}
-
-			// Thin Air covers any expensive spell (including Raise)
-			if (!DataCenter.IsPvP && (StatusHelper.PlayerHasStatus(true, StatusID.ThinAir) || CustomRotation.IsLastAction(ActionID.ThinAirPvE)))
-			{
-				return true;
-			}
 		}
 
 		return false;

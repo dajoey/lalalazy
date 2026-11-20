@@ -83,7 +83,7 @@ internal static class ActionContextMenu
 			return;
 		}
 
-		if (!contextAction.Info.IsAbility && !contextAction.Info.IsRealGCD && !contextAction.Info.IsGeneralGCD && !contextAction.Info.IsDutyAction)
+		if (!contextAction.Info.IsAbility && !contextAction.Info.IsRealGCD && !contextAction.Info.IsGeneralGCD)
 		{
 			return;
 		}

@@ -34,7 +34,6 @@ public class StaticCodeGenerator : IIncrementalGenerator
 		{
 			GenerateStatus(context);
 			GenerateActionID(context);
-			GenerateContentType(context);
 			GenerateActionCate(context);
 			GenerateBaseRotation(context);
 			GenerateRotations(context);
@@ -100,31 +99,6 @@ public class StaticCodeGenerator : IIncrementalGenerator
             """;
 
 		context.AddSource("StatusID.g.cs", code);
-	}
-
-	/// <summary>
-	/// Generates the TerritoryContentType enum source code.
-	/// </summary>
-	/// <param name="context">The source production context.</param>
-	private static void GenerateContentType(SourceProductionContext context)
-	{
-		var code = $$"""
-            namespace RotationSolver.Basic.Data;
-
-            /// <summary>
-            /// 
-            /// </summary>
-            public enum TerritoryContentType : byte
-            {
-                /// <summary>
-                /// 
-                /// </summary>
-                None = 0,
-            {{Properties.Resources.ContentType.Table()}}
-            }
-            """;
-
-		context.AddSource("TerritoryContentType.g.cs", code);
 	}
 
 	/// <summary>

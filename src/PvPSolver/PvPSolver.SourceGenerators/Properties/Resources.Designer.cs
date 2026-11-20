@@ -67,18 +67,18 @@ namespace RotationSolver.SourceGenerators.Properties {
         ///
         ////// &lt;summary&gt;
         ////// The Custom Rotation.
-        ////// &lt;br&gt;Number of Actions: 65&lt;/br&gt;
+        ////// &lt;br&gt;Number of Actions: 31&lt;/br&gt;
         ////// &lt;/summary&gt;
         ///public abstract partial class CustomRotation
         ///{
         ///#region Actions
-        ///    private readonly Lazy&lt;IBaseAction&gt; _SprintPvECreator = new(() =&gt; 
+        ///    private readonly Lazy&lt;IBaseAction&gt; _OpticalSightPvPCreator = new(() =&gt; 
         ///    {
-        ///        IBaseAction action = new BaseAction((ActionID)3, false);
+        ///        IBaseAction action = new BaseAction((ActionID)9971);
         ///        CustomRotation.LoadActionSetting(ref action);
         ///    
         ///        var setting = action.Setting;
-        ///        ModifySprintPvE(r [rest of string was truncated]&quot;;.
+        ///        ModifyOpticalSi [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string Action {
             get {
@@ -137,63 +137,16 @@ namespace RotationSolver.SourceGenerators.Properties {
         
         /// <summary>
         ///   Looks up a localized string similar to /// &lt;summary&gt;
-        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/3&quot;&gt;&lt;strong&gt;Sprint&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (All Classes) [3] [System]
-        ////// &lt;para&gt;Increases movement speed. Duration: 10s (20s when not in combat Additional Effect: Grants Jog when the effect expires Jog Effect: Movement speed is increased Effect ends when enmity is generated. Has no effect in battle. ※Unavailable in PvP.&lt;/para&gt;
+        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/56&quot;&gt;&lt;strong&gt;Snap Punch&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [56] [Weaponskill]
+        ////// &lt;para&gt;Delivers an attack with a potency of . when executed from a target's flank. Can only be executed when in coeurl form. Additional Effect: Changes form to opo-opo Duration: 30s&lt;/para&gt;
         ////// &lt;/summary&gt;
-        ///SprintPvE = 3,
+        ///SnapPunchPvE = 56,
         ////// &lt;summary&gt;
-        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/5&quot;&gt;&lt;strong&gt;Telepo [rest of string was truncated]&quot;;.
+        ////// &lt;see href=&quot;https://garlandtools.org/db/#action/66&quot;&gt;&lt;strong&gt;Demolish&lt;/strong&gt;&lt;/see&gt; &lt;i&gt;PvE&lt;/i&gt; (PGL MNK) [66] [Weaponski [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ActionId {
             get {
                 return ResourceManager.GetString("ActionId", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to /// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///DutyRoulette = 1,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///Guildhests = 3,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///Trials = 4,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///Raids = 5,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///PvP = 6,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///QuestBattles = 7,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///FatEs = 8,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///TreasureHunt = 9,
-        ////// &lt;summary&gt;
-        ////// 
-        ////// &lt;/summary&gt;
-        ///Levequests = 10 [rest of string was truncated]&quot;;.
-        /// </summary>
-        internal static string ContentType {
-            get {
-                return ResourceManager.GetString("ContentType", resourceCulture);
             }
         }
         
@@ -239,7 +192,7 @@ namespace RotationSolver.SourceGenerators.Properties {
         ///namespace RotationSolver.Basic.Rotations.Basic;
         ////// &lt;summary&gt;
         ////// &lt;see href=&quot;https://na.finalfantasyxiv.com/jobguide/paladin&quot;&gt;&lt;strong&gt;paladin&lt;/strong&gt;&lt;/see&gt;
-        ////// &lt;br&gt;Number of Actions: 55&lt;/br&gt;
+        ////// &lt;br&gt;Number of Actions: 17&lt;/br&gt;
         ////// &lt;br&gt;Number of Traits: 19&lt;/br&gt;
         ////// &lt;/summary&gt;
         ///[Jobs(Job.PLD, Job.GLA)]
@@ -271,7 +224,7 @@ namespace RotationSolver.SourceGenerators.Properties {
         ////// &lt;/summary&gt;
         ///Stun = 2,
         ///
-        ////// &lt;summary&gt;        /// [rest of string was truncated]&quot;;.
+        ////// &lt;summar [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string StatusId {
             get {

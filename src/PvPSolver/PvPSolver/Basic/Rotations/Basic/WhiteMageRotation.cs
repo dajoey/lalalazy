@@ -14,16 +14,6 @@ public partial class WhiteMageRotation : CustomRotation
 		return false;
 	}
 
-	/// <inheritdoc/>
-	public static bool ThinAirState()
-	{
-		if (!DataCenter.IsPvP && (HasThinAir || IsLastAction(ActionID.ThinAirPvE)))
-		{
-			return true;
-		}
-		return false;
-	}
-
 	#region Job Gauge
 	/// <summary>
 	/// Represents the number of Lily stacks.
@@ -80,11 +70,6 @@ public partial class WhiteMageRotation : CustomRotation
 	#endregion
 
 	#region Status Tracking
-	/// <summary>
-	/// Player has Thin Air.
-	/// </summary>
-	public static bool HasThinAir => StatusHelper.PlayerHasStatus(true, StatusID.ThinAir);
-
 	/// <summary>
 	/// Player has Presence Of Mind.
 	/// </summary>

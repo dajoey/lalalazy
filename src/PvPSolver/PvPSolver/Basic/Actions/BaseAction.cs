@@ -159,12 +159,11 @@ public class BaseAction : IBaseAction
 	/// The default constructor
 	/// </summary>
 	/// <param name="actionID">action id</param>
-	/// <param name="isDutyAction">is this action a duty action</param>
-	public BaseAction(ActionID actionID, bool isDutyAction = false)
+	public BaseAction(ActionID actionID)
 	{
 		Action = Service.GetSheet<Action>().GetRow((uint)actionID);
 		TargetInfo = new(this);
-		Info = new(this, isDutyAction);
+		Info = new(this);
 		Cooldown = new(this);
 
 		Setting = new();
@@ -244,11 +243,6 @@ public class BaseAction : IBaseAction
 		if (!Cooldown.CooldownCheck(usedUp, gcdCountForAbility))
 		{
 			return false;
-		}
-
-		if (Setting.SpecialType == SpecialActionType.MeleeRange && IActionHelper.IsLastAction(IActionHelper.MovingActions))
-		{
-			return false; // No range actions after moving.
 		}
 
 		if (!skipTTKCheck)

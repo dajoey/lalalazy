@@ -304,31 +304,6 @@ public static class ObjectHelper
 		return false;
 	}
 
-	internal static unsafe bool IsFriendly(this IGameObject obj)
-	{
-		if (obj == null)
-		{
-			return false;
-		}
-
-		if (!obj.IsTargetable)
-		{
-			return false;
-		}
-
-		if (ActionManager.CanUseActionOnTarget((uint)ActionID.CurePvE, obj.Struct()))
-		{
-			return true;
-		}
-
-		if (ActionManager.CanUseActionOnTarget((uint)ActionID.RaisePvE, obj.Struct()))
-		{
-			return true;
-		}
-
-		return false;
-	}
-
 	internal static unsafe bool IsPlayer(this IBattleChara battleChara)
 	{
 		return battleChara == Player.Object;

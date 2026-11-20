@@ -179,15 +179,6 @@ internal partial class Configs : IPluginConfiguration
 	Filter = Extra)]
 	private static readonly bool _poslockCasting = false;
 
-	[UI("", Action = ActionID.PassageOfArmsPvE, Parent = nameof(PoslockCasting))]
-	public bool PosPassageOfArms { get; set; } = false;
-
-	[UI("", Action = ActionID.FlamethrowerPvE, Parent = nameof(PoslockCasting))]
-	public bool PosFlameThrower { get; set; } = false;
-
-	[UI("", Action = ActionID.ImprovisationPvE, Parent = nameof(PoslockCasting))]
-	public bool PosImprovisation { get; set; } = false;
-
 	[ConditionBool, UI("Automatically use Anti-Knockback role actions (Arms Length, Surecast)",
 	Description = "Enable to automatically use anti-knockback abilities when needed based on anti-knockback action list in List menu.",
 	Filter = AutoActionUsage)]
@@ -251,7 +242,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[JobConfig, UI("Use interrupt abilities if possible.",
 		Filter = AutoActionUsage, Section = 3,
-		PvEFilter = JobFilterType.Interrupt,
 		PvPFilter = JobFilterType.NoJob)]
 	private static readonly bool _interruptibleMoreCheck = true;
 
@@ -268,7 +258,7 @@ internal partial class Configs : IPluginConfiguration
 	/// </markdown>
 	[ConditionBool, UI("Cleanse all dispellable debuffs regardless of healing.",
 		Filter = AutoActionUsage, Section = 3,
-		PvEFilter = JobFilterType.Dispel, PvPFilter = JobFilterType.NoJob)]
+		PvPFilter = JobFilterType.NoJob)]
 	private static readonly bool _dispelAll = false;
 
 	[ConditionBool, UI("Debug Mode", Filter = Debug)]
@@ -386,16 +376,14 @@ internal partial class Configs : IPluginConfiguration
 	public int AutoDefenseNumber { get; set; } = 2;
 
 	[JobConfig, Range(0, 1, ConfigUnitType.Percent, 0.02f)]
-	[UI("HP%% needed to use single/self targetted mitigation on Tanks", Parent = nameof(UseDefenseAbility),
-		PvEFilter = JobFilterType.Tank)]
+	[UI("HP%% needed to use single/self targetted mitigation on Tanks", Parent = nameof(UseDefenseAbility))]
 	private readonly float _healthForAutoDefense = 1;
 
-	[ConditionBool, UI("Automatically activate tank stance", Parent = nameof(UseAbility),
-		PvEFilter = JobFilterType.Tank)]
+	[ConditionBool, UI("Automatically activate tank stance", Parent = nameof(UseAbility))]
 	private static readonly bool _autoTankStance = true;
 
 	[ConditionBool, UI("Auto provoke when there is another tank in party", Description = "Automatically use provoke when an enemy is attacking a non-tank member of the party while there is more than one tank in party.",
-		Parent = nameof(UseAbility), PvEFilter = JobFilterType.Tank)]
+		Parent = nameof(UseAbility))]
 	private static readonly bool _autoProvokeForTank = true;
 
 	/// <markdown file="Auto" name="Auto True North" section="Healing Usage and Control" subsection="RotationSolver.Basic.Configuration.Configs._useAbility">
@@ -403,8 +391,7 @@ internal partial class Configs : IPluginConfiguration
 	/// positional on the enemy.
 	/// </markdown>
 	[ConditionBool, UI("Auto True North (Melee DPS)",
-		Parent = nameof(UseAbility),
-		PvEFilter = JobFilterType.Melee)]
+		Parent = nameof(UseAbility))]
 	private static readonly bool _autoUseTrueNorth = true;
 
 	[ConditionBool, UI("Use movement speed increase abilities when out of combat and in duty.", Parent = nameof(UseAbility))]
@@ -846,7 +833,7 @@ internal partial class Configs : IPluginConfiguration
 	[JobConfig, Range(0, 1, ConfigUnitType.Percent, 0.02f)]
 	[UI("The HP%% for tank to use invulnerability",
 		Filter = AutoActionUsage, Section = 3,
-		PvEFilter = JobFilterType.Tank, PvPFilter = JobFilterType.NoJob)]
+		PvPFilter = JobFilterType.NoJob)]
 	private readonly float _healthForDyingTanks = 0.15f;
 
 	[JobConfig]

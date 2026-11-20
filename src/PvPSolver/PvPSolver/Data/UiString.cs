@@ -4,43 +4,13 @@ namespace RotationSolver.Data
 {
 	internal enum UiString
 	{
-		[Description("The condition value you chose. Click to modify.")]
-		ConfigWindow_ConditionSetDesc,
-
-		[Description("Condition Value")]
-		ConfigWindow_ConditionSet,
-
-		[Description("Action Condition")]
-		ConfigWindow_ActionSet,
-
-		[Description("Trait Condition")]
-		ConfigWindow_TraitSet,
-
-		[Description("Target Condition")]
-		ConfigWindow_TargetSet,
-
-		[Description("Rotation Condition")]
-		ConfigWindow_RotationSet,
-
-		[Description("Named Condition")]
-		ConfigWindow_NamedSet,
-
-		[Description("Territory Condition")]
-		ConfigWindow_Territoryset,
-
 		[Description("No rotation is loaded here. Job options are in the PvP Solver settings window (/pvpsolver).")]
 		ConfigWindow_NoRotation,
 		[Description("Remove")]
 		ConfigWindow_List_Remove,
 
-		[Description("Load from folder")]
-		ActionSequencer_Load,
-
 		[Description("Analyzes PvP combat information in every frame and finds the best action.")]
 		ConfigWindow_About_Punchline,
-
-		[Description("Invalid Rotation! \nPlease update to the latest version or contact {0}!")]
-		ConfigWindow_Rotation_InvalidRotation,
 
 		[Description("Click to switch rotations")]
 		ConfigWindow_Helper_SwitchRotation,
@@ -69,15 +39,6 @@ namespace RotationSolver.Data
 
 		[Description("Links")]
 		ConfigWindow_About_Links,
-
-		[Description("System Warnings")]
-		ConfigWindow_About_Warnings,
-
-		[Description("Warning Message")]
-		ConfigWindow_About_Warnings_Warning,
-
-		[Description("Warning Time")]
-		ConfigWindow_About_Warnings_Time,
 
 		[Description("PvP Solver helps you choose targets and click actions. Any plugin that changes these will affect its decisions.\n\nHere is a list of known incompatible plugins:")]
 		ConfigWindow_About_Compatibility_Description,
@@ -127,29 +88,11 @@ namespace RotationSolver.Data
 		[Description("Should this action check needed status effects")]
 		ConfigWindow_Actions_CheckStatus,
 
-		[Description("Should this action check targets needed status effects")]
-		ConfigWindow_Actions_CheckTargetStatus,
-
 		[Description("Number of GCDs before the DOT/Status effect is reapplied")]
 		ConfigWindow_Actions_GcdCount,
 
 		[Description("HP ratio for automatic healing (only applies to healing actions)")]
 		ConfigWindow_Actions_HealRatio,
-
-		[Description("Forced Conditions have higher priority. If Forced Conditions are met, Disabled Conditions will be ignored.")]
-		ConfigWindow_Actions_ConditionDescription,
-
-		[Description("Forced Condition (Unsupported)")]
-		ConfigWindow_Actions_ForcedConditionSet,
-
-		[Description("Conditions for forced automatic use of action")]
-		ConfigWindow_Actions_ForcedConditionSet_Description,
-
-		[Description("Disabled Condition (Unsupported)")]
-		ConfigWindow_Actions_DisabledConditionSet,
-
-		[Description("Conditions that disable automatic use of an action")]
-		ConfigWindow_Actions_DisabledConditionSet_Description,
 
 		[Description("In this window, you can set parameters that can be customized using lists.")]
 		ConfigWindow_List_Description,
@@ -253,15 +196,6 @@ namespace RotationSolver.Data
 		[Description("Add beneficial AoE location")]
 		ConfigWindow_List_AddPosition,
 
-		[Description("Ability")]
-		ActionAbility,
-
-		[Description("Friendly")]
-		ActionFriendly,
-
-		[Description("Attack")]
-		ActionAttack,
-
 		[Description("Normal Targets")]
 		NormalTargets,
 
@@ -295,41 +229,11 @@ namespace RotationSolver.Data
 		[Description("Auto Switch")]
 		ConfigWindow_Basic_AutoSwitch,
 
-		[Description("Named Conditions")]
-		ConfigWindow_Basic_NamedConditions,
-
 		[Description("Others")]
 		ConfigWindow_Basic_Others,
 
-		[Description("The animation lock time for individual actions. For example, 0.6s.")]
-		ConfigWindow_Basic_AnimationLockTime,
-
-		[Description("The clicking duration - PvP Solver will try to click at this moment.")]
-		ConfigWindow_Basic_ClickingDuration,
-
-		[Description("The ideal click time")]
-		ConfigWindow_Basic_IdealClickingTime,
-
-		[Description("The actual click time")]
-		ConfigWindow_Basic_RealClickingTime,
-
-		[Description("Auto turn-off conditions")]
-		ConfigWindow_Basic_SwitchCancelConditionSet,
-
-		[Description("Auto manual mode conditions")]
-		ConfigWindow_Basic_SwitchManualConditionSet,
-
-		[Description("Auto automatic mode conditions")]
-		ConfigWindow_Basic_SwitchAutoConditionSet,
-
-		[Description("Condition Name")]
-		ConfigWindow_Condition_ConditionName,
-
 		[Description("Information")]
 		ConfigWindow_UI_Information,
-
-		[Description("Overlay")]
-		ConfigWindow_UI_Overlay,
 
 		[Description("Windows")]
 		ConfigWindow_UI_Windows,
@@ -348,42 +252,6 @@ namespace RotationSolver.Data
 
 		[Description("How PvP Solver should use healing abilities")]
 		ConfigWindow_Auto_HealingCondition_Description,
-
-		[Description("Custom State Condition (Unsupported)")]
-		ConfigWindow_Auto_StateCondition,
-
-		[Description("Heal Area Forced Condition")]
-		ConfigWindow_Auto_HealAreaConditionSet,
-
-		[Description("Heal Single Forced Condition")]
-		ConfigWindow_Auto_HealSingleConditionSet,
-
-		[Description("Defense Area Forced Condition")]
-		ConfigWindow_Auto_DefenseAreaConditionSet,
-
-		[Description("Defense Single Forced Condition")]
-		ConfigWindow_Auto_DefenseSingleConditionSet,
-
-		[Description("Dispel/Stance/Positional Forced Condition")]
-		ConfigWindow_Auto_DispelStancePositionalConditionSet,
-
-		[Description("Move Forward Forced Condition")]
-		ConfigWindow_Auto_MoveForwardConditionSet,
-
-		[Description("Move Back Forced Condition")]
-		ConfigWindow_Auto_MoveBackConditionSet,
-
-		[Description("Anti-Knockback Forced Condition")]
-		ConfigWindow_Auto_AntiKnockbackConditionSet,
-
-		[Description("Speed Forced Condition")]
-		ConfigWindow_Auto_SpeedConditionSet,
-
-		[Description("No Casting Condition Set")]
-		ConfigWindow_Auto_NoCastingConditionSet,
-
-		[Description("This will change how PvP Solver uses actions")]
-		ConfigWindow_Auto_ActionCondition_Description,
 
 		[Description("Configuration")]
 		ConfigWindow_Target_Config,
@@ -424,56 +292,8 @@ namespace RotationSolver.Data
 		[Description("Delete Event")]
 		ConfigWindow_Events_RemoveEvent,
 
-		[Description("Click to make it reverse.\nIs reversed: {0}")]
-		ActionSequencer_NotDescription,
-
-		[Description("Member Name")]
-		ConfigWindow_Actions_MemberName,
-
-		[Description("Rotation is null. Please log in or switch jobs!")]
-		ConfigWindow_Condition_RotationNullWarning,
-
 		[Description("PvP")]
 		ConfigWindow_PvpSpecific,
-
-		[Description("Delay its transition to true")]
-		ActionSequencer_Delay_Description,
-
-		[Description("Delay its transition")]
-		ActionSequencer_Offset_Description,
-
-		[Description("Sufficient Level")]
-		ActionConditionType_EnoughLevel,
-
-		[Description("Time Offset")]
-		ActionSequencer_TimeOffset,
-
-		[Description("Charges")]
-		ActionSequencer_Charges,
-
-		[Description("Original")]
-		ActionSequencer_Original,
-
-		[Description("Adjusted")]
-		ActionSequencer_Adjusted,
-
-		[Description("{0}'s target")]
-		ActionSequencer_ActionTarget,
-
-		[Description("From All")]
-		ActionSequencer_StatusAll,
-
-		[Description("From Self")]
-		ActionSequencer_StatusSelf,
-
-		[Description("You should not use this, as this target isn't the action's target. Try selecting it from the action instead.")]
-		ConfigWindow_Condition_TargetWarning,
-
-		[Description("Territory Name")]
-		ConfigWindow_Condition_TerritoryName,
-
-		[Description("Please separately bind damage reduction/shield cooldowns in case PvP Solver fails at a crucial moment in {0}!")]
-		HighEndWarning,
 
 		[Description("Click to execute the command")]
 		ConfigWindow_Helper_RunCommand,
@@ -490,83 +310,8 @@ namespace RotationSolver.Data
 		[Description("Action Name")]
 		ConfigWindow_Events_ActionName,
 
-		[Description("Modify {0} to {1}")]
-		CommandsChangeSettingsValue,
-
-		[Description("Failed to find the config in this rotation. Please check it.")]
-		CommandsCannotFindConfig,
-
-		[Description("Will use it within {0}s")]
-		CommandsInsertAction,
-
 		[Description("Cannot find the action. Please check the action name.")]
 		CommandsInsertActionFailure,
-
-		[Description("Failed to get both value and config from string. Please make sure you provide both a config option and value.")]
-		CommandsMissingArgument,
-
-		[Description("Start")]
-		SpecialCommandType_Start,
-
-		[Description("Cancel")]
-		SpecialCommandType_Cancel,
-
-		[Description("Heal Area")]
-		SpecialCommandType_HealArea,
-
-		[Description("Heal Single")]
-		SpecialCommandType_HealSingle,
-
-		[Description("Defense Area")]
-		SpecialCommandType_DefenseArea,
-
-		[Description("Defense Single")]
-		SpecialCommandType_DefenseSingle,
-
-		[Description("Tank Stance")]
-		SpecialCommandType_TankStance,
-
-		[Description("Dispel")]
-		SpecialCommandType_Dispel,
-
-		[Description("Positional")]
-		SpecialCommandType_Positional,
-
-		[Description("Shirk")]
-		SpecialCommandType_Shirk,
-
-		[Description("Move Forward")]
-		SpecialCommandType_MoveForward,
-
-		[Description("Move Back")]
-		SpecialCommandType_MoveBack,
-
-		[Description("Anti-Knockback")]
-		SpecialCommandType_AntiKnockback,
-
-		[Description("Burst")]
-		SpecialCommandType_Burst,
-
-		[Description("End Special")]
-		SpecialCommandType_EndSpecial,
-
-		[Description("Speed")]
-		SpecialCommandType_Speed,
-
-		[Description("Limit Break")]
-		SpecialCommandType_LimitBreak,
-
-		[Description("No Casting")]
-		SpecialCommandType_NoCasting,
-
-		[Description("Auto Target")]
-		SpecialCommandType_Smart,
-
-		[Description("Manual Target")]
-		SpecialCommandType_Manual,
-
-		[Description("Off")]
-		SpecialCommandType_Off,
 
 		[Description("Open config window")]
 		Commands_Rotation,
@@ -586,17 +331,6 @@ namespace RotationSolver.Data
 		[Description("This option is unavailable with your current job\n \nRoles or jobs needed:\n{0}")]
 		NotInJob,
 
-		[Description("Welcome to PvP Solver!")]
-		WelcomeWindow_Header,
-
-		[Description("Here's what you missed since you were last here")]
-		WelcomeWindow_WelcomeBack,
-
-		[Description("It looks like you might be new here! Let's get you started!")]
-		WelcomeWindow_Welcome,
-
-		[Description("Recent Changes:")]
-		WelcomeWindow_Changelog,
 	}
 
 	public static class EnumExtensions
