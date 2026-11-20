@@ -2456,12 +2456,6 @@ Charge = 400,
 Seized = 401,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/402"&gt;&lt;strong&gt;Thrown for a Loop&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Provoked beyond all mortal limits and heedless of danger. Can only pursue the target.&lt;/para&gt;
-/// &lt;/summary&gt;
-ThrownForALoop = 402,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/403"&gt;&lt;strong&gt;Damage Up&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -13526,12 +13520,6 @@ BannerOfFirmResolve = 2329,
 BannerOfSolemnClarity = 2330,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2331"&gt;&lt;strong&gt;Banner of Honed Acuity&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Damage taken is increased but your senses sharpen with each attack evaded. At maximum stacks take up the Banner of Transcendent Finesse. Banner of Transcendent Finesse Effect: Critical hit rate is increased while weaponskill cast time and recast time spell cast time and recast time and auto-attack delay are reduced.&lt;/para&gt;
-/// &lt;/summary&gt;
-BannerOfHonedAcuity = 2331,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2332"&gt;&lt;strong&gt;Lost Font of Magic&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Increasing damage dealt while draining own MP.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -14575,12 +14563,6 @@ UnnamedStatus_2515 = 2515,
 Doom_2516 = 2516,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2517"&gt;&lt;strong&gt;Back from the Brink&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Nullifies the damage dealt by certain areas of ground. Effect lasts until Transcendent expires or you move to a safe area.&lt;/para&gt;
-/// &lt;/summary&gt;
-BackFromTheBrink = 2517,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2518"&gt;&lt;strong&gt;Bind&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Unable to move.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -15101,12 +15083,6 @@ DifferentialDiagnosis = 2608,
 /// &lt;para&gt;A magicked barrier is nullifying damage.&lt;/para&gt;
 /// &lt;/summary&gt;
 EukrasianPrognosis = 2609,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2610"&gt;&lt;strong&gt;Soteria&lt;/strong&gt;&lt;/see&gt; ↑ (SGE)
-/// &lt;para&gt;The healing potency of Kardia is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-Soteria = 2610,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2611"&gt;&lt;strong&gt;Zoe&lt;/strong&gt;&lt;/see&gt; ↑ (SGE)

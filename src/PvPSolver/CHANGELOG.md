@@ -1,3 +1,8 @@
+## v0.1.2.31 (2026-11-20) [testing]
+- Round 6 completion: the post-release marker grep still found four generated StatusID entries whose description text carries a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity). All four are unreferenced PvE statuses and are removed from the generated table; no code reads them.
+- No code change and no PvP behaviour change; every remaining marker hit is a cited part of a PvP path (the Sage Kardia and Dancer partner targeting, and the tank lock-on VFX check).
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.30 (2026-11-20) [testing]
 - PvE remnant removal, round 6: PvE-only engine paths that no PvP rotation reads are removed; no behaviour change in PvP.
 - Removed the PvE party-buff target finders no PvP action uses (ActionTargetInfo.FindTheSpear, FindTheBalance, FindPhantomRespite), their TargetType members and the Spear/Balance card priority lists with their Job-tab editors and saved files. The DNC partner and SGE Kardia tank priorities remain: Closed Position (PvP) and Kardia (PvP) still target through them.
