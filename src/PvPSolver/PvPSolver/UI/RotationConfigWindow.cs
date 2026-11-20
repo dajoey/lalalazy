@@ -3595,12 +3595,6 @@ public partial class RotationConfigWindow : Window
 		ImGui.Text($"IsHostileCastingToTank: {DataCenter.IsHostileCastingToTank}");
 		ImGui.Text($"IsHostileCastingStop: {DataCenter.IsHostileCastingStop}");
 		ImGui.Spacing();
-		StatusID HellInACell = (StatusID)4734;
-		var HasHellInACell = StatusHelper.PlayerHasStatus(false, HellInACell);
-		ImGui.Text($"HasHellInACell: {HasHellInACell}");
-		ImGui.Spacing();
-		ImGui.Text($"IsInM11S: {DataCenter.IsInM11S}");
-		ImGui.Text($"IsTyrantCastingSpecialIndicator2: {DataCenter.IsTyrantCastingSpecialIndicator2()}");
 	}
 
 	private static unsafe void DrawParty()

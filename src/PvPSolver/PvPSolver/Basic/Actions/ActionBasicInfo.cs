@@ -381,11 +381,6 @@ public readonly struct ActionBasicInfo
 			return false;
 		}
 
-		if (DataCenter.Orbonne && (_action.ID == 14415 || _action.ID == 14414) && IsActionCheckValid() && ActionManagerStatusValid())
-		{
-			return true;
-		}
-
 		if (!EnoughLevel)
 		{
 			return false;

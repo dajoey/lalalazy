@@ -83,11 +83,6 @@ public static class ObjectHelper
 			return false;
 		}
 
-		if (DataCenter.PlayerFateId != 0 && target.FateId() == DataCenter.PlayerFateId)
-		{
-			return false;
-		}
-
 		// Removed the listed names.
 		if (OtherConfiguration.NoProvokeNames.TryGetValue(Svc.ClientState.TerritoryType, out string[]? ns1))
 		{
@@ -715,11 +710,6 @@ public static class ObjectHelper
 			}
 		}
 
-		if (Service.Config.TargetFatePriority && DataCenter.PlayerFateId != 0 && battleChara.FateId() == DataCenter.PlayerFateId)
-		{
-			return true;
-		}
-
 		uint icon = battleChara.GetNamePlateIcon();
 
 		if (Service.Config.TargetHuntingRelicLevePriority && (icon == 60092 || icon == 60094 || icon == 60096 || icon == 60097 || icon == 60098 || icon == 71244))
@@ -1134,8 +1124,7 @@ public static class ObjectHelper
 	/// <returns>True if the target is immune due to any special mechanic; otherwise, false.</returns>
 	public static bool IsSpecialImmune(this IBattleChara battleChara)
 	{
-		return battleChara.IsOrbonneImmune()
-			|| battleChara.IsColossusRubricatusImmune()
+		return battleChara.IsColossusRubricatusImmune()
 			|| battleChara.IsTrueHeartImmune()
 			|| battleChara.IsEminentGriefImmune()
 			|| battleChara.IsLOTAImmune()
@@ -1154,38 +1143,6 @@ public static class ObjectHelper
 			|| battleChara.IsHanselorGretelShielded();
 	}
 
-	/// <summary>
-	/// 
-	/// </summary>
-	public static bool IsOrbonneImmune(this IBattleChara battleChara)
-	{
-		if (Player.Object == null)
-		{
-			return false;
-		}
-
-		if (DataCenter.Orbonne)
-		{
-			if (battleChara.HasStatus(false, StatusID.VulnerabilityDown_1782))
-			{
-				if (Service.Config.InDebug)
-				{
-					PluginLog.Information("IsOrbonneImmune: VulnerabilityDown_1782 detected");
-				}
-				return true;
-			}
-			if (battleChara.HasStatus(false, StatusID.VulnerabilityDown_350))
-			{
-				if (Service.Config.InDebug)
-				{
-					PluginLog.Information("IsOrbonneImmune: VulnerabilityDown_350 detected");
-				}
-				return true;
-			}
-		}
-
-		return false;
-	}
 	/// <summary>
 	/// 
 	/// </summary>

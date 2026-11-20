@@ -25,11 +25,6 @@ public partial class CustomRotation
 			return false;
 		}
 
-		if (DataCenter.Orbonne && DataCenter.IsAgriasCastingSpecialIndicator())
-		{
-			return false;
-		}
-
 		//if (DataCenter.Job == ECommons.ExcelServices.Job.PLD && !DataCenter.IsMoving && IsLastAction(ActionID.PassageOfArmsPvE) && StatusHelper.PlayerHasStatus(true, StatusID.PassageOfArms) && DataCenter.MergedStatus.HasFlag(AutoStatus.DefenseArea))
 		//{
 		//    return false;
@@ -155,7 +150,7 @@ public partial class CustomRotation
 			IBaseAction.ShouldEndSpecial = false;
 		}
 
-		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaAbility) && (CanHealAreaAbility || DataCenter.IsInOccultCrescentOp))
+		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaAbility) && CanHealAreaAbility)
 		{
 			IBaseAction.AutoHealCheck = true;
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
@@ -183,7 +178,7 @@ public partial class CustomRotation
 			IBaseAction.ShouldEndSpecial = false;
 		}
 
-		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealSingleAbility) && (CanHealSingleAbility || DataCenter.IsInOccultCrescentOp))
+		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealSingleAbility) && CanHealSingleAbility)
 		{
 			IBaseAction.AutoHealCheck = true;
 			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))

@@ -26,11 +26,6 @@ public partial class CustomRotation
 
 		IBaseAction.ForceEnable = false;
 
-		if (DataCenter.Orbonne && DataCenter.IsAgriasCastingSpecialIndicator())
-		{
-			return null;
-		}
-
 		//if (DataCenter.Job == ECommons.ExcelServices.Job.PLD && IsLastAction(ActionID.PassageOfArmsPvE) && StatusHelper.PlayerHasStatus(true, StatusID.PassageOfArms))
 		//{
 		//	return null;
@@ -214,7 +209,7 @@ public partial class CustomRotation
 			if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaSpell))
 			{
 				IBaseAction.AutoHealCheck = true;
-				if (DataCenter.IsInOccultCrescentOp || HasVariantCure)
+				if (HasVariantCure)
 				{
 					if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
 					{

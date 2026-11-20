@@ -184,20 +184,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				if (isRestricted) continue;
 			}
 
-			if (DataCenter.IsInM9S && action.AdjustedID == 36982 && DataCenter.RestrictedActionNameIds != null)
-			{
-				bool isRestrictedAction = false;
-				for (int i = 0; i < DataCenter.RestrictedActionNameIds.Count; i++)
-				{
-					if (tar.NameId == DataCenter.RestrictedActionNameIds[i])
-					{
-						isRestrictedAction = true;
-						break;
-					}
-				}
-				if (isRestrictedAction) continue;
-			}
-
 			if (CheckStatus(tar, skipStatusProvideCheck, skipTargetStatusNeedCheck) && CheckTimeToKill(tar, action.Config.TimeToKill) && CheckResistance(tar, Range))
 			{
 				validTargets.Add(tar);
@@ -473,7 +459,7 @@ public struct ActionTargetInfo(IBaseAction action)
 				int required = skipAoeCheck ? 0 : action.Config.AoeCount;
 
 				// Mirror the cleave check in GetMostCanTargetObjects: in Cleave mode, block if aoeCount > 1
-				if (required > 1 && (Service.Config.AoEType == AoEType.Cleave || (DataCenter.IsInM9S && Service.Config.M9SCleaveOnly)))
+				if (required > 1 && (Service.Config.AoEType == AoEType.Cleave))
 					return null;
 
 				List<IBattleChara> selfAffects = GetCanAffects(skipStatusProvideCheck, skipTargetStatusNeedCheck, type, targetOverride);
@@ -1086,7 +1072,7 @@ public struct ActionTargetInfo(IBaseAction action)
 		}
 
 		// Cleave mode
-		if (aoeCount > 1 && (Service.Config.AoEType == AoEType.Cleave || (DataCenter.IsInM9S && Service.Config.M9SCleaveOnly)))
+		if (aoeCount > 1 && (Service.Config.AoEType == AoEType.Cleave))
 		{
 			yield break;
 		}
