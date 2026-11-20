@@ -80,9 +80,9 @@ internal static class SettingsShapeCases
         Harness.Case("RotationConfigBase.cs reads the player-keyed Service.Config.RotationConfigurations only on the duty-rotation path (once, inside Store, after the _rotation test)",
             legacyAccessor == 1 && Regex.IsMatch(store, @"_rotation\s*!=\s*null\s*\?\s*Service\.Config\.RotationSettingsFor\(_rotation\.Job,\s*create\)\s*:\s*Service\.Config\.RotationConfigurations\b"),
             $"{legacyAccessor} occurrence(s); Store: {CsSource.Squash(store)}");
-        Harness.Case("RotationConfigBase.cs goes through Store at the four sites: the value getter, the setter and the two constructors",
-            Regex.Matches(san, @"\bStore\((?:false|true)\)").Count == 4 && Regex.IsMatch(san, @"get\s*=>\s*Store\(false\)") && Regex.IsMatch(san, @"Store\(true\)")
-            && Regex.Matches(san, @"Store\(false\) is \{ \} stored").Count == 2);
+        Harness.Case("RotationConfigBase.cs goes through Store at the three sites: the value getter, the setter and the constructor",
+            Regex.Matches(san, @"\bStore\((?:false|true)\)").Count == 3 && Regex.IsMatch(san, @"get\s*=>\s*Store\(false\)") && Regex.IsMatch(san, @"Store\(true\)")
+            && Regex.Matches(san, @"Store\(false\) is \{ \} stored").Count == 1);
 
         string settings = Sanitized("PvPSolver", "Basic", "Configuration", "Configs.PvpSettings.cs");
         string accessor = BodyOf(settings, "RotationSettingsFor");

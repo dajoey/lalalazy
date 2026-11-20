@@ -60,8 +60,8 @@ internal static class MeleeRange
             Regex.IsMatch(ability, @"DataCenter\.NumberOfHostilesInRangeOf\(\s*RotationSolver\.Decisions\.AttackRangeGate\.Radius\(\s*DataCenter\.IsPvP\s*,\s*DataCenter\.Role\s*==\s*JobRole\.Melee\s*,\s*DataCenter\.JobRange\s*\)\s*\)\s*>\s*0"));
         var stillOld = Regex.Matches(ability, @"\bHasHostilesInRange\s*&&\s*(DataCenter\.CurrentDutyRotation\?\.)?AttackAbility\(").Count;
         Harness.Case("neither AttackAbility gate (duty rotation, job) is still gated by HasHostilesInRange", stillOld == 0, $"{stillOld} old gates");
-        var gated = Regex.Matches(ability, @"hasHostilesForAttack\s*&&\s*(DataCenter\.CurrentDutyRotation\?\.)?AttackAbility\(").Count;
-        Harness.Case("both AttackAbility gates (duty rotation, job) use the new radius count", gated == 2, $"{gated} gates");
+        var gated = Regex.Matches(ability, @"hasHostilesForAttack\s*&&\s*AttackAbility\(").Count;
+        Harness.Case("the AttackAbility job gate uses the new radius count and the duty-rotation gate is gone", gated == 1, $"{gated} gates");
 
         // DataCenter: JobRange is untouched, and NumberOfHostilesInRangeOf measures exactly what NumberOfHostilesInRange does.
         var dc = CsSource.Sanitize(File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver", "Basic", "DataCenter.cs")));
