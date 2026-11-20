@@ -20,6 +20,26 @@ public static partial class RSCommands
 				ExecuteRotationCommand(str);
 				break;
 
+			case OtherCommandType.DoActions:
+				DoActionCommand(str);
+				break;
+
+			case OtherCommandType.ToggleActions:
+				ToggleActionCommand(str);
+				break;
+
+			case OtherCommandType.Settings:
+				DoSettingCommand(str);
+				break;
+
+			case OtherCommandType.NextAction:
+				DoAction();
+				break;
+		}
+	}
+
+	private static void ExecuteCycleCommand()
+	{
 		if (Service.Config.CycleType == CycleType.CycleNormal)
 		{
 			CycleStateWithOneTargetTypes();
