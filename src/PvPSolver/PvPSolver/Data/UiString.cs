@@ -66,8 +66,6 @@ namespace RotationSolver.Data
 		[Description("Compatibility")]
 		ConfigWindow_About_Compatibility,
 
-		[Description("Supporters")]
-		ConfigWindow_About_Supporters,
 
 		[Description("Links")]
 		ConfigWindow_About_Links,
@@ -368,9 +366,6 @@ namespace RotationSolver.Data
 
 		[Description("Dispel/Stance/Positional Forced Condition")]
 		ConfigWindow_Auto_DispelStancePositionalConditionSet,
-
-		[Description("Raise/Shirk Forced Condition")]
-		ConfigWindow_Auto_RaiseShirkConditionSet,
 
 		[Description("Move Forward Forced Condition")]
 		ConfigWindow_Auto_MoveForwardConditionSet,

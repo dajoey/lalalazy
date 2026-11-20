@@ -1,3 +1,10 @@
+## v0.1.2.26 (2026-11-20) [testing]
+- Follow-up cleanup to 0.1.2.25 from the whole-plugin PvE audit; no behaviour change in PvP.
+- The "Use beneficial ground-targeted actions" tooltip no longer describes trial and raid fallback positions; it now says arena.
+- Removed two duty-specific shared-damage VFX paths (an alliance raid and a dungeon boss) from the shared-damage path list in DataCenter.
+- Removed the unused UiString entries for the old Supporters heading and the Raise/Shirk condition set, and about 40 lines of commented-out legacy PvE target code (TargetUpdater, TargetHostileType, CustomRotation_OtherInfo) plus several comments that still named duty, raid or Fate content.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.25 (2026-11-20) [testing]
 - PvE remnant removal, round 3 (whole-plugin audit): the remaining PvE-only settings, commands and code paths are gone, so the settings windows, commands and help text describe a PvP plugin only.
 - Raise: every Raise/resurrection setting (Auto > Healing), the dead-player target selection (TargetUpdater), the Raise/Shirk special command with its Control-window button, and the Raise Info debug panel are removed. Raise could never run in PvP (DataCenter.CanRaise returned false there).

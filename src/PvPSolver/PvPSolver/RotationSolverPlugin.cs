@@ -146,7 +146,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		ActionContextMenu.Init();
 		HotbarHighlightManager.Init();
 
-		// DutyState events removed — Dalamud API 15 changed delegate signatures
 		Svc.ClientState.TerritoryChanged += ClientState_TerritoryChanged;
 		ClientState_TerritoryChanged(Svc.ClientState.TerritoryType);
 

@@ -166,7 +166,7 @@ internal static class RotationUpdater
 			string key = string.Empty;
 			if (a is IBaseAction act)
 			{
-				// Filter out special actions, usually related to duty specifc mechanics but not duty actions
+				// Filter out special actions, usually related to encounter-specific mechanics
 				if (act.Info.IsSpecialAction)
 				{
 					continue;

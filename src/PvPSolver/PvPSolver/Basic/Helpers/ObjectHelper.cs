@@ -227,7 +227,7 @@ public static class ObjectHelper
 			}
 		}
 
-		// Fate
+		// Top-priority named hostile
 		if (battleChara.IsTopPriorityNamedHostile())
 		{
 			return true;
@@ -989,7 +989,7 @@ public static class ObjectHelper
 			return true;
 		}
 
-		//Fate
+		// Boss by time-to-kill
 		return battleChara.GetTTK(true) >= Service.Config.BossTimeToKill;
 	}
 

@@ -18,7 +18,7 @@ public enum TargetHostileType : byte
 	TargetsHaveTarget,
 
 	/// <summary>
-	/// All targets when solo in duty, or previously engaged.
+	/// All targets when solo in an instance, or previously engaged.
 	/// </summary>
 	[Description("All targets when solo in an instance, or previously engaged.")]
 	AllTargetsWhenSoloInDuty,
@@ -35,6 +35,4 @@ public enum TargetHostileType : byte
 	//[Description("All targets when solo, or only attack targets in your parties enemy list")]
 	//AllTargetsWhenSoloTargetIsInEnemiesList,
 
-	//[Description("All targets when solo in duty, or only attack targets in your parties enemy list")]
-	//AllTargetsWhenSoloInDutyTargetIsInEnemiesList,
 }

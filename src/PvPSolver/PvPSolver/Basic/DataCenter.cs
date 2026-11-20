@@ -1059,10 +1059,7 @@ internal static class DataCenter
 	[
 		"vfx/lockon/eff/coshare",
 		"vfx/lockon/eff/share_laser",
-		"vfx/lockon/eff/com_share",
-		// Duty-specific AOE share markers
-		"vfx/monster/gimmick2/eff/z3o7_b1_g06c0t", // Puppet's Bunker, Superior Flight Unit.
-		"vfx/monster/gimmick4/eff/z5r1_b4_g09c0c"  // Aglaia, Nald'thal
+		"vfx/lockon/eff/com_share"
 	], StringComparer.OrdinalIgnoreCase);
 
 	private static readonly StringComparison PathCmp = StringComparison.OrdinalIgnoreCase;

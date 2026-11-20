@@ -38,7 +38,7 @@ internal static partial class TargetUpdater
 		DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank)
 			? GetFirstHostileTarget(ObjectHelper.CanProvoke)
 			: null; // Calculating this per frame rather than on-demand is actually a fair amount worse
-		DataCenter.InterruptTarget = GetFirstHostileTarget(ObjectHelper.CanInterrupt); // Tanks, Melee, RDM, and various phantom and duty actions can interrupt so just deal with it
+		DataCenter.InterruptTarget = GetFirstHostileTarget(ObjectHelper.CanInterrupt); // Tanks, Melee, RDM and various job actions can interrupt so just deal with it
 
 		UpdateTimeToKill();
 	}
@@ -119,36 +119,6 @@ internal static partial class TargetUpdater
 		DataCenter.AllHostileTargets = hostileTargets;
 	}
 
-	//internal static void OldUpdateTargets()
-	//{
-	//	//PluginLog.Debug("Updating targets");
-	//	DataCenter.TargetsByRange.Clear();
-	//	DataCenter.AllTargets = GetAllTargets();
-
-	//	// Early-out: avoid downstream work when there are no potential targets
-	//	if (DataCenter.AllTargets == null || DataCenter.AllTargets.Count == 0)
-	//	{
-	//		DataCenter.PartyMembers.Clear();
-	//		DataCenter.AllianceMembers.Clear();
-	//		DataCenter.AllHostileTargets.Clear();
-	//		DataCenter.DeathTarget = null;
-	//		DataCenter.DispelTarget = null;
-	//		DataCenter.ProvokeTarget = null;
-	//		DataCenter.InterruptTarget = null;
-	//		UpdateTimeToKill();
-	//		return;
-	//	}
-
-	//	DataCenter.PartyMembers = GetPartyMembers();
-	//	DataCenter.AllianceMembers = GetAllianceMembers();
-	//	DataCenter.AllHostileTargets = GetAllHostileTargets();
-	//	DataCenter.DeathTarget = GetDeathTarget();
-	//	DataCenter.DispelTarget = GetDispelTarget();
-	//	DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank || StatusHelper.PlayerHasStatus(true, StatusID.VariantUltimatumSet)) ? GetFirstHostileTarget(ObjectHelper.CanProvoke) : null; // Calculating this per frame rather than on-demand is actually a fair amount worse
-	//	DataCenter.InterruptTarget = GetFirstHostileTarget(ObjectHelper.CanInterrupt); // Tanks, Melee, RDM, and various phantom and duty actions can interrupt so just deal with it
-
-	//	UpdateTimeToKill();
-	//}
 
 	private static List<IBattleChara> GetAllTargets()
 	{

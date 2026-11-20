@@ -50,7 +50,7 @@ internal static class ConfigurationHelper
         574, // Wrong Job
         573, // Not learned or not high enough level
         572, // Unable to use action
-        5209, // Duty Action out of charges
+        5209, // Action out of charges
         9301, // BLU action not in slot
     ];
 
@@ -61,7 +61,7 @@ internal static class ConfigurationHelper
         574, // Wrong Job
         573, // Not learned or not high enough level
         572, // Unable to use action
-        5209, // Duty Action out of charges
+        5209, // Action out of charges
         9301, // BLU action not in slot
     ];
 

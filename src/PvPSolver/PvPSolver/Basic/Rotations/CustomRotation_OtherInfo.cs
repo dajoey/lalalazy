@@ -462,7 +462,7 @@ public partial class CustomRotation
 	}
 
 	/// <summary>
-	/// Calculates the current cumulative mitigation percentage applied to an imminent AoE or raid-wide hit.
+	/// Calculates the current cumulative mitigation percentage applied to an imminent AoE or party-wide hit.
 	/// </summary>
 	/// <returns>
 	/// A normalized mitigation fraction in the range 0.0–0.95 (e.g. 0.25 == 25% damage reduction).
@@ -473,7 +473,7 @@ public partial class CustomRotation
 	/// The function:
 	/// <list type="bullet">
 	/// <item>Scans hostile targets once for Addle, Feint, and Dismantle.</item>
-	/// <item>Scans party members for active raid/party-wide mitigation statuses (e.g. Sacred Soil, Temperance, Troubadour).</item>
+	/// <item>Scans party members for active party-wide mitigation statuses (e.g. Sacred Soil, Temperance, Troubadour).</item>
 	/// <item>Handles mixed scaling for effects whose value differs by damage school (e.g. Addle, Feint, Dark Missionary).</item>
 	/// </list>
 	/// Performance impact is minimal given normal FFXIV party sizes.
@@ -757,7 +757,6 @@ public partial class CustomRotation
 	/// <returns>Is Longer.</returns>
 	public static bool IsLongerThan(float time)
 	{
-		//if (IsInHighEndDuty) return true;
 		return AverageTTK > time;
 	}
 
