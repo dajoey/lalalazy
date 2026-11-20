@@ -5,8 +5,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class SummonerRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Intelligence;
 
 
 	#region JobGauge

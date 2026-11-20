@@ -7,7 +7,6 @@ public partial class DancerRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public override MedicineType MedicineType => MedicineType.Dexterity;
 
 	#region Job Gauge
 	/// <summary>

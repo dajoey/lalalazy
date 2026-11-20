@@ -7,7 +7,6 @@ public partial class AstrologianRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public override MedicineType MedicineType => MedicineType.Mind;
 
 	/// <summary>
 	/// NONE = 0, BALANCE = 1, BOLE = 2, ARROW = 3, SPEAR = 4, EWERS = 5, SPIRE = 6

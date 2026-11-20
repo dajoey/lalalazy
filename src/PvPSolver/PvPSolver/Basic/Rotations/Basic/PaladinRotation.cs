@@ -2,8 +2,6 @@
 
 public partial class PaladinRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Strength;
 
 	/// <summary>
 	/// 

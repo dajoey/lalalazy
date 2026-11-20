@@ -2,8 +2,6 @@
 
 public partial class SageRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Mind;
 
 	#region Job Gauge
 	/// <summary>

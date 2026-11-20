@@ -4,8 +4,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class BlackMageRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Intelligence;
 
 	/// <inheritdoc/>
 	public override bool IsBursting()

@@ -2,8 +2,6 @@
 
 public partial class RedMageRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Intelligence;
 
 
 	#region Job Gauge

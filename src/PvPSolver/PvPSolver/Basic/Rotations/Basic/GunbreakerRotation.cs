@@ -4,8 +4,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class GunbreakerRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Strength;
 
 	#region Job Gauge
 	/// <summary>

@@ -2,8 +2,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class WhiteMageRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Mind;
 
 
 	/// <inheritdoc/>

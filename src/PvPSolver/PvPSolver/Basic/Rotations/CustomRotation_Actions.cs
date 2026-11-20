@@ -188,26 +188,6 @@ public partial class CustomRotation
 				if (i.Action.IsInJob())
 					list.Add(i);
 			}
-			foreach (var i in Medicines)
-			{
-				if (i.HasIt)
-					list.Add(i);
-			}
-			foreach (var i in MpPotions)
-			{
-				if (i.HasIt)
-					list.Add(i);
-			}
-			foreach (var i in HpPotions)
-			{
-				if (i.HasIt)
-					list.Add(i);
-			}
-			foreach (var i in AllItems)
-			{
-				if (i.HasIt)
-					list.Add(i);
-			}
 			return [.. list];
 		}
 	}

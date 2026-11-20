@@ -63,8 +63,6 @@ public partial class SamuraiRotation : CustomRotation
 
 	#region Old Status Tracking
 
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Strength;
 
 	/// <summary>
 	/// 

@@ -4,8 +4,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class ReaperRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Strength;
 
 	#region JobGauge
 	/// <summary>

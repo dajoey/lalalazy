@@ -2,8 +2,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class ViperRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Dexterity;
 
 	/// <inheritdoc/>
 	public override bool IsBursting()

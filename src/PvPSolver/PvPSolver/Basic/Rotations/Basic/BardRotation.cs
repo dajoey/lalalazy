@@ -4,8 +4,6 @@ namespace RotationSolver.Basic.Rotations.Basic;
 
 public partial class BardRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Dexterity;
 
 	#region Job Gauge
 	/// <summary>

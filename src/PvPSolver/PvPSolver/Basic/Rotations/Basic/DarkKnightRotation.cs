@@ -2,8 +2,6 @@
 
 public partial class DarkKnightRotation : CustomRotation
 {
-	/// <inheritdoc/>
-	public override MedicineType MedicineType => MedicineType.Strength;
 
 	#region Job Gauge
 

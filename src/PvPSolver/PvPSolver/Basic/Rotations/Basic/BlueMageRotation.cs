@@ -59,7 +59,6 @@ public partial class BlueMageRotation : CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public override MedicineType MedicineType => MedicineType.Intelligence;
 
 
 	/// <summary>

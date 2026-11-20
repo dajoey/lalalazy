@@ -60,11 +60,6 @@ public interface ICustomRotation : ITexture
 	internal IRotationConfigSet Configs { get; }
 
 	/// <summary>
-	/// Gets the type of medicine associated with this rotation.
-	/// </summary>
-	MedicineType MedicineType { get; }
-
-	/// <summary>
 	/// Gets all base actions associated with this rotation.
 	/// </summary>
 	IBaseAction[] AllBaseActions { get; }
