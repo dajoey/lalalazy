@@ -128,6 +128,11 @@ internal static class StateUpdater
 		if (DataCenter.InCombat && Service.Config.UseAoeDefense && DataCenter.IsHostileCastingAOE && !DataCenter.IsTyrantCastingSpecialIndicator())
 			return true;
 
+		return false;
+	}
+
+	private static bool ShouldAddDefenseSingle()
+	{
 		if (!DataCenter.InCombat || !Service.Config.UseStDefense || DataCenter.IsTyrantCastingSpecialIndicator())
 		{
 			return false;
@@ -194,6 +199,14 @@ internal static class StateUpdater
 				return true;
 			}
 
+		}
+
+		return false;
+	}
+
+	// Helper: Returns true if there are any healers in the party with HP > 0
+	private static bool AnyLivingHealerInParty()
+	{
 		foreach (IBattleChara member in DataCenter.PartyMembers)
 		{
 			if (member.IsJobCategory(JobRole.Healer) && !member.IsDead)
@@ -444,6 +457,11 @@ internal static class StateUpdater
 		if (DataCenter.InCombat && Service.Config.UseKnockback && DataCenter.AreHostilesCastingKnockback)
 			return true;
 
+		return false;
+	}
+
+	private static bool ShouldAddProvoke()
+	{
 		bool isInCombatOrProvokeAnything = DataCenter.InCombat || Service.Config.ProvokeAnything;
 		bool isTankOrHasUltimatum = DataCenter.Role == JobRole.Tank || StatusHelper.PlayerHasStatus(true, StatusID.VariantUltimatumSet);
 		bool shouldAutoProvoke = Service.Config.AutoProvokeForTank || CountAllianceTanks() < 2;

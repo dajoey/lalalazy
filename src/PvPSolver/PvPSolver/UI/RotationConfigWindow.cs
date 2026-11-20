@@ -1253,7 +1253,6 @@ public partial class RotationConfigWindow : Window
 		HeaderSize = HeaderSize,
 	};
 
-	}
 	private static void DrawDutySpecifcPvP()
 	{
 		_allSearchable.DrawItems(Configs.DutySpecifcPvP);
