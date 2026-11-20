@@ -285,9 +285,10 @@ internal static class RotationUpdater
 		}
 	}
 
+	private static (Job Job, CombatType Type)? _lastNoRotationLogged;
+
 	public static void UpdateRotation()
 	{
-		UpdateCustomRotation();
 		if (Player.Object == null || CustomRotations.Length == 0)
 		{
 			return;

@@ -295,7 +295,7 @@ public class ActionTimelineManager : IDisposable
 			PlayerName = Player.Available && Player.Object != null ? Player.Object.Name.TextValue : "Unknown",
 			PlayerJob = Player.Available ? Player.Job.ToString() : "Unknown",
 			Territory = DataCenter.Territory?.Name ?? "Unknown",
-			Duty = DataCenter.Territory?.ContentFinderName ?? "Unknown",
+			Duty = DataCenter.Territory?.Name ?? "Unknown",
 			ExportedAt = DateTime.Now
 		};
 
@@ -331,7 +331,7 @@ public class ActionTimelineManager : IDisposable
 	{
 		var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 		var jobName = Player.Available ? Player.Job.ToString() : "Unknown";
-		var dutyName = DataCenter.Territory?.ContentFinderName ?? DataCenter.Territory?.Name ?? "Timeline";
+		var dutyName = DataCenter.Territory?.Name ?? "Timeline";
 
 		// Sanitize filename
 		dutyName = string.Join("_", dutyName.Split(Path.GetInvalidFileNameChars()));

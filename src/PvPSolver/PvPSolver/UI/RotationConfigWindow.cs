@@ -3585,7 +3585,6 @@ public partial class RotationConfigWindow : Window
 		ImGui.Text($"Your combat state: {DataCenter.InCombat}");
 		ImGui.Text($"Combat Time: {DataCenter.CombatTimeRaw}");
 		ImGui.Text($"TerritoryID: {DataCenter.TerritoryID}");
-		ImGui.Text($"TerritoryType: {DataCenter.Territory?.ContentType}");
 		ImGui.Text($"IsPvP: {DataCenter.IsPvP}");
 		ImGui.Text($"IsCastingMultiHit: {DataCenter.IsCastingMultiHit()}");
 		ImGui.Text($"IsCastingTankVfx: {DataCenter.IsCastingTankVfx()}");
@@ -3716,7 +3715,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Others Players Mob: {battleChara.IsOthersPlayersMob()}");
 			ImGui.Text($"Is Alliance: {battleChara.IsAllianceMember()}");
 			ImGui.Text($"Is Enemy Action Check: {battleChara.IsEnemy()}");
-			ImGui.Text($"IsSpecialImmune: {battleChara.IsSpecialImmune()}");
 			ImGui.Text($"IsTopPriorityNamedHostile: {battleChara.IsTopPriorityNamedHostile()}");
 			ImGui.Text($"IsTopPriorityHostile: {battleChara.IsTopPriorityHostile()}");
 			ImGui.Spacing();

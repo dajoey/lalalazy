@@ -1,4 +1,4 @@
-using ECommons.DalamudServices;
+﻿using ECommons.DalamudServices;
 using ECommons.EzIpcManager;
 using ECommons.Reflection;
 #pragma warning disable CS0169 // Field is never used
@@ -226,7 +226,7 @@ namespace RotationSolver.IPC
 	internal class IPCSubscriber_Common
 	{
 		// Reads Dalamud's installed-plugin list. ECommons' TryGetDalamudPlugin casts the plugin instance to
-		// IDalamudPlugin, which throws for a foreign plugin type \(separate load context\): it answered false while the
+		// IDalamudPlugin, which throws for BossMod.Plugin (separate load context): it answered false while the
 		// plugin was loaded and logged an ERR with a stack trace on every call (once per frame from the config window).
 		internal static bool IsReady(string pluginName)
 			=> IsLoadedIn(Svc.PluginInterface.InstalledPlugins.Select(x => (x.Name, x.InternalName, x.IsLoaded)), pluginName);
