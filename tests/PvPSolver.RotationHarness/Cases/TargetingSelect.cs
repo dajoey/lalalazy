@@ -113,7 +113,7 @@ internal static class TargetingSelect
         // The file holds a stray non-UTF-8 byte in a comment; read it as Latin-1 so every code character survives.
         var cmd = CsSource.Sanitize(File.ReadAllText(cmdPath, Encoding.Latin1));
 
-        var methods = new[] { "UpdateState", "AutodutyUpdateState" };
+        var methods = new[] { "UpdateState" };
         foreach (var name in methods)
         {
             var body = MethodBody(cmd, name);
@@ -129,20 +129,12 @@ internal static class TargetingSelect
                 !Regex.IsMatch(pvp.Body, @"TargetingType\s*\.\s*LowHP"));
         }
 
-        // Sibling cases are untouched: UpdateState cases Off..Henched clear the override; AutodutyUpdateState keeps
-        // its two cases that carry the requested targeting type and clears the rest.
+        // Sibling cases are untouched: the UpdateState cases other than PvP (Off, Auto, TargetOnly, Manual) clear the override.
         var upd = Cases(MethodBody(cmd, "UpdateState") ?? "").ToDictionary(c => c.Label, c => Assignments(c.Body));
         var siblingsUpdate = upd.Where(kv => kv.Key != "PvP").ToArray();
         Harness.Case("UpdateState: every other case still clears the override (null)",
-            siblingsUpdate.Length >= 5 && siblingsUpdate.All(kv => kv.Value.SequenceEqual(["null"])),
+            siblingsUpdate.Length >= 4 && siblingsUpdate.All(kv => kv.Value.SequenceEqual(["null"])),
             string.Join(", ", siblingsUpdate.Select(kv => kv.Key + "=" + string.Join("|", kv.Value))));
-        var auto = Cases(MethodBody(cmd, "AutodutyUpdateState") ?? "").ToDictionary(c => c.Label, c => Assignments(c.Body));
-        var autoCarry = auto.Where(kv => kv.Value.SequenceEqual(["targetingType"])).Select(kv => kv.Key).OrderBy(x => x).ToArray();
-        var autoNull = auto.Where(kv => kv.Key != "PvP" && kv.Value.SequenceEqual(["null"])).Select(kv => kv.Key).OrderBy(x => x).ToArray();
-        Harness.Case("AutodutyUpdateState: exactly the two requested-targeting cases (TargetOnly, AutoDuty) still carry targetingType; every other non-PvP case clears",
-            autoCarry.SequenceEqual(["AutoDuty", "TargetOnly"]) && autoNull.Length == auto.Count - 3,
-            $"carry=[{string.Join(",", autoCarry)}] null=[{string.Join(",", autoNull)}] cases=[{string.Join(",", auto.Keys)}]");
-
         // Nothing else forces a type: every TargetingTypeOverride assignment in the plugin source is null or the
         // requested targetingType, and TargetingType.LowHP is never assigned anywhere but the default-list fill.
         var forcing = new List<string>();

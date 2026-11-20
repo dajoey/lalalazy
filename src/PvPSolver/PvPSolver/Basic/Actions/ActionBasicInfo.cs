@@ -284,7 +284,7 @@ public readonly struct ActionBasicInfo
 
 			return _action.Action.ClassJob.RowId == (uint)Job.BLU
 				? DataCenter.BluSlots.Contains(ID)
-				: IsDutyAction ? DataCenter.DutyActions.Contains(ID) : IsPvP == DataCenter.IsPvP;
+				: IsPvP == DataCenter.IsPvP;
 		}
 	}
 

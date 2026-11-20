@@ -6,9 +6,9 @@
 public enum TargetHostileType : byte
 {
 	/// <summary>
-	/// All targets that are in range for any abilities (Tanks/Autoduty).
+	/// All targets that are in range for any abilities (Tanks).
 	/// </summary>
-	[Description("All targets that are in range for any abilities (Tanks/Autoduty)")]
+	[Description("All targets that are in range for any abilities (Tanks)")]
 	AllTargetsCanAttack,
 
 	/// <summary>

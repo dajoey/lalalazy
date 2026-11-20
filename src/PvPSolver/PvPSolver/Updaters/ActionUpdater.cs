@@ -136,13 +136,6 @@ internal static class ActionUpdater
 			}
 		}
 
-		if (DataCenter.IsInDuty)
-		{
-			for (ushort i = 0; i < DataCenter.DutyActions.Length; i++)
-			{
-				DataCenter.DutyActions[i] = DutyActionManager.GetDutyActionId(i);
-			}
-		}
 	}
 
 	private static bool _lastIsMoving = false;

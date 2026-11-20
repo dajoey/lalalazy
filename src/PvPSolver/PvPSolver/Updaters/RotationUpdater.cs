@@ -201,10 +201,6 @@ internal static class RotationUpdater
 				{
 					key = "Limit Break";
 				}
-				else if (act.Info.IsDutyAction)
-				{
-					key = "Duty Action";
-				}
 				else
 				{
 					key = act.Info.IsRealGCD ? "GCD" : "oGCD";

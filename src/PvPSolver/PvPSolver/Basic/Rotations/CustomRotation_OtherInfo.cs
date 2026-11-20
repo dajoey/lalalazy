@@ -67,11 +67,6 @@ public partial class CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	public static bool HasVariantCure => StatusHelper.PlayerHasStatus(true, StatusID.VariantCureSet);
-
-	/// <summary>
-	/// 
-	/// </summary>
 	public static bool HasPVPGuard => StatusHelper.PlayerHasStatus(true, StatusID.Guard) || (IsLastAction(ActionID.GuardPvP) && TimeSinceLastActionCapped < 0.5f);
 
 	/// <summary>

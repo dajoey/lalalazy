@@ -35,7 +35,7 @@ internal static partial class TargetUpdater
 
 		UpdateLists();
 		DataCenter.DispelTarget = GetDispelTarget();
-		DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank || StatusHelper.PlayerHasStatus(true, StatusID.VariantUltimatumSet))
+		DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank)
 			? GetFirstHostileTarget(ObjectHelper.CanProvoke)
 			: null; // Calculating this per frame rather than on-demand is actually a fair amount worse
 		DataCenter.InterruptTarget = GetFirstHostileTarget(ObjectHelper.CanInterrupt); // Tanks, Melee, RDM, and various phantom and duty actions can interrupt so just deal with it

@@ -422,7 +422,7 @@ internal static class StateUpdater
 	private static bool ShouldAddProvoke()
 	{
 		bool isInCombatOrProvokeAnything = DataCenter.InCombat || Service.Config.ProvokeAnything;
-		bool isTankOrHasUltimatum = DataCenter.Role == JobRole.Tank || StatusHelper.PlayerHasStatus(true, StatusID.VariantUltimatumSet);
+		bool isTankOrHasUltimatum = DataCenter.Role == JobRole.Tank;
 		bool shouldAutoProvoke = Service.Config.AutoProvokeForTank || CountAllianceTanks() < 2;
 		bool hasProvokeTarget = DataCenter.ProvokeTarget != null;
 

@@ -118,8 +118,7 @@ public static class StatusHelper
 	[
 		StatusID.Swiftcast,
 		StatusID.Triplecast,
-		StatusID.Dualcast,
-		StatusID.OccultQuick
+		StatusID.Dualcast
 	];
 
 	/// <summary>
@@ -167,30 +166,6 @@ public static class StatusHelper
 	[
 		StatusID.Doom_1769,
 	];
-
-	/// <summary>
-	/// Statuses for the Phantom Oracle spell PredictPvE.
-	/// </summary>
-	public static StatusID[] OracleStatuses { get; } =
-	[
-		StatusID.PredictionOfCleansing,
-		StatusID.PredictionOfStarfall,
-		StatusID.PredictionOfJudgment,
-		StatusID.PredictionOfBlessing
-	];
-
-	/// <summary>
-	/// Statuses that can be dispelled by Occult Dispel.
-	/// </summary>
-	public static StatusID[] PhantomDispellable { get; } =
-	[
-		StatusID.DamageUp_1161,
-		StatusID.DamageUp,
-		StatusID.DarkDefenses,
-		StatusID.MagicDamageUp_2556,
-		StatusID.EvasionUp_1706
-        //StatusID.Invincibility_4539 maybe this, need verification, seems to be on guardian knight in Rooms & Lockwards part of forked tower
-    ];
 
 	/// <summary>
 	/// 

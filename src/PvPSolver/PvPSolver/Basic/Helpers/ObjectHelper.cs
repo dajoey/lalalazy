@@ -193,11 +193,6 @@ public static class ObjectHelper
 			return false;
 		}
 
-		if (battleChara.IsAllianceMember())
-		{
-			return false;
-		}
-
 		if (!battleChara.IsEnemy())
 		{
 			return false;
@@ -332,14 +327,6 @@ public static class ObjectHelper
 		}
 
 		return false;
-	}
-
-	internal static unsafe bool IsAllianceMember(this ICharacter obj)
-	{
-		return obj.GameObjectId is not 0
-			&& !DataCenter.IsPvP && (DataCenter.IsInAllianceRaid) && obj is IPlayerCharacter
-			&& (ActionManager.CanUseActionOnTarget((uint)ActionID.RaisePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Struct())
-			|| ActionManager.CanUseActionOnTarget((uint)ActionID.CurePvE, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Struct()));
 	}
 
 	internal static unsafe bool IsPlayer(this IBattleChara battleChara)
@@ -550,7 +537,7 @@ public static class ObjectHelper
 
 	private static bool IsTopPriorityHostileCore(IBattleChara battleChara)
 	{
-		if (battleChara.IsAllianceMember() || battleChara.IsParty())
+		if (battleChara.IsParty())
 		{
 			return false;
 		}
@@ -731,11 +718,6 @@ public static class ObjectHelper
 	internal static unsafe BattleNpcSubKind GetBattleNPCSubKind(this IBattleChara battleChara)
 	{
 		return (BattleNpcSubKind)battleChara.Struct()->SubKind;
-	}
-
-	internal static unsafe uint FateId(this IBattleChara battleChara)
-	{
-		return battleChara.Struct()->FateId;
 	}
 
 	/// <summary>

@@ -439,7 +439,7 @@ namespace RotationSolver.Data
 		ConfigWindow_Condition_RotationNullWarning,
 
 		[Description("PvP")]
-		ConfigWindow_Duty_PvP,
+		ConfigWindow_PvpSpecific,
 
 		[Description("Delay its transition to true")]
 		ActionSequencer_Delay_Description,
@@ -476,9 +476,6 @@ namespace RotationSolver.Data
 
 		[Description("Territory Name")]
 		ConfigWindow_Condition_TerritoryName,
-
-		[Description("Duty Name")]
-		ConfigWindow_Condition_DutyName,
 
 		[Description("Please separately bind damage reduction/shield cooldowns in case PvP Solver fails at a crucial moment in {0}!")]
 		HighEndWarning,

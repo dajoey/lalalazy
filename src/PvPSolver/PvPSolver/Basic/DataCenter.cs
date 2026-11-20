@@ -8,7 +8,6 @@ using ECommons.GameHelpers;
 using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using RotationSolver.Basic.Configuration;
@@ -277,8 +276,6 @@ internal static class DataCenter
 
 	public static uint[] BluSlots { get; internal set; } = new uint[24];
 
-	public static uint[] DutyActions { get; internal set; } = new uint[5];
-
 	private static DateTime _specialStateStartTime = DateTime.MinValue;
 	private static double SpecialTimeElapsed => (DateTime.Now - _specialStateStartTime).TotalSeconds;
 	public static double SpecialTimeLeft => Service.Config.SpecialDuration - SpecialTimeElapsed;
@@ -315,36 +312,6 @@ internal static class DataCenter
 	public static bool NotInCombatDelay => _notInCombatDelay.Delay(!InCombat);
 
 	internal static float CombatTimeRaw { get; set; }
-
-	private static DateTime _startRaidTime = DateTime.MinValue;
-
-	internal static float RaidTimeRaw
-	{
-		get
-		{
-			// If the raid start time is not set, return 0.
-			if (_startRaidTime == DateTime.MinValue)
-			{
-				return 0;
-			}
-
-			// Calculate and return the total seconds elapsed since the raid started.
-			return (float)(DateTime.Now - _startRaidTime).TotalSeconds;
-		}
-		set
-		{
-			// If the provided value is negative, reset the raid start time.
-			if (value < 0)
-			{
-				_startRaidTime = DateTime.MinValue;
-			}
-			else
-			{
-				// Set the raid start time to the current time minus the provided value in seconds.
-				_startRaidTime = DateTime.Now - TimeSpan.FromSeconds(value);
-			}
-		}
-	}
 
 	private static float _cachedJobRange = -1f;
 	private static int _cachedTargetCount = 0;
@@ -404,24 +371,6 @@ internal static class DataCenter
 	public static bool IsPvP => Territory?.IsPvP ?? false;
 	public static bool IsInDuty => Svc.Condition[ConditionFlag.BoundByDuty] || Svc.Condition[ConditionFlag.BoundByDuty56];
 
-	public static bool IsInAllianceRaid
-	{
-		get
-		{
-			ushort[] allianceTerritoryIds =
-			[
-				151, 174, 372, 508, 556, 627, 734, 776, 826, 882, 917, 966, 1054, 1118, 1178, 1248, 1241
-			];
-
-			for (int i = 0; i < allianceTerritoryIds.Length; i++)
-			{
-				if (allianceTerritoryIds[i] == TerritoryID)
-					return true;
-			}
-
-			return false;
-		}
-	}
 	#endregion
 
 	#region Job Info

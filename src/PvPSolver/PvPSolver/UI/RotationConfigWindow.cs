@@ -15,7 +15,6 @@ using ECommons.ImGuiMethods;
 using ECommons.Logging;
 using ECommons.Reflection;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using RotationSolver.Basic.Configuration;
@@ -1118,7 +1117,7 @@ public partial class RotationConfigWindow : Window
 			Configs.BasicAutoSwitch => $"Auto > {UiString.ConfigWindow_Basic_AutoSwitch.GetDescription()}",
 			Configs.AutoActionUsage => $"Auto > {UiString.ConfigWindow_Auto_ActionUsage.GetDescription()}",
 			Configs.HealingActionCondition => $"Auto > {UiString.ConfigWindow_Auto_HealingCondition.GetDescription()}",
-			Configs.PvpSpecific => $"Auto > {UiString.ConfigWindow_Duty_PvP.GetDescription()}",
+			Configs.PvpSpecific => $"Auto > {UiString.ConfigWindow_PvpSpecific.GetDescription()}",
 
 			Configs.TargetConfig => $"Target > {UiString.ConfigWindow_Target_Config.GetDescription()}",
 
@@ -1170,7 +1169,7 @@ public partial class RotationConfigWindow : Window
 				break;
 			case Configs.PvpSpecific:
 				_activeTab = RotationConfigWindowTab.PvpSpecific;
-				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_Duty_PvP.GetDescription());
+				_autoHeader.OpenHeaderByTitle(UiString.ConfigWindow_PvpSpecific.GetDescription());
 				break;
 
 			case Configs.TargetConfig:
@@ -1205,7 +1204,7 @@ public partial class RotationConfigWindow : Window
 
 	private static readonly CollapsingHeaderGroup _pvpSpecificHeader = new(new Dictionary<Func<string>, Action>
 	{
-		{ UiString.ConfigWindow_Duty_PvP.GetDescription, DrawPvpSpecificSettings },
+		{ UiString.ConfigWindow_PvpSpecific.GetDescription, DrawPvpSpecificSettings },
 	})
 	{
 		HeaderSize = HeaderSize,
@@ -1460,16 +1459,13 @@ public partial class RotationConfigWindow : Window
 	}
 	#endregion
 
-	#region Autoduty
-
-
 	private string GetHostileTypeDescription(TargetHostileType type)
 	{
 		return type switch
 		{
-			TargetHostileType.AllTargetsCanAttack => "All Targets Can Attack aka Tank/Autoduty Mode",
+			TargetHostileType.AllTargetsCanAttack => "All Targets Can Attack aka Tank Mode",
 			TargetHostileType.TargetsHaveTarget => "Targets Have A Target",
-			TargetHostileType.AllTargetsWhenSoloInDuty => "All Targets When Solo In Duty",
+			TargetHostileType.AllTargetsWhenSoloInDuty => "All Targets When Solo In An Instance",
 			TargetHostileType.AllTargetsWhenSolo => "All Targets When Solo",
 			_ => "Unknown Target Type"
 		};
@@ -1482,8 +1478,6 @@ public partial class RotationConfigWindow : Window
 		// Add any additional logic needed when changing the targeting type
 		PluginLog.Information($"Targeting type changed to: {type}");
 	}
-
-	#endregion
 
 	#region Rotation
 	private static void DrawRotation()
@@ -3557,7 +3551,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Spacing();
 			ImGui.Text($"Is Attackable: {battleChara.IsAttackable()}");
 			ImGui.Text($"Is Others Players Mob: {battleChara.IsOthersPlayersMob()}");
-			ImGui.Text($"Is Alliance: {battleChara.IsAllianceMember()}");
 			ImGui.Text($"Is Enemy Action Check: {battleChara.IsEnemy()}");
 			ImGui.Text($"IsTopPriorityNamedHostile: {battleChara.IsTopPriorityNamedHostile()}");
 			ImGui.Text($"IsTopPriorityHostile: {battleChara.IsTopPriorityHostile()}");
@@ -3579,7 +3572,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Healer: {battleChara.IsJobCategory(JobRole.Healer)}");
 			ImGui.Text($"Is DPS: {battleChara.IsJobCategory(JobRole.AllDPS)}");
 			ImGui.Text($"Is Tank: {battleChara.IsJobCategory(JobRole.Tank)}");
-			ImGui.Text($"Is Alliance: {battleChara.IsAllianceMember()}");
 			ImGui.Text($"Distance To Player: {battleChara.DistanceToPlayer()}");
 			ImGui.Text($"CanProvoke: {battleChara.CanProvoke()}");
 			ImGui.Text($"StatusFlags: {battleChara.StatusFlags}");

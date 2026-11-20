@@ -113,17 +113,6 @@ public partial class CustomRotation
 			if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaSpell))
 			{
 				IBaseAction.AutoHealCheck = true;
-				if (HasVariantCure)
-				{
-					if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
-					{
-						if (HealAreaGCD(out IAction? action))
-						{
-							return action;
-						}
-					}
-				}
-
 				IBaseAction.AutoHealCheck = false;
 			}
 
