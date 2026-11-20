@@ -843,25 +843,9 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig, Section = 1)]
 	private static readonly bool _targetHuntingRelicLevePriority = true;
 
-	[ConditionBool, UI("Target quest priority (Overrides engage setting).",
-		Filter = TargetConfig, Section = 1)]
-	private static readonly bool _targetQuestPriority = true;
-
-	[ConditionBool, UI("Block targeting quest mobs belonging to other players (Experimental).",
-		Filter = TargetConfig, Section = 1)]
-	private static readonly bool targetQuestThings2 = false;
-
-	[ConditionBool, UI("Ignore all other FATE target when Forlorn available (Experimental).",
-		Filter = TargetConfig, Section = 1)]
-	private static readonly bool forlornPriority = true;
-
 	[ConditionBool, UI("Ignore target dummies",
-			   Filter = TargetConfig, Section = 1)]
+					   Filter = TargetConfig, Section = 1)]
 	private static readonly bool _disableTargetDummys = false;
-
-	[ConditionBool, UI("Target Fate priority",
-		Filter = TargetConfig, Section = 1)]
-	private static readonly bool _targetFatePriority = true;
 
 	[ConditionBool, UI("Delay autotarget. (Experimental)",
 		Filter = TargetConfig)]

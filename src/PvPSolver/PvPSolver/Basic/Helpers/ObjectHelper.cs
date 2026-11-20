@@ -233,12 +233,6 @@ public static class ObjectHelper
 		}
 
 		// Fate
-
-		if (Service.Config.TargetQuestThings2 && battleChara.IsOthersPlayersMob())
-		{
-			return false;
-		}
-
 		if (battleChara.IsTopPriorityNamedHostile())
 		{
 			return true;
@@ -714,10 +708,6 @@ public static class ObjectHelper
 		//71244 Leve Target
 
 		// Quest
-		if (Service.Config.TargetQuestPriority && (icon == 71204 || icon == 71144 || icon == 71224 || icon == 71344 || battleChara.GetEventType() == EventHandlerContent.Quest))
-		{
-			return true;
-		}
 		//71204 Main Quest
 		//71144 Major Quest
 		//71224 Other Quest
