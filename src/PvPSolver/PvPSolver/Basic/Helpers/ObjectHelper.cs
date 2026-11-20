@@ -38,11 +38,6 @@ public static class ObjectHelper
 		return _regexCache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.Compiled));
 	}
 
-	internal static BNpcBase? GetObjectNPC(this IBattleChara battleChara)
-	{
-		return battleChara == null ? null : Service.GetSheet<Lumina.Excel.Sheets.BNpcBase>().GetRowOrDefault(battleChara.BaseId);
-	}
-
 	/// <summary>
 	/// Returns true if any current hostile target has the specified BNpc NameId.
 	/// </summary>
@@ -64,87 +59,6 @@ public static class ObjectHelper
 		}
 
 		return false;
-	}
-
-	internal static bool CanProvoke(this IBattleChara target)
-	{
-		if (target == null)
-		{
-			return false;
-		}
-
-		if (Service.Config.ProvokeAnything)
-		{
-			return true;
-		}
-
-		if (!target.IsAttackable())
-		{
-			return false;
-		}
-
-		// Removed the listed names.
-		if (OtherConfiguration.NoProvokeNames.TryGetValue(Svc.ClientState.TerritoryType, out string[]? ns1))
-		{
-			foreach (string n in ns1)
-			{
-				if (!string.IsNullOrEmpty(n) && GetCachedRegex(n).IsMatch(target.Name?.GetText() ?? string.Empty))
-				{
-					return false;
-				}
-			}
-		}
-
-		if (!Service.Config.ProvokeAnything)
-		{
-			// Target can move or too big and has a target
-			if ((target.GetObjectNPC()?.Unknown0 == 0 || target.HitboxRadius >= 5) // Unknown12 used to be the flag checked for the mobs ability to move, honestly just guessing on this one
-				&& (target.TargetObject?.IsValid() ?? false))
-			{
-				// The target is not a tank role
-				if (Svc.Objects.SearchById(target.TargetObjectId) is IBattleChara targetObject && !targetObject.IsJobCategory(JobRole.Tank)
-					&& (Vector3.Distance(target.Position, Player.Object?.Position ?? Vector3.Zero) > 5))
-				{
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	internal static bool HasPositional(this IBattleChara battleChara)
-	{
-		if (battleChara == null)
-		{
-			return false;
-		}
-
-		unsafe
-		{
-			if (battleChara.Struct() == null)
-			{
-				return false;
-			}
-		}
-
-		try
-		{
-			if (!battleChara.IsEnemy())
-			{
-				return false;
-			}
-
-			if (battleChara.HasStatus(false, StatusID.DirectionalDisregard))
-			{
-				return false;
-			}
-
-			return Svc.Data.GetExcelSheet<BNpcBase>().TryGetRow(battleChara.BaseId, out var dataRow) && !dataRow.IsOmnidirectional;
-		}
-		catch
-		{
-			return false;
-		}
 	}
 
 	internal static bool IsOthersPlayersMob(this IBattleChara battleChara)
@@ -964,26 +878,6 @@ public static class ObjectHelper
 	}
 
 	/// <summary>
-	/// Is target a boss depends on the icon.
-	/// </summary>
-	/// <param name="battleChara">the object.</param>
-	/// <returns></returns>
-	public static bool IsBossFromIcon(this IBattleChara battleChara)
-	{
-		if (battleChara == null)
-		{
-			return false;
-		}
-
-		if (Service.Config.DummyBoss && battleChara.IsDummy())
-		{
-			return true;
-		}
-
-		return Svc.Data.GetExcelSheet<BNpcBase>().TryGetRow(battleChara.BaseId, out var dataRow) && dataRow.Rank is 2 or 6;
-	}
-
-	/// <summary>
 	/// Returns object's calculated shield value.
 	/// </summary>
 	/// <param name="battleChara"></param>
@@ -1407,46 +1301,6 @@ public static class ObjectHelper
 		}
 
 		return (float)battleChara.CurrentHp / battleChara.MaxHp;
-	}
-
-	/// <summary>
-	/// Determines the positional relationship of the player relative to the enemy.
-	/// </summary>
-	/// <param name="enemy">The enemy game object.</param>
-	/// <returns>
-	/// An <see cref="EnemyPositional"/> value indicating whether the player is in front, at the rear, or on the flank of the enemy.
-	/// </returns>
-	public static EnemyPositional FindEnemyPositional(this IBattleChara enemy)
-	{
-		if (enemy == null || Player.Object == null)
-		{
-			return EnemyPositional.None;
-		}
-
-		Vector3 pPosition = enemy.Position;
-		Vector3 faceVec = enemy.GetFaceVector();
-
-		Vector3 dir = Player.Object.Position - pPosition;
-		dir = Vector3.Normalize(dir);
-		faceVec = Vector3.Normalize(faceVec);
-
-		// Calculate the angle between the direction vector and the facing vector
-		double dotProduct = Vector3.Dot(faceVec, dir);
-		double angle = Math.Acos(dotProduct);
-
-		const double frontAngle = Math.PI / 4;
-		const double rearAngle = Math.PI * 3 / 4;
-
-		if (angle < frontAngle)
-		{
-			return EnemyPositional.Front;
-		}
-		else if (angle > rearAngle)
-		{
-			return EnemyPositional.Rear;
-		}
-
-		return EnemyPositional.Flank;
 	}
 
 	/// <summary>

@@ -639,29 +639,6 @@ public partial class CustomRotation
 	protected static IBattleChara? HostileTarget => DataCenter.HostileTarget ?? null;
 
 	/// <summary>
-	/// Is player in position to hit the positional?
-	/// </summary>
-	/// <param name="positional"> Which Positional? "Flank" or "Rear"?</param>
-	/// <param name="enemy"></param>
-	/// <returns></returns>
-	public static bool CanHitPositional(EnemyPositional positional, IBattleChara enemy)
-	{
-		if (enemy == null)
-		{
-			return false;
-		}
-
-		if (!enemy.HasPositional())
-		{
-			return true;
-		}
-
-		EnemyPositional enemy_positional = enemy.FindEnemyPositional();
-
-		return enemy_positional == positional;
-	}
-
-	/// <summary>
 	/// Returns the number of hostile targets within the specified range from the player.
 	/// </summary>
 	/// <param name="range">The range to check (in yalms).</param>

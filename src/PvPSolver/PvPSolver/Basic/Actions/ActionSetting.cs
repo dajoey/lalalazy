@@ -150,11 +150,6 @@ public class ActionSetting
 	}
 
 	/// <summary>
-	/// The enemy positional for this action.
-	/// </summary>
-	public EnemyPositional EnemyPositional { get; set; } = EnemyPositional.None;
-
-	/// <summary>
 	/// Should end the special.
 	/// </summary>
 	public bool EndSpecial { get; set; }

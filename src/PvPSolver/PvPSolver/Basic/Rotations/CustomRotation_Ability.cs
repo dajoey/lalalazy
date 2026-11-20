@@ -42,7 +42,7 @@ public partial class CustomRotation
 			return false;
 		}
 
-		if (!Service.Config.UseAbility || Player.TotalCastTime > 0 || (StatusHelper.PlayerHasStatus(false, StatusID.ShackledAbilities) && DataCenter.NumberOfPartyMembersInRangeOf(8) > 1))
+		if (!Service.Config.UseAbility || Player.TotalCastTime > 0)
 		{
 			act = null;
 			return false;
@@ -72,17 +72,6 @@ public partial class CustomRotation
 				return true;
 			}
 		}
-
-		IBaseAction.TargetOverride = TargetType.Tank;
-		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Shirk))
-		{
-			IBaseAction.ShouldEndSpecial = true;
-		}
-		if (DataCenter.MergedStatus.HasFlag(AutoStatus.Shirk))
-		{
-			return false;
-		}
-		IBaseAction.ShouldEndSpecial = false;
 
 		IBaseAction.TargetOverride = null;
 		IBaseAction.ShouldEndSpecial = false;
@@ -116,12 +105,9 @@ public partial class CustomRotation
 		{
 			IBaseAction.AllEmpty = true;
 			IBaseAction.ShouldEndSpecial = true;
-			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
+			if (HealAreaAbility(nextGCD, out act))
 			{
-				if (HealAreaAbility(nextGCD, out act))
-				{
-					return true;
-				}
+				return true;
 			}
 			IBaseAction.AllEmpty = false;
 			IBaseAction.ShouldEndSpecial = false;
@@ -130,12 +116,9 @@ public partial class CustomRotation
 		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaAbility) && CanHealAreaAbility)
 		{
 			IBaseAction.AutoHealCheck = true;
-			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
+			if (HealAreaAbility(nextGCD, out act))
 			{
-				if (HealAreaAbility(nextGCD, out act))
-				{
-					return true;
-				}
+				return true;
 			}
 			IBaseAction.AutoHealCheck = false;
 		}
@@ -144,12 +127,9 @@ public partial class CustomRotation
 		{
 			IBaseAction.AllEmpty = true;
 			IBaseAction.ShouldEndSpecial = true;
-			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
+			if (HealSingleAbility(nextGCD, out act))
 			{
-				if (HealSingleAbility(nextGCD, out act))
-				{
-					return true;
-				}
+				return true;
 			}
 			IBaseAction.AllEmpty = false;
 			IBaseAction.ShouldEndSpecial = false;
@@ -158,12 +138,9 @@ public partial class CustomRotation
 		if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealSingleAbility) && CanHealSingleAbility)
 		{
 			IBaseAction.AutoHealCheck = true;
-			if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
+			if (HealSingleAbility(nextGCD, out act))
 			{
-				if (HealSingleAbility(nextGCD, out act))
-				{
-					return true;
-				}
+				return true;
 			}
 			IBaseAction.AutoHealCheck = false;
 		}
@@ -177,20 +154,6 @@ public partial class CustomRotation
 		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Speed))
 		{
 			if (SpeedAbility(nextGCD, out act))
-			{
-				return true;
-			}
-		}
-		IBaseAction.ShouldEndSpecial = false;
-
-		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Provoke))
-		{
-			IBaseAction.ShouldEndSpecial = true;
-		}
-		if (DataCenter.MergedStatus.HasFlag(AutoStatus.Provoke))
-		{
-			IBaseAction.TargetOverride = TargetType.Provoke;
-			if (ProvokeAbility(nextGCD, out act))
 			{
 				return true;
 			}
@@ -357,19 +320,6 @@ public partial class CustomRotation
 	/// <param name="act">The resulting action.</param>
 	/// <returns>True if the anti-knockback ability can be used; otherwise, false.</returns>
 	protected virtual bool AntiKnockbackAbility(IAction nextGCD, out IAction? act)
-	{
-
-		act = null;
-		return false;
-	}
-
-	/// <summary>
-	/// Determines if a provoke ability can be used.
-	/// </summary>
-	/// <param name="nextGCD">The next GCD action.</param>
-	/// <param name="act">The resulting action.</param>
-	/// <returns>True if the provoke ability can be used; otherwise, false.</returns>
-	protected virtual bool ProvokeAbility(IAction nextGCD, out IAction? act)
 	{
 
 		act = null;

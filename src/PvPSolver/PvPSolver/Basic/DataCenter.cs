@@ -28,8 +28,6 @@ internal static class DataCenter
 
 	public static IBattleChara? InterruptTarget { get; set; }
 
-	public static IBattleChara? ProvokeTarget { get; set; }
-
 	public static IBattleChara? DispelTarget { get; set; }
 
 	public static List<IBattleChara> AllTargets { get; set; } = [];
@@ -142,13 +140,6 @@ internal static class DataCenter
 	];
 
 	internal static ConcurrentQueue<VfxNewData> VfxDataQueue { get; } = new();
-
-	/// <summary>
-	/// Players currently targeted by tankbuster VFX markers (populated from VFX queue).
-	/// </summary>
-	internal static List<IBattleChara> TankbusterTargets { get; } = [];
-
-	private static readonly Lock _tankbusterLock = new();
 
 	/// <summary>
 	/// Only recorded 15s hps.
@@ -1230,54 +1221,44 @@ internal static class DataCenter
 
 	public static bool IsCastingTankVfx()
 	{
-		// Populate TankbusterTargets from the VFX queue and return whether any tankbuster VFX was found.
-		lock (_tankbusterLock)
+		// True while a tank lock-on VFX is active (on the player when the player is a tank, on anyone otherwise).
+		if (!Player.Available || Player.Object == null) return false;
+
+		if (VfxDataQueue == null || VfxDataQueue.IsEmpty) return false;
+
+		bool found = false;
+		bool isTank = TargetFilter.PlayerJobCategory(JobRole.Tank);
+
+		foreach (var s in VfxDataQueue)
 		{
-			TankbusterTargets.Clear();
-			if (!Player.Available || Player.Object == null) return false;
-
-			if (VfxDataQueue == null || VfxDataQueue.IsEmpty) return false;
-
-			bool found = false;
-			bool isTank = TargetFilter.PlayerJobCategory(JobRole.Tank);
-
-			foreach (var s in VfxDataQueue)
+			try
 			{
-				try
+				if (string.IsNullOrEmpty(s.Path)) continue;
+
+				foreach (var p in TankbusterPaths)
 				{
-					if (string.IsNullOrEmpty(s.Path)) continue;
+					if (!s.Path.StartsWith(p, PathCmp)) continue;
 
-					foreach (var p in TankbusterPaths)
+					bool isPlayerTarget = s.ObjectId == Player.Object.GameObjectId;
+
+					if (!isTank || isPlayerTarget)
 					{
-						if (!s.Path.StartsWith(p, PathCmp)) continue;
-
-						bool isPlayerTarget = s.ObjectId == Player.Object.GameObjectId;
-
-						if (!isTank || isPlayerTarget)
+						if (Service.Config.InDebug)
 						{
-							if (Service.Config.InDebug)
-							{
-								PluginLog.Debug($"Tank lock-on VFX triggered: {s.Path}, ObjectId: {s.ObjectId}");
-							}
-
-							// Try to resolve the object id to a party/alliance member and add to the list
-							if (Svc.Objects.SearchById(s.ObjectId) is IBattleChara obj && obj.IsParty() && !obj.IsDead && !TankbusterTargets.Contains(obj))
-							{
-								TankbusterTargets.Add(obj);
-							}
-
-							found = true;
+							PluginLog.Debug($"Tank lock-on VFX triggered: {s.Path}, ObjectId: {s.ObjectId}");
 						}
+
+						found = true;
 					}
 				}
-				catch (AccessViolationException ex)
-				{
-					PluginLog.Warning($"AccessViolation in IsCastingTankVfx while scanning VFX: {ex.Message}");
-				}
 			}
-
-			return found;
+			catch (AccessViolationException ex)
+			{
+				PluginLog.Warning($"AccessViolation in IsCastingTankVfx while scanning VFX: {ex.Message}");
+			}
 		}
+
+		return found;
 	}
 
 	// Improved shared AOE detection using cached sets, covers both regular and multi-hit stack markers

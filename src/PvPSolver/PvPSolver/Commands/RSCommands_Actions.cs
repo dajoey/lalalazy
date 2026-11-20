@@ -133,11 +133,6 @@ namespace RotationSolver.Commands
 				}
 			}
 
-			if (StatusHelper.PlayerHasStatus(false, StatusID.Transcendent))
-			{
-				return;
-			}
-
 #if DEBUG
 			// if (nextAction is BaseAction debugAct)
 			//     PluginLog.Debug($"Will Do {debugAct}");

@@ -1,3 +1,13 @@
+## v0.1.2.30 (2026-11-20) [testing]
+- PvE remnant removal, round 6: PvE-only engine paths that no PvP rotation reads are removed; no behaviour change in PvP.
+- Removed the PvE party-buff target finders no PvP action uses (ActionTargetInfo.FindTheSpear, FindTheBalance, FindPhantomRespite), their TargetType members and the Spear/Balance card priority lists with their Job-tab editors and saved files. The DNC partner and SGE Kardia tank priorities remain: Closed Position (PvP) and Kardia (PvP) still target through them.
+- Removed the provoke/shirk machinery: the AutoStatus Provoke and Shirk flags, the ProvokeAbility and ProvokeGCD virtuals, StateUpdater.ShouldAddProvoke, DataCenter.ProvokeTarget and FindProvokeTarget, the "Provoke anything not on the no provoke list." setting, the ProvokeDelay setting, and the "Don't provoke" territory list with its saved file.
+- Removed the PvE event-status gates from the heal and ability paths (Scalebound, ShackledHealing, ShackledAbilities) and from the command path (Transcendent); the heals and abilities they gated are unchanged.
+- Removed the tank-buster target list (DataCenter.TankbusterTargets, ActionTargetInfo.FindTankbusterTarget). The generic tank lock-on VFX check stays: the PvP defense gate reads it through DataCenter.IsHostileCastingToTank.
+- Removed the positional leftovers: CustomRotation.CanHitPositional, ActionSetting.EnemyPositional, ObjectHelper.FindEnemyPositional, HasPositional, IsBossFromIcon, GetObjectNPC, the EnemyPositional enum, and the boss-position fallback of the ground-target finder.
+- Removed 17 marker-named PvE statuses from the generated StatusID table that no code references any more (Transcendent and Transcendent_2648, TheBalance 829/1338/1882/3887, TheSpear 832/1885/3889, Scalebound, ShackledHealing, ShackledAbilities, DancePartner_2027, BannerOfTranscendentFinesse, SoulsInTheBalance, RingingRespite, DirectionalDisregard).
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.29 (2026-11-20) [testing]
 - PvE remnant removal, round 5 completion: the remaining PvE marker hits of the previous build are removed; no behaviour change in PvP.
 - Removed the six PvE boss-specific lock-on effect paths (Necron, Kam'lanaut and four Arcadion tank-buster effects) from DataCenter.TankbusterPaths; the two generic tank lock-on effects remain.

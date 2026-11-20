@@ -66,15 +66,6 @@ public partial class CustomRotation
 				}
 			}
 
-			IBaseAction.TargetOverride = TargetType.Provoke;
-			if (DataCenter.MergedStatus.HasFlag(AutoStatus.Provoke))
-			{
-				if (ProvokeGCD(out IAction? action))
-				{
-					return action;
-				}
-			}
-
 			IBaseAction.TargetOverride = null;
 
 			if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveForward))
@@ -112,12 +103,9 @@ public partial class CustomRotation
 
 				if (CanHealSingleSpell)
 				{
-					if (!StatusHelper.PlayerHasStatus(false, StatusID.Scalebound) && (!StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) || StatusHelper.PlayerHasStatus(false, StatusID.ShackledHealing) && DataCenter.NumberOfPartyMembersInRangeOf(21) == 1))
+					if (HealSingleGCD(out IAction? action))
 					{
-						if (HealSingleGCD(out IAction? action))
-						{
-							return action;
-						}
+						return action;
 					}
 				}
 
@@ -232,20 +220,6 @@ public partial class CustomRotation
 
 		IBaseAction.ShouldEndSpecial = false;
 		return false;
-	}
-
-	/// <summary>
-	///
-	/// </summary>
-	protected virtual bool ProvokeGCD(out IAction? act)
-	{
-		if (DataCenter.CommandStatus.HasFlag(AutoStatus.Provoke))
-		{
-			IBaseAction.ShouldEndSpecial = true;
-		}
-
-		IBaseAction.ShouldEndSpecial = false;
-		act = null; return false;
 	}
 
 	/// <summary>

@@ -124,17 +124,6 @@ public static class StatusHelper
 	/// <summary>
 	/// 
 	/// </summary>
-	public static StatusID[] AstCardStatus { get; } =
-	[
-		StatusID.TheBalance_3887,
-		StatusID.TheSpear_3889,
-		StatusID.Weakness,
-		StatusID.BrinkOfDeath,
-	];
-
-	/// <summary>
-	/// 
-	/// </summary>
 	public static StatusID[] RampartStatus { get; } =
 	[
 		StatusID.Superbolide,

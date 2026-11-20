@@ -175,9 +175,6 @@ namespace RotationSolver.Data
 		[Description("Don't target")]
 		ConfigWindow_List_NoHostile,
 
-		[Description("Don't provoke")]
-		ConfigWindow_List_NoProvoke,
-
 		[Description("Beneficial AoE locations")]
 		ConfigWindow_List_BeneficialPositions,
 
@@ -186,12 +183,6 @@ namespace RotationSolver.Data
 
 		[Description("The name of the enemy that you don't want to target")]
 		ConfigWindow_List_NoHostilesName,
-
-		[Description("Enemies that will never be provoked")]
-		ConfigWindow_List_NoProvokeDesc,
-
-		[Description("The name of the enemy that you don't want to provoke")]
-		ConfigWindow_List_NoProvokeName,
 
 		[Description("Add beneficial AoE location")]
 		ConfigWindow_List_AddPosition,

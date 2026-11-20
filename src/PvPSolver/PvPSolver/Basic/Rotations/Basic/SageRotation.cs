@@ -16,14 +16,6 @@ public partial class SageRotation : CustomRotation
 	}
 	#endregion
 
-	#region Status Tracking
-	/// <summary>
-	/// Player has Kardia.
-	/// </summary>
-	public static bool HasKardia => StatusHelper.PlayerHasStatus(true, StatusID.Kardia);
-	#endregion
-
-
 	#region PvP Actions
 	static partial void ModifyDosisIiiPvP(ref ActionSetting setting)
 	{

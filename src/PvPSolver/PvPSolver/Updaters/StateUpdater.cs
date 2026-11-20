@@ -48,8 +48,6 @@ internal static class StateUpdater
 			status |= AutoStatus.DefenseArea;
 		if (ShouldAddDefenseSingle())
 			status |= AutoStatus.DefenseSingle;
-		if (ShouldAddProvoke())
-			status |= AutoStatus.Provoke;
 		if (ShouldAddSpeed())
 			status |= AutoStatus.Speed;
 
@@ -373,17 +371,6 @@ internal static class StateUpdater
 			return true;
 
 		return false;
-	}
-
-	private static bool ShouldAddProvoke()
-	{
-		bool isInCombatOrProvokeAnything = DataCenter.InCombat || Service.Config.ProvokeAnything;
-		bool isTankOrHasUltimatum = DataCenter.Role == JobRole.Tank;
-		bool hasProvokeTarget = DataCenter.ProvokeTarget != null;
-
-		return isInCombatOrProvokeAnything
-			&& isTankOrHasUltimatum
-			&& hasProvokeTarget;
 	}
 
 	private static bool ShouldAddInterrupt()

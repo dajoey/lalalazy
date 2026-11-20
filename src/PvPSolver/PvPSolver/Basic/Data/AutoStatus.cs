@@ -17,11 +17,6 @@ public enum AutoStatus : uint
 	Interrupt = 1 << 0,
 
 	/// <summary>
-	/// We should provoke some enemy.
-	/// </summary>
-	Provoke = 1 << 2,
-
-	/// <summary>
 	/// We should dispel.
 	/// </summary>
 	Dispel = 1 << 3,
@@ -60,11 +55,6 @@ public enum AutoStatus : uint
 	/// We should use positional abilities.
 	/// </summary>
 	Positional = 1 << 11,
-
-	/// <summary>
-	/// We should shirk.
-	/// </summary>
-	Shirk = 1 << 12,
 
 	/// <summary>
 	/// We should move forward.

@@ -2552,12 +2552,6 @@ Transparent = 416,
 Protect_417 = 417,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/418"&gt;&lt;strong&gt;Transcendent&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Recently resurrected and temporarily invulnerable to most damage. Status ends upon execution of an action.&lt;/para&gt;
-/// &lt;/summary&gt;
-Transcendent = 418,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/419"&gt;&lt;strong&gt;Misty Veil&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Attack range is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -4959,12 +4953,6 @@ RoyalRoad = 827,
 CardHeld = 828,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/829"&gt;&lt;strong&gt;The Balance&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheBalance = 829,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/830"&gt;&lt;strong&gt;The Bole&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
 /// &lt;para&gt;Damage taken is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -4975,12 +4963,6 @@ TheBole = 830,
 /// &lt;para&gt;Weaponskill cast time and recast time spell cast time and recast time and auto-attack delay are reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
 TheArrow = 831,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/832"&gt;&lt;strong&gt;The Spear&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Critical hit rate is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheSpear = 832,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/833"&gt;&lt;strong&gt;The Ewer&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
@@ -7943,12 +7925,6 @@ Synastry_1336 = 1336,
 Synastry_1337 = 1337,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1338"&gt;&lt;strong&gt;The Balance&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheBalance_1338 = 1338,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1339"&gt;&lt;strong&gt;The Bole&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Damage taken is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -8853,12 +8829,6 @@ Virus_1493 = 1493,
 /// &lt;para&gt;Participating in a live performance.&lt;/para&gt;
 /// &lt;/summary&gt;
 FaceInTheCrowd = 1494,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1495"&gt;&lt;strong&gt;Scalebound&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;You have entered the sacred domain of the Rathalos and are somehow unable to heal wounds via any method save mega potions.&lt;/para&gt;
-/// &lt;/summary&gt;
-Scalebound = 1495,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1496"&gt;&lt;strong&gt;Vanished&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
@@ -11096,12 +11066,6 @@ NocturnalOpposition = 1880,
 CombustIii = 1881,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1882"&gt;&lt;strong&gt;The Balance&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheBalance_1882 = 1882,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1883"&gt;&lt;strong&gt;The Bole&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
 /// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -11112,12 +11076,6 @@ TheBole_1883 = 1883,
 /// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
 TheArrow_1884 = 1884,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/1885"&gt;&lt;strong&gt;The Spear&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheSpear_1885 = 1885,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/1886"&gt;&lt;strong&gt;The Ewer&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
@@ -11908,12 +11866,6 @@ Esprit_2025 = 2025,
 /// &lt;para&gt;Sharing the effects of certain actions with target party member.&lt;/para&gt;
 /// &lt;/summary&gt;
 ClosedPosition_2026 = 2026,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2027"&gt;&lt;strong&gt;Dance Partner&lt;/strong&gt;&lt;/see&gt; ↑ (DNC)
-/// &lt;para&gt;Sharing the effects of certain actions executed by your dancer companion.&lt;/para&gt;
-/// &lt;/summary&gt;
-DancePartner_2027 = 2027,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2029"&gt;&lt;strong&gt;Fountain of Fire&lt;/strong&gt;&lt;/see&gt; ↓ (SMN)
@@ -13706,12 +13658,6 @@ BannerOfUnyieldingDefense = 2352,
 BannerOfLimitlessGrace = 2353,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2354"&gt;&lt;strong&gt;Banner of Transcendent Finesse&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Critical hit rate is increased while weaponskill cast time and recast time spell cast time and recast time and auto-attack delay are reduced.&lt;/para&gt;
-/// &lt;/summary&gt;
-BannerOfTranscendentFinesse = 2354,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2356"&gt;&lt;strong&gt;Lost Incense&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Enmity is increased and damage taken is reduced.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -15381,12 +15327,6 @@ Electrocution_2646 = 2646,
 /// &lt;para&gt;Drawing on power inherited from Nidhogg.&lt;/para&gt;
 /// &lt;/summary&gt;
 ShadowOfTheDragon_2647 = 2647,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/2648"&gt;&lt;strong&gt;Transcendent&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Recently resurrected.&lt;/para&gt;
-/// &lt;/summary&gt;
-Transcendent_2648 = 2648,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/2649"&gt;&lt;strong&gt;Empowered Beast&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
@@ -17525,12 +17465,6 @@ FlourishingFlow = 3018,
 /// &lt;para&gt;Able to execute Confiteor.&lt;/para&gt;
 /// &lt;/summary&gt;
 ConfiteorReady = 3019,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/3020"&gt;&lt;strong&gt;Souls in the Balance&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;The number of souls currently being weighed.&lt;/para&gt;
-/// &lt;/summary&gt;
-SoulsInTheBalance = 3020,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/3021"&gt;&lt;strong&gt;Unguarded&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
@@ -21855,12 +21789,6 @@ Vitalized = 3806,
 Vitalized_3807 = 3807,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/3808"&gt;&lt;strong&gt;Directional Disregard&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;All action direction requirements are nullified.&lt;/para&gt;
-/// &lt;/summary&gt;
-DirectionalDisregard = 3808,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/3809"&gt;&lt;strong&gt;Seed Crystals&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
 /// &lt;para&gt;Heavy crystals are encasing your lower body. Will bear a Crystal Burden when this effect expires.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -22322,22 +22250,10 @@ Seraphism_3885 = 3885,
 ReadyToBreak = 3886,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/3887"&gt;&lt;strong&gt;The Balance&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheBalance_3887 = 3887,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/3888"&gt;&lt;strong&gt;The Arrow&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
 /// &lt;para&gt;HP recovery via healing actions is increased.&lt;/para&gt;
 /// &lt;/summary&gt;
 TheArrow_3888 = 3888,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/3889"&gt;&lt;strong&gt;The Spear&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
-/// &lt;para&gt;Damage dealt is increased.&lt;/para&gt;
-/// &lt;/summary&gt;
-TheSpear_3889 = 3889,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/3890"&gt;&lt;strong&gt;The Bole&lt;/strong&gt;&lt;/see&gt; ↑ (AST)
@@ -24366,12 +24282,6 @@ HastyMirage = 4255,
 AetherialGain = 4256,
 
 /// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/4257"&gt;&lt;strong&gt;Ringing Respite&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
-/// &lt;para&gt;Triggers a healing effect upon taking damage.&lt;/para&gt;
-/// &lt;/summary&gt;
-RingingRespite = 4257,
-
-/// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/4258"&gt;&lt;strong&gt;Suspend&lt;/strong&gt;&lt;/see&gt; ↑ (All Classes)
 /// &lt;para&gt;Floating several ilms off the ground defying the universal laws of gravity.&lt;/para&gt;
 /// &lt;/summary&gt;
@@ -26004,18 +25914,6 @@ ChainsOfCondemnation = 4562,
 /// &lt;para&gt;Red-hot chains bind the flesh causing damage over time. Breaking the chain will result in torment by Searing Chains.&lt;/para&gt;
 /// &lt;/summary&gt;
 SearingChains = 4563,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/4564"&gt;&lt;strong&gt;Shackled Healing&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Behavior is restricted. Use of HP-restoring actions will inflict Shackles of Penitence on those nearby.&lt;/para&gt;
-/// &lt;/summary&gt;
-ShackledHealing = 4564,
-
-/// &lt;summary&gt;
-/// &lt;see href="https://garlandtools.org/db/#status/4565"&gt;&lt;strong&gt;Shackled Abilities&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)
-/// &lt;para&gt;Behavior is restricted. Use of abilities will inflict Shackles of Penitence on those nearby.&lt;/para&gt;
-/// &lt;/summary&gt;
-ShackledAbilities = 4565,
 
 /// &lt;summary&gt;
 /// &lt;see href="https://garlandtools.org/db/#status/4566"&gt;&lt;strong&gt;Hellish Earth&lt;/strong&gt;&lt;/see&gt; ↓ (All Classes)

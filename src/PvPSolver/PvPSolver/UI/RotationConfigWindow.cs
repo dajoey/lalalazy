@@ -87,7 +87,7 @@ public partial class RotationConfigWindow : Window
 		"Basic > Timer: tune Action Ahead and Min Updating Time to balance performance vs weaving.",
 		"Basic > Auto Switch: auto on/off for countdowns, deaths, area transitions, and more.",
 		"Teaching Mode highlights targets; color is in UI > Information.",
-		"Job tab: edit DNC partner, SGE Kardia tank, and AST card priorities when on those jobs.",
+		"Job tab: edit DNC partner and SGE Kardia tank priorities when on those jobs.",
 		"About > Macros lists available chat/macro commands and helpful syntax.",
 		"About > Links: open config folder and GitHub.",
 		"Extra > Internal: Backup/Restore configs safely.",
@@ -1999,115 +1999,6 @@ public partial class RotationConfigWindow : Window
 				_ = OtherConfiguration.SaveKardiaTankPriority();
 			}
 		}
-
-		if (Player.Available && DataCenter.PartyMembers != null && Player.Object != null && Player.Object.IsJobs(Job.AST))
-		{
-			using var table = ImRaii.Table("AstCardPriorityTable", 2, ImGuiTableFlags.SizingStretchProp);
-			if (!table)
-				return;
-
-			// Column 1: Spear Card Priority
-			ImGui.TableNextColumn();
-			ImGui.Spacing();
-			ImGui.Text("Spear Card Priority");
-			ImGui.Spacing();
-			//var currentTheSpearPriority = ActionTargetInfo.FindTargetByType(DataCenter.PartyMembers, TargetType.TheSpear, 0, SpecialActionType.None);
-			//ImGui.Text($"Current Target: {currentTheSpearPriority?.Name ?? "None"}");
-			//ImGui.Spacing();
-
-			if (ImGui.Button("Reset to Default##Spear"))
-			{
-				OtherConfiguration.ResetTheSpearPriority();
-			}
-			ImGui.Spacing();
-
-			List<Job> spearPriority = [.. OtherConfiguration.TheSpearPriority];
-			bool spearOrderChanged = false;
-
-			_ = ImGui.BeginChild("TheSpearPriorityList", new Vector2(0, 200 * Scale), true);
-
-			for (int i = 0; i < spearPriority.Count; i++)
-			{
-				Job job = spearPriority[i];
-				string jobName = job.ToString();
-
-				if (ImGuiEx.IconButton(FontAwesomeIcon.ArrowUp, $"##UpSpear{i}") && i > 0)
-				{
-					(spearPriority[i], spearPriority[i - 1]) = (spearPriority[i - 1], spearPriority[i]);
-					spearOrderChanged = true;
-				}
-
-				ImGui.SameLine();
-
-				if (ImGuiEx.IconButton(FontAwesomeIcon.ArrowDown, $"##DownSpear{i}") && i < spearPriority.Count - 1)
-				{
-					(spearPriority[i], spearPriority[i + 1]) = (spearPriority[i + 1], spearPriority[i]);
-					spearOrderChanged = true;
-				}
-
-				ImGui.SameLine();
-				ImGui.Text(jobName);
-			}
-
-			ImGui.EndChild();
-
-			if (spearOrderChanged)
-			{
-				OtherConfiguration.TheSpearPriority = spearPriority;
-				_ = OtherConfiguration.SaveTheSpearPriority();
-			}
-
-			// Column 2: Balance Card Priority
-			ImGui.TableNextColumn();
-			ImGui.Spacing();
-			ImGui.Text("Balance Card Priority");
-			ImGui.Spacing();
-			//var currentTheBalancePriority = ActionTargetInfo.FindTargetByType(DataCenter.PartyMembers, TargetType.TheBalance, 0, SpecialActionType.None);
-			//ImGui.Text($"Current Target: {currentTheBalancePriority?.Name ?? "None"}");
-			//ImGui.Spacing();
-
-			if (ImGui.Button("Reset to Default##Balance"))
-			{
-				OtherConfiguration.ResetTheBalancePriority();
-			}
-			ImGui.Spacing();
-
-			List<Job> balancePriority = [.. OtherConfiguration.TheBalancePriority];
-			bool balanceOrderChanged = false;
-
-			_ = ImGui.BeginChild("TheBalancePriorityList", new Vector2(0, 200 * Scale), true);
-
-			for (int i = 0; i < balancePriority.Count; i++)
-			{
-				Job job = balancePriority[i];
-				string jobName = job.ToString();
-
-				if (ImGuiEx.IconButton(FontAwesomeIcon.ArrowUp, $"##UpBalance{i}") && i > 0)
-				{
-					(balancePriority[i], balancePriority[i - 1]) = (balancePriority[i - 1], balancePriority[i]);
-					balanceOrderChanged = true;
-				}
-
-				ImGui.SameLine();
-
-				if (ImGuiEx.IconButton(FontAwesomeIcon.ArrowDown, $"##DownBalance{i}") && i < balancePriority.Count - 1)
-				{
-					(balancePriority[i], balancePriority[i + 1]) = (balancePriority[i + 1], balancePriority[i]);
-					balanceOrderChanged = true;
-				}
-
-				ImGui.SameLine();
-				ImGui.Text(jobName);
-			}
-
-			ImGui.EndChild();
-
-			if (balanceOrderChanged)
-			{
-				OtherConfiguration.TheBalancePriority = balancePriority;
-				_ = OtherConfiguration.SaveTheBalancePriority();
-			}
-		}
 	}
 	#endregion
 
@@ -3020,7 +2911,7 @@ public partial class RotationConfigWindow : Window
 		if (Svc.ClientState == null) return;
 		ushort territoryId = (ushort)Svc.ClientState.TerritoryType;
 
-		using var table = ImRaii.Table("Rotation Solver List Territories", 4,
+		using var table = ImRaii.Table("Rotation Solver List Territories", 2,
 			ImGuiTableFlags.BordersInner | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingStretchSame);
 		if (table)
 		{
@@ -3029,8 +2920,6 @@ public partial class RotationConfigWindow : Window
 
 			_ = ImGui.TableNextColumn();
 			ImGui.TableHeader(UiString.ConfigWindow_List_NoHostile.GetDescription());
-			_ = ImGui.TableNextColumn();
-			ImGui.TableHeader(UiString.ConfigWindow_List_NoProvoke.GetDescription());
 			_ = ImGui.TableNextColumn();
 			ImGui.TableHeader(UiString.ConfigWindow_List_BeneficialPositions.GetDescription());
 
@@ -3089,59 +2978,6 @@ public partial class RotationConfigWindow : Window
 				}
 				OtherConfiguration.NoHostileNames[territoryId] = [.. list];
 				_ = OtherConfiguration.SaveNoHostileNames();
-			}
-
-			// NoProvoke
-			_ = ImGui.TableNextColumn();
-			ImGui.TextWrapped(UiString.ConfigWindow_List_NoProvokeDesc.GetDescription());
-
-			width = ImGui.GetColumnWidth() - ImGuiEx.CalcIconSize(FontAwesomeIcon.Ban).X
-				- ImGui.GetStyle().ItemSpacing.X - (10 * Scale);
-
-			if (!OtherConfiguration.NoProvokeNames.TryGetValue(territoryId, out libs))
-			{
-				OtherConfiguration.NoProvokeNames[territoryId] = libs = [];
-			}
-
-			hasEmpty = false;
-			for (int i = 0; i < libs.Length; i++)
-			{
-				if (string.IsNullOrEmpty(libs[i])) { hasEmpty = true; break; }
-			}
-			if (!hasEmpty)
-			{
-				var newArr = new string[libs.Length + 1];
-				for (int i = 0; i < libs.Length; i++) newArr[i] = libs[i];
-				newArr[^1] = string.Empty;
-				OtherConfiguration.NoProvokeNames[territoryId] = libs = newArr;
-			}
-
-			removeIndex = -1;
-			for (int i = 0; i < libs.Length; i++)
-			{
-				ImGui.SetNextItemWidth(width);
-				if (ImGui.InputTextWithHint($"##PvP Solver Territory Provoke Name {i}",
-					UiString.ConfigWindow_List_NoProvokeName.GetDescription(), ref libs[i], 1024))
-				{
-					OtherConfiguration.NoProvokeNames[territoryId] = libs;
-					_ = OtherConfiguration.SaveNoProvokeNames();
-				}
-				ImGui.SameLine();
-				if (ImGuiEx.IconButton(FontAwesomeIcon.Ban, $"##PvP Solver Remove Territory Provoke Name {i}"))
-				{
-					removeIndex = i;
-				}
-			}
-			if (removeIndex > -1)
-			{
-				var list = new List<string>(libs.Length - 1);
-				for (int i = 0; i < libs.Length; i++)
-				{
-					if (i == removeIndex) continue;
-					list.Add(libs[i]);
-				}
-				OtherConfiguration.NoProvokeNames[territoryId] = [.. list];
-				_ = OtherConfiguration.SaveNoProvokeNames();
 			}
 
 			_ = ImGui.TableNextColumn();
@@ -3448,18 +3284,6 @@ public partial class RotationConfigWindow : Window
 		ImGui.Text($"Number of Party Members with Doomed To Heal status: {doomedCount}");
 
 
-		// AST-only card target preview
-		if (Player.Object != null && Player.Object.IsJobs(Job.AST))
-		{
-			IBattleChara? spear = ActionTargetInfo.FindTargetByType(DataCenter.PartyMembers, TargetType.TheSpear, 0, SpecialActionType.None, TargetType.TheSpear, true);
-			IBattleChara? balance = ActionTargetInfo.FindTargetByType(DataCenter.PartyMembers, TargetType.TheBalance, 0, SpecialActionType.None, TargetType.TheBalance, true);
-			ImGui.Spacing();
-			ImGui.Text("AST Card Targets (Preview):");
-			ImGui.Text($"- The Spear: {spear?.Name ?? "None"}");
-			ImGui.Text($"- The Balance: {balance?.Name ?? "None"}");
-			ImGui.Spacing();
-		}
-
 		foreach (Dalamud.Game.ClientState.Party.IPartyMember p in Svc.Party)
 		{
 			if (p.GameObject is not IBattleChara b)
@@ -3561,9 +3385,6 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is Current Focus Target: {battleChara.IsFocusTarget()}");
 			ImGui.Text($"TTK: {battleChara.GetTTK()}");
 			ImGui.Text($"Is Boss TTK: {battleChara.IsBossFromTTK()}");
-			ImGui.Text($"Is Boss Icon: {battleChara.IsBossFromIcon()}");
-			ImGui.Text($"Rank: {battleChara.GetObjectNPC()?.Rank.ToString() ?? string.Empty}");
-			ImGui.Text($"Has Positional: {battleChara.HasPositional()}");
 			ImGui.Text($"Is Dying: {battleChara.IsDying()}");
 			ImGui.Text($"Is Alive: {battleChara.IsAlive()}");
 			ImGui.Text($"Is Party: {battleChara.IsParty()}");
@@ -3571,10 +3392,8 @@ public partial class RotationConfigWindow : Window
 			ImGui.Text($"Is DPS: {battleChara.IsJobCategory(JobRole.AllDPS)}");
 			ImGui.Text($"Is Tank: {battleChara.IsJobCategory(JobRole.Tank)}");
 			ImGui.Text($"Distance To Player: {battleChara.DistanceToPlayer()}");
-			ImGui.Text($"CanProvoke: {battleChara.CanProvoke()}");
 			ImGui.Text($"StatusFlags: {battleChara.StatusFlags}");
 			ImGui.Text($"InView: {Svc.GameGui.WorldToScreen(battleChara.Position, out _)}");
-			ImGui.Text($"Enemy Positional: {battleChara.FindEnemyPositional()}");
 			ImGui.Text($"NameplateKind: {battleChara.GetNameplateKind()}");
 			ImGui.Text($"BattleNPCSubKind: {battleChara.GetBattleNPCSubKind()}");
 			ImGui.Text($"Is Top Priority Hostile: {battleChara.IsTopPriorityHostile()}");

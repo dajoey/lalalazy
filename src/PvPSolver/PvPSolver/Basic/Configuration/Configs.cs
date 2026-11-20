@@ -245,10 +245,6 @@ internal partial class Configs : IPluginConfiguration
 		PvPFilter = JobFilterType.NoJob)]
 	private static readonly bool _interruptibleMoreCheck = true;
 
-	[ConditionBool, UI("Provoke anything not on the no provoke list.",
-		Filter = AutoActionUsage, Section = 3)]
-	private static readonly bool _provokeAnything = false;
-
 	[ConditionBool, UI("Stop casting if the target dies.", Filter = Extra)]
 	private static readonly bool _useStopCasting = false;
 
@@ -523,9 +519,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[Range(0, 3, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 InterruptDelay { get; set; } = new(0.5f, 1);
-
-	[Range(0, 10, ConfigUnitType.Seconds, 0.05f)]
-	public Vector2 ProvokeDelay { get; set; } = new(0.5f, 1);
 
 	[Range(0, 10, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 NotInCombatDelay { get; set; } = new(2, 3);

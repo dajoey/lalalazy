@@ -781,127 +781,76 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 		}
 
-		// --- OnCalculated logic (fallback) ---
-		// Try to place at/near a boss position (known valid terrain)
-		// Exclude "wall bosses" — very large omnidirectional bosses positioned off the arena.
-		IBattleChara? bossTarget = null;
-		if (Svc.Targets.Target is IBattleChara b && b.DistanceToPlayer() <= range && b.IsBossFromIcon()
-			&& (b.HasPositional() || b.HitboxRadius <= 8))
+		float effectRange = EffectRange;
+		List<IBattleChara> partyMembersInRadius = [];
+		if (DataCenter.PartyMembers != null)
 		{
-			bossTarget = b;
-		}
-
-		// If the current target isn't a boss in range, search hostile targets for one
-		if (bossTarget == null && DataCenter.AllHostileTargets != null)
-		{
-			foreach (var hostile in DataCenter.AllHostileTargets)
+			foreach (var member in DataCenter.PartyMembers)
 			{
-				if (hostile != null && hostile.IsBossFromIcon() && hostile.DistanceToPlayer() <= range
-					&& (hostile.HasPositional() || hostile.HitboxRadius <= 8))
+				float dist = Vector3.Distance(member.Position, player.Position);
+				if (dist <= range + effectRange)
 				{
-					bossTarget = hostile;
-					break;
+					partyMembersInRadius.Add(member);
 				}
 			}
 		}
+		IBattleChara? attackT = FindTargetByType(partyMembersInRadius,
+			TargetType.BeAttacked, action.Config.AutoHealRatio, action.Setting.SpecialType, targetOverride, true);
 
-		if (bossTarget != null)
+		if (attackT == null)
 		{
-			Vector3 bossPos = bossTarget.Position;
-			float distToBoss = Vector3.Distance(player.Position, bossPos);
-
-			Vector3 targetPos;
-			if (distToBoss <= range)
-			{
-				targetPos = bossPos;
-			}
-			else if (distToBoss > 0.001f)
-			{
-				// Adjust position to be within cast range along the line to boss
-				Vector3 toBoss = bossPos - player.Position;
-				targetPos = player.Position + toBoss / distToBoss * range;
-			}
-			else
-			{
-				targetPos = player.Position;
-			}
-
-			List<IBattleChara> affectsList = [.. GetAffectsVector(targetPos, canAffects)];
-			return new TargetResult(player, [.. affectsList], targetPos);
+			List<IBattleChara> affectsList = [.. GetAffectsVector(player.Position, canAffects)];
+			return new TargetResult(player, [.. affectsList], player.Position);
 		}
 		else
 		{
-			float effectRange = EffectRange;
-			List<IBattleChara> partyMembersInRadius = [];
-			if (DataCenter.PartyMembers != null)
-			{
-				foreach (var member in DataCenter.PartyMembers)
-				{
-					float dist = Vector3.Distance(member.Position, player.Position);
-					if (dist <= range + effectRange)
-					{
-						partyMembersInRadius.Add(member);
-					}
-				}
-			}
-			IBattleChara? attackT = FindTargetByType(partyMembersInRadius,
-				TargetType.BeAttacked, action.Config.AutoHealRatio, action.Setting.SpecialType, targetOverride, true);
+			float disToTankRound = Vector3.Distance(player.Position, attackT.Position) + attackT.HitboxRadius;
 
-			if (attackT == null)
+			Vector3 finalPos;
+			if (disToTankRound < effectRange
+				|| disToTankRound > (2 * effectRange) - player.HitboxRadius)
 			{
-				List<IBattleChara> affectsList = [.. GetAffectsVector(player.Position, canAffects)];
-				return new TargetResult(player, [.. affectsList], player.Position);
+				finalPos = player.Position;
 			}
 			else
 			{
-				float disToTankRound = Vector3.Distance(player.Position, attackT.Position) + attackT.HitboxRadius;
-
-				Vector3 finalPos;
-				if (disToTankRound < effectRange
-					|| disToTankRound > (2 * effectRange) - player.HitboxRadius)
+				Vector3 directionToTank = attackT.Position - player.Position;
+				float dirLength = directionToTank.Length();
+				if (dirLength < 0.001f)
 				{
 					finalPos = player.Position;
 				}
 				else
 				{
-					Vector3 directionToTank = attackT.Position - player.Position;
-					float dirLength = directionToTank.Length();
-					if (dirLength < 0.001f)
-					{
-						finalPos = player.Position;
-					}
-					else
-					{
-						Vector3 moveDirection = directionToTank / dirLength * Math.Max(0, disToTankRound - effectRange);
-						finalPos = player.Position + moveDirection;
-					}
+					Vector3 moveDirection = directionToTank / dirLength * Math.Max(0, disToTankRound - effectRange);
+					finalPos = player.Position + moveDirection;
 				}
+			}
 
-				// Clamp finalPos within cast range
-				Vector3 toFinal = finalPos - player.Position;
-				float toFinalLen = toFinal.Length();
-				if (toFinalLen > range)
+			// Clamp finalPos within cast range
+			Vector3 toFinal = finalPos - player.Position;
+			float toFinalLen = toFinal.Length();
+			if (toFinalLen > range)
+			{
+				if (toFinalLen > 0.001f)
 				{
-					if (toFinalLen > 0.001f)
-					{
-						finalPos = player.Position + toFinal / toFinalLen * range;
-					}
-					else
-					{
-						finalPos = player.Position;
-					}
+					finalPos = player.Position + toFinal / toFinalLen * range;
 				}
-
-				// Safety: fall back to player position if computation produced invalid values
-				if (float.IsNaN(finalPos.X) || float.IsNaN(finalPos.Y) || float.IsNaN(finalPos.Z) ||
-					float.IsInfinity(finalPos.X) || float.IsInfinity(finalPos.Y) || float.IsInfinity(finalPos.Z))
+				else
 				{
 					finalPos = player.Position;
 				}
-
-				List<IBattleChara> affectsList = [.. GetAffectsVector(finalPos, canAffects)];
-				return new TargetResult(player, [.. affectsList], finalPos);
 			}
+
+			// Safety: fall back to player position if computation produced invalid values
+			if (float.IsNaN(finalPos.X) || float.IsNaN(finalPos.Y) || float.IsNaN(finalPos.Z) ||
+				float.IsInfinity(finalPos.X) || float.IsInfinity(finalPos.Y) || float.IsInfinity(finalPos.Z))
+			{
+				finalPos = player.Position;
+			}
+
+			List<IBattleChara> affectsList = [.. GetAffectsVector(finalPos, canAffects)];
+			return new TargetResult(player, [.. affectsList], finalPos);
 		}
 	}
 
@@ -1671,21 +1620,15 @@ public struct ActionTargetInfo(IBaseAction action)
 			return type switch
 			{
 				TargetType.BeAttacked => FindBeAttackedTarget(),
-				TargetType.Provoke => FindProvokeTarget(),
 				TargetType.Dispel => FindDispelTarget(),
 				TargetType.Move => FindTargetForMoving(),
 				TargetType.Heal => FindHealTarget(healRatio),
 				TargetType.Interrupt => FindInterruptTarget(),
-				TargetType.Tank => FindTankTarget(),
-				TargetType.Tankbuster => FindTankbusterTarget(),
 				TargetType.Melee => battleChara != null ? RandomMeleeTarget(battleChara) : null,
 				TargetType.Range => battleChara != null ? RandomRangeTarget(battleChara) : null,
 				TargetType.Magical => battleChara != null ? RandomMagicalTarget(battleChara) : null,
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
-				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
-				TargetType.TheSpear => FindTheSpear(),
-				TargetType.TheBalance => FindTheBalance(),
 				TargetType.Kardia => FindKardia(),
 				TargetType.Deployment => FindDeploymentTacticsTarget(),
 				_ => isFriendly ? FindFriendly() : FindHostile(),
@@ -1736,21 +1679,15 @@ public struct ActionTargetInfo(IBaseAction action)
 			return targetOverride switch
 			{
 				TargetType.BeAttacked => FindBeAttackedTarget(),
-				TargetType.Provoke => FindProvokeTarget(),
 				TargetType.Dispel => FindDispelTarget(),
 				TargetType.Move => FindTargetForMoving(),
 				TargetType.Heal => FindHealTarget(healRatio),
 				TargetType.Interrupt => FindInterruptTarget(),
-				TargetType.Tank => FindTankTarget(),
-				TargetType.Tankbuster => FindTankbusterTarget(),
 				TargetType.Melee => battleChara != null ? RandomMeleeTarget(battleChara) : null,
 				TargetType.Range => battleChara != null ? RandomRangeTarget(battleChara) : null,
 				TargetType.Magical => battleChara != null ? RandomMagicalTarget(battleChara) : null,
 				TargetType.Physical => battleChara != null ? RandomPhysicalTarget(battleChara) : null,
-				TargetType.PhantomRespite => FindPhantomRespite(),
 				TargetType.DancePartner => FindDancePartner(),
-				TargetType.TheSpear => FindTheSpear(),
-				TargetType.TheBalance => FindTheBalance(),
 				TargetType.Kardia => FindKardia(),
 				TargetType.Deployment => FindDeploymentTacticsTarget(),
 				_ => isFriendly ? FindFriendly() : FindHostile(),
@@ -2145,50 +2082,6 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 			return null;
 		}
-		IBattleChara? FindPhantomRespite()
-		{
-			List<IBattleChara> partyMembers = [];
-			if (DataCenter.PartyMembers != null)
-			{
-				partyMembers = [];
-				foreach (var x in DataCenter.PartyMembers)
-				{
-					if (x != null && !x.HasStatus(false, StatusID.RingingRespite))
-					{
-						partyMembers.Add(x);
-					}
-				}
-			}
-
-			var allMembers = new List<IBattleChara>();
-			if (DataCenter.AllTargets != null)
-			{
-				foreach (var x in DataCenter.AllTargets)
-				{
-					if (x != null && !x.IsEnemy() && !x.HasStatus(false, StatusID.RingingRespite))
-					{
-						allMembers.Add(x);
-					}
-				}
-			}
-
-			if (partyMembers != null && partyMembers.Count > 0)
-			{
-				// Use FindTargetByType to get the BeAttacked target from party members
-				var bePartyAttackedTarget = FindTargetByType(partyMembers, TargetType.BeAttacked, 0, SpecialActionType.None, targetOverride, isFriendly);
-				var beAllAttackedTarget = FindTargetByType(allMembers, TargetType.BeAttacked, 0, SpecialActionType.None, targetOverride, isFriendly);
-				// Compare by reference or GameObjectId (safer for IBattleChara)
-				if (bePartyAttackedTarget != null && beAllAttackedTarget != null &&
-					bePartyAttackedTarget.GameObjectId == beAllAttackedTarget.GameObjectId)
-				{
-					return bePartyAttackedTarget;
-				}
-			}
-
-			// Fallback: return self
-			return Player.Object;
-		}
-
 		IBattleChara? FindDancePartner()
 		{
 			List<Job> dancePartnerPriority = OtherConfiguration.DancePartnerPriority;
@@ -2289,204 +2182,6 @@ public struct ActionTargetInfo(IBaseAction action)
 			result = RandomMagicalTarget(battleChara);
 			if (result != null) return result;
 			result = RandomPhysicalTarget(battleChara);
-			if (result != null) return result;
-			return null;
-		}
-
-		IBattleChara? FindTheSpear()
-		{
-			// The Spear priority based on the info from The Balance Discord (user-configurable)
-			List<Job> TheSpearPriority = OtherConfiguration.TheSpearPriority;
-
-			if (!TargetFilter.PlayerIsJobs(Job.AST))
-			{
-				return null;
-			}
-
-			if (DataCenter.PartyMembers == null)
-			{
-				return null;
-			}
-
-			if (DataCenter.PartyMembers.Count == 1)
-			{
-				return Player.Object;
-			}
-
-			// Build filtered candidate list
-			List<IBattleChara> candidates = [];
-			foreach (IBattleChara m in DataCenter.PartyMembers)
-			{
-				if (m == null) continue;
-				if (m == Player.Object) continue; // never card self
-				if (m.IsDead) continue;
-				if (m.IsConditionCannotTarget()) continue;
-				//if (StatusHelper.IsStatusCapped(m)) continue; // cannot receive more statuses
-				if (m.HasStatus(false, StatusID.DamageDown_2911, StatusID.DamageDown, StatusID.Weakness, StatusID.BrinkOfDeath)) continue; // poor target value
-				if (m.HasStatus(false, StatusID.TheSpear_3889)) continue; // already has a card
-				candidates.Add(m);
-			}
-
-			// Primary: find the highest-priority match across the whole party
-			IBattleChara? best = null;
-			int bestIndex = int.MaxValue;
-			for (int i = 0; i < candidates.Count; i++)
-			{
-				var member = candidates[i];
-				int idx = -1;
-				for (int j = 0; j < TheSpearPriority.Count; j++)
-				{
-					if (member.IsJobs(TheSpearPriority[j]))
-					{
-						idx = j;
-						break;
-					}
-				}
-				if (idx >= 0)
-				{
-					if (idx < bestIndex || best == null)
-					{
-						bestIndex = idx;
-						best = member;
-					}
-					else if (idx == bestIndex)
-					{
-						// Tie-breakers: higher MaxHp, then higher CurrentHp
-						uint bestMaxHp = best?.MaxHp ?? 0;
-						uint memMaxHp = member.MaxHp;
-						if (memMaxHp > bestMaxHp)
-						{
-							best = member;
-						}
-						else if (memMaxHp == bestMaxHp)
-						{
-							uint bestHp = best?.CurrentHp ?? 0;
-							uint memHp = member.CurrentHp;
-							if (memHp > bestHp)
-							{
-								best = member;
-							}
-						}
-					}
-				}
-			}
-			if (best != null)
-			{
-				if (Service.Config.InDebug)
-				{
-					PluginLog.Debug($"FindTheSpear: {best.Name} selected by priority index {bestIndex} with tie-breakers.");
-				}
-				return best;
-			}
-
-			// Fallback: prefer ranged for Spear, then other DPS buckets (aligns with 6% on ranged/healer)
-			IBattleChara? result = null;
-			result = RandomRangeTarget(candidates);
-			if (result != null) return result;
-			result = RandomMeleeTarget(candidates);
-			if (result != null) return result;
-			result = RandomMagicalTarget(candidates);
-			if (result != null) return result;
-			result = RandomPhysicalTarget(candidates);
-			if (result != null) return result;
-			return null;
-		}
-
-		IBattleChara? FindTheBalance()
-		{
-			// The Balance priority based on the info from The Balance Discord (user-configurable)
-			List<Job> TheBalancePriority = OtherConfiguration.TheBalancePriority;
-
-			if (!TargetFilter.PlayerIsJobs(Job.AST))
-			{
-				return null;
-			}
-
-			if (DataCenter.PartyMembers == null)
-			{
-				return null;
-			}
-
-			if (DataCenter.PartyMembers.Count == 1)
-			{
-				return Player.Object;
-			}
-
-			// Build filtered candidate list
-			List<IBattleChara> candidates = [];
-			foreach (IBattleChara m in DataCenter.PartyMembers)
-			{
-				if (m == null) continue;
-				if (m == Player.Object) continue; // never card self
-				if (m.IsDead) continue;
-				if (m.IsConditionCannotTarget()) continue;
-				//if (StatusHelper.IsStatusCapped(m)) continue; // cannot receive more statuses
-				if (m.HasStatus(false, StatusID.DamageDown_2911, StatusID.DamageDown, StatusID.Weakness, StatusID.BrinkOfDeath)) continue; // poor target value
-				if (m.HasStatus(false, StatusID.TheBalance_3887)) continue; // already has a card
-				candidates.Add(m);
-			}
-
-			// Primary: find the highest-priority match across the whole party
-			IBattleChara? best = null;
-			int bestIndex = int.MaxValue;
-			for (int i = 0; i < candidates.Count; i++)
-			{
-				var member = candidates[i];
-				int idx = -1;
-				for (int j = 0; j < TheBalancePriority.Count; j++)
-				{
-					if (member.IsJobs(TheBalancePriority[j]))
-					{
-						idx = j;
-						break;
-					}
-				}
-				if (idx >= 0)
-				{
-					if (idx < bestIndex || best == null)
-					{
-						bestIndex = idx;
-						best = member;
-					}
-					else if (idx == bestIndex)
-					{
-						// Tie-breakers: higher MaxHp, then higher CurrentHp
-						uint bestMaxHp = best?.MaxHp ?? 0;
-						uint memMaxHp = member.MaxHp;
-						if (memMaxHp > bestMaxHp)
-						{
-							best = member;
-						}
-						else if (memMaxHp == bestMaxHp)
-						{
-							uint bestHp = best?.CurrentHp ?? 0;
-							uint memHp = member.CurrentHp;
-							if (memHp > bestHp)
-							{
-								best = member;
-							}
-						}
-					}
-				}
-			}
-			if (best != null)
-			{
-				if (Service.Config.InDebug)
-				{
-					PluginLog.Debug($"FindTheBalance: {best.Name} selected by priority index {bestIndex} with tie-breakers.");
-				}
-				return best;
-			}
-
-			// Fallback: prefer melee for Balance, then other DPS buckets (aligns with 6% on melee/tank)
-			IBattleChara? result = null;
-			result = RandomMeleeTarget(candidates);
-			if (result != null) return result;
-			result = RandomRangeTarget(candidates);
-			if (result != null) return result;
-			result = RandomMagicalTarget(candidates);
-			if (result != null) return result;
-			result = RandomPhysicalTarget(candidates);
 			if (result != null) return result;
 			return null;
 		}
@@ -2705,17 +2400,6 @@ public struct ActionTargetInfo(IBaseAction action)
 				return bestGalvanize;
 			}
 
-			return null;
-		}
-
-		IBattleChara? FindProvokeTarget()
-		{
-			if (battleChara != null && DataCenter.ProvokeTarget != null)
-			{
-				foreach (var o in battleChara)
-					if (o.GameObjectId == DataCenter.ProvokeTarget.GameObjectId)
-						return DataCenter.ProvokeTarget;
-			}
 			return null;
 		}
 
@@ -3411,36 +3095,6 @@ public struct ActionTargetInfo(IBaseAction action)
 			return battleChara == null ? null : RandomPickByJobs(battleChara, JobRole.Tank);
 		}
 
-		IBattleChara? FindTankbusterTarget()
-		{
-			// Use DataCenter.TankbusterTargets (populated from VFX) when available
-			if (DataCenter.TankbusterTargets == null || DataCenter.TankbusterTargets.Count == 0 || Player.Object == null)
-			{
-				return null;
-			}
-
-			// Prefer self first
-			foreach (var t in DataCenter.TankbusterTargets)
-			{
-				if (ObjectHelper.IsAlive(t) && !t.IsConditionCannotTarget() && t.GameObjectId == Player.Object.GameObjectId)
-				{
-					return t;
-				}
-			}
-
-			// Prefer alive, targetable party members
-			foreach (var t in DataCenter.TankbusterTargets)
-			{
-				if (ObjectHelper.IsAlive(t) && !t.IsConditionCannotTarget())
-				{
-					return t;
-				}
-			}
-
-			// Fallback to first entry
-			return DataCenter.TankbusterTargets[0];
-		}
-
 		return null;
 	}
 
@@ -3530,33 +3184,27 @@ public enum TargetType : byte
 	HighMaxHP,
 	LowMaxHP,
 	Interrupt,
-	Provoke,
 	Death,
 	Dispel,
 	Move,
 	FriendMove,
 	BeAttacked,
 	Heal,
-	Tank,
 	Melee,
 	Range,
 	Physical,
 	Magical,
 	Self,
 	DancePartner,
-	TheBalance,
-	TheSpear,
 	Kardia,
 	Deployment,
-	PhantomRespite,
 	Farthest,
 	Nearest,
 	PvPHealers,
 	PvPTanks,
 	PvPDPS,
 	HighHPPercent,
-	LowHPPercent,
-	Tankbuster
+	LowHPPercent
 }
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 

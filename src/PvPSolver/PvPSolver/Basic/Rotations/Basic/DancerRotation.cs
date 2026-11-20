@@ -29,24 +29,6 @@ public partial class DancerRotation : CustomRotation
 	/// </summary>
 	public static byte CompletedSteps => JobGauge.CompletedSteps;
 
-	/// <summary>
-	/// 
-	/// </summary>
-	public static IBattleChara? CurrentDancePartner
-	{
-		get
-		{
-			if (StatusHelper.PlayerHasStatus(true, StatusID.ClosedPosition))
-			{
-				foreach (var member in PartyMembers)
-				{
-					if (member.HasStatus(true, StatusID.DancePartner))
-						return member;
-				}
-			}
-			return null;
-		}
-	}
 	#endregion
 
 

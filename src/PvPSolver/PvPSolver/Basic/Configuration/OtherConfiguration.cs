@@ -55,7 +55,6 @@ internal class OtherConfiguration
 	public static HashSet<uint> HostileCastingStop = [];
 
 	public static Dictionary<uint, string[]> NoHostileNames = [];
-	public static Dictionary<uint, string[]> NoProvokeNames = [];
 
 	/// <markdown file="List" name="Beneficial Positions" section="Map-Specific Settings">
 	/// Adds a preferred location used for ground **healing** AoE abilities (example: Earthly Star).
@@ -94,8 +93,6 @@ internal class OtherConfiguration
 	/// </markdown>
 	public static HashSet<uint> NoCastingStatus = [];
 	public static List<Job> DancePartnerPriority = [];
-	public static List<Job> TheSpearPriority = [];
-	public static List<Job> TheBalancePriority = [];
 	public static List<Job> KardiaTankPriority = [];
 
 	public static RotationSolverRecord RotationSolverRecord = new();
@@ -111,11 +108,8 @@ internal class OtherConfiguration
 		_ = Task.Run(() => InitOne(ref PriorityStatus, nameof(PriorityStatus)));
 		_ = Task.Run(() => InitOne(ref InvincibleStatus, nameof(InvincibleStatus)));
 		_ = Task.Run(() => InitOne(ref DancePartnerPriority, nameof(DancePartnerPriority)));
-		_ = Task.Run(() => InitOne(ref TheSpearPriority, nameof(TheSpearPriority)));
-		_ = Task.Run(() => InitOne(ref TheBalancePriority, nameof(TheBalancePriority)));
 		_ = Task.Run(() => InitOne(ref KardiaTankPriority, nameof(KardiaTankPriority)));
 		_ = Task.Run(() => InitOne(ref NoHostileNames, nameof(NoHostileNames)));
-		_ = Task.Run(() => InitOne(ref NoProvokeNames, nameof(NoProvokeNames)));
 		_ = Task.Run(() => InitOne(ref HostileCastingArea, nameof(HostileCastingArea)));
 		_ = Task.Run(() => InitOne(ref HostileCastingTank, nameof(HostileCastingTank)));
 		_ = Task.Run(() => InitOne(ref BeneficialPositions, nameof(BeneficialPositions)));
@@ -133,15 +127,12 @@ internal class OtherConfiguration
 			await SaveDangerousStatus();
 			await SaveInvincibleStatus();
 			await SaveDancePartnerPriority();
-			await SaveTheSpearPriority();
-			await SaveTheBalancePriority();
 			await SaveKardiaTankPriority();
 			await SaveNoHostileNames();
 			await SaveHostileCastingArea();
 			await SaveHostileCastingTank();
 			await SaveBeneficialPositions();
 			await SaveRotationSolverRecord();
-			await SaveNoProvokeNames();
 			await SaveNoCastingStatus();
 			await SaveHostileCastingKnockback();
 			await SaveHostileCastingStop();
@@ -245,11 +236,6 @@ internal class OtherConfiguration
 		return Task.Run(() => Save(RotationSolverRecord, nameof(RotationSolverRecord)));
 	}
 
-	public static Task SaveNoProvokeNames()
-	{
-		return Task.Run(() => Save(NoProvokeNames, nameof(NoProvokeNames)));
-	}
-
 	public static Task SaveBeneficialPositions()
 	{
 		return Task.Run(() => Save(BeneficialPositions, nameof(BeneficialPositions)));
@@ -261,18 +247,6 @@ internal class OtherConfiguration
 		SaveDancePartnerPriority().Wait();
 	}
 
-	public static void ResetTheSpearPriority()
-	{
-		InitOne(ref TheSpearPriority, nameof(TheSpearPriority), true, true);
-		SaveTheSpearPriority().Wait();
-	}
-
-	public static void ResetTheBalancePriority()
-	{
-		InitOne(ref TheBalancePriority, nameof(TheBalancePriority), true, true);
-		SaveTheBalancePriority().Wait();
-	}
-
 	public static void ResetKardiaTankPriority()
 	{
 		InitOne(ref KardiaTankPriority, nameof(KardiaTankPriority), true, true);
@@ -282,16 +256,6 @@ internal class OtherConfiguration
 	public static Task SaveDancePartnerPriority()
 	{
 		return Task.Run(() => Save(DancePartnerPriority, nameof(DancePartnerPriority)));
-	}
-
-	public static Task SaveTheSpearPriority()
-	{
-		return Task.Run(() => Save(TheSpearPriority, nameof(TheSpearPriority)));
-	}
-
-	public static Task SaveTheBalancePriority()
-	{
-		return Task.Run(() => Save(TheBalancePriority, nameof(TheBalancePriority)));
 	}
 
 	public static Task SaveKardiaTankPriority()

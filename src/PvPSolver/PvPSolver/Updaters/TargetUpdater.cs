@@ -27,7 +27,6 @@ internal static partial class TargetUpdater
 			DataCenter.AllianceMembers.Clear();
 			DataCenter.AllHostileTargets.Clear();
 			DataCenter.DispelTarget = null;
-			DataCenter.ProvokeTarget = null;
 			DataCenter.InterruptTarget = null;
 			UpdateTimeToKill();
 			return;
@@ -35,9 +34,6 @@ internal static partial class TargetUpdater
 
 		UpdateLists();
 		DataCenter.DispelTarget = GetDispelTarget();
-		DataCenter.ProvokeTarget = (DataCenter.Role == JobRole.Tank)
-			? GetFirstHostileTarget(ObjectHelper.CanProvoke)
-			: null; // Calculating this per frame rather than on-demand is actually a fair amount worse
 		DataCenter.InterruptTarget = GetFirstHostileTarget(ObjectHelper.CanInterrupt); // Tanks, Melee, RDM and various job actions can interrupt so just deal with it
 
 		UpdateTimeToKill();
