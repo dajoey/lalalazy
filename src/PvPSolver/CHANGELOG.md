@@ -1,4 +1,13 @@
-﻿## v0.1.2.22 (2026-11-20) [testing]
+﻿## v0.1.2.23 (2026-11-20) [testing]
+- PvE remnant removal, round 2: the duty-rotation engine is gone. Removed: the whole Basic/Rotations/Duties subsystem (DutyRotation and the Bozja, Emanation, Monster Hunter, Orbonne, Phantom and Variant duty shells, DutyTerritoryAttribute), the DutyRotations command and its command handling, the duty-rotation hooks, settings rows and command plumbing in the rotation updaters, config classes and the rotation config window (including the duty tab), the Masked Carnivale helper, and the duty-rotation template in the source generators (a 620 KB PvE duty catalog that no longer ships).
+- The BossModReborn boss-timeline integration is removed: the BMRTimeline IPC subscriber, the BossMod updater and its download path, the timeline raidwide/tankbuster/knockback mitigation windows, the timeline debug panel and its config toggles. The plugin no longer talks to Boss Mod Reborn.
+- The last PvE-only catalog entries are scrubbed from the source generators: the Mega, Soothing, Resistance, Resistance Kit and Occult potion actions, the Dungeons, Deep Dungeons and V&C Dungeon Finder content types, and the To-the-Dungeons status.
+- A regression from the removal edit is fixed before release: the DoActions, ToggleActions, Settings and NextAction command cases were briefly lost with the duty command and are restored verbatim from 0.1.2.22.
+- Removed config keys no longer exist; saved settings that mentioned them are ignored on load.
+- No PvP rotation behavior change; the 21 PvP rotations are untouched.
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.2.22 (2026-11-20) [testing]
 - PvE remnant removal: the entire potion/item auto-use subsystem is gone. Removed: HP potion, MP potion, medicine and Phoenix Down item actions (Basic/Actions/HpPotionItem.cs, MpPotionItem.cs, MedicineItem.cs, PheonixDownItem.cs), the item action base (IBaseItem, BaseItem, ItemConfig), the tincture-usage setting and enum (Configs.TinctureType, TinctureUseType), the HP/MP potion and Phoenix Down auto-use settings and thresholds, the per-rotation item config store, the cooldown window's items filter and its Show Items' Cooldown setting, the teaching-mode item hotbar highlight, the next-action "Item" grouping, the config window's item debug panel, and the Potion auto-use calls in the ability path (CustomRotation_Ability).
 - This backs out the 0.1.2.21 potion port (upstream RotationSolverReborn 996f281830) and its whole subsystem. Items cannot be used in PvP; the plugin no longer carries item logic at all.
 - Removed config keys no longer exist; saved settings that mentioned them are ignored on load.
