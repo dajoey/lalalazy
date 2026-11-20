@@ -468,9 +468,9 @@ internal class ControlWindow : CtrlWindow
 					canDoIt = act.CanUse(out _, usedUp: true, skipAoeCheck: true);
 					IBaseAction.ForceEnable = false;
 				}
-				else if (action is IBaseItem item)
+				else
 				{
-					canDoIt = item.CanUse(out _, true);
+					canDoIt = false;
 				}
 				if (canDoIt)
 				{

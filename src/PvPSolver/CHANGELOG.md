@@ -1,4 +1,11 @@
-﻿## v0.1.2.21 (2026-11-20) [testing]
+﻿## v0.1.2.22 (2026-11-20) [testing]
+- PvE remnant removal: the entire potion/item auto-use subsystem is gone. Removed: HP potion, MP potion, medicine and Phoenix Down item actions (Basic/Actions/HpPotionItem.cs, MpPotionItem.cs, MedicineItem.cs, PheonixDownItem.cs), the item action base (IBaseItem, BaseItem, ItemConfig), the tincture-usage setting and enum (Configs.TinctureType, TinctureUseType), the HP/MP potion and Phoenix Down auto-use settings and thresholds, the per-rotation item config store, the cooldown window's items filter and its Show Items' Cooldown setting, the teaching-mode item hotbar highlight, the next-action "Item" grouping, the config window's item debug panel, and the Potion auto-use calls in the ability path (CustomRotation_Ability).
+- This backs out the 0.1.2.21 potion port (upstream RotationSolverReborn 996f281830) and its whole subsystem. Items cannot be used in PvP; the plugin no longer carries item logic at all.
+- Removed config keys no longer exist; saved settings that mentioned them are ignored on load.
+- No PvP rotation behavior change; the 21 PvP rotations are untouched.
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.2.21 (2026-11-20) [testing]
 - Upstream engine sync (RotationSolverReborn 996f281830, healer rotation and item usage update): the HP and MP potion items read an item's base potion data when the item carries no high-quality data, so a potion without high-quality values no longer reports a zero heal or restore amount (HpPotionItem, MpPotionItem).
 - A potion is not used while the character is dead, and the HP potion checks the HP threshold before the heal-size check (HpPotionItem.CanUse, MpPotionItem.CanUse).
 - HP and MP potion auto-use never runs in PvP (CustomRotation_Items.UseHpPotion, UseMpPotion).

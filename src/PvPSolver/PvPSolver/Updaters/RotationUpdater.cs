@@ -268,10 +268,6 @@ internal static class RotationUpdater
 					}
 				}
 			}
-			else if (a is IBaseItem && !DataCenter.IsPvP)
-			{
-				key = "Item";
-			}
 
 			// Always add to groups since we now have meaningful keys for all cases
 			if (!groups.TryGetValue(key, out List<IAction>? list))

@@ -122,7 +122,7 @@ public partial class RotationConfigWindow : Window
 		"Target tab: tweak target selection, vision cone, engage behavior, and dummy/boss handling.",
 		"Target tab: set /pvpsolver Cycle behaviour and targeting delays.",
 		"Manage TargetingTypes via chat: /pvpsolver Settings TargetingTypes add|remove <Type>.",
-		"Auto > Action Usage: allow/deny oGCDs, set AoE style, tinctures, interrupts, and True North.",
+		"Auto > Action Usage: allow/deny oGCDs, set AoE style, interrupts, and True North.",
 		"Auto > Healing: adjust thresholds and non-healer healing behavior.",
 		"Healer: customize Raise/Swiftcast and prioritization in Auto > Healing.",
 		"Ground AoEs: Auto > Healing has options to place beneficial ground actions smartly.",
@@ -2933,34 +2933,6 @@ public partial class RotationConfigWindow : Window
 						action.CanUse(out _, skipCastingCheck: true, skipStatusProvideCheck: true, skipTargetStatusNeedCheck: true, skipAoeCheck: true);
 						ImGui.Text("Target Name: " + action.Target.Target?.Name ?? string.Empty);
 						ImGui.Text("AffectedTarget Count: " + (action.Target.AffectedTargets?.Length ?? 0));
-				}
-				catch (Exception ex)
-				{
-					Widgets.StateText("Error: " + ex.Message, UiState.Failed);
-				}
-			}
-			else if (_activeAction is IBaseItem item)
-			{
-				try
-				{
-					// Ensure ActionManager.Instance() is not null
-					if (ActionManager.Instance() != null)
-					{
-						ImGui.Text("Status: " + ActionManager.Instance()->GetActionStatus(ActionType.Item, item.ID).ToString());
-						ImGui.Text("Status HQ: " + ActionManager.Instance()->GetActionStatus(ActionType.Item, item.ID + 1000000).ToString());
-						float remain = ActionManager.Instance()->GetRecastTime(ActionType.Item, item.ID) - ActionManager.Instance()->GetRecastTimeElapsed(ActionType.Item, item.ID);
-						ImGui.Text("remain: " + remain.ToString());
-						ImGui.Text("ID: " + item.ID.ToString());
-						ImGui.Text("A4: " + item.A4.ToString());
-						ImGui.Text("AdjustedID: " + item.AdjustedID.ToString());
-					}
-
-					ImGui.Text("CanUse: " + item.CanUse(out _, true).ToString());
-
-					if (item is HpPotionItem healPotionItem)
-					{
-						ImGui.Text("MaxHP:" + healPotionItem.MaxHp.ToString());
-					}
 				}
 				catch (Exception ex)
 				{

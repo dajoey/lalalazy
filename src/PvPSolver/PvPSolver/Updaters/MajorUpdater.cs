@@ -219,11 +219,7 @@ internal static class MajorUpdater
 			{
 				IAction nextAction = ActionUpdater.NextAction;
 				HotbarID? hotbar = null;
-				if (nextAction is IBaseItem item)
-				{
-					hotbar = new HotbarID(HotbarSlotType.Item, item.ID);
-				}
-				else if (nextAction is IBaseAction baseAction)
+				if (nextAction is IBaseAction baseAction)
 				{
 					hotbar = baseAction.Action.ActionCategory.RowId is 10 or 11
 							? GetGeneralActionHotbarID(baseAction)

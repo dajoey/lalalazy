@@ -396,42 +396,10 @@ internal partial class Configs : IPluginConfiguration
 	[UI("", Action = ActionID.ImprovisationPvE, Parent = nameof(PoslockCasting))]
 	public bool PosImprovisation { get; set; } = false;
 
-	/// <markdown file="Auto" name="Gemdraughts/Tinctures/Pots Usage" section="Action Usage and Control">
-	/// Sets whether to use damage-boosting potions and in which duty. You also need to enable the specific
-	/// potion in the `Actions` tab, under `Items`.
-	/// </markdown>
-	[JobConfig, UI("Only used automatically if coded into the rotation",
-	Description = "This setting is only used if the rotation specifically supports automatic tincture usage.",
-	Filter = AutoActionUsage, PvPFilter = JobFilterType.NoJob)]
-	private readonly TinctureUseType _TinctureType = TinctureUseType.InHighEndDuty;
-
 	[ConditionBool, UI("Automatically use Anti-Knockback role actions (Arms Length, Surecast)",
 	Description = "Enable to automatically use anti-knockback abilities when needed based on anti-knockback action list in List menu.",
 	Filter = AutoActionUsage)]
 	private static readonly bool _useKnockback = true;
-
-	[ConditionBool, UI("Automatically use HP Potions",
-	Description = "Enable to allow the plugin to use HP potions automatically.",
-	Filter = AutoActionUsage)]
-	private static readonly bool _useHpPotions = false;
-
-	[UI("Use HP Potions when HP% is lower than this", Parent = nameof(UseHpPotions))]
-	[Range(0, 1, ConfigUnitType.Percent, 0.002f)]
-	public float UseHpPotionsPercent { get; set; } = 0.5f;
-
-	[ConditionBool, UI("Automatically use MP Potions",
-	Description = "Enable to allow the plugin to use MP potions automatically.",
-	Filter = AutoActionUsage)]
-	private static readonly bool _useMpPotions = false;
-
-	[UI("Use MP Potions when MP% is lower than this", Parent = nameof(UseMpPotions))]
-	[Range(0, 1, ConfigUnitType.Percent, 0.002f)]
-	public float UseMpPotionsPercent { get; set; } = 0.5f;
-
-	[ConditionBool, UI("Automatically use Phoenix Down",
-	Description = "Enable to allow the plugin to use Phoenix Down item. (Experimental feature)",
-	Filter = AutoActionUsage)]
-	private static readonly bool _usePhoenixDown = false;
 
 	[UI("Use damaging gap closer abilites if the distance to your target is less than this.",
 		Filter = AutoActionUsage)]
@@ -555,10 +523,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[ConditionBool, UI("No Move", Parent = nameof(ShowNextActionWindow))]
 	private static readonly bool _isInfoWindowNoMove = false;
-
-	[ConditionBool, UI("Show Items' Cooldown",
-		Parent = nameof(ShowCooldownWindow))]
-	private static readonly bool _showItemsCooldown = false;
 
 	[ConditionBool, UI("Show GCD Cooldown",
 		Parent = nameof(ShowCooldownWindow))]
@@ -1303,9 +1267,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[JobConfig]
 	private readonly ConcurrentDictionary<uint, ActionConfig> _rotationActionConfig = new();
-
-	[JobConfig]
-	private readonly ConcurrentDictionary<uint, ItemConfig> _rotationItemConfig = new();
 
 	[JobChoiceConfig]
 	private readonly ConcurrentDictionary<string, string> _rotationConfigurations = new();

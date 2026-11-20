@@ -62,11 +62,6 @@ public partial class CustomRotation
 			return false;
 		}
 
-		if (act is IBaseItem i && i.CanUse(out _, true))
-		{
-			return true;
-		}
-
 		if (!Service.Config.UseAbility || Player.TotalCastTime > 0 || (StatusHelper.PlayerHasStatus(false, StatusID.ShackledAbilities) && DataCenter.NumberOfPartyMembersInRangeOf(8) > 1))
 		{
 			act = null;
@@ -351,10 +346,6 @@ public partial class CustomRotation
 		{
 			IBaseAction.ShouldEndSpecial = true;
 		}
-		if (DataCenter.MergedStatus.HasFlag(AutoStatus.HealSingleAbility) && UseHpPotion(nextGCD, out act))
-		{
-			return true;
-		}
 		IBaseAction.ShouldEndSpecial = false;
 
 		// Attack abilities: melee jobs in PvP consider them with an enemy within 5 yalms (their weaponskill reach)
@@ -379,7 +370,7 @@ public partial class CustomRotation
 			return true;
 		}
 
-		return UseMpPotion(nextGCD, out act) || GeneralUsingAbility(role, nextGCD, out act) || (DataCenter.AutoStatus.HasFlag(AutoStatus.Speed) && SpeedAbility(nextGCD, out act));
+		return GeneralUsingAbility(role, nextGCD, out act) || (DataCenter.AutoStatus.HasFlag(AutoStatus.Speed) && SpeedAbility(nextGCD, out act));
 	}
 
 	/// <summary>

@@ -277,8 +277,6 @@ internal static class DataCenter
 		}
 	}
 
-	public static TinctureUseType CurrentTinctureUseType => Service.Config.TinctureType;
-
 	public static unsafe ActionID LastComboAction => (ActionID)ActionManager.Instance()->Combo.Action;
 
 	public static unsafe float ComboTime => ActionManager.Instance()->Combo.Timer;
@@ -623,17 +621,11 @@ internal static class DataCenter
 	#region Job Info
 	public static Job Job => Player.Job;
 
-	private static readonly BaseItem PhoenixDownItem = new(4570);
 	public static bool CanRaise()
 	{
 		if (IsPvP)
 		{
 			return false;
-		}
-
-		if (Service.Config.UsePhoenixDown && PhoenixDownItem.HasIt)
-		{
-			return true;
 		}
 
 		if ((Role == JobRole.Healer || Job == Job.SMN) && PlayerSyncedLevel() >= 12)

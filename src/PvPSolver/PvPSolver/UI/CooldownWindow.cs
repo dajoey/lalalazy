@@ -46,11 +46,6 @@ internal class CooldownWindow() : CtrlWindow(nameof(CooldownWindow))
 					continue;
 				}
 
-				if (!config.ShowItemsCooldown && a is IBaseItem)
-				{
-					continue;
-				}
-
 				if (a is IBaseAction b3 && !b3.Info.IsPvP && DataCenter.IsPvP)
 				{
 					continue;
