@@ -1,4 +1,4 @@
-﻿v0.1.2.24 (2026-11-20) [testing]
+## v0.1.2.24 (2026-11-20) [testing]
 - PvE remnant removal, round 2: the whole duty-rotation engine, BMR boss-timeline integration, raid/fate/occult-crescent targeting (special-immune chain, M10S bro targeting, Forlorn/Fate/quest-mob priority settings), Territory Info rotation hooks, and the duty rotation command are gone. PvPSolver now reads and behaves as a complete, purpose-built PvP plugin.
 - RotationHarness shape checks updated to the PvP-only reality; BmrReadyHarness retired (it asserted the removed BMR integration).
 - No changes to the 21 PvP rotation bodies; targeting and action engine used by PvP paths is intact.
