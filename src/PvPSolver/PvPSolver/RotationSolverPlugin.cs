@@ -32,7 +32,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	private static PvpSettingsWindow? _pvpSettingsWindow;
 	private static ControlWindow? _controlWindow;
 	private static NextActionWindow? _nextActionWindow;
-	private static InterceptedActionWindow? _interceptedActionWindow;
 	private static CooldownWindow? _cooldownWindow;
 	private static ActionTimelineWindow? _actionTimelineWindow;
 	private static OverlayWindow? _overlayWindow;
@@ -99,7 +98,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_pvpSettingsWindow = new();
 		_controlWindow = new();
 		_nextActionWindow = new();
-		_interceptedActionWindow = new();
 		_cooldownWindow = new();
 		_actionTimelineWindow = new();
 		_overlayWindow = new();
@@ -125,7 +123,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		windowSystem.AddWindow(_pvpSettingsWindow);
 		windowSystem.AddWindow(_controlWindow);
 		windowSystem.AddWindow(_nextActionWindow);
-		windowSystem.AddWindow(_interceptedActionWindow);
 		windowSystem.AddWindow(_cooldownWindow);
 		windowSystem.AddWindow(_actionTimelineWindow);
 		windowSystem.AddWindow(_overlayWindow);
@@ -159,7 +156,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		MajorUpdater.Enable();
 		PluginLog.Information("PvPSolverPlugin constructor: MajorUpdater.Enable() done");
 		Watcher.Enable();
-		ActionQueueManager.Enable();
 		OtherConfiguration.Init();
 		ActionContextMenu.Init();
 		HotbarHighlightManager.Init();
@@ -333,7 +329,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_controlWindow!.IsOpen = isValid && Service.Config.ShowControlWindow;
 		_cooldownWindow!.IsOpen = isValid && Service.Config.ShowCooldownWindow;
 		_nextActionWindow!.IsOpen = isValid && Service.Config.ShowNextActionWindow;
-		_interceptedActionWindow!.IsOpen = isValid && Service.Config.ShowInterceptedActionWindow;
 
 		// ActionTimeline window with additional checks
 		bool showActionTimeline = isValid && Service.Config.ShowActionTimelineWindow;
@@ -385,7 +380,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_changelog = null;
 		RSCommands.Disable();
 		Watcher.Disable();
-		ActionQueueManager.Disable();
 		Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
 		Svc.PluginInterface.UiBuilder.Draw -= OnDraw;
 

@@ -171,21 +171,6 @@ namespace RotationSolver.Commands
 				_lastActionID = nextAction.AdjustedID;
 				_lastUsedTime = DateTime.Now;
 
-				// If this action was the one intercepted by the user, clear intercepted state and end the intercept window early
-				try
-				{
-					if (DataCenter.CurrentInterceptedAction != null && DataCenter.CurrentInterceptedAction.AdjustedID == nextAction.AdjustedID)
-					{
-						DataCenter.CurrentInterceptedAction = null;
-						// End the special intercepting state without showing toast
-						DoSpecialCommandType(SpecialCommandType.EndSpecial, false);
-					}
-				}
-				catch (Exception ex)
-				{
-					PluginLog.Warning($"Failed to clear CurrentInterceptedAction after execution: {ex}");
-				}
-
 				if (nextAction is BaseAction finalAct)
 				{
 					if (Service.Config.KeyboardNoise)

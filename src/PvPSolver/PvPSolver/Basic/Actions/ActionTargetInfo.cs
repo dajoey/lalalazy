@@ -1581,25 +1581,16 @@ public struct ActionTargetInfo(IBaseAction action)
 							return IsHostiletarg;
 						}
 					}
-					if (DataCenter.MergedStatus.HasFlag(AutoStatus.Intercepting))
+					var filtered = new List<IBattleChara>();
+					foreach (var t in battleChara)
 					{
-						if (Svc.Targets.Target is IBattleChara IsHostiletarg && IsHostiletarg.IsHostile())
+						if (t.DistanceToPlayer() < Service.Config.DistanceForMoving2)
 						{
-							return IsHostiletarg;
+							filtered.Add(t);
 						}
 					}
-					else
-					{
-						var filtered = new List<IBattleChara>();
-						foreach (var t in battleChara)
-						{
-							if (t.DistanceToPlayer() < Service.Config.DistanceForMoving2)
-							{
-								filtered.Add(t);
-							}
-						}
-						battleChara = filtered;
-					}
+					battleChara = filtered;
+				
 				}
 				break;
 

@@ -71,7 +71,6 @@ public partial class RotationConfigWindow : Window
 		"Right-click a setting label to copy a ready-to-use /pvpsolver Settings command.",
 		"Actions tab: click an action icon to configure, enable/disable, or set hotkeys.",
 		"Actions: toggle 'Show on CD Window' to include an action in the cooldown overlay.",
-		"Actions: enable 'Intercepted' to let PvP Solver fire an action you queue (PvE only).",
 		"UI > Information: enable DTR status, toasts, original cooldowns, and these hints.",
 		"UI > Windows: enable Next Action, Control, Cooldown, and Timeline windows.",
 		"Next Action: 'No Inputs' and 'No Move' options change overlay behavior.",
@@ -394,7 +393,6 @@ public partial class RotationConfigWindow : Window
 			_ = diagInfo.AppendLine($"Dalamud Staging: {DataCenter.DalamudStagingEnabled}");
 			_ = diagInfo.AppendLine($"Game Language: {_cachedDiagInfo.Language}");
 			_ = diagInfo.AppendLine($"Update Frequency: {Service.Config.MinUpdatingTime}");
-			_ = diagInfo.AppendLine($"Intercept: {Service.Config.InterceptAction3}");
 			_ = diagInfo.AppendLine($"Player Level: {DataCenter.PlayerSyncedLevel()}");
 			_ = diagInfo.AppendLine($"Rotation Name: {_curRotationAttribute?.Name ?? string.Empty}");
 			_ = diagInfo.AppendLine($"Player Job: {Player.Job}");
@@ -2253,12 +2251,6 @@ public partial class RotationConfigWindow : Window
 			string cmd = ToCommandStr(OtherCommandType.ToggleActions, _activeAction.ToString()!);
 			ImGuiHelper.DrawHotKeysPopup(key, cmd);
 			ImGuiHelper.ExecuteHotKeysPopup(key, cmd, string.Empty, false);
-
-			bool isIntercepted = _activeAction.IsIntercepted;
-			if (ImGui.Checkbox($"{UiString.ConfigWindow_Actions_IsIntercepted.GetDescription()}##{_activeAction.Name}", ref isIntercepted))
-			{
-				_activeAction.IsIntercepted = isIntercepted;
-			}
 
 			bool minHPFeatureSet = _activeAction.MinHPFeature;
 			if (ImGui.Checkbox($"{UiString.ConfigWindow_Actions_MinHPFeature.GetDescription()}##{_activeAction.Name}", ref minHPFeatureSet))

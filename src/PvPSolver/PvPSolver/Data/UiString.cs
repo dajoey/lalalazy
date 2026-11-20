@@ -111,9 +111,6 @@ namespace RotationSolver.Data
 		[Description("Show on CD window")]
 		ConfigWindow_Actions_ShowOnCDWindow,
 
-		[Description("Allow action to be intercepted by the intercept system")]
-		ConfigWindow_Actions_IsIntercepted,
-
 		[Description("Prevent this action against a curated list of mobs (ie. Jagd Dolls)")]
 		ConfigWindow_Actions_IsRestrictedDOT,
 

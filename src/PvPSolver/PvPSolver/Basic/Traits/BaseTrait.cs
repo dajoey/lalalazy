@@ -42,11 +42,6 @@ public class BaseTrait : IBaseTrait
 	/// <summary>
 	/// 
 	/// </summary>
-	public bool IsIntercepted { get; set; }
-
-	/// <summary>
-	/// 
-	/// </summary>
 	public bool IsRestrictedDOT { get; set; }
 
 	/// <summary>

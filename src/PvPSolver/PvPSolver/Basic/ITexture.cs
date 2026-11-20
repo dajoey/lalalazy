@@ -31,10 +31,5 @@ public interface ITexture
 	/// <summary>
 	/// 
 	/// </summary>
-	bool IsIntercepted { get; set; }
-
-	/// <summary>
-	/// 
-	/// </summary>
 	bool IsRestrictedDOT { get; set; }
 }

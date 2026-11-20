@@ -66,9 +66,6 @@ public abstract partial class CustomRotation : ICustomRotation
 	}
 
 	/// <inheritdoc/>
-	public bool IsIntercepted { get; set; }
-
-	/// <inheritdoc/>
 	public bool IsRestrictedDOT { get; set; }
 
 	/// <inheritdoc/>

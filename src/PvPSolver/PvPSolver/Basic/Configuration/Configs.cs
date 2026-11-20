@@ -118,37 +118,6 @@ internal partial class Configs : IPluginConfiguration
 
 	#endregion
 
-	[ConditionBool, UI("Intercept player input and queue it for PvP Solver to execute the action.",
-	Filter = AutoActionUsage, Section = 5)]
-	private static readonly bool _interceptAction3 = true;
-
-	[ConditionBool, UI("Allow intercepting Spells.",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptSpell3 = true;
-
-	[ConditionBool, UI("Allow intercepting Weaponskills.",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptWeaponskill3 = true;
-
-	[ConditionBool, UI("Allow intercepting Abilities.",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptAbility3 = true;
-
-	[ConditionBool, UI("Allow intercepting actions in macros.",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptMacro = false;
-
-	[ConditionBool, UI("Allow intercepting actions that are currently on cooldown.",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptCooldown = false;
-
-	[ConditionBool, UI("Pass original player input to action manager. (Enabling this will cause clipping).",
-	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
-	private static readonly bool _interceptPassing = true;
-
-	[Range(1, 10, ConfigUnitType.Seconds)]
-	public float InterceptActionTime { get; set; } = 5;
-
 	/// <markdown file="Auto" name="What kind of AoE moves to use" section="Action Usage and Control">
 	/// - Full: Use all available AoE actions.
 	/// - Cleave: Use only single-target AoE actions.
@@ -327,9 +296,6 @@ internal partial class Configs : IPluginConfiguration
 
 	[ConditionBool, UI("Show Next Action Window", Filter = UiWindows)]
 	private static readonly bool _showNextActionWindow = false;
-
-	[ConditionBool, UI("Show Intercepted Action Window", Filter = UiWindows)]
-	private static readonly bool _showInterceptedActionWindow = false;
 
 	[ConditionBool, UI("No Inputs", Parent = nameof(ShowNextActionWindow))]
 	private static readonly bool _isInfoWindowNoInputs = false;

@@ -83,11 +83,6 @@ public enum SpecialCommandType : byte
 	[Description("Open a window to do not use the casting action.")]
 	NoCasting,
 
-	/// <summary>
-	/// Intercepting action.
-	/// </summary>
-	[Description("Indicator for when PvP Solver is intercepting action.")]
-	Intercepting,
 }
 
 /// <summary>

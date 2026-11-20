@@ -579,7 +579,6 @@ internal static class StateUpdater
 			SpecialCommandType.AntiKnockback => AutoStatus.AntiKnockback,
 			SpecialCommandType.Burst => AutoStatus.Burst,
 			SpecialCommandType.Speed => AutoStatus.Speed,
-			SpecialCommandType.Intercepting => AutoStatus.Intercepting,
 			_ => AutoStatus.None,
 		};
 

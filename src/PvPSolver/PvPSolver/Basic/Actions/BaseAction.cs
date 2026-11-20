@@ -74,13 +74,6 @@ public class BaseAction : IBaseAction
 		set => Config.IsEnabled = value;
 	}
 
-	/// <inheritdoc/>
-	public bool IsIntercepted
-	{
-		get => Config.IsIntercepted;
-		set => Config.IsIntercepted = value;
-	}
-
 	/// <summary>
 	/// 
 	/// </summary>

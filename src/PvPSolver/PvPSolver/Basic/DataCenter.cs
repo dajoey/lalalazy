@@ -37,12 +37,6 @@ internal static class DataCenter
 	public static List<IBattleChara> AllTargets { get; set; } = [];
 	public static Dictionary<float, List<IBattleChara>> TargetsByRange { get; set; } = [];
 
-	/// <summary>
-	/// The action most recently queued via interception (current).
-	/// Set by the interception logic when an action is queued for RSR to attempt.
-	/// </summary>
-	public static IAction? CurrentInterceptedAction { get; set; }
-
 	public static bool IsInDutyReplay()
 	{
 		if (!PlayerAvailable())

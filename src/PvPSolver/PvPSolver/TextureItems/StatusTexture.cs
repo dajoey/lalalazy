@@ -34,11 +34,6 @@ internal class StatusTexture(Status status) : ITexture
 	/// <summary>
 	/// 
 	/// </summary>
-	public bool IsIntercepted { get; set; } = true;
-
-	/// <summary>
-	/// 
-	/// </summary>
 	public bool IsRestrictedDOT { get; set; } = false;
 
 	/// <summary>

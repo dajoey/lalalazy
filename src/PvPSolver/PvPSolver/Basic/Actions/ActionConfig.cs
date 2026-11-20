@@ -16,17 +16,6 @@ public class ActionConfig()
 		set => _isEnable = value;
 	}
 
-	private bool _isIntercepted = true;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	public bool IsIntercepted
-	{
-		get => _isIntercepted;
-		set => _isIntercepted = value;
-	}
-
 	private bool _isRestrictedDOT = false;
 
 	/// <summary>

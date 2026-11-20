@@ -105,9 +105,4 @@ public enum AutoStatus : uint
 	/// Stop taking actions.
 	/// </summary>
 	NoCasting = 1 << 18,
-
-	/// <summary>
-	/// Intercepting indicator.
-	/// </summary>
-	Intercepting = 1 << 19,
 }
