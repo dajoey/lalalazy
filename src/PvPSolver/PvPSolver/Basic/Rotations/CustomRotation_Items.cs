@@ -181,7 +181,7 @@ public partial class CustomRotation
 	private static bool UseMpPotion(IAction nextGCD, out IAction? act)
 	{
 		act = null;
-		if (!Service.Config.UseMpPotions)
+		if (DataCenter.IsPvP || !Service.Config.UseMpPotions)
 		{
 			return false;
 		}
@@ -239,7 +239,7 @@ public partial class CustomRotation
 	private static bool UseHpPotion(IAction nextGCD, out IAction? act)
 	{
 		act = null;
-		if (!Service.Config.UseHpPotions)
+		if (DataCenter.IsPvP || !Service.Config.UseHpPotions)
 		{
 			return false;
 		}

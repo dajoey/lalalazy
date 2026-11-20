@@ -14,7 +14,8 @@ internal class HpPotionItem : BaseItem
 
 	public HpPotionItem(Item item) : base(item)
 	{
-		Lumina.Excel.Collection<ushort> data = _item.ItemAction.Value!.DataHQ;
+		var action = _item.ItemAction.Value;
+		Lumina.Excel.Collection<ushort> data = action.DataHQ[0] > 0 || action.DataHQ[1] > 0 ? action.DataHQ : action.Data;
 		_percent = data[0] / 100f;
 		_maxHp = data[1];
 	}
@@ -23,11 +24,21 @@ internal class HpPotionItem : BaseItem
 	{
 		item = this;
 
-		if (Player.Object == null)
+		if (!Player.Available || Player.Object == null || Player.Object.CurrentHp == 0)
 		{
 			return false;
 		}
 
-		return Player.Available && ObjectHelper.GetPlayerHealthRatio() <= Service.Config.UseHpPotionsPercent && Player.Object.MaxHp - Player.Object.CurrentHp >= MaxHp && base.CanUse(out item, clippingCheck);
+		if (ObjectHelper.GetPlayerHealthRatio() > Service.Config.UseHpPotionsPercent)
+		{
+			return false;
+		}
+
+		if (Player.Object.MaxHp - Player.Object.CurrentHp < MaxHp)
+		{
+			return false;
+		}
+
+		return base.CanUse(out item, clippingCheck);
 	}
 }

@@ -1,4 +1,12 @@
-﻿## v0.1.2.20 (2026-11-18) [testing]
+﻿## v0.1.2.21 (2026-11-20) [testing]
+- Upstream engine sync (RotationSolverReborn 996f281830, healer rotation and item usage update): the HP and MP potion items read an item's base potion data when the item carries no high-quality data, so a potion without high-quality values no longer reports a zero heal or restore amount (HpPotionItem, MpPotionItem).
+- A potion is not used while the character is dead, and the HP potion checks the HP threshold before the heal-size check (HpPotionItem.CanUse, MpPotionItem.CanUse).
+- HP and MP potion auto-use never runs in PvP (CustomRotation_Items.UseHpPotion, UseMpPotion).
+- Not carried: upstream's healer, Summoner, Reaper, Red Mage, Ninja and Pictomancer PvE rotation edits, the new healer helper, the Adloquium tank priority list, the regeneration-potion handling for Eureka, Palace of the Dead and Deep Dungeon items, the new item-usage settings (out-of-combat use, time-to-kill limit, no-healer limit) and the Auto > Item Usage page, the main window changes, and a reworded warning and plugin-compatibility entry about another plugin. This plugin does not contain those parts.
+- No rotation behavior change; the 21 PvP rotations are untouched.
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.2.20 (2026-11-18) [testing]
 - Upstream engine sync (RotationSolverReborn c170c9cd5d, source reorganization): upstream moved its engine, configuration and rotation code into new folders and namespaces and split several large files into partial classes (ActionTargetInfo, DataCenter, ObjectHelper, StatusHelper, Configs). A line-by-line comparison of the old and new files found no behavior change in any of them, so this plugin keeps its own layout and namespaces.
 - All 21 PvP rotations now declare game version 7.58, and their source-code links point at upstream's new rotation folders. Metadata only; no rotation behavior change.
 - A saved rotation choice is matched by full name, by short name or by the trailing name segment, so a rotation still resolves if its namespace moves (RotationUpdater.MatchesRotationName).
