@@ -66,7 +66,10 @@ internal static class RotationLoaderWiring
                 if (!typeof(RotationSolver.Basic.Rotations.ICustomRotation).IsAssignableFrom(t)) continue;
                 icr++;
                 if (t.GetConstructor(Type.EmptyTypes) == null) continue;
-                if (!t.GetCustomAttributes(false).Any(a => a.GetType().Name == "JobsAttribute")) continue;
+                // inherit: true mirrors runtime GetCustomAttribute<JobsAttribute>(); the PvP rotations carry
+                // [Jobs] on their GENERATED per-job base classes, not on themselves (verified: zero direct
+                // [Jobs( hits under RebornRotations/PVPRotations; the attribute is in Resources.resx).
+                if (!t.GetCustomAttributes(inherit: true).Any(a => a.GetType().Name == "JobsAttribute")) continue;
                 loadable++;
             }
 
