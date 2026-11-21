@@ -211,7 +211,12 @@ public sealed class DispatchService : IDisposable
     private HuntRun? _hunt;
     /// <summary>WahTools holds the fish it caught for this run until released; released when the run ends.</summary>
     private bool _heldFish;
-    private readonly StallGuard _catchStall = new(TimeSpan.FromMinutes(30));
+    // Two hours: Feesh sits out weather and time windows itself and ends its own job when no spot can be fished,
+    // so this guard is only the backstop for a Feesh that stopped answering.
+    private readonly StallGuard _catchStall = new(TimeSpan.FromHours(2));
+    /// <summary>When the current wait for WahTools to finish its previous job began (null = not waiting).</summary>
+    private DateTime? _wahIdleWaitSince;
+    private static readonly TimeSpan WahIdleWaitCap = TimeSpan.FromSeconds(60);
     private readonly StallGuard _huntStall = new(TimeSpan.FromMinutes(15));
 
     /// <summary>One monster-drop item being hunted in batches (<see cref="HuntLoop"/>).</summary>
@@ -319,6 +324,9 @@ public sealed class DispatchService : IDisposable
     public void Dispose()
     {
         _framework.Update -= Tick;
+        // Unloading mid-run: WahTools saves its holds, so leaving them set would protect those fish indefinitely.
+        StopWahToolsIfRunning();
+        ReleaseWahTools();
         _ks?.Dispose();
     }
 
@@ -362,16 +370,6 @@ public sealed class DispatchService : IDisposable
         (_vendorCtx ??= new VendorContextProvider(Plugin.ClientState, Plugin.Objects, Plugin.Data, _log)).Current();
 
     /// <summary>
-    /// The special-shop context every plan build passes (card t_b431de3a): resolved currency-vendor offers, the
-    /// player's currency balances, and the user's reroute toggle.
-    /// <para>
-    /// Built fresh per plan because all three inputs move - the player walks, spends seals, and can flip the
-    /// setting between waves. The offer resolution is lazy (the <c>Offers</c> delegate runs only for leaves the
-    /// plan actually classifies as special-shop), so a cart with no currency-shop material pays nothing for it
-    /// beyond the closure.
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// What this plan may hand to WahTools (0.1.7.14). <see cref="FarmContext.None"/> unless WahTools is loaded and a
     /// WahTools setting is on, so a setup without WahTools routes exactly as before.
     /// </summary>
@@ -383,6 +381,16 @@ public sealed class DispatchService : IDisposable
         return new FarmContext(cfg.CatchFishWithWahTools, cfg.HuntDropsWithWahTools, gd.MobsFor, _farmExcluded);
     }
 
+    /// <summary>
+    /// The special-shop context every plan build passes (card t_b431de3a): resolved currency-vendor offers, the
+    /// player's currency balances, and the user's reroute toggle.
+    /// <para>
+    /// Built fresh per plan because all three inputs move - the player walks, spends seals, and can flip the
+    /// setting between waves. The offer resolution is lazy (the <c>Offers</c> delegate runs only for leaves the
+    /// plan actually classifies as special-shop), so a cart with no currency-shop material pays nothing for it
+    /// beyond the closure.
+    /// </para>
+    /// </summary>
     private SpecialShopContext Shops()
     {
         var gd = _plugin.GameData;
@@ -574,8 +582,6 @@ public sealed class DispatchService : IDisposable
         if (!Running && _plan is null) { Say("nothing is running."); return; }
         if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
-        if (Current is Phase.WaitCatch or Phase.Catches) WahTools.StopFeesh();
-        if (Current is Phase.WaitHunt or Phase.Hunts) WahTools.StopHunter();
         if (Current is Phase.WaitClientFree or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
         // 0.1.7.7: stop the Knightshopper leg too - an item already being bought may still land, so this is a
         // cancel REQUEST, and the run does not wait for the answer.
@@ -632,7 +638,8 @@ public sealed class DispatchService : IDisposable
         _huntQueue = new Queue<DispatchPlan.Hunt>();
         _catching = null;
         _hunt = null;
-        _heldFish = false;
+        _wahIdleWaitSince = null;
+        ReleaseWahTools();   // a previous run that ended Blocked kept its fish held
         _runClock.Restart();
         _runStartUtc = DateTime.UtcNow;
         _endedUtc = null;
@@ -1297,7 +1304,7 @@ public sealed class DispatchService : IDisposable
         Current = p;
         _phaseClock.Restart();
         _nextPoll = DateTime.MinValue;
-        if (p is Phase.WaitGather or Phase.BatchWait or Phase.WaitRetrieve or Phase.WaitCraftEnd or Phase.WaitCraftStart or Phase.WaitClientFree)
+        if (p is Phase.WaitGather or Phase.BatchWait or Phase.WaitRetrieve or Phase.WaitCraftEnd or Phase.WaitCraftStart or Phase.WaitClientFree or Phase.WaitCatch or Phase.WaitHunt)
             _nextHeartbeat = DateTime.UtcNow.AddMinutes(3);
         Snap();
     }
@@ -1909,7 +1916,6 @@ public sealed class DispatchService : IDisposable
         }
     }
 
-    /// <summary>The gather heartbeat line: how many of the wave's items have landed, and the first one still short.</summary>
     // ------------------------------------------------------------- WahTools legs (0.1.7.14)
 
     /// <summary>
@@ -1921,9 +1927,24 @@ public sealed class DispatchService : IDisposable
         if (_farmExcluded.Add(itemId)) _waveProgress = true;
     }
 
+    /// <summary>
+    /// True while WahTools is still busy with an earlier job (a stopped catch or hunt winds down over a few frames,
+    /// and any request made before then is refused). Holds the caller for up to <see cref="WahIdleWaitCap"/>; after
+    /// that the request goes ahead and a refusal is taken at its word.
+    /// </summary>
+    private bool WaitForWahToolsIdle()
+    {
+        if (WahTools.IsBusy() != true) { _wahIdleWaitSince = null; return false; }
+        _wahIdleWaitSince ??= DateTime.UtcNow;
+        if (DateTime.UtcNow - _wahIdleWaitSince.Value > WahIdleWaitCap) { _wahIdleWaitSince = null; return false; }
+        SetStatus("waiting for WahTools to finish its last job");
+        return true;
+    }
+
     private void StartNextCatch()
     {
         if (_catchQueue.Count == 0) { Enter(Phase.Hunts); return; }
+        if (!Poll(500) || WaitForWahToolsIdle()) return;
         var c = _catchQueue.Dequeue();
         _plugin.Inventory.DropMemo();
         var before = _plugin.Inventory.CountInBags(c.ItemId);
@@ -1954,15 +1975,14 @@ public sealed class DispatchService : IDisposable
         {
             var s = WahTools.CatchStatus();
             SetStatus("WahTools: " + (s.Length > 0 ? s : "fishing"));
-            // Stall guard: Feesh's status line plus the bag count unchanged for 30 minutes. Longer than GBR's 10
-            // because a fish can wait on a weather or time window, which Feesh sits out itself.
+            // Stall guard: Feesh's status line plus the bag count unchanged for two hours (see _catchStall).
             if (_catchStall.Observe(s + "|" + got, DateTime.UtcNow))
             {
                 WahTools.StopFeesh();
                 if (got > 0) _waveProgress = true;
                 ExcludeFromWahTools(c.ItemId);
-                TrackStep(StepKind.Catch, c.ItemId, c.Need, StepState.Failed, $"WahTools made no progress for 30 min ({Math.Max(0, got)} of {c.Need})");
-                Say($"WahTools made no progress on {Name(c.ItemId)} for 30 minutes - stopped it; the next pass hands the rest to GatherBuddyReborn.", error: true);
+                TrackStep(StepKind.Catch, c.ItemId, c.Need, StepState.Failed, $"WahTools made no progress for 2 hours ({Math.Max(0, got)} of {c.Need})");
+                Say($"WahTools made no progress on {Name(c.ItemId)} for 2 hours - stopped it; the next pass hands the rest to GatherBuddyReborn.", error: true);
                 _catching = null;
                 Enter(Phase.Catches);
                 return;
@@ -1993,6 +2013,7 @@ public sealed class DispatchService : IDisposable
         if (_hunt is null)
         {
             if (_huntQueue.Count == 0) { Enter(Phase.Crafts); return; }
+            if (!Poll(500) || WaitForWahToolsIdle()) return;
             var h = _huntQueue.Dequeue();
             _plugin.Inventory.DropMemo();
             _hunt = new HuntRun(h, _plugin.Inventory.CountInBags(h.ItemId));
@@ -2007,6 +2028,8 @@ public sealed class DispatchService : IDisposable
     /// </summary>
     private void StartHuntBatch(HuntRun run)
     {
+        // A batch that just ended (or was stopped early) may still be winding down: hold in Phase.Hunts until idle.
+        if (WaitForWahToolsIdle()) { if (Current != Phase.Hunts) Enter(Phase.Hunts); return; }
         _plugin.Inventory.DropMemo();
         var gained = _plugin.Inventory.CountInBags(run.Hunt.ItemId) - run.Before;
         var kills = HuntLoop.KillsFor(run.Hunt.Quantity - Math.Max(0, gained));
@@ -2083,6 +2106,12 @@ public sealed class DispatchService : IDisposable
         Enter(Phase.Hunts);
     }
 
+    private void StopWahToolsIfRunning()
+    {
+        if ((Current is Phase.WaitCatch or Phase.Catches) && _catching is not null) WahTools.StopFeesh();
+        if ((Current is Phase.WaitHunt or Phase.Hunts) && _hunt is not null) WahTools.StopHunter();
+    }
+
     /// <summary>Run end: let WahTools treat this run's fish like any other fish again.</summary>
     private void ReleaseWahTools()
     {
@@ -2091,6 +2120,7 @@ public sealed class DispatchService : IDisposable
         WahTools.ReleaseHeldFish();
     }
 
+    /// <summary>The gather heartbeat line: how many of the wave's items have landed, and the first one still short.</summary>
     private string GatherHeartbeat()
     {
         var done = 0;
@@ -2183,7 +2213,7 @@ public sealed class DispatchService : IDisposable
     /// <summary>Stop-and-report (card t_efde145c option A): the run is Blocked, the plan is held for <see cref="Resume"/>, and the red block is printed here, once, at the END of the run.</summary>
     private void FinishBlocked(string why, DispatchPlan.Plan? blockedPlan = null)
     {
-        ReleaseWahTools();
+        // Held fish stay held: a blocked run can be resumed, and the cart still needs them.
         _stoppedReason = Readable(why);
         // Defect A (card t_35be7be5): the merge lives in Core now and BOTH endings call it - this path used to
         // carry its own inline copy while Finish carried none at all.
@@ -2254,6 +2284,8 @@ public sealed class DispatchService : IDisposable
     /// <summary>The wave loop said the cart is finished (or a single-channel run ended on its own).</summary>
     private void Finish(Phase end, string? why)
     {
+        // Every ending of a run passes here (Stop, a failure, a tick exception): leave WahTools idle and unheld.
+        StopWahToolsIfRunning();
         ReleaseWahTools();
         var plan = _plan;
         _stoppedReason = why;
