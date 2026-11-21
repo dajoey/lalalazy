@@ -1,3 +1,11 @@
+## v0.1.2.34 (2026-11-21)
+### Fixed
+- Basic/Rotations/CustomRotation_GCD.cs GCD: the chooser never called the job rotations' GeneralGCD, so no attack GCD was ever selected - the character could only auto-heal, Guard, Recuperate and drink the elixir, which read as healing instead of attacking in matches. The call was deleted together with the duty-rotation engine in v0.1.2.23 (the same class of loss as the v0.1.2.32 rotation-load fix), so every version from v0.1.2.23 to v0.1.2.33 shipped with attack GCDs as dead code. GeneralGCD is called again inside the NoCasting branch, in upstream's chooser order (heals first, attacks after).
+- Basic/Rotations/CustomRotation_GCD.cs GCD: the DefenseArea and DefenseSingle branches were emptied by the same removal, so the healer PvP rotations' defense GCD overrides were equally unreachable; both calls are restored. No duty-rotation, Provoke or other PvE machinery returns.
+- Commands/RSCommands_Actions.cs DoAction: every executed-action change now leaves one "ActionTap: <name> (<id>)" log line (on-change only, so it cannot spam). This makes the live-path release check possible: a real match must show attack actions being chosen before any build is called good.
+### Added
+- tests/PvPSolver.RotationHarness Cases/SelectionGate.cs: the release harness now fails when the compiled chooser no longer calls GeneralGCD (IL call-site count and position after the heal branch), when the ability chooser loses GeneralAbility, when any shipped PvP rotation loses its attack-bearing GeneralGCD override, or when the ActionTap log line is missing from the built assembly.
+
 ## v0.1.2.33 (2026-11-21)
 ### Fixed
 - Commands/RSCommands_Actions.cs UpdateRotationState: "Turn on when a match starts" could never engage - it only ran during the match loading screen, when no player object exists and the job role is unknown, so the null-player early return and the job-role check silently dropped it and the rotation loaded but never acted in matches. The auto-on now latches during the load screen (new pure decision core Basic/Decisions/MatchStartAutoOn.cs) and engages the PvP state on the first cycle where the player and job are loaded, logging both steps.

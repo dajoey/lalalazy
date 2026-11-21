@@ -116,12 +116,20 @@ public partial class CustomRotation
 
 			if (DataCenter.MergedStatus.HasFlag(AutoStatus.DefenseArea))
 			{
+				if (DefenseAreaGCD(out var action))
+				{
+					return action;
+				}
 			}
 
 			IBaseAction.TargetOverride = TargetType.BeAttacked;
 
 			if (DataCenter.MergedStatus.HasFlag(AutoStatus.DefenseSingle))
 			{
+				if (DefenseSingleGCD(out var action))
+				{
+					return action;
+				}
 			}
 
 			IBaseAction.TargetOverride = null;
@@ -131,6 +139,13 @@ public partial class CustomRotation
 
 			if (!DataCenter.MergedStatus.HasFlag(AutoStatus.NoCasting))
 			{
+				// The attack chooser: this call was deleted together with the duty-rotation engine
+				// in v0.1.2.23 and every job's attack GCDs were unreachable code until v0.1.2.34, so
+				// the chooser could only ever return heals or nothing (the healing-not-attacking bug).
+				if (GeneralGCD(out var action))
+				{
+					return action;
+				}
 			}
 
 			if (Service.Config.HealWhenNothingTodo && InCombat)

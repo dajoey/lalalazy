@@ -16,6 +16,7 @@ namespace RotationSolver.Commands
 		private static bool started = false;
 		internal static DateTime _lastUsedTime = DateTime.MinValue;
 		internal static uint _lastActionID;
+		private static uint _lastTappedActionID;
 		private static float _lastCountdownTime = 0;
 		private static Job _previousJob = Job.ADV;
 		// Set while a PvP match loading screen was seen with "Turn on when a match starts" on;
@@ -164,6 +165,7 @@ namespace RotationSolver.Commands
 
 				_lastActionID = nextAction.AdjustedID;
 				_lastUsedTime = DateTime.Now;
+				LogActionTap(nextAction);
 
 				if (nextAction is BaseAction finalAct)
 				{
@@ -186,6 +188,22 @@ namespace RotationSolver.Commands
 			{
 				PluginLog.Verbose($"Failed to use the action {nextAction} ({nextAction.AdjustedID})");
 			}
+		}
+
+		// Live-path proof for the selection gate: one line per executed-action change, so a real
+		// match leaves "ActionTap: <name> (<id>)" lines in the log (harvested to ffxivdb under
+		// the PvPSolver context). On-change only: repeated casts of the same action log once.
+		private static void LogActionTap(IAction action)
+		{
+			uint id = action.AdjustedID;
+			if (id == _lastTappedActionID)
+			{
+				return;
+			}
+
+			_lastTappedActionID = id;
+			string name = (action as IBaseAction)?.Name ?? action.ToString();
+			PluginLog.Information($"ActionTap: {name} ({id})");
 		}
 
 		private static void PulseSimulation(uint id)

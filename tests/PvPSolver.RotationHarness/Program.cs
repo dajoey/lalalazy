@@ -48,6 +48,7 @@ internal static class Program
         RunGroup("RotationLoaderWiring", RotationLoaderWiring.Run);
         RunGroup("MatchStartAutoOnCases", MatchStartAutoOnCases.Run);
         RunGroup("CommandGate", CommandGate.Run);
+        RunGroup("SelectionGate", SelectionGate.Run);
 
         return Harness.Finish();
     }
