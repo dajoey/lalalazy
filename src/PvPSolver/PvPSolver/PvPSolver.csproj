@@ -5,8 +5,9 @@
     <InternalName>PvPSolver</InternalName>
     <Punchline>PvP-only auto-rotation</Punchline>
     <Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-    <Version>0.1.2.31</Version>
-    <Changelog>v0.1.2.31 - 2026-11-20: PvE remnant removal, round 6 completion. Four unreferenced PvE statuses whose generated doc text still carried a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity) leave the StatusID table. No PvP behaviour change.
+    <Version>0.1.2.32</Version>
+    <Changelog>v0.1.2.32 - 2026-11-21: Fixed rotations never loading (silent no-op in PvP since 0.1.2.26): the duty-rotation removal had also removed the call that fills the rotation list from the assembly scan. The call and the rotation-group count log line are restored, an empty scan now logs an error, and a release-harness gate fails when the rotation-load wiring is severed or the scan finds no rotations. No PvE content returns. Testing channel only.
+v0.1.2.31 - 2026-11-20: PvE remnant removal, round 6 completion. Four unreferenced PvE statuses whose generated doc text still carried a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity) leave the StatusID table. No PvP behaviour change.
 v0.1.2.30 - 2026-11-20: PvE remnant removal, round 6. PvE-only target finders (AST cards, Phantom Respite), the provoke/shirk machinery, PvE event-status gates (Scalebound, Shackled, Transcendent), the tank-buster target list, positional leftovers and 17 unreferenced PvE statuses are removed. No PvP behaviour change.
 v0.1.2.29 - 2026-11-20: PvE remnant removal, round 5 completion. Six PvE boss-specific tank-buster effect paths and seven unreferenced chocobo-race statuses are removed. No PvP behaviour change.
 v0.1.2.28 - 2026-11-20: PvE remnant removal, round 5. The Auto True North setting and positional map, the tank-stance and provoke-for-tank settings, the Blue Mage code and setting, chocobo companion handling, job traits, the unused job-filter types and the Raise statuses are removed. No PvP behaviour change.

@@ -1,3 +1,9 @@
+## v0.1.2.32 (2026-11-21) [testing]
+- Fixed: rotations never loaded, so the plugin did nothing in PvP matches since v0.1.2.26. The duty-rotation engine removal (v0.1.2.23) had also removed the single call in Updaters/RotationUpdater.cs LoadBuiltInRotations that fills CustomRotations from the assembly scan (LoadCustomRotationGroup); the rotation list stayed empty, the log stopped right after "MajorUpdater: triggering rotation load..." and no rotation was ever selected, with no error line anywhere.
+- Restored that call and the "LoadBuiltInRotations: found N rotation groups" log line; a scan that finds no rotation groups now logs an error instead of staying silent (Updaters/RotationUpdater.cs, LoadBuiltInRotations).
+- Added a release-harness gate (tests/PvPSolver.RotationHarness, RotationLoaderWiring) that fails when the rotation-load wiring is severed or the shipped assembly contains no loadable rotation - the regression class that passed every existing gate in v0.1.2.26 - v0.1.2.31.
+- No PvE rotation content or behaviour returns; the PvP-only scope is unchanged. Testing channel only; the production channel is unchanged.
+
 ## v0.1.2.31 (2026-11-20) [testing]
 - Round 6 completion: the post-release marker grep still found four generated StatusID entries whose description text carries a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity). All four are unreferenced PvE statuses and are removed from the generated table; no code reads them.
 - No code change and no PvP behaviour change; every remaining marker hit is a cited part of a PvP path (the Sage Kardia and Dancer partner targeting, and the tank lock-on VFX check).

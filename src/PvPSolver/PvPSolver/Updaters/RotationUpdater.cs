@@ -27,6 +27,17 @@ internal static class RotationUpdater
 	{
 		List<Assembly> assemblies = [typeof(RotationUpdater).Assembly];
 
+		// Load-bearing wiring, deleted with the duty-rotation removal (shipped v0.1.2.23,
+		// broken in every session from v0.1.2.26): without this call the assembly scan never
+		// runs, CustomRotations stays empty and every rotation consumer (InitReferenceDict,
+		// CurrentRotation selection) silently no-ops. Kept loud: an empty scan is an error.
+		CustomRotations = LoadCustomRotationGroup(assemblies);
+		PluginLog.Information($"LoadBuiltInRotations: found {CustomRotations.Length} rotation groups");
+		if (CustomRotations.Length == 0)
+		{
+			PluginLog.Error("LoadBuiltInRotations: found 0 rotation groups - the rotation scan is broken, no rotation will load");
+		}
+
 
 		Dictionary<JobRole, List<CustomRotationGroup>> customRotationsGroupedByJobRole = [];
 		foreach (CustomRotationGroup customRotationGroup in CustomRotations)
