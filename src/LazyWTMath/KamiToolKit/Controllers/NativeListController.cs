@@ -39,7 +39,7 @@ public class NativeListController<T, TU> : IDisposable, IAsyncDisposable where T
     public unsafe delegate bool ShouldModifyElementHandler(T* unitBase, TU listItem);
 
     /// <summary>
-    /// Delegate that is called when the list controller is setting up and trying to hook the games node populator.
+    /// Delegate that is called when the list controller is setting up and trying to hook the game's node populator.
     /// </summary>
     public unsafe delegate AtkComponentListItemRenderer* GetPopulatorNodeHandler(T* addon);
 

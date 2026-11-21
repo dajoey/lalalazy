@@ -1,4 +1,6 @@
-﻿## v0.1.1.7 (2026-11-16) [testing]
+﻿## v0.1.1.8 (2026-11-21) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release; the hub window's scroll area now recalculates its layout through the toolkit's new layout path.
+## v0.1.1.7 (2026-11-16) [testing]
 - The Lazy Hub window now has the same dark, rounded look as the other lalalazy windows, with crisp edges instead of blurry ones.
 - Settings buttons show the full word, and the buttons and switches now match the style of the other plugin windows.
 - The window no longer shows the game's blue background between panels, has a status bar at the bottom, and rows and sections line up evenly with consistent spacing between the two columns.

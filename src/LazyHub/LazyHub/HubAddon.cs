@@ -856,7 +856,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     {
         if (_scroll is null) return;
         _scroll.ContentNode.Size = new Vector2(_width, Math.Max(_height, contentHeight + HubLayout.ScrollPadBottom));
-        _scroll.RecalculateSizes();
+        _scroll.UpdateLayout();
     }
 
     // ===== binding ======================================================================================

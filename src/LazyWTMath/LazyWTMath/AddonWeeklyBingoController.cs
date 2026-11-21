@@ -65,7 +65,6 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
             TextColor = LazyWTMathOverlayStyle.TextColor,
             // Fork: Keep refreshed probabilities legible over the native journal surface.
             TextOutlineColor = LazyWTMathOverlayStyle.OutlineColor,
-            BackgroundColor = existingTextNode->BackgroundColor.ToVector4(),
             FontSize = existingTextNode->FontSize,
             LineSpacing = existingTextNode->LineSpacing,
             CharSpacing = existingTextNode->CharSpacing,
@@ -73,6 +72,10 @@ public unsafe class AddonWeeklyBingoController : IDisposable {
             String = System.PerfectTails.SolveAndGetProbabilitySeString().TextValue,
         };
 
+        // Fork: the api16 KamiToolKit refactor moved BackgroundColor off TextNode (it now lives
+        // on BackgroundTextNode, a centered-only composite); set the journal-matched background
+        // through the native node, exactly what the old managed setter did.
+        probabilityTextNode.Node->BackgroundColor = existingTextNode->BackgroundColor;
         probabilityTextNode.AttachNode((AtkResNode*)existingTextNode, NodePosition.AfterTarget);
     }
     

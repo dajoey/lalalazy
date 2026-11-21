@@ -1,3 +1,6 @@
+## v3.2.3.10 (2026-11-21) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release, which reorganizes how native game windows and nodes are built.
+- The probability overlay keeps its journal-matched background, text colours, font size and spacing through the toolkit's new node layout.
 ## v3.2.3.9 (2026-11-16) [testing]
 - Fixed a crash risk while logging in or out with the Wondrous Tails journal open.
 - The probability overlay no longer recomputes every frame.
