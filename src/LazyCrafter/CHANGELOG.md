@@ -1,4 +1,14 @@
-﻿## v0.1.7.14 (2026-11-21) [testing]
+﻿## v0.1.7.15 (2026-11-21) [testing]
+### Fixed
+- Crafts that were waiting on a material WahTools handed back no longer run into a wall of failed-craft lines in the same pass. They are pulled out of the wave's craft queue the moment the hand-back happens, their rows on the Run tab show them waiting for the next pass, and the re-plan remakes them on the material's new route.
+- Crafts no longer start while WahTools Hunter is still driving the character after a hunt. The hand-off to Artisan now waits for WahTools to go idle, the same gate the other WahTools hand-offs use, and logs one line when it does.
+- The blocked report now lists the fish and monster-drop materials WahTools was handed, so the Run tab and /lcraft status show what a blocked run is waiting on.
+### Changed
+- WahTools' Hunter is now offered an item's monsters in a smarter order: the highest-level monster the character can already beat first, then monsters with no known level, then monsters above the character's combat level from the lowest up. The level data comes from the installed WahTools itself; when it cannot be read, a warning is logged once per session and the previous order is kept.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.7.14 (2026-11-21) [testing]
 ### Added
 - **Monster-drop materials can be hunted with WahTools.** When WahTools is loaded, a material that a known monster drops is handed to WahTools' Hunter instead of going straight to the market-board list. Hunter counts kills, not drops, so the run hunts in batches, recounts the bags between batches, and stops as soon as enough have landed. It gives up after two batches in a row that drop nothing (or eight in total), and the rest goes back on the market-board or manual list on the next pass. Gil-vendor items, and currency-shop items the character can already pay for, are still bought, never hunted.
 - **Fish materials can be caught with WahTools.** When WahTools is loaded, a fish that no gathering node yields goes to WahTools' Feesh instead of GatherBuddyReborn. A fish WahTools will not take, such as an ocean fish, goes back to GatherBuddyReborn on the next pass. The caught fish stay protected from WahTools' own discard and desynth rules until the run ends, including while a blocked run waits for Resume.

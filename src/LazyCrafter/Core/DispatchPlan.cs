@@ -318,6 +318,42 @@ public static class DispatchPlan
     }
 
     /// <summary>
+    /// The crafts in <paramref name="crafts"/> whose recipe needs <paramref name="itemId"/> (0.1.7.15, WahTools
+    /// finding 1): directly as an ingredient, or as an ingredient of any craft already in the set, expanded until
+    /// nothing more is added. When WahTools hands an item back mid-run, the executor removes exactly this set from
+    /// the craft queue - the crafts left in would otherwise each run into <see cref="BagsShortfall"/>, print a red
+    /// line and count as failed, even though the next pass remakes them all on the item's new route.
+    /// </summary>
+    public static IReadOnlySet<uint> CraftsNeeding(IEnumerable<Craft> crafts, uint itemId, RecipeGraph graph)
+    {
+        var rows = new Dictionary<uint, RecipeRow>();
+        foreach (var c in crafts)
+            if (!rows.ContainsKey(c.RecipeId) && graph.Row(c.RecipeId) is { } row)
+                rows[c.RecipeId] = row;
+        var needed = new HashSet<uint>();
+        var neededResults = new HashSet<uint>();
+        foreach (var (id, row) in rows)
+            if (row.Ingredients.Any(i => i.ItemId == itemId))
+            {
+                needed.Add(id);
+                neededResults.Add(row.ResultItemId);
+            }
+        bool grew = true;
+        while (grew)
+        {
+            grew = false;
+            foreach (var (id, row) in rows)
+            {
+                if (needed.Contains(id) || !row.Ingredients.Any(i => neededResults.Contains(i.ItemId))) continue;
+                needed.Add(id);
+                neededResults.Add(row.ResultItemId);
+                grew = true;
+            }
+        }
+        return needed;
+    }
+
+    /// <summary>
     /// Route a single ingredient the way <see cref="Build"/> would, for the per-leaf fulfil buttons.
     /// Returns the channel name the UI should offer first and, for a sub-craft, the recipe to hand Artisan.
     /// </summary>

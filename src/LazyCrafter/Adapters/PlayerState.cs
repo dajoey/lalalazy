@@ -59,6 +59,23 @@ public sealed class PlayerState : ICraftingLog
         return _data.GetExcelSheet<ClassJob>().TryGetRow(classJobId, out var job) ? _player.GetClassJobLevel(job) : 0;
     }
 
+    /// <summary>
+    /// The character's highest combat job level (0.1.7.15): the best Disciple of War or Magic level, which decides
+    /// which monsters WahTools' Hunter can realistically be sent at. 0 when not logged in - callers treat that as
+    /// cannot tell, not as level zero.
+    /// </summary>
+    public int CombatLevel()
+    {
+        if (!IsLoggedIn) return 0;
+        var best = 0;
+        foreach (var job in _data.GetExcelSheet<ClassJob>())
+        {
+            if (job.ClassJobCategory.RowId is not (30 or 31)) continue;
+            best = Math.Max(best, _player.GetClassJobLevel(job));
+        }
+        return best;
+    }
+
     /// <summary>Every crafter/gatherer job with level > 0.</summary>
     public IReadOnlyDictionary<uint, int> UnlockedJobs()
     {

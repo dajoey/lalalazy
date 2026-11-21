@@ -204,6 +204,7 @@ public sealed class DispatchService : IDisposable
     // ---- 0.1.7.14: the WahTools legs (fish, then monster drops), run after GBR and before Artisan ----
     /// <summary>Items WahTools refused or gave up on this run; the re-plan sends them down the old routes.</summary>
     private readonly HashSet<uint> _farmExcluded = new();
+    private WahToolsSpawnLevels? _spawnLevels;
     private Queue<DispatchPlan.Catch> _catchQueue = new();
     private Queue<DispatchPlan.Hunt> _huntQueue = new();
     /// <summary>The catch in flight: item, quantity wanted, bag count when it started.</summary>
@@ -378,7 +379,11 @@ public sealed class DispatchService : IDisposable
         var gd = _plugin.GameData;
         var cfg = _plugin.Config;
         if (gd is null || !(cfg.CatchFishWithWahTools || cfg.HuntDropsWithWahTools) || !WahTools.Installed) return FarmContext.None;
-        return new FarmContext(cfg.CatchFishWithWahTools, cfg.HuntDropsWithWahTools, gd.MobsFor, _farmExcluded);
+        // 0.1.7.15 (WahTools finding 4): LazyCrafter has no monster levels; the ones embedded in the installed
+        // WahTools order the list so the character is offered the highest monster it can already beat first.
+        _spawnLevels ??= new WahToolsSpawnLevels(Plugin.Pi, _log);
+        return new FarmContext(cfg.CatchFishWithWahTools, cfg.HuntDropsWithWahTools,
+            id => FarmContext.OrderMobs(gd.MobsFor(id), _spawnLevels.Get, _plugin.Player.CombatLevel()), _farmExcluded);
     }
 
     /// <summary>
@@ -1921,10 +1926,32 @@ public sealed class DispatchService : IDisposable
     /// <summary>
     /// Hand an item back to the old routes for the rest of the run. The re-plan only happens when the wave counts as
     /// progress, so this marks it: the routing changed, and another pass can now use GBR or the market board.
+    /// <para>
+    /// 0.1.7.15 (WahTools finding 1): the current wave's craft queue still holds every craft that needs this item,
+    /// and each would run into the <see cref="DispatchPlan.BagsShortfall"/> guard - a red line plus a failed count -
+    /// even though the re-plan was about to remake them all. They are pulled out here instead and their run rows go
+    /// back to <see cref="StepState.Pending"/> with the reason; the re-plan rebuilds them, so they never enter
+    /// <c>_deferredAtRun</c> and nothing prints as failed for them.
+    /// </para>
     /// </summary>
     private void ExcludeFromWahTools(uint itemId)
     {
-        if (_farmExcluded.Add(itemId)) _waveProgress = true;
+        if (!_farmExcluded.Add(itemId)) return;
+        _waveProgress = true;
+        if (_graph is null || _crafts.Count == 0) return;
+        var needing = DispatchPlan.CraftsNeeding(_crafts, itemId, _graph);
+        if (needing.Count == 0) return;
+        var keep = new List<DispatchPlan.Craft>(_crafts.Count);
+        while (_crafts.Count > 0)
+        {
+            var c = _crafts.Dequeue();
+            if (needing.Contains(c.RecipeId))
+                TrackStep(StepKind.Craft, c.ResultItemId, c.Crafts, StepState.Pending,
+                    $"waiting for the next pass ({Name(itemId)} re-routed)", c.RecipeId);
+            else
+                keep.Add(c);
+        }
+        foreach (var c in keep) _crafts.Enqueue(c);
     }
 
     /// <summary>
@@ -2012,7 +2039,16 @@ public sealed class DispatchService : IDisposable
     {
         if (_hunt is null)
         {
-            if (_huntQueue.Count == 0) { Enter(Phase.Crafts); return; }
+            if (_huntQueue.Count == 0)
+            {
+                // 0.1.7.15 (WahTools finding 2): Hunter's after-hunt travel can still be running when the queue
+                // empties. Handing the character to Artisan at that moment gets Craft() refused, so pass the same
+                // idle gate every other WahTools hand-off uses, then hand over with one log line for the run log.
+                if (!Poll(500) || WaitForWahToolsIdle()) return;
+                _log.Information("WahTools idle; handing crafts to Artisan");
+                Enter(Phase.Crafts);
+                return;
+            }
             if (!Poll(500) || WaitForWahToolsIdle()) return;
             var h = _huntQueue.Dequeue();
             _plugin.Inventory.DropMemo();

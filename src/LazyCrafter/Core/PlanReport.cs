@@ -77,7 +77,7 @@ public static class PlanReport
 
     /// <summary>
     /// The plan's own blocked items for the run snapshot: market (with the gil estimate and any named currency
-    /// vendor), currency shop, manual, ventures and retrievals.
+    /// vendor), currency shop, manual, ventures and retrievals, plus the WahTools catches and hunts (0.1.7.15).
     /// <para>
     /// Gil vendors are deliberately NOT here: they need the adapter's placement grouping, and resolving them a
     /// second time is precisely the drift card t_731ea0e7 removed. The caller appends those itself.
@@ -96,6 +96,13 @@ public static class PlanReport
         foreach (var m in plan.Manual)
             list.Add(new BlockedItem(StepKind.Manual, m.ItemId, name(m.ItemId), m.Quantity, null,
                 string.IsNullOrEmpty(m.Where) ? string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand)) : m.Where));
+        // 0.1.7.15 (WahTools finding 3): the WahTools legs are work the run cannot do itself, so they belong on the
+        // blocked report too - after the manual items, so the existing order stays put. RunTab's others list and
+        // /lcraft status both render these rows.
+        foreach (var c in plan.Catches)
+            list.Add(new BlockedItem(StepKind.Catch, c.ItemId, name(c.ItemId), c.Quantity, null, "WahTools Feesh"));
+        foreach (var h in plan.Hunts)
+            list.Add(new BlockedItem(StepKind.Hunt, h.ItemId, name(h.ItemId), h.Quantity, null, "WahTools Hunter"));
         return list;
     }
 }

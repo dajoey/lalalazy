@@ -25,6 +25,33 @@ public sealed record FarmContext(
 
     public IReadOnlyList<uint> Hunts(uint itemId) =>
         HuntDrops && !Excluded.Contains(itemId) ? MobsFor(itemId) : Array.Empty<uint>();
+
+    /// <summary>
+    /// The order to offer an item's monsters to WahTools' Hunter (0.1.7.15, WahTools finding 4): monsters the
+    /// character can already beat first, the highest-level of those first so the strongest spawn goes first, then
+    /// monsters with no known level, then monsters above the character - the lowest of those first. Ties keep the
+    /// input order. A combat level of 0 (not logged in / unknown) leaves the input unchanged.
+    /// </summary>
+    public static IReadOnlyList<uint> OrderMobs(IReadOnlyList<uint> mobs, Func<uint, (int Low, int High)?> level, int combatLevel)
+    {
+        if (combatLevel <= 0) return mobs;
+        var below = new List<(uint Mob, int High, int Order)>();
+        var unknown = new List<uint>();
+        var above = new List<(uint Mob, int Low, int Order)>();
+        var order = 0;
+        foreach (var m in mobs)
+        {
+            if (level(m) is not { } lv) unknown.Add(m);
+            else if (lv.High <= combatLevel) below.Add((m, lv.High, order));
+            else above.Add((m, lv.Low, order));
+            order++;
+        }
+        var ordered = new List<uint>(mobs.Count);
+        ordered.AddRange(below.OrderByDescending(x => x.High).ThenBy(x => x.Order).Select(x => x.Mob));
+        ordered.AddRange(unknown);
+        ordered.AddRange(above.OrderBy(x => x.Low).ThenBy(x => x.Order).Select(x => x.Mob));
+        return ordered;
+    }
 }
 
 /// <summary>
