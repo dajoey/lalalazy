@@ -92,6 +92,19 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 			Service.Config = new Configs();
 		}
 
+		// Register the slash commands FIRST, before every slow init step (nine windows, icon
+		// cache, status lists): commands typed while the plugin is still starting read as
+		// "Command not found" (the 0.1.2.32 report). ChangeUITranslation() re-registers at the
+		// end to refresh the localized help messages.
+		try
+		{
+			RSCommands.Enable();
+		}
+		catch (Exception ex)
+		{
+			PluginLog.Error($"Early RSCommands.Enable() failed: {ex}");
+		}
+
 		IPCProvider = new();
 
 		_rotationConfigWindow = new();

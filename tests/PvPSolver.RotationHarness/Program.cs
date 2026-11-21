@@ -46,6 +46,8 @@ internal static class Program
         RunGroup("ConfigRoundTripCases", ConfigRoundTripCases.Run);
         RunGroup("RealHpGuard", RealHpGuard.Run);
         RunGroup("RotationLoaderWiring", RotationLoaderWiring.Run);
+        RunGroup("MatchStartAutoOnCases", MatchStartAutoOnCases.Run);
+        RunGroup("CommandGate", CommandGate.Run);
 
         return Harness.Finish();
     }

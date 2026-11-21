@@ -1,5 +1,6 @@
 using Dalamud.Game.Command;
 using ECommons.DalamudServices;
+using ECommons.Logging;
 using RotationSolver.Data;
 
 namespace RotationSolver.Commands
@@ -8,26 +9,27 @@ namespace RotationSolver.Commands
 	{
 		internal static void Enable()
 		{
-			_ = Svc.Commands.AddHandler(Service.COMMAND, new CommandInfo(OnCommand)
+			bool main = Svc.Commands.AddHandler(Service.COMMAND, new CommandInfo(OnCommand)
 			{
 				HelpMessage = UiString.Commands_Rotation.GetDescription(),
 				ShowInHelp = true,
 			});
-			_ = Svc.Commands.AddHandler(Service.ALTCOMMAND, new CommandInfo(OnCommand)
+			bool alt = Svc.Commands.AddHandler(Service.ALTCOMMAND, new CommandInfo(OnCommand)
 			{
 				HelpMessage = UiString.Commands_Rotation.GetDescription(),
 				ShowInHelp = true,
 			});
-			_ = Svc.Commands.AddHandler(Service.AUTOCOMMAND, new CommandInfo(OnCommand)
+			bool auto = Svc.Commands.AddHandler(Service.AUTOCOMMAND, new CommandInfo(OnCommand)
 			{
 				HelpMessage = UiString.Commands_Start.GetDescription(),
 				ShowInHelp = true,
 			});
-			_ = Svc.Commands.AddHandler(Service.OFFCOMMAND, new CommandInfo(OnCommand)
+			bool off = Svc.Commands.AddHandler(Service.OFFCOMMAND, new CommandInfo(OnCommand)
 			{
 				HelpMessage = UiString.Commands_Off.GetDescription(),
 				ShowInHelp = true,
 			});
+			PluginLog.Information($"RSCommands: registered {Service.COMMAND}={main}, {Service.ALTCOMMAND}={alt}, {Service.AUTOCOMMAND}={auto}, {Service.OFFCOMMAND}={off}");
 		}
 
 		internal static void Disable()

@@ -29,6 +29,9 @@
     <Compile Include="Cases\*.cs" />
     <!-- Fork-only pure decision cores (no Dalamud or game types): compiled in directly so T1 proves the files standalone. -->
     <Compile Include="..\..\src\PvPSolver\PvPSolver\Decisions\*.cs" Link="Decisions\%(Filename)%(Extension)" />
+  <!-- 0.1.2.33: the match-start auto-on core, compiled standalone (the Decisions glob above is a stale
+       pre-reorg path that matches nothing; this include is exact so the core proves standalone). -->
+  <Compile Include="..\..\src\PvPSolver\PvPSolver\Basic\Decisions\MatchStartAutoOn.cs" Link="Decisions\MatchStartAutoOn.cs" />
   </ItemGroup>
 
   <ItemGroup>

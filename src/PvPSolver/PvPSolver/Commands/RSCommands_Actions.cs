@@ -4,6 +4,7 @@ using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
 using RotationSolver.Basic.Configuration;
+using RotationSolver.Decisions;
 using RotationSolver.Updaters;
 
 namespace RotationSolver.Commands
@@ -17,6 +18,9 @@ namespace RotationSolver.Commands
 		internal static uint _lastActionID;
 		private static float _lastCountdownTime = 0;
 		private static Job _previousJob = Job.ADV;
+		// Set while a PvP match loading screen was seen with "Turn on when a match starts" on;
+		// consumed by the first cycle that has a loaded player (see MatchStartAutoOn).
+		private static bool _matchStartAutoOnLatched;
 		private static readonly Random random = Random.Shared;
 
 		internal static IBaseAction? CurrentAction { get; set; } = null;
@@ -313,6 +317,34 @@ namespace RotationSolver.Commands
 		{
 			try
 			{
+				// Auto-on when a match starts: latch during the loading screen, engage once the
+				// player is loaded. During the screen the player object does not exist and the job
+				// role is unknown, so engaging right there silently no-oped and the rotation never
+				// acted in a match (the 0.1.2.26-0.1.2.32 bug).
+				bool autoOnSetting = Service.Config.AutoOnPvPMatchStart;
+				bool pvpTerritory = DataCenter.Territory?.IsPvP ?? false;
+
+				if (MatchStartAutoOn.ShouldLatch(autoOnSetting, DataCenter.State,
+					Svc.Condition[ConditionFlag.BetweenAreas], Svc.Condition[ConditionFlag.BoundByDuty], pvpTerritory))
+				{
+					_matchStartAutoOnLatched = true;
+					PluginLog.Information($"MatchStartAutoOn: PvP match load detected (TerritoryId={DataCenter.Territory?.Id}), engaging on the first cycle with a loaded player");
+				}
+
+				if (MatchStartAutoOn.ShouldEngage(autoOnSetting, _matchStartAutoOnLatched, DataCenter.State, pvpTerritory,
+					Player.Object != null && (Player.Object?.ClassJob.Value.GetJobRole() ?? JobRole.None) != JobRole.None))
+				{
+					_matchStartAutoOnLatched = false;
+					PluginLog.Information("MatchStartAutoOn: player ready in the PvP territory, engaging the PvP state");
+					DoStateCommandType(StateCommandType.PvP);
+					return;
+				}
+
+				if (MatchStartAutoOn.ShouldDrop(autoOnSetting, _matchStartAutoOnLatched, DataCenter.State, pvpTerritory))
+				{
+					_matchStartAutoOnLatched = false;
+				}
+
 				if (Player.Object == null)
 				{
 					return;
@@ -341,16 +373,6 @@ namespace RotationSolver.Commands
 					return;
 				}
 
-				// PvP-only: auto-on when match starts (loading screen)
-				if (Service.Config.AutoOnPvPMatchStart &&
-					Svc.Condition[ConditionFlag.BetweenAreas] &&
-					Svc.Condition[ConditionFlag.BoundByDuty] &&
-					!DataCenter.State &&
-					(DataCenter.Territory?.IsPvP ?? false))
-				{
-					DoStateCommandType(StateCommandType.PvP);
-					return;
-				}
 			}
 			catch (Exception ex)
 			{

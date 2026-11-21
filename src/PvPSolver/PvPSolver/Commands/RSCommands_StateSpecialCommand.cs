@@ -1,5 +1,6 @@
 using Dalamud.Game.Config;
 using ECommons.DalamudServices;
+using ECommons.Logging;
 using ECommons.GameHelpers;
 using RotationSolver.IPC;
 using RotationSolver.Updaters;
@@ -137,6 +138,8 @@ namespace RotationSolver.Commands
 
 		public static void UpdateState(StateCommandType stateType, JobRole role)
 		{
+			PluginLog.Information($"UpdateState: {stateType} (state was {(DataCenter.State ? "on" : "off")})");
+
 			if (stateType == StateCommandType.PvP && !DataCenter.IsPvP)
 			{
 				// Silently ignore — PvP Solver only activates in PvP zones.
@@ -223,6 +226,7 @@ namespace RotationSolver.Commands
 
 			if (role == JobRole.None)
 			{
+				PluginLog.Information("DoOneCommandType: no player or job role, command ignored");
 				return;
 			}
 
