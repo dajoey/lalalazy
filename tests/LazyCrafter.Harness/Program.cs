@@ -41,6 +41,7 @@ internal static class Program
         foreach (var t in AdversarialTests.Tests) yield return ("adversarial", t.Name, t.Check);
         foreach (var t in CartTests.Tests) yield return ("cart", t.Name, t.Check);
         foreach (var t in DispatchPlanTests.Tests) yield return ("dispatch", t.Name, t.Check);
+        foreach (var t in FarmTests.Tests) yield return ("wahtools", t.Name, t.Check);
         foreach (var t in RetrieveTests.Tests) yield return ("retrieve", t.Name, t.Check);
 foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.Name, t.Check);
         foreach (var t in LoopTests.Tests) yield return ("loop", t.Name, t.Check);

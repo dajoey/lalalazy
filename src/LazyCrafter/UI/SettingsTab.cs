@@ -168,6 +168,10 @@ public sealed class SettingsTab
             "Names each manual stop once and waits for Resume. Off keeps the monolithic wave loop.", true);
         Setting("Buy vendor items through Knightshopper during dispatch", () => cfg.BuyVendorItemsWithKnightshopper, value => cfg.BuyVendorItemsWithKnightshopper = value,
             "Uses the existing purchase IPC once per currency group, to target inventory totals, after printing the list and estimated cost. Market-board items never route. Knightshopper must also allow LazyCrafter; missing, refused or unavailable items fall back to the usual shopping stops. Off disables automatic vendor purchases.", true);
+        Setting("Catch fish materials with WahTools", () => cfg.CatchFishWithWahTools, value => cfg.CatchFishWithWahTools = value,
+            "When WahTools is loaded, fish go to its Feesh module instead of GatherBuddyReborn. A fish WahTools refuses goes back to GatherBuddyReborn.", true);
+        Setting("Hunt monster-drop materials with WahTools", () => cfg.HuntDropsWithWahTools, value => cfg.HuntDropsWithWahTools = value,
+            "When WahTools is loaded, a material a known monster drops is hunted by its Hunter module before the market board is suggested. It hunts in batches and recounts the bags, and gives up after two batches that drop nothing.", true);
         Setting("Print price-match instructions after Artisan finishes a cart", () => cfg.PriceMatchAfterCraft, value => cfg.PriceMatchAfterCraft = value,
             "Prints the crafted results and /pricematch instructions. The sell list itself is not automated.", true);
     }
@@ -200,6 +204,9 @@ public sealed class SettingsTab
         var priceMatch = _plugin.Dispatch.PriceMatch.Installed;
         CrafterChrome.Requirement("Price match IPC", priceMatch ? "Ready" : "Missing", priceMatch ? UiState.Ready : UiState.Missing,
             priceMatch ? null : "Install Lazy Market Companion", true);
+        var wahTools = _plugin.Dispatch.WahTools.Installed;
+        CrafterChrome.Requirement("WahTools fishing and hunting (optional)", wahTools ? "Ready" : "Missing", wahTools ? UiState.Ready : UiState.Missing,
+            wahTools ? null : "Install WahTools from the wah repository", true);
     }
 
     private void DrawRetainers()

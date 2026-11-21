@@ -24,6 +24,8 @@ public sealed class LuminaGameData : IGameData
     private readonly Dictionary<uint, List<SpecialShopOffer>> _specialShopOffers = new();
     private readonly Dictionary<uint, GatherInfo> _gather = new();
     private readonly HashSet<uint> _fish = new();
+    // 0.1.7.14 (WahTools Hunter): item id -> the BNpcName ids MobDrop says drop it, in file order, no repeats.
+    private readonly Dictionary<uint, List<uint>> _mobsByItem = new();
     private readonly List<VentureRow> _ventures = new();
     private readonly HashSet<uint> _marketable = new();
     private readonly HashSet<uint> _drops = new();
@@ -98,6 +100,9 @@ public sealed class LuminaGameData : IGameData
         _specialShopOffers.TryGetValue(itemId, out var l) ? l : Array.Empty<SpecialShopOffer>();
     public GatherInfo? Gather(uint itemId) => _gather.TryGetValue(itemId, out var g) ? g : null;
     public bool IsFish(uint itemId) => _fish.Contains(itemId);
+
+    /// <summary>The monsters (BNpcName ids) known to drop <paramref name="itemId"/>; empty when none are known.</summary>
+    public IReadOnlyList<uint> MobsFor(uint itemId) => _mobsByItem.TryGetValue(itemId, out var mobs) ? mobs : Array.Empty<uint>();
     public IEnumerable<VentureRow> Ventures() => _ventures;
     public bool IsMarketable(uint itemId) => _marketableOverride?.Invoke(itemId) ?? _marketable.Contains(itemId);
     public bool IsDrop(uint itemId) => _drops.Contains(itemId);
@@ -513,7 +518,15 @@ public sealed class LuminaGameData : IGameData
             }
         }
 
-        AddDrops<MobDrop>(CsvLoader.MobDropResourceName, r => r.ItemId);
+        AddDrops<MobDrop>(CsvLoader.MobDropResourceName, r =>
+        {
+            if (r.ItemId != 0 && r.BNpcNameId != 0)
+            {
+                if (!_mobsByItem.TryGetValue(r.ItemId, out var mobs)) _mobsByItem[r.ItemId] = mobs = new List<uint>();
+                if (!mobs.Contains(r.BNpcNameId)) mobs.Add(r.BNpcNameId);
+            }
+            return r.ItemId;
+        });
         AddDrops<DungeonDrop>(CsvLoader.DungeonDropItemResourceName, r => r.ItemId);
         AddDrops<DungeonChestItem>(CsvLoader.DungeonChestItemResourceName, r => r.ItemId);
         AddDrops<DungeonBossDrop>(CsvLoader.DungeonBossDropResourceName, r => r.ItemId);

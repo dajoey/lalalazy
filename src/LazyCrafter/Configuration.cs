@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -178,6 +178,22 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool BuyVendorItemsWithKnightshopper { get; set; } = true;
 
+    // ---- v11 (0.1.7.14, WahTools) ----
+
+    /// <summary>
+    /// Catch fish materials with WahTools' Feesh module instead of GatherBuddyReborn (0.1.7.14). Only when WahTools
+    /// is loaded; a fish WahTools refuses (an ocean fish, one it does not know) goes back to GBR on the re-plan.
+    /// Off restores the GBR-only fish route exactly.
+    /// </summary>
+    public bool CatchFishWithWahTools { get; set; } = true;
+
+    /// <summary>
+    /// Hunt monster-drop materials with WahTools' Hunter module (0.1.7.14). Only when WahTools is loaded and a known
+    /// monster drops the item; ranked just above the market board. Hunter counts kills, so the run hunts in batches
+    /// and recounts the bags (<see cref="Core.HuntLoop"/>). Off restores the market / manual route exactly.
+    /// </summary>
+    public bool HuntDropsWithWahTools { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -228,6 +244,8 @@ public sealed class Configuration : IPluginConfiguration
         // fires inside an explicit dispatch, only for vendor-priced items, and only when Knightshopper itself
         // is loaded AND has LazyCrafter on its allowed-plugins IPC list - every refusal falls back to the
         // pre-0.1.7.7 shopping stops. Off is one checkbox and restores the old run exactly.
+        // v10 -> v11: CatchFishWithWahTools and HuntDropsWithWahTools are new and default ON (0.1.7.14). Same shape
+        // as v6-v10: no key in an older config, so the initialiser stands. Both only act while WahTools is loaded.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

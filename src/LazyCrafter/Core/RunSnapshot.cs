@@ -7,7 +7,7 @@ public enum RunState { Idle, Running, Blocked, Done, Failed }
 /// A run's channels. <see cref="CurrencyShop"/> was added in 0.1.6.7 (card t_b431de3a) and is appended, never
 /// inserted, because these values are persisted in snapshots and compared by name in the renderers.
 /// </summary>
-public enum StepKind { Retrieve, Venture, Gather, Craft, Vendor, Market, Manual, CurrencyShop }
+public enum StepKind { Retrieve, Venture, Gather, Craft, Vendor, Market, Manual, CurrencyShop, Catch, Hunt }
 
 public enum StepState { Pending, Running, Done, Failed, Blocked }
 
@@ -125,6 +125,8 @@ public sealed record RunSnapshot(
         StepKind.Vendor => "vendor",
         StepKind.Market => "market",
         StepKind.CurrencyShop => "currency shop",
+        StepKind.Catch => "catch",
+        StepKind.Hunt => "hunt",
         _ => "manual",
     };
 

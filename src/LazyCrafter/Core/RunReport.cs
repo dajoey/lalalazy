@@ -27,6 +27,8 @@ public static class RunReport
         StepKind.Market => "market",
         StepKind.Manual => "manual",
         StepKind.CurrencyShop => "currency shop",
+        StepKind.Catch => "catch",
+        StepKind.Hunt => "hunt",
         _ => k.ToString().ToLowerInvariant(),
     };
 

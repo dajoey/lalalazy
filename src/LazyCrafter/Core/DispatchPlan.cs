@@ -17,6 +17,8 @@ namespace LazyCrafter.Core;
 /// placed, affordable currency vendor → <see cref="Plan.CurrencyShop"/>; <see cref="SourceKind.Market"/> → <see cref="Market"/> (Lifestream + shopping list).</item>
 /// <item>anything else → <see cref="Manual"/>.</item>
 /// </list>
+/// With a <see cref="FarmContext"/> (0.1.7.14, WahTools): a node-less fish → <see cref="Plan.Catches"/> in place of the
+/// GBR gather, and a monster drop with a known monster → <see cref="Plan.Hunts"/>, ranked just above the market board.
 /// <para>
 /// <b>The currency-shop route is conditional, and that is the point (card t_b431de3a).</b> It is taken only when
 /// the item resolves all the way to a named, placed NPC in a teleportable zone with a cost the player can already
@@ -59,6 +61,15 @@ public static class DispatchPlan
     public sealed record Purchase(uint ItemId, int Quantity, string Where = "", int Owned = 0);
     public sealed record Deferral(uint RecipeId, uint ResultItemId, int Crafts, string Reason);
     public sealed record ManualItem(uint ItemId, int Quantity, IReadOnlyList<SourceKind> Sources, string Where = "");
+
+    /// <summary>A fish for WahTools' Feesh module to catch (0.1.7.14): <paramref name="Quantity"/> more of the item.</summary>
+    public sealed record Catch(uint ItemId, int Quantity);
+
+    /// <summary>
+    /// A monster drop for WahTools' Hunter module (0.1.7.14). <paramref name="Mobs"/> are the BNpcName ids known to
+    /// drop the item, best first; the executor offers them to Hunter in order until one is accepted.
+    /// </summary>
+    public sealed record Hunt(uint ItemId, int Quantity, IReadOnlyList<uint> Mobs);
 
     /// <summary>
     /// An item to trade for at a currency (special) shop: which NPC, where they stand, and what it costs.
@@ -110,7 +121,7 @@ public static class DispatchPlan
             IReadOnlyList<Deferral> deferred)
             : this(ventures, gathers, crafts, vendor, market, manual, deferred, Array.Empty<Retrieve>()) { }
 
-        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0 && Retrievals.Count == 0 && CurrencyShop.Count == 0;
+        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0 && Retrievals.Count == 0 && CurrencyShop.Count == 0 && Catches.Count == 0 && Hunts.Count == 0;
 
         /// <summary>
         /// Items to trade for at a currency (special) shop (card t_b431de3a). An <c>init</c> property rather than a
@@ -121,13 +132,19 @@ public static class DispatchPlan
         /// </summary>
         public IReadOnlyList<CurrencyPurchase> CurrencyShop { get; init; } = Array.Empty<CurrencyPurchase>();
 
+        /// <summary>Fish for WahTools to catch (0.1.7.14). Empty unless a <see cref="FarmContext"/> allowed it.</summary>
+        public IReadOnlyList<Catch> Catches { get; init; } = Array.Empty<Catch>();
+
+        /// <summary>Monster drops for WahTools to hunt (0.1.7.14). Empty unless a <see cref="FarmContext"/> allowed it.</summary>
+        public IReadOnlyList<Hunt> Hunts { get; init; } = Array.Empty<Hunt>();
+
         /// <summary>Work we can hand off. A retrieval is <b>not</b> work - only the player can do it.</summary>
-        public bool HasWork => Ventures.Count + Gathers.Count + Crafts.Count > 0;
+        public bool HasWork => Ventures.Count + Gathers.Count + Crafts.Count + Catches.Count + Hunts.Count > 0;
         public Dictionary<uint, int> GatherDictionary() => Gathers.GroupBy(g => g.ItemId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
         public Dictionary<uint, int> VentureDictionary() => Ventures.GroupBy(v => v.ItemId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
     }
 
-    private enum Route { Have, Venture, Gather, Craft, Vendor, CurrencyShop, Market, Manual }
+    private enum Route { Have, Venture, Gather, Craft, Vendor, CurrencyShop, Market, Manual, Catch, Hunt }
 
     /// <summary>
     /// Build the plan. <paramref name="lines"/> are the cart's per-line assessments (from <see cref="Tiering.AssessCart"/>,
@@ -153,7 +170,8 @@ public static class DispatchPlan
         IReadOnlyList<RetainerStats> retainers,
         IReadOnlySet<uint>? gatheredItems = null,
         IInventory? inv = null,
-        SpecialShopContext? shops = null)
+        SpecialShopContext? shops = null,
+        FarmContext? farm = null)
     {
         var ventureList = new List<Venture>();
         var gatherList = new List<Gather>();
@@ -164,6 +182,8 @@ public static class DispatchPlan
         var manualList = new List<ManualItem>();
         var deferred = new List<Deferral>();
         var retrieveList = new List<Retrieve>();
+        var catchList = new List<Catch>();
+        var huntList = new List<Hunt>();
 
         // Route every item once, from the cart totals, so the ARC/GBR dictionaries carry the whole cart's quantity.
         // In the same pass, check the stock we plan to consume against the BAGS: `Have` came from every enabled
@@ -172,7 +192,7 @@ public static class DispatchPlan
         var retrieveOf = new Dictionary<uint, Retrieve>();
         foreach (var leaf in totals)
         {
-            var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems, shops);
+            var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems, shops, farm);
             routeOf[leaf.ItemId] = route;
 
             // What part of `Have` is physically in the bags (0.1.7.8). The retrieve below pulls the rest in before
@@ -207,6 +227,8 @@ public static class DispatchPlan
                 // printed SourceKind enum names, not vendors, which is why an OnHand-only leaf rendered as "()".
                 case Route.Market: marketList.Add(new Purchase(leaf.ItemId, leaf.Missing, NameClauseFor(leaf, shops))); break;
                 case Route.Manual: manualList.Add(new ManualItem(leaf.ItemId, leaf.Missing, leaf.Sources, NameClauseFor(leaf, shops))); break;
+                case Route.Catch: catchList.Add(new Catch(leaf.ItemId, leaf.Missing)); break;
+                case Route.Hunt: huntList.Add(new Hunt(leaf.ItemId, leaf.Missing, farm!.Hunts(leaf.ItemId))); break;
             }
         }
 
@@ -230,6 +252,8 @@ public static class DispatchPlan
         return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred, retrieveList)
         {
             CurrencyShop = currencyList,
+            Catches = catchList,
+            Hunts = huntList,
         };
     }
 
@@ -297,9 +321,9 @@ public static class DispatchPlan
     /// Route a single ingredient the way <see cref="Build"/> would, for the per-leaf fulfil buttons.
     /// Returns the channel name the UI should offer first and, for a sub-craft, the recipe to hand Artisan.
     /// </summary>
-    public static (SourceKind Channel, RecipeRow? SubRecipe) RouteLeaf(IngredientLeaf leaf, uint parentJob, RecipeGraph graph, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems = null, SpecialShopContext? shops = null)
+    public static (SourceKind Channel, RecipeRow? SubRecipe) RouteLeaf(IngredientLeaf leaf, uint parentJob, RecipeGraph graph, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems = null, SpecialShopContext? shops = null, FarmContext? farm = null)
     {
-        var (route, _) = RouteFor(leaf, ventures, retainers, gatheredItems, shops);
+        var (route, _) = RouteFor(leaf, ventures, retainers, gatheredItems, shops, farm);
         return route switch
         {
             Route.Venture => (SourceKind.Venture, null),
@@ -309,13 +333,20 @@ public static class DispatchPlan
             Route.CurrencyShop => (SourceKind.SpecialShop, null),
             Route.Market => (SourceKind.Market, null),
             Route.Have => (SourceKind.OnHand, null),
+            Route.Catch => (SourceKind.Fish, null),
+            Route.Hunt => (SourceKind.Drop, null),
             _ => (leaf.Sources.Count > 0 ? leaf.Sources[0] : SourceKind.Unknown, null),
         };
     }
 
-    private static (Route, VentureMatch?) RouteFor(IngredientLeaf leaf, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems, SpecialShopContext? shops = null)
+    private static (Route, VentureMatch?) RouteFor(IngredientLeaf leaf, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems, SpecialShopContext? shops = null, FarmContext? farm = null)
     {
         if (leaf.Missing <= 0) return (Route.Have, null);
+        // WahTools (0.1.7.14): a fish that no node also yields goes to Feesh instead of GBR when the context allows
+        // it. Same rank as the gather it replaces, so nothing else about the routing order moves.
+        if (farm is not null && leaf.Sources.Contains(SourceKind.Fish)
+            && !leaf.Sources.Any(s => s is SourceKind.RegularNode or SourceKind.TimedNode)
+            && farm.Catches(leaf.ItemId)) return (Route.Catch, null);
         if (leaf.Sources.Any(s => s is SourceKind.RegularNode or SourceKind.TimedNode or SourceKind.Fish)) return (Route.Gather, null);
         if (leaf.Sources.Contains(SourceKind.Venture) && ventures.ResolveBest(leaf.ItemId, retainers, gatheredItems) is { } m) return (Route.Venture, m);
         if (leaf.Sources.Contains(SourceKind.SubCraft)) return (Route.Craft, null);
@@ -325,6 +356,10 @@ public static class DispatchPlan
         // most special-shop items have no placed NPC, and an unaffordable one is deliberately left alone. Either
         // way the item continues down this list to Market, which is where it went before this change existed.
         if (leaf.Sources.Contains(SourceKind.SpecialShop) && BestOffer(leaf, shops) is not null) return (Route.CurrencyShop, null);
+        // WahTools Hunter (0.1.7.14), above the market board for the same reason a gather is: the automation can
+        // fetch it this session without the player. Only when a known monster drops it and the context allows it;
+        // otherwise the item continues to Market / Manual exactly as before.
+        if (farm is not null && leaf.Sources.Contains(SourceKind.Drop) && farm.Hunts(leaf.ItemId).Count > 0) return (Route.Hunt, null);
         if (leaf.Sources.Contains(SourceKind.Market)) return (Route.Market, null);
         // Unchanged fall-through. A special-shop item that resolved to nothing lands here ONLY if it is also
         // unmarketable - exactly as it did before, never because of this feature (D1).
@@ -384,6 +419,9 @@ public static class DispatchPlan
                 blockers.Add($"venture #{leaf.ItemId}");
                 return;
             case Route.Gather:
+            case Route.Catch:
+            case Route.Hunt:
+                // WahTools legs run inside the gather stage, before any craft, so they gate crafts the same way.
                 afterGather = true;
                 return;
             case Route.Craft:

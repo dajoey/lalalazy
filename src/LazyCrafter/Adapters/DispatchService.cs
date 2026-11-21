@@ -50,7 +50,7 @@ namespace LazyCrafter.Adapters;
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
-    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitClientFree, WaitCraftStart, WaitCraftEnd, Knightshopper, Done, Failed, BatchRetrieve, BatchWait, Blocked }
+    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitClientFree, WaitCraftStart, WaitCraftEnd, Knightshopper, Done, Failed, BatchRetrieve, BatchWait, Blocked, Catches, WaitCatch, Hunts, WaitHunt }
 
     private readonly Plugin _plugin;
     private readonly IFramework _framework;
@@ -64,6 +64,8 @@ public sealed class DispatchService : IDisposable
     /// </summary>
     public ClientReadiness Readiness { get; }
     public GbrDispatch Gbr { get; }
+    /// <summary>WahTools' Feesh (fish) and Hunter (monster drops) over IPC (0.1.7.14).</summary>
+    public WahToolsDispatch WahTools { get; }
     public ArcDispatch Arc { get; }
     public LifestreamDispatch Lifestream { get; }
     public PriceMatchDispatch PriceMatch { get; }
@@ -198,6 +200,30 @@ public sealed class DispatchService : IDisposable
     /// <summary>This wave's gather list (ids + quantities) and the bag counts when GBR started, for the stall signal, the heartbeat and the landed count.</summary>
     private List<(uint ItemId, int Quantity)> _gatherList = new();
     private Dictionary<uint, int> _gatherBefore = new();
+
+    // ---- 0.1.7.14: the WahTools legs (fish, then monster drops), run after GBR and before Artisan ----
+    /// <summary>Items WahTools refused or gave up on this run; the re-plan sends them down the old routes.</summary>
+    private readonly HashSet<uint> _farmExcluded = new();
+    private Queue<DispatchPlan.Catch> _catchQueue = new();
+    private Queue<DispatchPlan.Hunt> _huntQueue = new();
+    /// <summary>The catch in flight: item, quantity wanted, bag count when it started.</summary>
+    private (uint ItemId, int Need, int Before)? _catching;
+    private HuntRun? _hunt;
+    /// <summary>WahTools holds the fish it caught for this run until released; released when the run ends.</summary>
+    private bool _heldFish;
+    private readonly StallGuard _catchStall = new(TimeSpan.FromMinutes(30));
+    private readonly StallGuard _huntStall = new(TimeSpan.FromMinutes(15));
+
+    /// <summary>One monster-drop item being hunted in batches (<see cref="HuntLoop"/>).</summary>
+    private sealed class HuntRun(DispatchPlan.Hunt hunt, int before)
+    {
+        public DispatchPlan.Hunt Hunt { get; } = hunt;
+        public int Before { get; } = before;
+        public int Batches { get; set; }
+        public int DryBatches { get; set; }
+        public int BestGained { get; set; }
+        public int MobIndex { get; set; }
+    }
     private DateTime _nextHeartbeat = DateTime.MinValue;
     private string? _lastHeartbeat;
     private volatile RunSnapshot _snapshot = RunSnapshot.Empty;
@@ -282,6 +308,7 @@ public sealed class DispatchService : IDisposable
         Artisan = new ArtisanDispatch(Plugin.Pi, log);
         Readiness = new ClientReadiness(Plugin.Condition, Plugin.GameGui, log);
         Gbr = new GbrDispatch(Plugin.Pi, Guard, chat, log);
+        WahTools = new WahToolsDispatch(Plugin.Pi, log);
         Arc = new ArcDispatch(Plugin.Pi, Guard, chat, log);
         Lifestream = new LifestreamDispatch(Plugin.Pi, Plugin.GameGui, chat, log);
         PriceMatch = new PriceMatchDispatch(Plugin.Pi, chat);
@@ -344,6 +371,18 @@ public sealed class DispatchService : IDisposable
     /// beyond the closure.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// What this plan may hand to WahTools (0.1.7.14). <see cref="FarmContext.None"/> unless WahTools is loaded and a
+    /// WahTools setting is on, so a setup without WahTools routes exactly as before.
+    /// </summary>
+    private FarmContext Farm()
+    {
+        var gd = _plugin.GameData;
+        var cfg = _plugin.Config;
+        if (gd is null || !(cfg.CatchFishWithWahTools || cfg.HuntDropsWithWahTools) || !WahTools.Installed) return FarmContext.None;
+        return new FarmContext(cfg.CatchFishWithWahTools, cfg.HuntDropsWithWahTools, gd.MobsFor, _farmExcluded);
+    }
+
     private SpecialShopContext Shops()
     {
         var gd = _plugin.GameData;
@@ -379,7 +418,7 @@ public sealed class DispatchService : IDisposable
         if (!EnsureCore()) return null;
         var (cart, totals) = _plugin.Catalog.LiveCart();
         var lines = cart.Select(l => new DispatchPlan.Line(l.Assessment, l.Crafts)).ToList();
-        return DispatchPlan.Build(lines, totals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops());
+        return DispatchPlan.Build(lines, totals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops(), Farm());
     }
 
     // ------------------------------------------------------------- entry points
@@ -535,6 +574,8 @@ public sealed class DispatchService : IDisposable
         if (!Running && _plan is null) { Say("nothing is running."); return; }
         if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
+        if (Current is Phase.WaitCatch or Phase.Catches) WahTools.StopFeesh();
+        if (Current is Phase.WaitHunt or Phase.Hunts) WahTools.StopHunter();
         if (Current is Phase.WaitClientFree or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
         // 0.1.7.7: stop the Knightshopper leg too - an item already being bought may still land, so this is a
         // cancel REQUEST, and the run does not wait for the answer.
@@ -586,6 +627,12 @@ public sealed class DispatchService : IDisposable
         _navFiredUtc = DateTime.MinValue;   // 0.1.6.16: a new run starts with no navigation in flight (card t_68532446)
         _current = null;
         _fetching = null;
+        _farmExcluded.Clear();
+        _catchQueue = new Queue<DispatchPlan.Catch>();
+        _huntQueue = new Queue<DispatchPlan.Hunt>();
+        _catching = null;
+        _hunt = null;
+        _heldFish = false;
         _runClock.Restart();
         _runStartUtc = DateTime.UtcNow;
         _endedUtc = null;
@@ -773,6 +820,10 @@ public sealed class DispatchService : IDisposable
     {
         _plan = plan;
         _crafts = new Queue<DispatchPlan.Craft>(plan.Crafts);
+        _catchQueue = new Queue<DispatchPlan.Catch>(plan.Catches);
+        _huntQueue = new Queue<DispatchPlan.Hunt>(plan.Hunts);
+        _catching = null;
+        _hunt = null;
         _retrievals = new Queue<DispatchPlan.Retrieve>(plan.Retrievals);
         _retrievalsPlanned = plan.Retrievals.Count;
         _batchFetched = 0;
@@ -780,6 +831,8 @@ public sealed class DispatchService : IDisposable
         _waveProgress = false;
         foreach (var p in plan.Ventures) TrackStep(StepKind.Venture, p.ItemId, p.Quantity, StepState.Pending);
         foreach (var g in plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Pending);
+        foreach (var c in plan.Catches) TrackStep(StepKind.Catch, c.ItemId, c.Quantity, StepState.Pending);
+        foreach (var h in plan.Hunts) TrackStep(StepKind.Hunt, h.ItemId, h.Quantity, StepState.Pending);
         foreach (var c in plan.Crafts) TrackStep(StepKind.Craft, c.ResultItemId, c.Crafts, StepState.Pending, recipeId: c.RecipeId);
         foreach (var v in plan.Vendor) TrackStep(StepKind.Vendor, v.ItemId, v.Quantity, StepState.Blocked, Readable(ReadableBlocked("buy", v.ItemId, v.Quantity)));
         foreach (var m in plan.Market) TrackStep(StepKind.Market, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("market", m.ItemId, m.Quantity)));
@@ -787,7 +840,7 @@ public sealed class DispatchService : IDisposable
         foreach (var m in plan.Manual) TrackStep(StepKind.Manual, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("manual", m.ItemId, m.Quantity)));
         foreach (var r in plan.Retrievals) TrackStep(StepKind.Retrieve, r.ItemId, r.Quantity, StepState.Pending);
 
-        Say($"dispatching {_what}{(_loop is { Pass: > 1 } l ? $" (pass {l.Pass})" : "")}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.CurrencyShop.Count} currency shop, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
+        Say($"dispatching {_what}{(_loop is { Pass: > 1 } l ? $" (pass {l.Pass})" : "")}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {(plan.Catches.Count + plan.Hunts.Count > 0 ? $"{plan.Catches.Count} WahTools catch, {plan.Hunts.Count} WahTools hunt, " : "")}{plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.CurrencyShop.Count} currency shop, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
         _log.Information("dispatch plan for {What} pass {Pass}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] currency=[{Cu}] manual=[{Ma}] deferred=[{D}]", _what, _loop?.Pass ?? 1,
             string.Join(",", plan.Ventures.Select(v => $"{v.ItemId}x{v.Quantity}@{v.Match.Retainer.Name}")),
             string.Join(",", plan.Gathers.Select(g => $"{g.ItemId}x{g.Quantity}")),
@@ -797,6 +850,10 @@ public sealed class DispatchService : IDisposable
             string.Join(",", plan.CurrencyShop.Select(p => $"{p.ItemId}x{p.Quantity}@{p.Offer.Where.NpcId}")),
             string.Join(",", plan.Manual.Select(p => $"{p.ItemId}x{p.Quantity}")),
             string.Join(",", plan.Deferred.Select(d => $"r{d.RecipeId}:{d.Reason}")));
+        if (plan.Catches.Count + plan.Hunts.Count > 0)
+            _log.Information("dispatch WahTools: catches=[{C}] hunts=[{H}]",
+                string.Join(",", plan.Catches.Select(c => $"{c.ItemId}x{c.Quantity}")),
+                string.Join(",", plan.Hunts.Select(h => $"{h.ItemId}x{h.Quantity}@{string.Join("/", h.Mobs.Take(5))}")));
         if (plan.Retrievals.Count > 0)
             _log.Information("dispatch retrievals: [{R}]", string.Join(",", plan.Retrievals.Select(r => $"{r.ItemId}x{r.Quantity}@{r.Places}")));
 
@@ -912,9 +969,10 @@ public sealed class DispatchService : IDisposable
         // loop's Blocked/Done decision finish the run as before.
         if (plan.Vendor.Count == 0 && plan.Market.Count == 0 && plan.CurrencyShop.Count == 0 && plan.Manual.Count == 0)
             _stages?.Record(RunStage.ShoppingTrip, StageOutcome.Done);
-        if (willRetrieve || plan.Ventures.Count > 0 || plan.Gathers.Count > 0)
+        var farms = plan.Catches.Count + plan.Hunts.Count > 0;
+        if (willRetrieve || plan.Ventures.Count > 0 || plan.Gathers.Count > 0 || farms)
             _stages?.Record(RunStage.GatherPlan, StageOutcome.Done);
-        if (plan.Crafts.Count > 0 && !willRetrieve && plan.Ventures.Count == 0 && plan.Gathers.Count == 0)
+        if (plan.Crafts.Count > 0 && !willRetrieve && plan.Ventures.Count == 0 && plan.Gathers.Count == 0 && !farms)
             _stages?.Record(RunStage.CraftQueue, StageOutcome.Done);
         Enter(willRetrieve ? (_batchCrafts.Count > 0 ? Phase.BatchRetrieve : Phase.Retrieve) : Phase.Ventures);
     }
@@ -1150,7 +1208,7 @@ public sealed class DispatchService : IDisposable
         var lines = assessed.Lines
             .Select(a => new DispatchPlan.Line(a, remaining.First(r => r.RecipeId == a.RecipeId).Crafts))
             .ToList();
-        return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops());
+        return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops(), Farm());
     }
 
     /// <summary>The distinct ingredient ids the queued batch session demands - the stall guard's progress signal.</summary>
@@ -1569,7 +1627,7 @@ public sealed class DispatchService : IDisposable
                         }
                         if (n < 0) { foreach (var g in _plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Failed, "GBR hand-off refused"); Finish(Phase.Failed, "GBR hand-off refused - crafts that needed those materials would fail"); return; }
                     }
-                    Enter(Phase.Crafts);
+                    Enter(Phase.Catches);
                     break;
 
                 case Phase.WaitGather:
@@ -1606,7 +1664,28 @@ public sealed class DispatchService : IDisposable
                     Say(landed == _gatherList.Count
                         ? $"GBR auto-gather finished - all {_gatherList.Count} item{(_gatherList.Count == 1 ? "" : "s")} landed in your bags."
                         : $"GBR auto-gather finished - {landed} of {_gatherList.Count} gathered item{(landed == 1 ? "" : "s")} landed in your bags.");
-                    Enter(Phase.Crafts);
+                    Enter(Phase.Catches);
+                    break;
+
+                // ------------------------------------------------------------------ WahTools (0.1.7.14)
+                case Phase.Catches:
+                    StartNextCatch();
+                    break;
+
+                case Phase.WaitCatch:
+                    if (!Poll(1000)) break;
+                    if (_phaseClock.ElapsedMilliseconds < 3000) break;      // let Feesh take control
+                    WaitCatchTick();
+                    break;
+
+                case Phase.Hunts:
+                    StartNextHunt();
+                    break;
+
+                case Phase.WaitHunt:
+                    if (!Poll(1000)) break;
+                    if (_phaseClock.ElapsedMilliseconds < 3000) break;      // let Hunter take control
+                    WaitHuntTick();
                     break;
 
                 case Phase.Crafts:
@@ -1831,6 +1910,187 @@ public sealed class DispatchService : IDisposable
     }
 
     /// <summary>The gather heartbeat line: how many of the wave's items have landed, and the first one still short.</summary>
+    // ------------------------------------------------------------- WahTools legs (0.1.7.14)
+
+    /// <summary>
+    /// Hand an item back to the old routes for the rest of the run. The re-plan only happens when the wave counts as
+    /// progress, so this marks it: the routing changed, and another pass can now use GBR or the market board.
+    /// </summary>
+    private void ExcludeFromWahTools(uint itemId)
+    {
+        if (_farmExcluded.Add(itemId)) _waveProgress = true;
+    }
+
+    private void StartNextCatch()
+    {
+        if (_catchQueue.Count == 0) { Enter(Phase.Hunts); return; }
+        var c = _catchQueue.Dequeue();
+        _plugin.Inventory.DropMemo();
+        var before = _plugin.Inventory.CountInBags(c.ItemId);
+        if (WahTools.Catch(c.ItemId, c.Quantity))
+        {
+            _catching = (c.ItemId, c.Quantity, before);
+            _heldFish = true;
+            _catchStall.Reset();
+            TrackStep(StepKind.Catch, c.ItemId, c.Quantity, StepState.Running, ext: "WahTools Feesh");
+            Say($"WahTools: catching {Name(c.ItemId)} x{c.Quantity}.");
+            Enter(Phase.WaitCatch);
+            SetStatus("waiting for WahTools Feesh");
+            return;
+        }
+        var why = WahTools.CatchStatus();
+        ExcludeFromWahTools(c.ItemId);
+        TrackStep(StepKind.Catch, c.ItemId, c.Quantity, StepState.Failed, "WahTools refused the catch" + (why.Length > 0 ? $" ({why})" : ""));
+        Say($"WahTools would not catch {Name(c.ItemId)}{(why.Length > 0 ? $" ({why})" : "")}; the next pass hands it to GatherBuddyReborn.");
+        // Stay in Phase.Catches: the next tick takes the next fish.
+    }
+
+    private void WaitCatchTick()
+    {
+        if (_catching is not { } c) { Enter(Phase.Catches); return; }
+        _plugin.Inventory.DropMemo();
+        var got = _plugin.Inventory.CountInBags(c.ItemId) - c.Before;
+        if (WahTools.IsBusy() == true)
+        {
+            var s = WahTools.CatchStatus();
+            SetStatus("WahTools: " + (s.Length > 0 ? s : "fishing"));
+            // Stall guard: Feesh's status line plus the bag count unchanged for 30 minutes. Longer than GBR's 10
+            // because a fish can wait on a weather or time window, which Feesh sits out itself.
+            if (_catchStall.Observe(s + "|" + got, DateTime.UtcNow))
+            {
+                WahTools.StopFeesh();
+                if (got > 0) _waveProgress = true;
+                ExcludeFromWahTools(c.ItemId);
+                TrackStep(StepKind.Catch, c.ItemId, c.Need, StepState.Failed, $"WahTools made no progress for 30 min ({Math.Max(0, got)} of {c.Need})");
+                Say($"WahTools made no progress on {Name(c.ItemId)} for 30 minutes - stopped it; the next pass hands the rest to GatherBuddyReborn.", error: true);
+                _catching = null;
+                Enter(Phase.Catches);
+                return;
+            }
+            Heartbeat($"WahTools catching {Name(c.ItemId)} {Math.Max(0, got)}/{c.Need}");
+            return;
+        }
+
+        _catching = null;
+        if (got > 0) _waveProgress = true;
+        if (got >= c.Need)
+        {
+            TrackStep(StepKind.Catch, c.ItemId, c.Need, StepState.Done);
+            Say($"WahTools caught {Name(c.ItemId)} x{got}.");
+        }
+        else
+        {
+            ExcludeFromWahTools(c.ItemId);
+            var s = WahTools.CatchStatus();
+            TrackStep(StepKind.Catch, c.ItemId, c.Need, StepState.Failed, $"WahTools stopped at {Math.Max(0, got)} of {c.Need}" + (s.Length > 0 ? $" ({s})" : ""));
+            Say($"WahTools stopped with {Name(c.ItemId)} at {Math.Max(0, got)} of {c.Need}; the next pass hands the rest to GatherBuddyReborn.");
+        }
+        Enter(Phase.Catches);
+    }
+
+    private void StartNextHunt()
+    {
+        if (_hunt is null)
+        {
+            if (_huntQueue.Count == 0) { Enter(Phase.Crafts); return; }
+            var h = _huntQueue.Dequeue();
+            _plugin.Inventory.DropMemo();
+            _hunt = new HuntRun(h, _plugin.Inventory.CountInBags(h.ItemId));
+            TrackStep(StepKind.Hunt, h.ItemId, h.Quantity, StepState.Running, ext: "WahTools Hunter");
+        }
+        StartHuntBatch(_hunt);
+    }
+
+    /// <summary>
+    /// Ask Hunter for one batch of kills, trying the item's monsters in order until one is accepted. A monster
+    /// Hunter refuses (no known spawn, unreachable) is skipped for the rest of this item.
+    /// </summary>
+    private void StartHuntBatch(HuntRun run)
+    {
+        _plugin.Inventory.DropMemo();
+        var gained = _plugin.Inventory.CountInBags(run.Hunt.ItemId) - run.Before;
+        var kills = HuntLoop.KillsFor(run.Hunt.Quantity - Math.Max(0, gained));
+        while (run.MobIndex < run.Hunt.Mobs.Count)
+        {
+            var mob = run.Hunt.Mobs[run.MobIndex];
+            if (WahTools.Hunt(mob, kills))
+            {
+                run.Batches++;
+                _huntStall.Reset();
+                Say($"WahTools: hunting {kills} for {Name(run.Hunt.ItemId)} ({Math.Max(0, gained)} of {run.Hunt.Quantity}, batch {run.Batches}).");
+                Enter(Phase.WaitHunt);
+                SetStatus("waiting for WahTools Hunter");
+                return;
+            }
+            _log.Information("WahTools Hunter refused monster {Mob} for item {Item}: {Why}", mob, run.Hunt.ItemId, WahTools.HuntStatus());
+            run.MobIndex++;
+        }
+        EndHunt(run, StepState.Failed, run.Batches == 0 ? "WahTools Hunter refused every known monster" : $"WahTools Hunter stopped at {Math.Max(0, gained)} of {run.Hunt.Quantity}");
+    }
+
+    private void WaitHuntTick()
+    {
+        if (_hunt is not { } run) { Enter(Phase.Hunts); return; }
+        _plugin.Inventory.DropMemo();
+        var gained = _plugin.Inventory.CountInBags(run.Hunt.ItemId) - run.Before;
+        if (WahTools.IsBusy() == true)
+        {
+            var s = WahTools.HuntStatus();
+            SetStatus("WahTools: " + (s.Length > 0 ? s : "hunting"));
+            // Enough already: end the batch early; the next tick sees Hunter idle and closes the item.
+            if (gained >= run.Hunt.Quantity) { WahTools.StopHunter(); return; }
+            if (_huntStall.Observe(s + "|" + gained, DateTime.UtcNow))
+            {
+                WahTools.StopHunter();
+                EndHunt(run, StepState.Failed, $"WahTools Hunter made no progress for 15 min ({Math.Max(0, gained)} of {run.Hunt.Quantity})");
+                return;
+            }
+            Heartbeat($"WahTools hunting for {Name(run.Hunt.ItemId)} {Math.Max(0, gained)}/{run.Hunt.Quantity}");
+            return;
+        }
+
+        run.DryBatches = gained > run.BestGained ? 0 : run.DryBatches + 1;
+        run.BestGained = Math.Max(run.BestGained, gained);
+        if (gained > 0) _waveProgress = true;
+        switch (HuntLoop.Next(run.Hunt.Quantity, gained, run.Batches, run.DryBatches))
+        {
+            case HuntLoop.Step.Done:
+                EndHunt(run, StepState.Done, null);
+                break;
+            case HuntLoop.Step.HuntMore:
+                StartHuntBatch(run);
+                break;
+            default:
+                EndHunt(run, StepState.Failed, $"WahTools Hunter gave up at {Math.Max(0, gained)} of {run.Hunt.Quantity} after {run.Batches} batch{(run.Batches == 1 ? "" : "es")}");
+                break;
+        }
+    }
+
+    private void EndHunt(HuntRun run, StepState state, string? why)
+    {
+        _hunt = null;
+        if (state == StepState.Done)
+        {
+            TrackStep(StepKind.Hunt, run.Hunt.ItemId, run.Hunt.Quantity, StepState.Done);
+            Say($"WahTools hunt finished - {Name(run.Hunt.ItemId)} x{run.Hunt.Quantity} in the bags.");
+        }
+        else
+        {
+            ExcludeFromWahTools(run.Hunt.ItemId);
+            TrackStep(StepKind.Hunt, run.Hunt.ItemId, run.Hunt.Quantity, StepState.Failed, why);
+            Say($"{why} for {Name(run.Hunt.ItemId)}; the next pass lists the rest on the market board or as manual.");
+        }
+        Enter(Phase.Hunts);
+    }
+
+    /// <summary>Run end: let WahTools treat this run's fish like any other fish again.</summary>
+    private void ReleaseWahTools()
+    {
+        if (!_heldFish) return;
+        _heldFish = false;
+        WahTools.ReleaseHeldFish();
+    }
+
     private string GatherHeartbeat()
     {
         var done = 0;
@@ -1891,6 +2151,8 @@ public sealed class DispatchService : IDisposable
         Phase.Retrieve or Phase.WaitRetrieve or Phase.BatchRetrieve or Phase.BatchWait => "Retrieving",
         Phase.Ventures => "Ventures",
         Phase.Gathers or Phase.WaitGather => "Gathering",
+        Phase.Catches or Phase.WaitCatch => "Fishing (WahTools)",
+        Phase.Hunts or Phase.WaitHunt => "Hunting (WahTools)",
         Phase.Crafts or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.WaitClientFree => "Crafting",
         Phase.Knightshopper => "Knightshopper",
         Phase.Done => "Done",
@@ -1921,6 +2183,7 @@ public sealed class DispatchService : IDisposable
     /// <summary>Stop-and-report (card t_efde145c option A): the run is Blocked, the plan is held for <see cref="Resume"/>, and the red block is printed here, once, at the END of the run.</summary>
     private void FinishBlocked(string why, DispatchPlan.Plan? blockedPlan = null)
     {
+        ReleaseWahTools();
         _stoppedReason = Readable(why);
         // Defect A (card t_35be7be5): the merge lives in Core now and BOTH endings call it - this path used to
         // carry its own inline copy while Finish carried none at all.
@@ -1991,6 +2254,7 @@ public sealed class DispatchService : IDisposable
     /// <summary>The wave loop said the cart is finished (or a single-channel run ended on its own).</summary>
     private void Finish(Phase end, string? why)
     {
+        ReleaseWahTools();
         var plan = _plan;
         _stoppedReason = why;
         Current = end;

@@ -1,4 +1,13 @@
-﻿## v0.1.7.13 (2026-11-15) [testing]
+﻿## v0.1.7.14 (2026-11-21) [testing]
+### Added
+- **Monster-drop materials can be hunted with WahTools.** When WahTools is loaded, a material that a known monster drops is handed to WahTools' Hunter instead of going straight to the market-board list. Hunter counts kills, not drops, so the run hunts in batches, recounts the bags between batches, and stops as soon as enough have landed. It gives up after two batches in a row that drop nothing (or eight in total), and the rest goes back on the market-board or manual list on the next pass. Gil-vendor and currency-shop items are still bought, never hunted.
+- **Fish materials can be caught with WahTools.** When WahTools is loaded, a fish that no gathering node yields goes to WahTools' Feesh instead of GatherBuddyReborn. A fish WahTools will not take, such as an ocean fish, goes back to GatherBuddyReborn on the next pass. The caught fish stay protected from WahTools' own discard and desynth rules until the run ends.
+- Both run after GatherBuddyReborn and before Artisan, and crafts that need them wait for them. Each has its own setting under Dispatch behavior, both on by default; with WahTools absent or both settings off, routing is exactly as before. Stop ends a WahTools fish or hunt in progress.
+- The Integrations list shows whether WahTools is loaded.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
+## v0.1.7.13 (2026-11-15) [testing]
 - The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.
 - The catalog table keeps its sortable, resizable and reorderable columns and its right-click menu for showing and hiding columns; columns that do not fit start hidden.
 - Numeric column headers line up with the figures beneath them in the catalog, cart, ledger and run tables, and no header is cut mid-word at larger UI scales.

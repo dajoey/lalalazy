@@ -110,7 +110,7 @@ public sealed class DispatchLoop
         if (Pass > MaxPasses)
             return new Decision(Outcome.Blocked, fresh, $"{MaxPasses} passes and the cart is still not finished - something keeps needing another round", remaining);
 
-        var runnable = fresh.Gathers.Count + fresh.Crafts.Count + fresh.Retrievals.Count > 0;
+        var runnable = fresh.Gathers.Count + fresh.Crafts.Count + fresh.Retrievals.Count + fresh.Catches.Count + fresh.Hunts.Count > 0;
         if (!runnable)
             return new Decision(Outcome.Blocked, fresh, Describe(fresh), remaining);
         if (!progressed)
@@ -124,6 +124,8 @@ public sealed class DispatchLoop
         var ids = new HashSet<uint>();
         foreach (var l in remaining) ids.Add(l.ResultItemId);
         foreach (var g in plan.Gathers) ids.Add(g.ItemId);
+        foreach (var c in plan.Catches) ids.Add(c.ItemId);
+        foreach (var h in plan.Hunts) ids.Add(h.ItemId);
         foreach (var c in plan.Crafts) ids.Add(c.ResultItemId);
         foreach (var r in plan.Retrievals) ids.Add(r.ItemId);
         foreach (var d in plan.Deferred) ids.Add(d.ResultItemId);

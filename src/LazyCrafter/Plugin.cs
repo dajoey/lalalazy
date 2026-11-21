@@ -256,7 +256,7 @@ public sealed class Plugin : IDalamudPlugin
             var r = g.Require(pin, pin.InternalName + " check");
             if (r is not null) ChatGui.Print($"[LazyCrafter] guard {pin.InternalName}: OK - all {r.Members.Count} members resolved on {r.Version}.");
         }
-        ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, price match (Lazy Market Companion) {(Dispatch.PriceMatch.Installed ? "loaded" : "missing")} (IPC, no reflection).");
+        ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, price match (Lazy Market Companion) {(Dispatch.PriceMatch.Installed ? "loaded" : "missing")}, WahTools {(Dispatch.WahTools.Installed ? "loaded" : "missing")} (IPC, no reflection).");
     }
 
     /// <summary>
