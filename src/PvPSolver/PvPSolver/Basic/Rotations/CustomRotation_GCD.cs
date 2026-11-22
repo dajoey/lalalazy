@@ -18,7 +18,7 @@ public partial class CustomRotation
 		IAction? act = DataCenter.CommandNextAction;
 
 		IBaseAction.ForceEnable = true;
-		if (act is IBaseAction a && a.Info.IsRealGCD
+		if (act is IBaseAction a && a.Info.IsRealGCD && !ShouldDelayCommandAction(a)
 			&& a.CanUse(out _, usedUp: true, skipAoeCheck: true, skipStatusProvideCheck: true))
 		{
 			return act;

@@ -26,7 +26,7 @@ public partial class CustomRotation
 		}
 
 		IBaseAction.ForceEnable = true;
-		if (act is IBaseAction a && a != null && !a.Info.IsRealGCD && a.CanUse(out _, usedUp: true, skipAoeCheck: true, skipStatusProvideCheck: true))
+		if (act is IBaseAction a && a != null && !a.Info.IsRealGCD && !ShouldDelayCommandAction(a) && a.CanUse(out _, usedUp: true, skipAoeCheck: true, skipStatusProvideCheck: true))
 		{
 			return true;
 		}

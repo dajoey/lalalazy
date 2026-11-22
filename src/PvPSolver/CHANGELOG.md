@@ -1,3 +1,10 @@
+## v0.1.2.35 (2026-11-22)
+### Fixed
+- Basic/Helpers/StatusHelper.cs LocksActions: action-locking statuses are now detected reliably - Out of the Action (statuses 1113, 1284 and 1462) counts as locking actions even when the game data sheet does not flag it, and a status with no remaining time counts as still active instead of expiring instantly. Rotation updates now pause correctly through those lockout states (read by Updaters/ActionUpdater.cs).
+### Changed
+- Basic/Actions/ActionTargetInfo.cs FindTarget and GetCanTargets, and Basic/Actions/BaseAction.cs and IBaseAction.cs CanUse, accept an optional extra target filter passed by the caller; no built-in PvP action passes one yet, so target selection behaves exactly as before. This keeps the engine aligned with upstream RotationSolverReborn for future fixes.
+- Basic/Rotations/CustomRotation_BasicInfo.cs adds a ShouldDelayCommandAction hook, checked by the commanded-action paths in CustomRotation_Ability.cs and CustomRotation_GCD.cs before firing a commanded action immediately; the default answer is no, so commanded actions fire exactly as before.
+
 ## v0.1.2.34 (2026-11-21)
 ### Fixed
 - Basic/Rotations/CustomRotation_GCD.cs GCD: the chooser never called the job rotations' GeneralGCD, so no attack GCD was ever selected - the character could only auto-heal, Guard, Recuperate and drink the elixir, which read as healing instead of attacking in matches. The call was deleted together with the duty-rotation engine in v0.1.2.23 (the same class of loss as the v0.1.2.32 rotation-load fix), so every version from v0.1.2.23 to v0.1.2.33 shipped with attack GCDs as dead code. GeneralGCD is called again inside the NoCasting branch, in upstream's chooser order (heals first, attacks after).

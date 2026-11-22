@@ -56,7 +56,7 @@ public struct ActionTargetInfo(IBaseAction action)
 	/// <returns>
 	/// A <see cref="List{IBattleChara}"/> containing the valid targets.
 	/// </returns>
-	private readonly List<IBattleChara> GetCanTargets(bool skipStatusProvideCheck, bool skipTargetStatusNeedCheck, TargetType type, TargetType targetOverride)
+	private readonly List<IBattleChara> GetCanTargets(bool skipStatusProvideCheck, bool skipTargetStatusNeedCheck, TargetType type, TargetType targetOverride, Func<IBattleChara, bool>? targetFilter = null)
 	{
 		if (DataCenter.AllTargets == null)
 		{
@@ -113,8 +113,9 @@ public struct ActionTargetInfo(IBaseAction action)
 					var canUse = CanUseTo(target);
 					var asCanTarget = action.Setting.CanTarget(target);
 					var MinHPPass = !action.MinHPFeature || (action.MinHPFeature && target.GetHealthRatio() > action.MinHPPercent);
+					var filterPass = targetFilter?.Invoke(target) ?? true;
 
-					if (view && canUse && asCanTarget && MinHPPass)
+					if (view && canUse && asCanTarget && MinHPPass && filterPass)
 					{
 						validTargets.Add(target);
 					}
@@ -422,7 +423,7 @@ public struct ActionTargetInfo(IBaseAction action)
 	/// <returns>
 	/// A <see cref="TargetResult"/> containing the target and affected characters, or <c>null</c> if no target is found.
 	/// </returns>
-	internal readonly TargetResult? FindTarget(bool skipAoeCheck, bool skipStatusProvideCheck, bool skipTargetStatusNeedCheck, TargetType targetOverride)
+	internal readonly TargetResult? FindTarget(bool skipAoeCheck, bool skipStatusProvideCheck, bool skipTargetStatusNeedCheck, TargetType targetOverride, Func<IBattleChara, bool>? targetFilter = null)
 	{
 		if (action == null || action.Setting == null || action.Config == null)
 		{
@@ -467,7 +468,7 @@ public struct ActionTargetInfo(IBaseAction action)
 				return new TargetResult(Player.Object, [.. selfAffects], Player.Object.Position);
 			}
 
-		IEnumerable<IBattleChara> canTargets = GetCanTargets(skipStatusProvideCheck, skipTargetStatusNeedCheck, type, targetOverride);
+		IEnumerable<IBattleChara> canTargets = GetCanTargets(skipStatusProvideCheck, skipTargetStatusNeedCheck, type, targetOverride, targetFilter);
 		List<IBattleChara> canAffects = GetCanAffects(skipStatusProvideCheck, skipTargetStatusNeedCheck, type, targetOverride);
 
 		if (canTargets == null || canAffects == null)
