@@ -1,4 +1,7 @@
-﻿## v0.1.1.8 (2026-11-21) [testing]
+﻿## v0.1.1.9 (2026-11-22) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework; the hub window's scroll area follows the toolkit's reworked layout path.
+
+## v0.1.1.8 (2026-11-21) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release; the hub window's scroll area now recalculates its layout through the toolkit's new layout path.
 ## v0.1.1.7 (2026-11-16) [testing]
 - The Lazy Hub window now has the same dark, rounded look as the other lalalazy windows, with crisp edges instead of blurry ones.

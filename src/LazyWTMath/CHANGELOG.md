@@ -1,3 +1,7 @@
+## v3.2.3.11 (2026-11-22) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework, which rebuilds the internals of the list, grid and tab layout nodes and adds a shared layout base class (LayoutNodeBase) plus size-change batching on the node base.
+- No setting or window behavior changes; the probability overlay renders through the same text and collision nodes as before.
+
 ## v3.2.3.10 (2026-11-21) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release, which reorganizes how native game windows and nodes are built.
 - The probability overlay keeps its journal-matched background, text colours, font size and spacing through the toolkit's new node layout.
