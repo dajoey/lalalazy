@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit.Classes;
 using KamiToolKit.Enums;
+using KamiToolKit.Interfaces;
 using KamiToolKit.Internal.Classes;
 using Bounds = KamiToolKit.Classes.Bounds;
 using Vector2 = System.Numerics.Vector2;
@@ -13,20 +14,12 @@ using Vector4 = System.Numerics.Vector4;
 
 namespace KamiToolKit.BaseTypes;
 
-public abstract unsafe partial class NodeBase {
+public abstract unsafe partial class NodeBase : INode {
 
     private static bool EnableSizingWarnings { get; set; } = false;
     private Action<bool>? OnVisibilityToggled { get; set; }
     private bool? lastIsVisible;
     private bool isInsideSizeChanged;
-
-    /// <summary>
-    /// Temporarily suppresses <see cref="OnSizeChanged"/> while performing batch size operations.
-    /// </summary>
-    protected ScopeGuard SuppressSizeChanged() {
-        isInsideSizeChanged = true;
-        return new ScopeGuard(() => isInsideSizeChanged = false);
-    }
 
     /// <summary>
     /// Gets or sets the nodes X position relative to its parent node.
@@ -489,4 +482,9 @@ public abstract unsafe partial class NodeBase {
     /// Overridable function that is called whenever this node's size is changed.
     /// </summary>
     protected virtual void OnSizeChanged() { }
+
+    private ScopeGuard SuppressSizeChanged() {
+        isInsideSizeChanged = true;
+        return new ScopeGuard(() => isInsideSizeChanged = false);
+    }
 }

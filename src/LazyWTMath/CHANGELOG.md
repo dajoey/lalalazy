@@ -1,3 +1,7 @@
+## v3.2.3.12 (2026-11-23) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework, which splits node capabilities into dedicated interfaces (attachable, colour, position, rotation, scale, size, visibility, silent set) and adds a window frame node.
+- No setting or window behavior changes; the probability overlay builds through the same nodes as before.
+
 ## v3.2.3.11 (2026-11-22) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework, which rebuilds the internals of the list, grid and tab layout nodes and adds a shared layout base class (LayoutNodeBase) plus size-change batching on the node base.
 - No setting or window behavior changes; the probability overlay renders through the same text and collision nodes as before.
