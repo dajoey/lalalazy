@@ -4,9 +4,12 @@ using Dalamud.Interface.Textures;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
-using KamiToolKit.BaseTypes;
-using KamiToolKit.Enums;
-using KamiToolKit.Nodes;
+using KamiToolKit.Core.Enums;
+using KamiToolKit.Core.Primitives.NativeAddon;
+using KamiToolKit.Core.Primitives.NodeBase;
+using KamiToolKit.UI.Nodes;
+using KamiToolKit.UI.Nodes.ComponentNode;
+
 using Lalalazy.Hub;
 using LalaUiKit;
 using LazyHub.Core;
@@ -305,7 +308,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     {
         // The native header owns the only Close control; keep it enabled and visible instead of adding a duplicate content X.
         DisableClose = false;
-        if (WindowNode is KamiToolKit.Nodes.WindowNode nativeWindow)
+        if (WindowNode is KamiToolKit.UI.Nodes.ComponentNode.WindowNode nativeWindow)
             nativeWindow.ShowCloseButton = true;
 
         try { BuildWindow(); }
@@ -497,7 +500,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         if (_tintFailed) return;
         try
         {
-            if (WindowNode is KamiToolKit.Nodes.WindowNode w)
+            if (WindowNode is KamiToolKit.UI.Nodes.ComponentNode.WindowNode w)
             {
                 w.BackgroundTextureNode.AddColor = HubTheme.ChromeTint;
                 w.BorderTextureNode.AddColor = HubTheme.ChromeTint;

@@ -9,8 +9,9 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
-using KamiToolKit.BaseTypes;
-using KamiToolKit.Classes;
+using KamiToolKit.Services.AddonConfig;
+using KamiToolKit.Core.Primitives.NativeAddon;
+using KamiToolKit.Core.Primitives.NodeBase;
 using KamiToolKit.Debug;
 using KamiToolKit.Internal.Classes;
 using Serilog.Events;
@@ -52,8 +53,6 @@ public static class KamiToolKitLibrary {
         DefaultWindowSubtitle = defaultWindowSubtitle;
         PluginInterface = pluginInterface;
 
-        // Inject non-Experimental Properties
-        PluginInterface.Create<Services>();
         IGameInteropProvider.Get().InitializeFromAttributes(Experimental);
 
         // Create node data share
@@ -159,7 +158,8 @@ public static class KamiToolKitLibrary {
         NodeBase.WarnLeakedNodes();
         NativeAddon.WarnLeakedAddons();
 
-        await IFramework.Get().Run(NativeAddon.DisposeAddons);
+        await NativeAddon.DisposeAddonsAsync();
+
         await IFramework.Get().Run(NodeBase.DisposeNodes);
 
         PluginInterface.RelinquishData(NodeDataShareKey);

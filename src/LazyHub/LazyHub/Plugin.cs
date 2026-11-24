@@ -11,7 +11,8 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using KamiToolKit;
-using KamiToolKit.BaseTypes;
+using KamiToolKit.Core.Primitives.NativeAddon;
+
 using Lalalazy.Changelog;
 using LazyHub.Core;
 

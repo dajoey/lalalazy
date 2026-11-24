@@ -1,7 +1,7 @@
 using System.Reflection;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Plugin.Services;
-using KamiToolKit.Nodes;
+using KamiToolKit.UI.Nodes;
 
 namespace LazyHub;
 

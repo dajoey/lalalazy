@@ -1,6 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
-using KamiToolKit.BaseTypes;
+using KamiToolKit.Core.Primitives.NativeAddon;
 
 namespace KamiToolKit.Debug;
 

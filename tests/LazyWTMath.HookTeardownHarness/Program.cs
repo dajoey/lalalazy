@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
-using KamiToolKit.Controllers;
+using KamiToolKit.Core.Primitives.NativeAddon;
+using KamiToolKit.Services.Controllers;
 
 namespace LazyWTMath.HookTeardownHarness;
 
@@ -49,7 +50,7 @@ internal static class Program
     {
         Console.WriteLine("-- case A: detours invoked with the hook null (post-teardown state) --");
 
-        var addonType = Type.GetType("KamiToolKit.BaseTypes.NativeAddon, KamiToolKit")
+        var addonType = Type.GetType("KamiToolKit.Core.Primitives.NativeAddon.NativeAddon, KamiToolKit")
                         ?? throw new MissingMemberException("KamiToolKit.NativeAddon not found");
         var detour = addonType.GetMethod("OnFireCallback", BindingFlags.NonPublic | BindingFlags.Static)
                      ?? ThrowMissing<MethodInfo>(addonType, "OnFireCallback");
@@ -116,7 +117,7 @@ internal static class Program
     private static void CaseB()
     {
         Console.WriteLine("-- case B: teardown waits for an in-flight detour --");
-        var addonType = Type.GetType("KamiToolKit.BaseTypes.NativeAddon, KamiToolKit")!;
+        var addonType = Type.GetType("KamiToolKit.Core.Primitives.NativeAddon.NativeAddon, KamiToolKit")!;
         RunStopsWaiting(addonType, null, "NativeAddon.CloseCallback", "DisposeCloseCallback", instance: false);
 
         var controller = NewController();

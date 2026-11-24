@@ -2,8 +2,10 @@ using System;
 using System.Diagnostics;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
-using KamiToolKit.BaseTypes;
-using KamiToolKit.Nodes;
+using KamiToolKit.Core.Primitives.NativeAddon;
+using KamiToolKit.UI.Nodes;
+using KamiToolKit.UI.Nodes.ComponentNode;
+
 using LalaUiKit;
 using LazyHub.Core;
 
@@ -51,7 +53,7 @@ internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe g
     {
         // Safe mode uses the same native header Close path; no second content button and no change to the recovery lifecycle.
         DisableClose = false;
-        if (WindowNode is KamiToolKit.Nodes.WindowNode nativeWindow)
+        if (WindowNode is KamiToolKit.UI.Nodes.ComponentNode.WindowNode nativeWindow)
             nativeWindow.ShowCloseButton = true;
 
         _generation++;

@@ -1,3 +1,7 @@
+## v3.2.3.13 (2026-11-24) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization, which regroups the toolkit's types into Core, UI and Services namespaces.
+- No setting or window behavior changes; the probability overlay builds through the same nodes as before.
+
 ## v3.2.3.12 (2026-11-23) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework, which splits node capabilities into dedicated interfaces (attachable, colour, position, rotation, scale, size, visibility, silent set) and adds a window frame node.
 - No setting or window behavior changes; the probability overlay builds through the same nodes as before.

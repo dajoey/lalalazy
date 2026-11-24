@@ -6,11 +6,10 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using KamiToolKit;
-using KamiToolKit.Classes;
-using KamiToolKit.Controllers;
-using KamiToolKit.Enums;
-using KamiToolKit.Extensions;
-using KamiToolKit.Nodes;
+using KamiToolKit.Core.Enums;
+using KamiToolKit.Core.Extensions;
+using KamiToolKit.Services.Controllers;
+using KamiToolKit.UI.Nodes;
 
 namespace WondrousTailsSolver;
 

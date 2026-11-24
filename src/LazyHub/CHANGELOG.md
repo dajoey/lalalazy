@@ -1,4 +1,7 @@
-﻿## v0.1.1.10 (2026-11-23) [testing]
+﻿## v0.1.1.11 (2026-11-24) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization; the hub window builds through the same nodes as before.
+
+## v0.1.1.10 (2026-11-23) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework; the hub window's scroll area builds through the same nodes as before.
 
 ## v0.1.1.9 (2026-11-22) [testing]

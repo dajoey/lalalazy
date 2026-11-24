@@ -3,6 +3,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using KamiToolKit;
+
 using Lalalazy.Changelog;
 
 namespace WondrousTailsSolver;
