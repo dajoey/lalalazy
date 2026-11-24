@@ -1,4 +1,10 @@
-﻿## v1.0.4.341 (2026-11-17) [testing]
+﻿## v1.0.4.342 (2026-11-24) [testing]
+### Added
+- **The Beastmaster Crucible rules now treat the first master board's ice dragon fight as a knockback fight.** The dive's push (about thirty yalms) resolves on a one-second cast with a half-second fallback bar, and both bars are now in the knockback table, so Vileskin is held for the push there instead of being spent on ordinary target picks - the same policy the other sixteen knockback fights already follow, from the same upstream fight-module source. The fight has not been played on this install, so the timing comes from those modules rather than recorded runs.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
+## v1.0.4.341 (2026-11-17) [testing]
 ### Fixed
 - **The Fight Brain countdown strip no longer keeps past forecasts on screen.** A clock mix-up inside the forecast tick compared the entries' Unix timestamps against the machine's uptime clock, so the rule that drops a forecast three seconds after its moment passed could never fire: old entries piled up, filled the forecast list, and the strip showed a fixed set of entries whose countdowns grew ever more negative for the rest of the session. The tick now prunes on the same clock the entries carry, and the strip itself shows only entries still ahead (with one second of grace), so a fight's leftovers disappear instead of counting up in the negative.
 - **The Fight Brain countdown strip only draws during combat now.** Outside a fight it draws nothing, even while the forecast source is still answering, so the strip no longer sits on the screen between fights.

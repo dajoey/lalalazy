@@ -166,8 +166,8 @@ internal partial class BST
     ///     components on (origin/main be8ff771c, BossMod/Modules/Global/CrucibleOfTheUnbroken/; the module and line are in
     ///     <see cref="KnockbackCast.Source"/>). Most are cast by an invisible helper, so the live half scans every caster in the
     ///     arena, not just the target. Not listed: Progenitrix Meltdown (no castbar, head marker 412 only), Lauda's Unseen Force
-    ///     (the push comes when a status runs out), the Ice Dragon's Touchdown (a 0.5 s cast BMR models outside its knockback
-    ///     components).
+    ///     (the push comes when a status runs out). The Ice Dragon pair (Cauterize resolution 48704 / Touchdown 48706, 30 y push,
+    ///     BMR head 1aa8518108 via the 2026-11-24 upstream watch) is listed on both bars: the component resolves the push on either.
     /// </summary>
     public static class CrucibleKnockbacks
     {
@@ -185,6 +185,8 @@ internal partial class BST
             new(48816, 4, 0, "Touchdown", "04FirstMasterBoard/BorgnyTheVenomous.cs:21,243 (helper, 4.0 s, 30 y)"),
             new(48667, 4, 1, "Aero III", "04FirstMasterBoard/StrixPiece.cs:21,50 (Strix Plume, 12.0 s, 25 y)"),
             new(50758, 4, 2, "Tremblor", "04FirstMasterBoard/MorbolPiece.cs:27,54 (helper, 5.0 s, 10 y)"),
+            new(48704, 4, 4, "Cauterize (resolve)", "04FirstMasterBoard/IceDragonPiece.cs:30,143-247 (helper, 1.0 s, 30 y)"),
+            new(48706, 4, 4, "Touchdown (resolve)", "04FirstMasterBoard/IceDragonPiece.cs:33,162-170 (helper, 0.5 s, 30 y)"),
             new(48725, 4, 5, "Fivefold Fallout", "04FirstMasterBoard/GargoylePiece.cs:38,310-326 (helper, 3.0 s, 20 y)"),
             new(50649, 4, 7, "Obliterate", "04FirstMasterBoard/GolemPiece.cs:21,269 (golem, 5.0 s, 17 y)"),
             new(48805, 4, 9, "Fiery Fury", "04FirstMasterBoard/ProgenitrixPiece.cs:27,147 (helper, 7.9 s, 15 y)"),

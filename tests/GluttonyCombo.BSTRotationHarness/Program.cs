@@ -3394,13 +3394,16 @@ internal static class Program
         Check("core: ... and the Calamity fallback too", !Decide(crFin with { ProtectedNearTarget = true, DashLanding = DashLanding.Danger }, cfg).Reason.StartsWith("finisher:"));
 
         // ---------------------------------------------------------- 4. Vileskin held for a known knockback (U5)
-        Check("core: knockback table: 19 casts, unique ids, every row a real board battle",
-            BST.CrucibleKnockbacks.Casts.Length == 19 && BST.CrucibleKnockbacks.Casts.Select(c => c.CastId).Distinct().Count() == 19
+        Check("core: knockback table: 21 casts, unique ids, every row a real board battle",
+            BST.CrucibleKnockbacks.Casts.Length == 21 && BST.CrucibleKnockbacks.Casts.Select(c => c.CastId).Distinct().Count() == 21
             && BST.CrucibleKnockbacks.Casts.All(c => BST_CrucibleData.Battles.Any(b => b.Board == c.Board && b.Battle == c.Battle)));
         Check("core: knockback table: Aero III 48667 (Strix, 4.1), Obliterate 50649 (Golem, 4.7), Tsunami 48481 (Ymir, 3.2)",
             BST.CrucibleKnockbacks.IsKnockbackCast(48667) && BST.CrucibleKnockbacks.IsKnockbackCast(50649) && BST.CrucibleKnockbacks.IsKnockbackCast(48481)
             && BST.CrucibleKnockbacks.BattleHasKnockback(4, 1) && BST.CrucibleKnockbacks.BattleHasKnockback(4, 7) && !BST.CrucibleKnockbacks.BattleHasKnockback(1, 1)
             && !BST.CrucibleKnockbacks.IsKnockbackCast(0));
+        Check("core: knockback table: Ice Dragon (M1 4.4) adopted 2026-11-24 - resolution bars 48704 + 48706 bound, the 15 s-early circle telegraph 48702 not",
+            BST.CrucibleKnockbacks.IsKnockbackCast(48704) && BST.CrucibleKnockbacks.IsKnockbackCast(48706)
+            && BST.CrucibleKnockbacks.BattleHasKnockback(4, 4) && !BST.CrucibleKnockbacks.IsKnockbackCast(48702));
         var vile = CrucibleState() with
         {
             CrucibleBoard = 4, CrucibleBattle = 7, KinshipHeld = true, ReadyBeastMode = true, BeastModeResolved = BST.Vileskin, PlayerTargetedByEnemy = true,
@@ -3424,6 +3427,9 @@ internal static class Program
             Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5 }, cfg).ActionId != BST.Vileskin
             && Decide(vile with { CrucibleBoard = 3, CrucibleBattle = 5, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback"
             && BST.CrucibleKnockbacks.IsKnockbackCast(48556));
+        Check("core: Ice Dragon fight (Cauterize 30 y push): Vileskin held, then pressed with 2 s left on the cast",
+            Decide(vile with { CrucibleBoard = 4, CrucibleBattle = 4 }, cfg).ActionId != BST.Vileskin
+            && Decide(vile with { CrucibleBoard = 4, CrucibleBattle = 4, KnockbackCastRemaining = 2f }, cfg).Reason == "beastmode:vileskin-knockback");
         Check("core: a Crucible fight with no knockback (bone knight) -> Vileskin as today (targeted)",
             Decide(vile with { CrucibleBoard = 1, CrucibleBattle = 1 }, cfg) is { ActionId: BST.Vileskin, Reason: "beastmode:vileskin" });
         Check("core: battle not identified -> Vileskin as today", Decide(vile with { CrucibleBattle = -1 }, cfg).ActionId == BST.Vileskin);
@@ -3765,10 +3771,10 @@ internal static class Program
             Decide(plain, cfg).Reason != "crucible:bmr-skin", Show(Decide(plain, cfg)));
         Check("crux review: no knockback in the battle, a predicted tankbuster: Vileskin (block) goes",
             Decide(plain with { BmrHitType = 1 }, cfg) is { ActionId: BST.Vileskin, Reason: "crucible:bmr-skin" });
-        Check("crux review: the knockback battles match the core lane's table (Ymir, Lakhamu, Atomos, Progenitrix in; Administrator out)",
+        Check("crux review: the knockback battles match the core lane's table (Ymir, Lakhamu, Atomos, Progenitrix, Ice Dragon in; Administrator out)",
             BST_CrucibleData.KnockbackBattles.Contains((3, 2)) && BST_CrucibleData.KnockbackBattles.Contains((3, 5))
             && BST_CrucibleData.KnockbackBattles.Contains((5, 4)) && BST_CrucibleData.KnockbackBattles.Contains((4, 9))
-            && !BST_CrucibleData.KnockbackBattles.Contains((4, 6)) && BST_CrucibleData.KnockbackBattles.Count == 16);
+            && !BST_CrucibleData.KnockbackBattles.Contains((4, 6)) && BST_CrucibleData.KnockbackBattles.Contains((4, 4)) && BST_CrucibleData.KnockbackBattles.Count == 17);
         Check("merge: the shared knockback battles equal the battles of the core lane's knockback casts, both ways",
             BST_CrucibleData.KnockbackBattles.All(kb => BST.CrucibleKnockbacks.BattleHasKnockback(kb.Board, kb.Battle))
             && BST.CrucibleKnockbacks.Casts.All(c => BST_CrucibleData.KnockbackBattles.Contains((c.Board, c.Battle))));
