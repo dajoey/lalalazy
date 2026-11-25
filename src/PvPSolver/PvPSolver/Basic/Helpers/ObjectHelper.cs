@@ -1211,12 +1211,7 @@ public static class ObjectHelper
 
 		Vector3 direction = offset / maxDist;
 
-		RaycastHit hit;
-		int* materialFilter = stackalloc int[] { 0x4000, 0, 0x4000, 0 };
-		var module = Framework.Instance()->BGCollisionModule;
-		bool blocked = module->RaycastMaterialFilter(&hit, &playerEyePos, &direction, maxDist, 1, materialFilter);
-
-		bool visible = !blocked;
+		var visible = !Raycast(playerEyePos, direction, maxDist, out _);
 		_losCache[id] = new LosCacheEntry
 		{
 			PlayerPos = playerEyePos,
@@ -1227,6 +1222,50 @@ public static class ObjectHelper
 		return visible;
 	}
 
+
+	private static unsafe bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out Vector3 point)
+	{
+		point = default;
+		var module = Framework.Instance()->BGCollisionModule;
+		if (module == null)
+		{
+			return false;
+		}
+
+		RaycastHit hit;
+		var materialFilter = stackalloc int[] { 0x4000, 0, 0x4000, 0 };
+		if (!module->RaycastMaterialFilter(&hit, &origin, &direction, maxDistance, 1, materialFilter))
+		{
+			return false;
+		}
+
+		point = hit.Point;
+		return true;
+	}
+
+	internal static Vector3 SnapToGround(Vector3 position, float above = 2.5f, float below = 6f)
+	{
+		var origin = position + (Vector3.UnitY * above);
+		if (Raycast(origin, -Vector3.UnitY, above + below, out var ground))
+		{
+			position.Y = ground.Y;
+		}
+
+		return position;
+	}
+
+	internal static bool CanSeePosition(Vector3 position, float playerYOffset = 2.0f, float targetYOffset = 1.0f)
+	{
+		if (Player.Object == null)
+		{
+			return false;
+		}
+
+		var eye = Player.Object.Position + (Vector3.UnitY * playerYOffset);
+		var offset = position + (Vector3.UnitY * targetYOffset) - eye;
+		var maxDist = offset.Length();
+		return maxDist < 0.01f || !Raycast(eye, offset / maxDist, maxDist, out _);
+	}
 	// Backward-compatible existing API calls the overload
 	internal static unsafe bool CanSee(this IBattleChara battleChara, float playerYOffset = 2.0f, float targetYOffset = 2.0f)
 	{

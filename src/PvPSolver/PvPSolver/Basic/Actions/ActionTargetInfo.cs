@@ -684,6 +684,11 @@ public struct ActionTargetInfo(IBaseAction action)
 		}
 	}
 
+
+	private const float GroundRangeMargin = 0.5f;
+
+	// TODO: maybe make this a config
+	private const long GroundRejectedFallbackMs = 5000;
 	/// <summary>
 	/// Finds the target area for friendly actions based on the specified range and strategy.
 	/// </summary>
@@ -701,158 +706,144 @@ public struct ActionTargetInfo(IBaseAction action)
 			return null;
 		}
 
-		// If range is zero, always target self
-		if (range == 0 || Service.Config.UseGroundBeneficialAbilityOnlySelf)
+		// If range is zero always target self; after the server rejects a ground action, target self for a few seconds
+		if (range == 0 || Service.Config.UseGroundBeneficialAbilityOnlySelf
+			|| DataCenter.WasActionRejectedRecently(action.Info.ID, GroundRejectedFallbackMs))
 		{
 			return new TargetResult(player, [.. GetAffectsVector(player.Position, canAffects)], player.Position);
 		}
 
-		if (Service.Config.UseTargetTankForGroundHeal && DataCenter.PartyMembers != null)
+		if (Service.Config.UseTargetTankForGroundHeal && FindTargetAreaTank(range, canAffects, player) is { } tankResult)
 		{
-			IBattleChara? tankWithStance = null;
-			IBattleChara? tankWithoutStance = null;
-			foreach (var member in DataCenter.PartyMembers)
+			return tankResult;
+		}
+
+		if (FindBeneficialPosition(range, player) is { } desired && TryGetGroundPosition(desired, range, player, out var preset))
+		{
+			List<IBattleChara> affectsList = [.. GetAffectsVector(preset, canAffects)];
+			if (affectsList.Count > 0)
 			{
-				if (member == null || member.GameObjectId == player.GameObjectId) continue;
-				if (member.IsJobCategory(JobRole.Tank))
-				{
-					if (member.HasStatus(false, StatusHelper.TankStanceStatus))
-					{
-						tankWithStance = member;
-						break; // Prefer tank with stance
-					}
-					else tankWithoutStance ??= member;
-				}
-			}
-			IBattleChara? tankTarget = tankWithStance ?? tankWithoutStance;
-			if (tankTarget != null)
-			{
-				List<IBattleChara> affectsList = [.. GetAffectsVector(tankTarget.Position, canAffects)];
-				return new TargetResult(tankTarget, [.. affectsList], tankTarget.Position);
+				return new TargetResult(player, [.. affectsList], preset);
 			}
 		}
 
-		// --- Try OnLocations logic first ---
-		_ = OtherConfiguration.BeneficialPositions.TryGetValue(Svc.ClientState.TerritoryType, out Vector3[]? pts);
-		pts ??= [];
-
-		// Use fallback points if no beneficial positions are found
-		if (pts.Length == 0)
-		{
-		}
-
-		// Find the closest point and apply a small random offset, then clamp within cast range
-		if (pts.Length > 0)
-		{
-			Vector3 closest = pts[0];
-			float minDistance = Vector3.Distance(player.Position, pts[0]);
-
-			for (int i = 1; i < pts.Length; i++)
-			{
-				float distance = Vector3.Distance(player.Position, pts[i]);
-				if (distance < minDistance)
-				{
-					closest = pts[i];
-					minDistance = distance;
-				}
-			}
-
-			// Small random jitter to avoid stacking perfectly; keep it within a reasonable local radius
-			double rotation = Random.Shared.NextDouble() * Math.Tau;
-			float jitterRadius = (float)(Random.Shared.NextDouble() * MathF.Min(EffectRange * 0.5f, 2f));
-			closest.X += (float)(Math.Sin(rotation) * jitterRadius);
-			closest.Z += (float)(Math.Cos(rotation) * jitterRadius);
-
-			// Clamp desired placement within cast range from player
-			Vector3 toDesired = closest - player.Position;
-			float len = toDesired.Length();
-			if (len > range)
-			{
-				closest = player.Position + toDesired / len * range;
-			}
-
-			// Only accept if within cast range; then compute affected list
-			if (Vector3.Distance(player.Position, closest) <= range + player.HitboxRadius)
-			{
-				List<IBattleChara> affectsList = [.. GetAffectsVector(closest, canAffects)];
-				if (affectsList.Count > 0)
-				{
-					return new TargetResult(player, [.. affectsList], closest);
-				}
-			}
-		}
-
-		float effectRange = EffectRange;
+		var effectRange = EffectRange;
 		List<IBattleChara> partyMembersInRadius = [];
 		if (DataCenter.PartyMembers != null)
 		{
 			foreach (var member in DataCenter.PartyMembers)
 			{
-				float dist = Vector3.Distance(member.Position, player.Position);
-				if (dist <= range + effectRange)
+				if (member != null && Vector3.Distance(member.Position, player.Position) <= range + effectRange)
 				{
 					partyMembersInRadius.Add(member);
 				}
 			}
 		}
-		IBattleChara? attackT = FindTargetByType(partyMembersInRadius,
+
+		var attackT = FindTargetByType(partyMembersInRadius,
 			TargetType.BeAttacked, action.Config.AutoHealRatio, action.Setting.SpecialType, targetOverride, true);
 
-		if (attackT == null)
+		if (attackT != null)
 		{
-			List<IBattleChara> affectsList = [.. GetAffectsVector(player.Position, canAffects)];
-			return new TargetResult(player, [.. affectsList], player.Position);
+			var disToTankRound = Vector3.Distance(player.Position, attackT.Position) + attackT.HitboxRadius;
+			var directionToTank = attackT.Position - player.Position;
+			var dirLength = directionToTank.Length();
+			if (disToTankRound >= effectRange && disToTankRound <= (2 * effectRange) - player.HitboxRadius && dirLength >= 0.001f)
+			{
+				var finalPos = player.Position + (directionToTank / dirLength * Math.Max(0, disToTankRound - effectRange));
+				if (TryGetGroundPosition(finalPos, range, player, out var placed))
+				{
+					return new TargetResult(player, [.. GetAffectsVector(placed, canAffects)], placed);
+				}
+			}
 		}
-		else
+
+		return new TargetResult(player, [.. GetAffectsVector(player.Position, canAffects)], player.Position);
+	}
+
+	private readonly TargetResult? FindTargetAreaTank(float range, IEnumerable<IBattleChara> canAffects, IPlayerCharacter player)
+	{
+		if (DataCenter.PartyMembers == null)
 		{
-			float disToTankRound = Vector3.Distance(player.Position, attackT.Position) + attackT.HitboxRadius;
-
-			Vector3 finalPos;
-			if (disToTankRound < effectRange
-				|| disToTankRound > (2 * effectRange) - player.HitboxRadius)
-			{
-				finalPos = player.Position;
-			}
-			else
-			{
-				Vector3 directionToTank = attackT.Position - player.Position;
-				float dirLength = directionToTank.Length();
-				if (dirLength < 0.001f)
-				{
-					finalPos = player.Position;
-				}
-				else
-				{
-					Vector3 moveDirection = directionToTank / dirLength * Math.Max(0, disToTankRound - effectRange);
-					finalPos = player.Position + moveDirection;
-				}
-			}
-
-			// Clamp finalPos within cast range
-			Vector3 toFinal = finalPos - player.Position;
-			float toFinalLen = toFinal.Length();
-			if (toFinalLen > range)
-			{
-				if (toFinalLen > 0.001f)
-				{
-					finalPos = player.Position + toFinal / toFinalLen * range;
-				}
-				else
-				{
-					finalPos = player.Position;
-				}
-			}
-
-			// Safety: fall back to player position if computation produced invalid values
-			if (float.IsNaN(finalPos.X) || float.IsNaN(finalPos.Y) || float.IsNaN(finalPos.Z) ||
-				float.IsInfinity(finalPos.X) || float.IsInfinity(finalPos.Y) || float.IsInfinity(finalPos.Z))
-			{
-				finalPos = player.Position;
-			}
-
-			List<IBattleChara> affectsList = [.. GetAffectsVector(finalPos, canAffects)];
-			return new TargetResult(player, [.. affectsList], finalPos);
+			return null;
 		}
+
+		for (var pass = 0; pass < 2; pass++)
+		{
+			var wantStance = pass == 0;
+			foreach (var member in DataCenter.PartyMembers)
+			{
+				if (member == null || member.GameObjectId == player.GameObjectId || member.IsDead
+					|| !member.IsJobCategory(JobRole.Tank) || member.HasStatus(false, StatusHelper.TankStanceStatus) != wantStance)
+				{
+					continue;
+				}
+
+				if (TryGetGroundPosition(member.Position, range, player, out var pos)
+					&& Vector3.Distance(pos, member.Position) - member.HitboxRadius <= EffectRange)
+				{
+					return new TargetResult(member, [.. GetAffectsVector(pos, canAffects)], pos);
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private readonly Vector3? FindBeneficialPosition(float range, IPlayerCharacter player)
+	{
+		var playerPos = player.Position;
+		if (!OtherConfiguration.BeneficialPositions.TryGetValue(Svc.ClientState.TerritoryType, out var pts) || pts == null || pts.Length == 0)
+		{
+			return null;
+		}
+
+		var closest = pts[0];
+		var minDistance = Vector3.Distance(playerPos, closest);
+		for (var i = 1; i < pts.Length; i++)
+		{
+			var distance = Vector3.Distance(playerPos, pts[i]);
+			if (distance < minDistance)
+			{
+				closest = pts[i];
+				minDistance = distance;
+			}
+		}
+
+		if (FlatDistance(playerPos, closest) > range + EffectRange)
+		{
+			return null;
+		}
+
+		var rotation = Random.Shared.NextDouble() * Math.Tau;
+		var jitterRadius = (float)(Random.Shared.NextDouble() * MathF.Min(EffectRange * 0.5f, 2f));
+		closest.X += (float)(Math.Sin(rotation) * jitterRadius);
+		closest.Z += (float)(Math.Cos(rotation) * jitterRadius);
+		return closest;
+	}
+
+	private static float FlatDistance(Vector3 a, Vector3 b)
+	{
+		var dx = b.X - a.X;
+		var dz = b.Z - a.Z;
+		return MathF.Sqrt((dx * dx) + (dz * dz));
+	}
+
+	private static bool TryGetGroundPosition(Vector3 desired, float range, IPlayerCharacter player, out Vector3 position)
+	{
+		var playerPos = player.Position;
+		var maxDistance = MathF.Max(0, range - GroundRangeMargin);
+		var flatDistance = FlatDistance(playerPos, desired);
+		if (flatDistance > maxDistance)
+		{
+			var scale = maxDistance / flatDistance;
+			desired = playerPos + ((desired - playerPos) * scale);
+		}
+
+		position = ObjectHelper.SnapToGround(desired);
+		return float.IsFinite(position.X) && float.IsFinite(position.Y) && float.IsFinite(position.Z)
+			&& MathF.Abs(position.Y - playerPos.Y) <= range
+			&& ObjectHelper.CanSeePosition(position);
 	}
 
 	/// <summary>

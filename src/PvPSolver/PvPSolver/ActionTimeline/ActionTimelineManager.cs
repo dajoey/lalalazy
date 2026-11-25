@@ -22,6 +22,9 @@ public class ActionTimelineManager : IDisposable
 
 	private readonly Queue<TimelineItem> _items = new(2048);
 	private TimelineItem? _lastItem;
+
+	// Server-rejected action ActorControl category (upstream Watcher's ActionRejectedCategory)
+	private const uint ActionRejectedCategory = 0x2BC;
 	private DateTime _lastTime = DateTime.MinValue;
 	private DateTime? _combatStartTime = null;
 	private bool _wasInCombat = false;
@@ -213,6 +216,15 @@ public class ActionTimelineManager : IDisposable
 			if (type == 15)
 			{
 				CancelCasting();
+			}
+			else if (type == ActionRejectedCategory && direct == 1)
+			{
+				// The server rejected this action; record it so ground-target placement backs off to self for a few seconds
+				DataCenter.AddActionRejected(actionId);
+				if (Service.Config.InDebug)
+				{
+					Svc.Log.Debug($"[Watcher] The server rejected action {actionId} (log message {buffID}).");
+				}
 			}
 		}
 		catch (Exception ex)
