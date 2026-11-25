@@ -15,8 +15,6 @@ using ECommons.ImGuiMethods;
 using ECommons.Logging;
 using ECommons.Reflection;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
-using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Data;
 using RotationSolver.Helpers;
@@ -2988,30 +2986,15 @@ public partial class RotationConfigWindow : Window
 
 			if (ImGui.Button(UiString.ConfigWindow_List_AddPosition.GetDescription()) && Player.Object != null && Player.Available)
 			{
-				unsafe
+				var newPts = new Vector3[pts.Length + 1];
+				for (var i = 0; i < pts.Length; i++)
 				{
-					Vector3 point = Player.Object.Position;
-					Vector3 pointMathed = point + (Vector3.UnitY * 5);
-					Vector3 direction = Vector3.UnitY;
-					Vector3* directionPtr = &direction;
-					Vector3* pointPtr = &pointMathed;
-					int* unknown = stackalloc int[] { 0x4000, 0, 0x4000, 0 };
-					RaycastHit hit = default;
-
-					var newPts = new Vector3[pts.Length + 1];
-					for (int i = 0; i < pts.Length; i++) newPts[i] = pts[i];
-					if (Framework.Instance()->BGCollisionModule
-						->RaycastMaterialFilter(&hit, pointPtr, directionPtr, 20, 1, unknown))
-					{
-						newPts[^1] = hit.Point;
-					}
-					else
-					{
-						newPts[^1] = point;
-					}
-					OtherConfiguration.BeneficialPositions[territoryId] = newPts;
-					_ = OtherConfiguration.SaveBeneficialPositions();
+					newPts[i] = pts[i];
 				}
+
+				newPts[^1] = ObjectHelper.SnapToGround(Player.Object.Position);
+				OtherConfiguration.BeneficialPositions[territoryId] = newPts;
+				_ = OtherConfiguration.SaveBeneficialPositions();
 			}
 
 			HoveredPosition = Vector3.Zero;
