@@ -1,4 +1,10 @@
-﻿## v1.0.4.342 (2026-11-24) [testing]
+﻿## v1.0.4.343 (2026-11-25) [testing]
+### Fixed
+- **NIN: Fuma Shuriken is no longer suggested while Ten is not ready.** The mudra helper could offer Fuma Shuriken when the Ten action itself was still on cooldown, spending the mudra window on a suggestion that would not fire; the placement now checks the action is ready first (upstream WrathCombo fix).
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
+## v1.0.4.342 (2026-11-24) [testing]
 ### Added
 - **The Beastmaster Crucible rules now treat the first master board's ice dragon fight as a knockback fight.** The dive's push (about thirty yalms) resolves on a one-second cast with a half-second fallback bar, and both bars are now in the knockback table, so Vileskin is held for the push there instead of being spent on ordinary target picks - the same policy the other sixteen knockback fights already follow, from the same upstream fight-module source. The fight has not been played on this install, so the timing comes from those modules rather than recorded runs.
 ### Notes
