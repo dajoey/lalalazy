@@ -108,13 +108,24 @@ for dll in PvPSolver.dll ECommons.dll; do
   cp "$src_dll" "$STAGE/$dll"
 done
 
-# Patch AssemblyVersion in staged manifest
-"$PYTHON" - "$STAGE/PvPSolver.json" "$VERSION" <<'PY'
+# Patch AssemblyVersion in the staged manifest and carry the fresh Changelog
+# from the pluginmaster PvPSolver entry (same read the version step does).
+# The build-template manifest's Changelog is frozen at template-era text;
+# pluginmaster.json is the source of truth for release notes, and every
+# historically shipped zip embedded the pluginmaster changelog.
+"$PYTHON" - "$STAGE/PvPSolver.json" "$VERSION" "$MASTER" <<'PY'
 import json, sys
-path, version = sys.argv[1], sys.argv[2]
-with open(path) as f:
+path, version, master = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(master, encoding='utf-8-sig') as f:
+    entries = json.load(f)
+entry = next(e for e in entries if e.get('InternalName') == 'PvPSolver')
+changelog = entry.get('Changelog')
+if not changelog:
+    raise SystemExit('ERROR: pluginmaster PvPSolver entry has no Changelog; refusing to embed stale template text')
+with open(path, encoding='utf-8-sig') as f:
     data = json.load(f)
 data['AssemblyVersion'] = version
+data['Changelog'] = changelog
 with open(path, 'w') as f:
     json.dump(data, f, indent=2)
 PY
