@@ -14,12 +14,20 @@
 # After running, commit + push, then in-game switch between production and
 # testing via /xlplugins → toggle "Test plugin builds" on PvP Solver.
 #
-# Prereqs: .NET 10 SDK on PATH, NuGet sources configured (nuget.org), python3.
+# Prereqs: .NET 10 SDK on PATH, NuGet sources configured (nuget.org), python (pinned below).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$REPO_ROOT/src/PvPSolver"
 MASTER="$REPO_ROOT/pluginmaster.json"
+
+# Pinned interpreter: a bare `python3` resolves to the WindowsApps execution-alias
+# stub on DAJOEYROG (rc 49, "Python was not found"), which killed the manifest-patch
+# and zip steps after a successful build. Same pin as verify-release.sh; override
+# with PVP_PACKAGER_PY, python3 stays the fallback for non-Windows machines.
+PYTHON="${PVP_PACKAGER_PY:-/c/Users/dajoey/AppData/Local/Programs/Python/Python312/python.exe}"
+[ -x "$PYTHON" ] || PYTHON="$(command -v python3 || true)"
+[ -n "${PYTHON:-}" ] || { echo "ERROR: no python available (set PVP_PACKAGER_PY)" >&2; exit 1; }
 
 CHANNEL="${1:-}"
 OVERRIDE_VERSION="${2:-}"
@@ -44,7 +52,7 @@ esac
 if [ -n "$OVERRIDE_VERSION" ]; then
   VERSION="$OVERRIDE_VERSION"
 else
-  VERSION="$(python3 -c "
+  VERSION="$("$PYTHON" -c "
 import json,sys
 with open(sys.argv[1]) as f: m = json.load(f)
 e = next(p for p in m if p['InternalName']=='PvPSolver')
@@ -101,7 +109,7 @@ for dll in PvPSolver.dll ECommons.dll; do
 done
 
 # Patch AssemblyVersion in staged manifest
-python3 - "$STAGE/PvPSolver.json" "$VERSION" <<'PY'
+"$PYTHON" - "$STAGE/PvPSolver.json" "$VERSION" <<'PY'
 import json, sys
 path, version = sys.argv[1], sys.argv[2]
 with open(path) as f:
@@ -115,7 +123,7 @@ mkdir -p "$OUT_DIR"
 rm -f "$OUT_ZIP"
 
 # Zip via Python (Git Bash on Windows has no `zip`)
-python3 - "$OUT_ZIP" "$STAGE" <<'PY'
+"$PYTHON" - "$OUT_ZIP" "$STAGE" <<'PY'
 import os, sys, zipfile
 out, stage = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -130,7 +138,7 @@ echo "==> Done."
 ls -la "$OUT_DIR"
 echo
 echo "==> Inside zip:"
-python3 -c "
+"$PYTHON" -c "
 import zipfile, sys
 with zipfile.ZipFile(sys.argv[1]) as z:
     for i in z.infolist(): print(f'{i.file_size:>10}  {i.filename}')" "$OUT_ZIP"
