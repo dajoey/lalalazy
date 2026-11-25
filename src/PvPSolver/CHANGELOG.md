@@ -1,3 +1,13 @@
+## v0.1.2.36 (2026-11-25)
+### Fixed
+- Basic/Actions/ActionTargetInfo.cs FindTargetAreaFriend: ground-targeted beneficial placement now snaps to the terrain and is kept inside the action's range and the player's line of sight before it is used (upstream RotationSolverReborn 'Fix for ground targeting actions', ported onto the fork's carried ground-target subsystem). Spots the old code took at face value - saved beneficial positions, the tank's position, the point between the player and the attacked party member - can no longer land behind a wall or under the floor.
+### Changed
+- After the server rejects a ground-targeted action, the ground-target finder targets the player's own position for five seconds before trying the placement again. The rejection is read from the existing ActorControl hook (ActionTimeline/ActionTimelineManager.cs, category 0x2BC, second argument 1) and recorded in DataCenter (Basic/DataCenter.cs _actionRejectedTicks), matching upstream's Watcher feed.
+- The tank and saved-spot steps of the ground-target finder were restructured into upstream's helper shape (FindTargetAreaTank with a two-pass stance scan and an effect-range check, FindBeneficialPosition with a flat-distance gate, TryGetGroundPosition with a 0.5-range margin); the boss-position step and the arena-center fallback upstream added are NOT ported - the fork removed them as PvE remnants in v0.1.2.30. The 'Use beneficial ground-targeted actions' setting's description (Basic/Configuration/Configs.cs) now describes the fork's actual fallback order.
+- UI/RotationConfigWindow.cs: the 'Add position' button places the saved spot through the same terrain-snap helper (ObjectHelper.SnapToGround) instead of its own inline raycast, and Basic/Helpers/ObjectHelper.cs extracts that raycast into one shared Raycast helper that also serves line-of-sight checks.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
 ## v0.1.2.35 (2026-11-22)
 ### Fixed
 - Basic/Helpers/StatusHelper.cs LocksActions: action-locking statuses are now detected reliably - Out of the Action (statuses 1113, 1284 and 1462) counts as locking actions even when the game data sheet does not flag it, and a status with no remaining time counts as still active instead of expiring instantly. Rotation updates now pause correctly through those lockout states (read by Updaters/ActionUpdater.cs).
