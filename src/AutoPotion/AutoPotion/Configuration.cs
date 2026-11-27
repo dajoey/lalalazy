@@ -12,6 +12,14 @@ public class Configuration : IPluginConfiguration
     public bool OnlyInCombat { get; set; } = true;
     public bool OnlyInDuty { get; set; } = false;
 
+    /// <summary>
+    /// Switch a summoned companion to Healer at three or more attackers, then restore
+    /// its exact previous stance below three attackers once the player is at full HP.
+    /// Enabled by default; the property initializer supplies the default for both
+    /// fresh configurations and older saves where this JSON property is absent.
+    /// </summary>
+    public bool ChocoboControl { get; set; } = true;
+
     // v1 fields kept ONLY so an existing v1 save still deserializes; migrated into DefaultJob
     // on load and never read again. Nullable so we can tell "v1 had a value" apart from "v2+ save".
     public bool? HpPotionEnable { get; set; }

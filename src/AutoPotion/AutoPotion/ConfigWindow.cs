@@ -384,9 +384,18 @@ internal sealed class ConfigWindow : Window
             AutoPotionChrome.Section("Settings", "Global gates apply to every job profile");
             var master = config.MasterEnable;
             if (AutoPotionChrome.Toggle("master", "Enable AutoPotion", ref master,
-                    "Master switch for every potion rule.", more: true))
+                    "Master switch for potion rules and chocobo control.", more: true))
             {
                 config.MasterEnable = master;
+                _changed = true;
+            }
+            var chocobo = config.ChocoboControl;
+            if (AutoPotionChrome.Toggle("chocobo", "Chocobo healer under pressure", ref chocobo,
+                    "At 3+ mobs targeting the player, switch a summoned chocobo to Healer. " +
+                    "Restore its previous stance only below 3 attackers and at full HP. On by default.",
+                    separator: true, more: true))
+            {
+                config.ChocoboControl = chocobo;
                 _changed = true;
             }
             var combat = config.OnlyInCombat;

@@ -20,6 +20,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IDataManager Data { get; private set; } = null!;
     [PluginService] internal static ITextureProvider Textures { get; private set; } = null!;
+    [PluginService] internal static IBuddyList Buddies { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
@@ -28,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Config { get; }
 
     private readonly PotionService _service;
+    private readonly ChocoboService _chocobo;
     private readonly WindowSystem _windows = new("AutoPotion");
     private readonly ConfigWindow _configWindow;
     private readonly ChangelogGate _changelog;
@@ -42,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
         Config.MigrateIfNeeded();
         _service = new PotionService(this);
+        _chocobo = new ChocoboService(this);
 
         _configWindow = new ConfigWindow(this);
         _windows.AddWindow(_configWindow);
@@ -88,6 +91,8 @@ public sealed class Plugin : IDalamudPlugin
     {
         try { _service.Tick(); }
         catch (Exception ex) { Log.Error(ex, "AutoPotion tick failed"); }
+        try { _chocobo.Tick(); }
+        catch (Exception ex) { Log.Error(ex, "AutoPotion chocobo control tick failed"); }
     }
 
     private void OnCommand(string command, string args)
@@ -97,6 +102,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             _service.LogDebugState();
             ChatGui.Print(_service.StatusLine, "AutoPotion");
+            ChatGui.Print(_chocobo.StatusLine, "AutoPotion");
+            Log.Information(_chocobo.StatusLine);
             return;
         }
         if (arg.Equals("changelog", StringComparison.OrdinalIgnoreCase) ||

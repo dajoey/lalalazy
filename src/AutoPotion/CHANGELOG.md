@@ -1,3 +1,8 @@
+## v0.2.5.10 (2026-11-27) [testing]
+### Added
+- A summoned chocobo switches to Healer Stance when three or more hostile mobs target the player. Its previous stance is restored only after the attacker count drops below three and the player reaches full HP.
+- Chocobo control is enabled by default and has a dedicated Settings toggle. Existing configurations retain the default unless the feature is explicitly disabled.
+
 ## v0.2.5.9 (2026-11-16) [testing]
 - `/autopotion debug` now prints a one-line state summary in chat.
 
