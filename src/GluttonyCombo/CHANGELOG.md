@@ -1,4 +1,11 @@
-﻿## v1.0.4.343 (2026-11-25) [testing]
+﻿## v1.0.4.344 (2026-11-27) [testing]
+### Changed
+- **The BossMod compatibility checks now read the interface BossMod publishes for other plugins instead of reaching into its internals** (merged from upstream WrathCombo 1.0.4.28). Every conflict check against the original BossMod - auto-targeting, autorotation, custom queueing, smart targeting and AI targeting - now calls that published interface, so the checks keep working when BossMod reorganizes its internals. The BossMod Reborn checks already worked that way and are unchanged.
+- **The plugin conflict list now also flags the original BossMod's smart targeting.** Only BossMod Reborn's smart targeting was flagged before; the original BossMod's setting is now checked the same way. The checks ask for a BossMod build that provides the new interface (version floor 7.5.7.16, up from 0.3.1.0) and read as no-conflict on builds older than that.
+### Notes
+- Testing channel only; the production channel is unchanged. Not verified in play yet.
+
+## v1.0.4.343 (2026-11-25) [testing]
 ### Fixed
 - **NIN: Fuma Shuriken is no longer suggested while Ten is not ready.** The mudra helper could offer Fuma Shuriken when the Ten action itself was still on cooldown, spending the mudra window on a suggestion that would not fire; the placement now checks the action is ready first (upstream WrathCombo fix).
 ### Notes
