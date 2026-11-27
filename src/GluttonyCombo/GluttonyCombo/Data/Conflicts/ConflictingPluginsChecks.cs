@@ -151,7 +151,7 @@ public static class ConflictingPluginsChecks
 
     internal sealed class BossModCheck(bool reborn = false)
         : ConflictCheck(!reborn
-            ? new BossModIPC("BossMod", new Version(0, 3, 1, 0))
+            ? new BossModIPC("BossMod", new Version(7, 5, 7, 16))
             : new BossModIPC("BossModReborn", new Version(7, 2, 5, 90)))
     {
         private DateTime? _conflictFirstSeen;
@@ -254,7 +254,7 @@ public static class ConflictingPluginsChecks
             TargetingSettingConflicted = Probe("AutoTarget", () => IPC.IsAutoTargetingEnabled(isReborn)) &&
                 AutoRotationController.cfg.DPSRotationMode != DPSRotationMode.Manual;
 
-            RetargetingConflicted = isReborn && Probe("SmartTargeting", IPC.IsSmartTargetEnabled);
+            RetargetingConflicted = Probe("SmartTargeting", () => IPC.IsSmartTargetEnabled(isReborn));
 
             // Check for a queue conflict
             QueueSettingConflicted = Probe("ManualQueue", () => isReborn
