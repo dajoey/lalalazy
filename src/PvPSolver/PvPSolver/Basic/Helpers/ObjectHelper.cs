@@ -31,11 +31,40 @@ public static class ObjectHelper
 		EventHandlerContent.Quest,
 	];
 
-	private static readonly ConcurrentDictionary<string, Regex> _regexCache = [];
+	private static readonly ConcurrentDictionary<string, Regex?> _regexCache = [];
 
-	private static Regex GetCachedRegex(string pattern)
+	private static Regex? GetCachedRegex(string pattern)
 	{
-		return _regexCache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.Compiled));
+		return _regexCache.GetOrAdd(pattern, static p =>
+		{
+			try
+			{
+				return new Regex(p, RegexOptions.Compiled, TimeSpan.FromMilliseconds(50));
+			}
+			catch (ArgumentException ex)
+			{
+				PluginLog.Warning($"Invalid regex pattern '{p}': {ex.Message}");
+				return null;
+			}
+		});
+	}
+
+	private static bool TryIsMatch(string pattern, string input)
+	{
+		var regex = GetCachedRegex(pattern);
+		if (regex == null)
+		{
+			return false;
+		}
+
+		try
+		{
+			return regex.IsMatch(input);
+		}
+		catch (RegexMatchTimeoutException)
+		{
+			return false;
+		}
 	}
 
 	/// <summary>
@@ -134,7 +163,7 @@ public static class ObjectHelper
 		{
 			foreach (string n in ns1)
 			{
-				if (!string.IsNullOrEmpty(n) && GetCachedRegex(n).IsMatch(battleChara.Name.TextValue))
+				if (!string.IsNullOrEmpty(n) && TryIsMatch(n, battleChara.Name.TextValue))
 				{
 					return false;
 				}
@@ -591,17 +620,35 @@ public static class ObjectHelper
 	}
 	internal static unsafe uint GetNamePlateIcon(this IBattleChara battleChara)
 	{
-		return battleChara.Struct()->NamePlateIconId;
+		if (battleChara == null)
+		{
+			return 0;
+		}
+
+		var s = battleChara.Struct();
+		return s == null ? 0 : s->NamePlateIconId;
 	}
 
 	internal static unsafe EventHandlerContent GetEventType(this IBattleChara battleChara)
 	{
-		return battleChara.Struct()->EventId.ContentId;
+		if (battleChara == null)
+		{
+			return default;
+		}
+
+		var s = battleChara.Struct();
+		return s == null ? default : s->EventId.ContentId;
 	}
 
 	internal static unsafe BattleNpcSubKind GetBattleNPCSubKind(this IBattleChara battleChara)
 	{
-		return (BattleNpcSubKind)battleChara.Struct()->SubKind;
+		if (battleChara == null)
+		{
+			return default;
+		}
+
+		var s = battleChara.Struct();
+		return s == null ? default : (BattleNpcSubKind)s->SubKind;
 	}
 
 	/// <summary>
@@ -1226,7 +1273,13 @@ public static class ObjectHelper
 	private static unsafe bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out Vector3 point)
 	{
 		point = default;
-		var module = Framework.Instance()->BGCollisionModule;
+		var framework = Framework.Instance();
+		if (framework == null)
+		{
+			return false;
+		}
+
+		var module = framework->BGCollisionModule;
 		if (module == null)
 		{
 			return false;
@@ -1377,7 +1430,7 @@ public static class ObjectHelper
 		}
 
 		double dotProduct = Vector3.Dot(vec1, vec2);
-		return Math.Acos(dotProduct / lengthProduct);
+		return Math.Acos(Math.Clamp(dotProduct / lengthProduct, -1.0, 1.0));
 	}
 
 	/// <summary>

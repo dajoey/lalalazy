@@ -284,7 +284,7 @@ public class BaseAction : IBaseAction
 
 		if (TargetInfo.IsTargetArea)
 		{
-			if (adjustId != ID || !target.Position.HasValue)
+			if (!target.Position.HasValue)
 				return false;
 
 			Vector3 loc = target.Position.Value;
@@ -292,13 +292,13 @@ public class BaseAction : IBaseAction
 			// Use ActionManagerEx for enhanced timing if tweaks are enabled
 			if (Service.Config.RemoveAnimationLockDelay || Service.Config.RemoveCooldownDelay)
 			{
-				return ActionManagerEx.Instance.UseActionLocationWithTweaks(ActionType.Action, ID, Player.Object.GameObjectId, &loc);
+				return ActionManagerEx.Instance.UseActionLocationWithTweaks(ActionType.Action, adjustId, Player.Object.GameObjectId, &loc);
 			}
 			else
 			{
 				var actionManager = ActionManager.Instance();
 				return actionManager != null &&
-					   actionManager->UseActionLocation(ActionType.Action, ID, Player.Object.GameObjectId, &loc);
+					   actionManager->UseActionLocation(ActionType.Action, adjustId, Player.Object.GameObjectId, &loc);
 			}
 		}
 		else

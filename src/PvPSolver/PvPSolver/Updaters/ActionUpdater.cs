@@ -243,7 +243,7 @@ internal static class ActionUpdater
 		}
 
 		// Skip when casting
-		if (player.TotalCastTime - DataCenter.CalculatedActionAhead > 0)
+		if (player.IsCasting && (player.TotalCastTime - player.CurrentCastTime) > DataCenter.CalculatedActionAhead)
 		{
 			return false;
 		}
