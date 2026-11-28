@@ -1,3 +1,14 @@
+## v0.1.2.38 (2026-11-28) [testing]
+- Upstream engine sync follow-up (RotationSolverReborn 7688affc4): the shared engine lists - attacked targets, recorded actions and damage, queued command actions, and the priority/blacklist name lists also written over IPC - are now guarded against cross-thread modification.
+- Load-screen and logout guards: player level, combo action and combo timer, and the quest-unlock check no longer dereference a missing game module; a territory the game does not know is skipped with a warning instead of building an invalid territory entry.
+- Movement abilities no longer fire while rooted by an enemy: the Bind check now matches Bind from any source, not only self-applied.
+- Knockback timing falls back to the knockback start when the game reports no knockback distance, so anti-knockback reactions stop waiting on a stale end time.
+- The buff/debuff status check no longer reports all buffs active when the tracked list has no applicable entries, and the lowest-health party member pick no longer selects a dead player.
+- Queued macros are cleared on zone change and run even while the rotation is off; the movement lock is always released when the rotation turns off, the game state goes invalid, or the plugin unloads.
+- State commands: turning the rotation off now always works, including from a loading screen with no player loaded, and the auto-face-target setting is only forced on while the rotation is running.
+- The plugin unregisters its IPC methods cleanly on unload, and the cooldown-delay tweak reads multi-charge and additional-recast-group cooldowns correctly.
+- Deliberately not ported from this range: the normal-GCD 1.8s floor (it would change PvP GCD timing), the timeline cast action-id matching, and PvE machinery the fork does not carry. Testing channel only.
+
 ## v0.1.2.37 (2026-11-28) [testing]
 - Fixed charge timing: actions with multiple charges no longer look ready the instant the final charge starts recasting, and asking for more charges than an action has now answers no.
 - Action-status checks and ground-targeted placement now use the game's adjusted action id, so PvP-swapped actions validate and place correctly.
