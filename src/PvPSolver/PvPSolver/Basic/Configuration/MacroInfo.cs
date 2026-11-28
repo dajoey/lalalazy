@@ -23,7 +23,17 @@ public class MacroInfo
 
 		try
 		{
-			RaptureMacroModule.Macro* macro = RaptureMacroModule.Instance()->GetMacro(IsShared ? 1u : 0u, (uint)MacroIndex);
+			var macroModule = RaptureMacroModule.Instance();
+			if (macroModule == null)
+			{
+				return false;
+			}
+
+			RaptureMacroModule.Macro* macro = macroModule->GetMacro(IsShared ? 1u : 0u, (uint)MacroIndex);
+			if (macro == null)
+			{
+				return false;
+			}
 
 			DataCenter.Macros.Enqueue(new MacroItem(tar, macro));
 			return true;

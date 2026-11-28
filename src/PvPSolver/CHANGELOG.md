@@ -1,3 +1,10 @@
+## v0.1.2.37 (2026-11-28) [testing]
+- Fixed charge timing: actions with multiple charges no longer look ready the instant the final charge starts recasting, and asking for more charges than an action has now answers no.
+- Action-status checks and ground-targeted placement now use the game's adjusted action id, so PvP-swapped actions validate and place correctly.
+- Donut area targeting now counts enemies whose hitbox reaches into the ring.
+- NoNewHostiles targeting no longer skips striking dummies.
+- Login and logout crash guards: quest-unlock, macro, camera and movement-lock reads no longer dereference a missing game module, and name-filter regexes time out safely.
+
 ## v0.1.2.36 (2026-11-25)
 ### Fixed
 - Basic/Actions/ActionTargetInfo.cs FindTargetAreaFriend: ground-targeted beneficial placement now snaps to the terrain and is kept inside the action's range and the player's line of sight before it is used (upstream RotationSolverReborn 'Fix for ground targeting actions', ported onto the fork's carried ground-target subsystem). Spots the old code took at face value - saved beneficial positions, the tank's position, the point between the player and the attacked party member - can no longer land behind a wall or under the floor.

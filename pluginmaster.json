@@ -1,596 +1,596 @@
 [
-    {
-        "Author":  "dajoey",
-        "Name":  "PvP Solver",
-        "Punchline":  "PvP-only auto-rotation",
-        "Description":  "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
-        "InternalName":  "PvPSolver",
-        "AssemblyVersion":  "0.1.2.18",
-        "TestingAssemblyVersion":  "0.1.2.36",
-        "Changelog":  "v0.1.2.36 (2026-11-25)\n- Basic/Actions/ActionTargetInfo.cs FindTargetAreaFriend: ground-targeted beneficial placement now snaps to the terrain and is kept inside the action\u0027s range and the player\u0027s line of sight before it is used (upstream RotationSolverReborn \u0027Fix for ground targeting actions\u0027, ported onto the fork\u0027s carried ground-target subsystem). Spots the old code took at face value - saved beneficial positions, the tank\u0027s position, the point between the player and the attacked party member - can no longer land behind a wall or under the floor.\n- After the server rejects a ground-targeted action, the ground-target finder targets the player\u0027s own position for five seconds before trying the placement again. The rejection is read from the existing ActorControl hook (ActionTimeline/ActionTimelineManager.cs, category 0x2BC, second argument 1) and recorded in DataCenter (Basic/DataCenter.cs _actionRejectedTicks), matching upstream\u0027s Watcher feed.\n- The tank and saved-spot steps of the ground-target finder were restructured into upstream\u0027s helper shape (FindTargetAreaTank with a two-pass stance scan and an effect-range check, FindBeneficialPosition with a flat-distance gate, TryGetGroundPosition with a 0.5-range margin); the boss-position step and the arena-center fallback upstream added are NOT ported - the fork removed them as PvE remnants in v0.1.2.30. The \u0027Use beneficial ground-targeted actions\u0027 setting\u0027s description (Basic/Configuration/Configs.cs) now describes the fork\u0027s actual fallback order.\n- UI/RotationConfigWindow.cs: the \u0027Add position\u0027 button places the saved spot through the same terrain-snap helper (ObjectHelper.SnapToGround) instead of its own inline raycast, and Basic/Helpers/ObjectHelper.cs extracts that raycast into one shared Raycast helper that also serves line-of-sight checks.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv0.1.2.35 (2026-11-22)\n- Basic/Helpers/StatusHelper.cs LocksActions: action-locking statuses are now detected reliably - Out of the Action (statuses 1113, 1284 and 1462) counts as locking actions even when the game data sheet does not flag it, and a status with no remaining time counts as still active instead of expiring instantly. Rotation updates now pause correctly through those lockout states (read by Updaters/ActionUpdater.cs).\n- Basic/Actions/ActionTargetInfo.cs FindTarget and GetCanTargets, and Basic/Actions/BaseAction.cs and IBaseAction.cs CanUse, accept an optional extra target filter passed by the caller; no built-in PvP action passes one yet, so target selection behaves exactly as before. This keeps the engine aligned with upstream RotationSolverReborn for future fixes.\n- Basic/Rotations/CustomRotation_BasicInfo.cs adds a ShouldDelayCommandAction hook, checked by the commanded-action paths in CustomRotation_Ability.cs and CustomRotation_GCD.cs before firing a commanded action immediately; the default answer is no, so commanded actions fire exactly as before.\n\nv0.1.2.34 (2026-11-21)\n- Basic/Rotations/CustomRotation_GCD.cs GCD: the chooser never called the job rotations\u0027 GeneralGCD, so no attack GCD was ever selected - the character could only auto-heal, Guard, Recuperate and drink the elixir, which read as healing instead of attacking in matches. The call was deleted together with the duty-rotation engine in v0.1.2.23 (the same class of loss as the v0.1.2.32 rotation-load fix), so every version from v0.1.2.23 to v0.1.2.33 shipped with attack GCDs as dead code. GeneralGCD is called again inside the NoCasting branch, in upstream\u0027s chooser order (heals first, attacks after).\n- Basic/Rotations/CustomRotation_GCD.cs GCD: the DefenseArea and DefenseSingle branches were emptied by the same removal, so the healer PvP rotations\u0027 defense GCD overrides were equally unreachable; both calls are restored. No duty-rotation, Provoke or other PvE machinery returns.\n- Commands/RSCommands_Actions.cs DoAction: every executed-action change now leaves one \"ActionTap: \u003cname\u003e (\u003cid\u003e)\" log line (on-change only, so it cannot spam). This makes the live-path release check possible: a real match must show attack actions being chosen before any build is called good.\n- tests/PvPSolver.RotationHarness Cases/SelectionGate.cs: the release harness now fails when the compiled chooser no longer calls GeneralGCD (IL call-site count and position after the heal branch), when the ability chooser loses GeneralAbility, when any shipped PvP rotation loses its attack-bearing GeneralGCD override, or when the ActionTap log line is missing from the built assembly.\n\nv0.1.2.33 (2026-11-21)\n- Commands/RSCommands_Actions.cs UpdateRotationState: \"Turn on when a match starts\" could never engage - it only ran during the match loading screen, when no player object exists and the job role is unknown, so the null-player early return and the job-role check silently dropped it and the rotation loaded but never acted in matches. The auto-on now latches during the load screen (new pure decision core Basic/Decisions/MatchStartAutoOn.cs) and engages the PvP state on the first cycle where the player and job are loaded, logging both steps.\n- RotationSolverPlugin.cs constructor and Commands/RSCommands_BasicInfo.cs RSCommands.Enable: the /pvpsolver, /pvs, \"/pvpsolver Auto\" and \"/pvpsolver Off\" handlers were registered only near the end of a 10-30 second start-up (after nine windows, the icon cache and the status lists), so commands typed while the plugin was still starting read as \"Command not found\". Registration now runs first, right after the configuration loads, and a start-up log line lists every command and its registration result.\n- Commands/RSCommands_StateSpecialCommand.cs UpdateState and DoOneCommandType: rotation state changes and ignored role-less commands are logged, so a state that silently never engages can no longer hide behind a clean log.\n- tests/PvPSolver.RotationHarness Cases/MatchStartAutoOnCases.cs and Cases/CommandGate.cs: the release harness now fails the build when a documented slash command has no registration call site in the built assembly (IL call-site count, not just source text), when the constructor no longer registers before the slow init steps, or when the match-start auto-on decision core cannot engage from the loading-screen conditions the shipped bug produced.\n\nv0.1.2.32 (2026-11-21) [testing]\n- Fixed: rotations never loaded, so the plugin did nothing in PvP matches since v0.1.2.26. The duty-rotation engine removal (v0.1.2.23) had also removed the single call in Updaters/RotationUpdater.cs LoadBuiltInRotations that fills CustomRotations from the assembly scan (LoadCustomRotationGroup); the rotation list stayed empty, the log stopped right after \"MajorUpdater: triggering rotation load...\" and no rotation was ever selected, with no error line anywhere.\n- Restored that call and the \"LoadBuiltInRotations: found N rotation groups\" log line; a scan that finds no rotation groups now logs an error instead of staying silent (Updaters/RotationUpdater.cs, LoadBuiltInRotations).\n- Added a release-harness gate (tests/PvPSolver.RotationHarness, RotationLoaderWiring) that fails when the rotation-load wiring is severed or the shipped assembly contains no loadable rotation - the regression class that passed every existing gate in v0.1.2.26 - v0.1.2.31.\n- No PvE rotation content or behaviour returns; the PvP-only scope is unchanged. Testing channel only; the production channel is unchanged.\n\nv0.1.2.31 (2026-11-20) [testing]\n- Round 6 completion: the post-release marker grep still found four generated StatusID entries whose description text carries a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity). All four are unreferenced PvE statuses and are removed from the generated table; no code reads them.\n- No code change and no PvP behaviour change; every remaining marker hit is a cited part of a PvP path (the Sage Kardia and Dancer partner targeting, and the tank lock-on VFX check).\n- Testing channel only; the production channel is unchanged.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "TestingDalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.18/PvPSolver.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.18/PvPSolver.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.36/PvPSolver-testing.zip",
-        "Tags":  null,
-        "CategoryTags":  null,
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "AutoPotion",
-        "Punchline":  "Per-job HP, MP, and deep dungeon potion automation.",
-        "Description":  "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim\u0027s) at configurable thresholds. Each potion\u0027s threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
-        "InternalName":  "AutoPotion",
-        "AssemblyVersion":  "0.2.5.10",
-        "Changelog":  "v0.2.5.10 (2026-11-27) [testing]\n- A summoned chocobo switches to Healer Stance when three or more hostile mobs target the player. Its previous stance is restored only after the attacker count drops below three and the player reaches full HP.\n- Chocobo control is enabled by default and has a dedicated Settings toggle. Existing configurations retain the default unless the feature is explicitly disabled.\n\nv0.2.5.9 (2026-11-16) [testing]\n- `/autopotion debug` now prints a one-line state summary in chat.\n\nv0.2.5.8 (2026-11-15) [testing]\n- The HP, MP and regen threshold sliders accept a typed value again (Ctrl+click).\n- The active job icon is back in the page header, and stat-card notes show at narrow widths.\n- The telemetry switch help text shows the exact command again.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.2.5.7 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- On narrow windows the footer status line reads in full instead of ending in an ellipsis, and the Stop button takes its own full-width row, tinted red.\n- The threshold value sits at the right of the label line above the slider, so the slider thumb never covers it.\n- Stat notes are shorter, and a long note wraps and grows the cards together instead of being cut.\n- With the master switch off, rule titles, values and toggles are muted so the stopped state looks different from running; the header, close button and status pill match the other plugin windows.\n\nv0.2.5.6 (2026-11-15) [testing]\n- The settings window has a custom close button in the header, and the redundant outer scrollbar is gone; the body, rules and rail regions keep their own scrolling. Settings, profiles, potion decisions and automation behaviour are unchanged.\n\nv0.2.5.5 (2026-11-15) [testing]\n- The settings window uses a custom header without the native title bar, pink navigation and toggle controls, responsive rule, requirement and settings cards, live profile counts and a persistent Stop footer. Settings, job profiles, potion decisions and automation behaviour are unchanged, and existing configuration loads as-is.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/AutoPotion",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion-testing.zip",
-        "Tags":  [
-                     "auto",
-                     "potion",
-                     "healing",
-                     "deep dungeon"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.2.5.10",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Armoire Auto-Fill",
-        "Punchline":  "Per-dungeon view of which armoire-eligible gear pieces you\u0027re still missing",
-        "Description":  "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
-        "InternalName":  "ArmoireAutoFill",
-        "AssemblyVersion":  "0.5.7.6",
-        "Changelog":  "v0.5.7.6 (2026-11-15) [testing]\n- The dungeon checklist columns are resizable again.\n- The shop catalog build-failure reason is shown in the banner again, not only on hover.\n- The expanded pieces panel stays inside the scrolling page and no longer draws over the footer; header counts and the footer detail line stay visible in short windows.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.5.7.5 (2026-11-15) [testing]\n- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window header fits on one row at the default size, with the brand chip, tabs, a state pill and a close button whose tooltip appears below the button.\n- Page titles carry a plain description line, with the owned count and snapshot note aligned to the right.\n- Stat cards without a real ratio no longer draw an empty progress bar, the Stop button is a dark red filled button with a white label, and item tooltips open below their row instead of covering neighbouring entries.\n\nv0.5.7.4 (2026-11-15) [testing]\n- The Collection and Settings windows now have a custom close button in the header, and long content scrolls inside each window\u0027s body instead of behind a second outer scrollbar. Collection, shopping, storage automation, import and export, and settings are unchanged.\n\nv0.5.7.3 (2026-11-15) [testing]\n- The Collection, Shopping, Auto-store and Settings windows now use custom headers instead of the native title bar, with responsive card layouts, live collection and shopping counts, and persistent storage controls. Item data, ownership scans, storage automation, import and export, and settings are unchanged.\n\nv0.5.7.2 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.5.7.1 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/ArmoireAutoFill",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill-testing.zip",
-        "Tags":  [
-                     "armoire",
-                     "dungeon",
-                     "gear",
-                     "collection",
-                     "scanner"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoireautofill-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.5.7.6",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Gluttony Combo",
-        "Punchline":  "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
-        "Description":  "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
-        "InternalName":  "GluttonyCombo",
-        "AssemblyVersion":  "1.0.4.340",
-        "Changelog":  "v1.0.4.344 (2026-11-27) [testing]\n- **The BossMod compatibility checks now read the interface BossMod publishes for other plugins instead of reaching into its internals** (merged from upstream WrathCombo 1.0.4.28). Every conflict check against the original BossMod - auto-targeting, autorotation, custom queueing, smart targeting and AI targeting - now calls that published interface, so the checks keep working when BossMod reorganizes its internals. The BossMod Reborn checks already worked that way and are unchanged.\n- **The plugin conflict list now also flags the original BossMod\u0027s smart targeting.** Only BossMod Reborn\u0027s smart targeting was flagged before; the original BossMod\u0027s setting is now checked the same way. The checks ask for a BossMod build that provides the new interface (version floor 7.5.7.16, up from 0.3.1.0) and read as no-conflict on builds older than that.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.343 (2026-11-25) [testing]\n- **NIN: Fuma Shuriken is no longer suggested while Ten is not ready.** The mudra helper could offer Fuma Shuriken when the Ten action itself was still on cooldown, spending the mudra window on a suggestion that would not fire; the placement now checks the action is ready first (upstream WrathCombo fix).\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.342 (2026-11-24) [testing]\n- **The Beastmaster Crucible rules now treat the first master board\u0027s ice dragon fight as a knockback fight.** The dive\u0027s push (about thirty yalms) resolves on a one-second cast with a half-second fallback bar, and both bars are now in the knockback table, so Vileskin is held for the push there instead of being spent on ordinary target picks - the same policy the other sixteen knockback fights already follow, from the same upstream fight-module source. The fight has not been played on this install, so the timing comes from those modules rather than recorded runs.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.341 (2026-11-17) [testing]\n- **The Fight Brain countdown strip no longer keeps past forecasts on screen.** A clock mix-up inside the forecast tick compared the entries\u0027 Unix timestamps against the machine\u0027s uptime clock, so the rule that drops a forecast three seconds after its moment passed could never fire: old entries piled up, filled the forecast list, and the strip showed a fixed set of entries whose countdowns grew ever more negative for the rest of the session. The tick now prunes on the same clock the entries carry, and the strip itself shows only entries still ahead (with one second of grace), so a fight\u0027s leftovers disappear instead of counting up in the negative.\n- **The Fight Brain countdown strip only draws during combat now.** Outside a fight it draws nothing, even while the forecast source is still answering, so the strip no longer sits on the screen between fights.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.340 (2026-11-15) [testing]\n- The settings window has been rebuilt in the same custom window style as the other plugins and polished for the real in-game font and scale, with every preset, option and saved setting unchanged.\n- The window uses a two-level layout: Combos, Automation and System tabs, a row of destinations for the open tab, a page header and a status footer that stays in view. Long pages fade out above the footer instead of being cut off.\n- Preset cards have even padding, a larger title and toggles that sit inside the card, and a whole toggle row, label included, can be clicked. Search keeps one width on every page, shows a dimmed hint, has a clear button and reports a result count.\n- The problem report button sits in the footer so it is reachable on every page and window size, and the status pill shows a running rotation in green and a blocked one in amber.\n- This build also picks up the restyled shared What\u0027s new window and Report a problem popup.\n\nv1.0.4.339 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.344/GluttonyCombo-testing.zip",
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.340/GluttonyCombo.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.340/GluttonyCombo.zip",
-        "Tags":  [
-                     "combo",
-                     "gluttony",
-                     "wrath",
-                     "wrathcombo",
-                     "auto",
-                     "autorotation",
-                     "rotation",
-                     "pve",
-                     "pvp",
-                     "lalalazy"
-                 ],
-        "CategoryTags":  null,
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "1790560588",
-        "TestingAssemblyVersion":  "1.0.4.344",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "daemitus, MidoriKami, dajoey",
-        "Name":  "Lazy WT Math",
-        "Punchline":  "FFXIV Wondrous Tails probability calculator.",
-        "Description":  "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
-        "InternalName":  "LazyWTMath",
-        "AssemblyVersion":  "3.2.3.8",
-        "Changelog":  "v3.2.3.14 (2026-11-28) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.13 (2026-11-24) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization, which regroups the toolkit\u0027s types into Core, UI and Services namespaces.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.12 (2026-11-23) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework, which splits node capabilities into dedicated interfaces (attachable, colour, position, rotation, scale, size, visibility, silent set) and adds a window frame node.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.11 (2026-11-22) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework, which rebuilds the internals of the list, grid and tab layout nodes and adds a shared layout base class (LayoutNodeBase) plus size-change batching on the node base.\n- No setting or window behavior changes; the probability overlay renders through the same text and collision nodes as before.\n\nv3.2.3.10 (2026-11-21) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release, which reorganizes how native game windows and nodes are built.\n- The probability overlay keeps its journal-matched background, text colours, font size and spacing through the toolkit\u0027s new node layout.\n\nv3.2.3.9 (2026-11-16) [testing]\n- Fixed a crash risk while logging in or out with the Wondrous Tails journal open.\n- The probability overlay no longer recomputes every frame.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyWTMath",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.8/LazyWTMath.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.8/LazyWTMath.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.14/LazyWTMath-testing.zip",
-        "Tags":  [
-                     "wondrous tails",
-                     "math",
-                     "calculator",
-                     "probability"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "3.2.3.14",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "Blackcatz1911, dajoey",
-        "Name":  "Lazy Currency Spender",
-        "Punchline":  "Find the absolute best way to spend all your FFXIV currencies.",
-        "Description":  "Fork of CurrencySpender by Blackcatz1911. Never wonder \u0027What should I do with this?\u0027 again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
-        "InternalName":  "LazyCurrencySpender",
-        "AssemblyVersion":  "1.3.1.8",
-        "Changelog":  "v1.3.1.8 (2026-11-15) [testing]\n- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The main, settings, spending-guide, debug and setup windows share one look: a header bar with brand, status and window buttons, a navigation band, a page title block and a status footer.\n- Currency balances and spending-guide tables use fixed, right-aligned number columns and framed Flag, TP and Spend it buttons; long names are shortened with the full name on hover.\n- In narrow windows the tables keep their sideways scroll and a readable name column, so every button stays reachable.\n- The settings window gains a framed Minimum sales field and a full-width separator list, and the instructions use numbered step cards.\n\nv1.3.1.7 (2026-11-15) [testing]\n- The plugin windows now use responsive card-based layouts with custom close and minimize controls in place of the native title bars, clear currency state indicators, and scrollable settings, wizard and table content. Currency calculations, spending behavior and saved configuration are unchanged.\n- Testing channel only; the production channel is unchanged.\n\nv1.3.1.6 (2026-11-15) [testing]\n- The main and debug windows now register under their own window IDs (Windows/MainTabWindow.cs and Windows/DebugTabWindow.cs constructors): since 1.3.1.5 both were created with a blank internal window ID, so on every launch the second registration threw and the plugin\u0027s startup stopped before its interface, task manager and currency list were built - the plugin appeared to do nothing. Both windows now open normally every session.\n- Testing channel only; the production channel is unchanged.\n\nv1.3.1.5 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv1.3.1.4 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv1.3.1.3 (2026-10-17) [testing]\n- The configuration wizard\u0027s auto-open step now sets the actual auto-open setting instead of toggling the sellables table.\n- Testing channel only; the production channel is unchanged.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCurrencySpender",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender-testing.zip",
-        "Tags":  [
-                     "currency",
-                     "poetics",
-                     "tomestone",
-                     "lazy"
-                 ],
-        "CategoryTags":  null,
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "1.3.1.8",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "croizat, dajoey",
-        "Name":  "Lazy Fate Automation",
-        "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-        "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
-        "InternalName":  "LazyFateAutomation",
-        "AssemblyVersion":  "0.0.3.14",
-        "Changelog":  "v0.0.3.14 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The header has a bordered brand chip, outlined FATEs and Settings tabs, a Minimise button, a status pill and a drawn Close button, each with a tooltip; the tabs stack in two rows when the window is narrow.\n- Page headers show a larger title with the description and counts, and the footer shows a status dot, a two-line status and a fixed-width Start, Stop or Stopping button.\n- Every FATE sits in a card list with the whole row clickable, and stat cards show a progress bar only where a real ratio exists.\n- The FATE hover card says first whether a FATE will be automated and why it is blocked, followed by every event detail; dropdowns and the zone filter are bordered fields, and the Grind mode and Add sort criterion popups open below their buttons and scroll when room is short.\n\nv0.0.3.13 (2026-11-15) [testing]\n- The FATE window has been redrawn with a responsive card layout, custom close, settings and minimise controls in place of the native title bar, grouped settings, and persistent Start and Stop actions. Automation, saved settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.3.12 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.3.11 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.0.3.10 (2026-10-31) [testing]\n- **The FATE grind no longer starts FATEs above your level.** Level sync only lowers your level to match a FATE, it never raises it, so a FATE above your level could not be contributed to and walking to it only wasted time. FATEs above your level are now skipped; the tracker\u0027s unavailable list shows \"FATE level N is above your level M\". FATEs at or below your level run exactly as before.\n- Testing channel only; the production channel is unchanged.\n\nv0.0.3.9 (2026-10-18) [testing]\n- **Display name format and sort order changes are now saved.** Edits in the FATE tracker\u0027s \"Sorting \u0026 Display\" settings previously lived only in memory and reverted on the next plugin load; every change now persists immediately.\n- **Reset to Default restores the actual default sort order.** The reset button dropped the Time Remaining criterion and put Time Remaining Urgent in ascending order (urgent FATEs last); it now restores the shipped six-entry default, shared with the config\u0027s own default so the two cannot drift apart.\n- Testing channel only; the production channel is unchanged.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation-testing.zip",
-        "Tags":  [
-                     "fate",
-                     "grind",
-                     "automation",
-                     "relic",
-                     "yokai",
-                     "vnavmesh"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.0.3.14",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Lazy Skyward Tracker",
-        "Punchline":  "Track your Skyward points for all jobs toward the Pteranodon mount",
-        "Description":  "Tracks all jobs\u0027 Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they\u0027ll add, shown as a cyan bar extension on each job\u0027s progress bar. Use /lazysky to open.",
-        "InternalName":  "LazySkywardTracker",
-        "AssemblyVersion":  "0.0.3.7",
-        "Changelog":  "v0.0.3.8 (2026-11-16) [testing]\n- The tracker window now says when progress tracking is offline instead of showing empty bars.\n\nv0.0.3.7 (2026-11-15) [testing]\n- The completed-jobs count stays visible in short windows.\n- Progress bars of finished jobs are visibly different from ones still in progress.\n- The inventory projection tooltip is reachable in the narrow layout.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.0.3.6 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- Job rows and the Refresh button keep a clear margin inside their card edges, so the points text no longer sits against the border.\n- Job rows are compact and vertically centred, with the job, achievement, progress bar and points aligned on one line.\n- Stat cards show a larger value at the same height; cards with a real ratio get a green progress bar and the inventory card shows no empty track.\n- The header has a bordered brand chip, a rounded status pill with only the state word and a drawn close button with a Close tooltip; log-in and no-data messages are tinted, rounded notices, and the footer stays visible even at the minimum size.\n\nv0.0.3.5 (2026-11-15) [testing]\n- The tracker window now has a close button in its header, placed beside the status pill, and the redundant outer scrollbar is gone. The job list keeps its own scrolling for narrow windows. Tracking, settings, commands and refresh behaviour are unchanged.\n\nv0.0.3.4 (2026-11-15) [testing]\n- The tracker window shows job progress, inventory projections and completion state in a responsive card-based layout: a custom header without the native title bar, summary and job-progress cards, job rows that adapt to the window width, and a persistent footer with the live state. Tracking, settings, commands and refresh behaviour are unchanged.\n\nv0.0.3.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.7/LazySkywardTracker.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.7/LazySkywardTracker.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.8/LazySkywardTracker-testing.zip",
-        "Tags":  [
-                     "skybuilders",
-                     "restoration",
-                     "pteranodon",
-                     "achievement",
-                     "tracker"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.0.3.8",
-        "TestingDalamudApiLevel":  15
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "LazyFoodBuff",
-        "Punchline":  "Never forget to eat your food again.",
-        "Description":  "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
-        "InternalName":  "LazyFoodBuff",
-        "AssemblyVersion":  "0.1.5.6",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff-testing.zip",
-        "Tags":  [
-                     "auto",
-                     "food",
-                     "buff",
-                     "duty",
-                     "lazy"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "Changelog":  "v0.1.5.6 (2026-11-15) [testing]\n- The Refresh threshold and Low-food warning sliders accept a typed value again (Ctrl+click or double-click) and keyboard or gamepad steps.\n- The help text of the Log food decisions switch names the log line prefix again, and the helper line under the master switch is back.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.5.5 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The settings window scrolls as one page with even side margins, so toggles, buttons and values sit well inside their cards.\n- On wide windows the two columns are balanced: Diagnostics sits under Food selection, leaving no large empty card at the end of the page.\n- Job and food pickers are bordered fields with a chevron; the list opens with the search box, then None or Default, then the entries.\n- The title bar has a bordered brand chip, a fixed-width status pill showing only the state word and a drawn close button with a tooltip; the footer Stop button is red-tinted.\n\nv0.1.5.4 (2026-11-15) [testing]\n- The settings window has been redesigned as a responsive card layout: a custom header with a close button instead of the native title bar, no outer scrollbar, switch-style toggles, live requirements and counts, cards that adapt to the window size, and a persistent footer with the live state and a Stop button that only turns the automation off. Food selection, fallback behavior, saved settings and automation are unchanged.\n\nv0.1.5.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.5.2 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.1.5.1 (2026-10-03) [testing]\n- **Quick controls for the Lazy Hub window.** The plugin now offers auto-eating, \"Only in combat duties\", the minutes of food left before eating again and the low-food warning with its count to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin\u0027s own window does.\n- Testing channel only; the production channel is unchanged.\n- Without Lazy Hub installed the plugin behaves exactly as before.",
-        "TestingDalamudApiLevel":  15,
-        "TestingAssemblyVersion":  "0.1.5.6"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Lazy Gear Collector",
-        "Punchline":  "Track upgradable gear sets and what it costs to finish them",
-        "Description":  "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn\u0027s Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game\u0027s own shop data at runtime, so it stays correct across patches. Also flags Arcanaut\u0027s gear you can trade up for free. Use /lazygear to open.",
-        "InternalName":  "LazyGearCollector",
-        "AssemblyVersion":  "0.0.2.5",
-        "TestingDalamudApiLevel":  15,
-        "TestingAssemblyVersion":  "0.0.2.6",
-        "Changelog":  "v0.0.2.6 (2026-11-16) [testing]\n- The collector window no longer re-plans every frame.\n\nv0.0.2.5 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window uses a branded top bar with Overview, Roles and Settings, a status pill and a close button, plus a page header and a two-line status footer.\n- Overview shows progress cards, a role progress list and a requirements card beside the settings.\n- Role pages list each piece with its owned state and the materials still needed, with long material names shown in full.\n- Search results open in a floating list under the search box so the page does not shift while typing, and narrow windows collapse the page choices into a dropdown.\n\nv0.0.2.4 (2026-11-15) [testing]\n- The collector window now presents role progress, material requirements, ownership and collection settings in a responsive card-based layout with custom navigation, a close button and search across roles and pages. Collection planning, ownership scanning, shop and trade-up logic, saved settings and hub quick controls are unchanged.\n\nv0.0.2.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.2.2 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.0.2.1 (2026-10-03) [testing]\n- **Quick controls for the Lazy Hub window.** The plugin now offers whether the saddlebag and retainers count and the target tier to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin\u0027s own window does.\n- Testing channel only; the production channel is unchanged.\n- Without Lazy Hub installed the plugin behaves exactly as before.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyGearCollector",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.5/LazyGearCollector.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.5/LazyGearCollector.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.6/LazyGearCollector-testing.zip",
-        "Tags":  [
-                     "occult",
-                     "crescent",
-                     "northhorn",
-                     "phantomvision",
-                     "gear",
-                     "collection",
-                     "tracker"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazygearcollector-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "LazyCrafter",
-        "Punchline":  "What can I make right now, what\u0027s it worth, and what would it take to make the rest?",
-        "Description":  "Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.",
-        "InternalName":  "LazyCrafter",
-        "AssemblyVersion":  "0.1.7.13",
-        "TestingAssemblyVersion":  "0.1.7.15",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.1.7.15 (2026-11-21) [testing]\n- Crafts that were waiting on a material WahTools handed back no longer run into a wall of failed-craft lines in the same pass. They are pulled out of the wave\u0027s craft queue the moment the hand-back happens, their rows on the Run tab show them waiting for the next pass, and the re-plan remakes them on the material\u0027s new route.\n- Crafts no longer start while WahTools Hunter is still driving the character after a hunt. The hand-off to Artisan now waits for WahTools to go idle, the same gate the other WahTools hand-offs use, and logs one line when it does.\n- The blocked report now lists the fish and monster-drop materials WahTools was handed, so the Run tab and /lcraft status show what a blocked run is waiting on.\n- WahTools\u0027 Hunter is now offered an item\u0027s monsters in a smarter order: the highest-level monster the character can already beat first, then monsters with no known level, then monsters above the character\u0027s combat level from the lowest up. The level data comes from the installed WahTools itself; when it cannot be read, a warning is logged once per session and the previous order is kept.\n- Testing channel only; the production channel is unchanged.\n\nv0.1.7.14 (2026-11-21) [testing]\n- **Monster-drop materials can be hunted with WahTools.** When WahTools is loaded, a material that a known monster drops is handed to WahTools\u0027 Hunter instead of going straight to the market-board list. Hunter counts kills, not drops, so the run hunts in batches, recounts the bags between batches, and stops as soon as enough have landed. It gives up after two batches in a row that drop nothing (or eight in total), and the rest goes back on the market-board or manual list on the next pass. Gil-vendor items, and currency-shop items the character can already pay for, are still bought, never hunted.\n- **Fish materials can be caught with WahTools.** When WahTools is loaded, a fish that no gathering node yields goes to WahTools\u0027 Feesh instead of GatherBuddyReborn. A fish WahTools will not take, such as an ocean fish, goes back to GatherBuddyReborn on the next pass. The caught fish stay protected from WahTools\u0027 own discard and desynth rules until the run ends, including while a blocked run waits for Resume.\n- Both run after GatherBuddyReborn and before Artisan, and crafts that need them wait for them. Each has its own setting under Dispatch behavior, both on by default; with WahTools absent or both settings off, routing is exactly as before. Stop ends a WahTools fish or hunt in progress.\n- The Integrations list shows whether WahTools is loaded.\n- Testing channel only; the production channel is unchanged.\n\nv0.1.7.13 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The catalog table keeps its sortable, resizable and reorderable columns and its right-click menu for showing and hiding columns; columns that do not fit start hidden.\n- Numeric column headers line up with the figures beneath them in the catalog, cart, ledger and run tables, and no header is cut mid-word at larger UI scales.\n- Recipe details are organised into summary, ingredient and market cards, with source and unit price under each ingredient and the fulfil buttons beside them.\n- The Settings and Run pages no longer repeat the same warning or state word, and short windows get a compact page header that leaves more room for the table.\n\nv0.1.7.12 (2026-11-15) [testing]\n- The plugin window now uses a responsive card-based shell for catalog, cart, run and settings, with integrated area navigation, destination search, live page counts, a close button in the header and persistent dispatch and footer actions. Catalog logic, cart editing, dispatch, integrations and saved configuration are unchanged.\n\nv0.1.7.11 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.7.10 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrafter",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.13/LazyCrafter.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.13/LazyCrafter.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.15/LazyCrafter-testing.zip",
-        "Tags":  [
-                     "crafting",
-                     "recipe",
-                     "market",
-                     "universalis",
-                     "artisan",
-                     "gatherbuddy",
-                     "lazy"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrafter-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Lazy Market Companion",
-        "Punchline":  "Auto-lists your always-sell items and matches market board prices",
-        "Description":  "Keep an Auto-Market list of items you always sell. The companion lists them through your retainers in the stack size you choose (keeping a reserve in your bags if you want), prices every listing by matching the lowest board price instead of undercutting, and can do all of it inside AutoRetainer\u0027s venture cycle. Also re-prices existing listings (Auto Pinch). Successor to Dagobert Price Matcher; your old settings are imported automatically.",
-        "InternalName":  "LazyMarketCompanion",
-        "AssemblyVersion":  "0.2.8.26",
-        "TestingAssemblyVersion":  "0.2.8.26",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.2.8.26 (2026-11-16) [testing]\n- The buttons drawn on the retainer list and the retainer sale list (Auto Pinch, Auto Market, Sweep to Bags, and Running with Stop while a run goes) no longer cover the window\u0027s close button or the venture count beside it (issue #12). They are now laid out from the right and kept clear of the window\u0027s close, help and settings buttons and of the game\u0027s own text and icons in that corner, so wider buttons extend left over empty header space instead (MarketAutomation.cs, ImGuiSetup and KeepClear; AutoMarket/OverlayPlacement.cs).\n- Untried build: tested offline, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.25 (2026-11-15) [testing]\n- The Auto-Market panel docked beside the inventory window now lists only the marketable bag stacks, each with its existing per-row controls (list switch, Add/Remove, Stack, Keep, Skip category routing), under a title line with a close button. The statistics cards, the placement card, the filter and search card, the bulk buttons, the Auto-Market settings card and the state footer are gone from the panel (Windows/AutoMarketPanelWindow.cs, DrawFrame).\n- The main window\u0027s Auto-Market page has a new \"Inventory panel\" card with \"Dock to inventory\", \"Stay open when the inventory closes\", the Status and Category filters that narrow the panel\u0027s list, the On list / Not listed / Excluded counts, and the \"Add all marketable stacks in bags\" and \"Remove all\" actions, each still confirming first (Windows/ConfigWindow.cs, DrawInventoryPanelCard). The saved settings keep their names, so existing choices carry over.\n- While a status or category filter is set, the bulk actions read \"Add all shown\" and \"Remove all shown\" and only touch the stacks the panel lists (AutoMarket/AutoMarketPanelModel.cs, PanelRows and PlanSettingsBulk).\n- The panel\u0027s search box, its \"Show unmarketable\" switch (unmarketable stacks are no longer listed), its docked or floating status line, its Stop button and its \"Turn Auto-Market on?\" confirmation. Every Auto-Market setting the panel repeated is on the main window\u0027s Auto-Market page, whose footer Stop and the /lmc cancel command still stop a running action. \"Enable Auto-Market\" switches on from the main window without a confirmation, as it already did there.\n- Untried build: tested offline, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.24 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window has a new look with a header showing the plugin name, a status pill and a close button, sub-pages as pill tabs, and a status footer that shows the current state and a Stop button while an action runs.\n- Settings are grouped into cards, and the Auto-Market panel and the entries list show each item as its own card with its full name, switch, stack and keep fields. Long item names are shortened in the middle so the \"(HQ)\" marker always stays visible, and hovering shows the full name.\n- Narrow windows stack the controls and wrap captions and notices instead of cutting them, and long tables keep their column headers visible while scrolling.\n- The shared What\u0027s new window and Report a problem popup were restyled and now use the same custom window style as the plugin windows.\n\nv0.2.8.23 (2026-11-15) [testing]\n- The main window, the docked Auto-Market panel, the inventory page, the ownership tooltip, the confirmation prompts and the retainer overlay buttons now use responsive card-based layouts with pink navigation, track-style toggles and rounded controls, and running, idle, empty and ready states are worded the same way everywhere. All settings and behaviour are unchanged.\n- The main window and the Auto-Market panel each have a custom close (X) button, wide tables scroll only inside their own area, and the Auto-Market panel gained a persistent state footer with a Stop button for a running action.\n- The Report a problem button moved from the tab bar to a Support section on the Retainers \u0026 Hotkeys page; it writes the same local report as before.\n- Untried build: tested offline against the plugin\u0027s offline test suite, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.22 (2026-11-14) [testing]\n- **Mannequin detection no longer skips every real listing on German, French and Japanese clients.** The check compared the context menu against the price window title text (Addon sheet row 930) instead of the menu\u0027s own Adjust Price action text (row 959). On English clients the two read the same, but on German, French and Japanese clients they differ, so each real listing looked like a mannequin and was skipped. The check now reads the menu action text (the fix is ported from upstream Dagobert\u0027s Auto Pinch).\n- Untried build: tested offline against the plugin\u0027s offline test suite, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.21 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyMarketCompanion",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion-testing.zip",
-        "Tags":  [
-                     "marketboard",
-                     "retainer",
-                     "sell",
-                     "price",
-                     "match",
-                     "autoretainer"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazymarketcompanion-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Lazy Fish Sitter",
-        "Punchline":  "Sits you down while you fish. That\u0027s it.",
-        "Description":  "Checks every few seconds while you are fishing; if you are not sitting, it runs /sit for you. Leaves you alone once you are seated (ground sit, chair, or pose).",
-        "InternalName":  "LazyFishSitter",
-        "AssemblyVersion":  "0.1.5.7",
-        "TestingAssemblyVersion":  "0.1.5.9",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.1.5.9 (2026-11-16) [testing]\n- A sit command without a leading slash is no longer sent and no longer uses up the trip\u0027s sends; this repeats the note that was missing from the previous build.\n\nv0.1.5.8 (2026-11-16) [testing]\n- A sit command without a leading slash is no longer sent and no longer uses up the trip\u0027s sends.\n\nv0.1.5.7 (2026-11-15) [testing]\n- The window can be dragged from its stat cards and empty areas again.\n- The first-use window height fits smaller screens.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.5.6 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The settings window opens larger so the whole page, both cards and the footer fit without being cut off; windows already saved at another size keep it.\n- The Sit sends card shows the plain number of sends this trip with no false cap or bar, and turns amber with \"Retry limit reached\" only when the retry limit is actually hit.\n- The invalid-command hint and the Last check line are visible on first open, and Needs setup reads as neutral instead of amber.\n- The header, close button with an anchored tooltip, neutral status pill and red Stop button match the other plugin windows; the redundant single-tab row and the rule under the page header are gone.\n\nv0.1.5.5 (2026-11-15) [testing]\n- The plugin window now has a drawn close button in the top bar that closes the window, and the outer window no longer shows a redundant scrollbar; the inner body still scrolls when fishing details or a smaller window require it. Fishing policy, commands, configuration keys and saved settings are unchanged.\n\nv0.1.5.4 (2026-11-15) [testing]\n- The plugin window now presents fishing status, trip details and settings in a responsive card-based layout with a persistent Stop/Enable footer. The native title bar is removed in favour of the drawn top bar. Fishing policy, commands, configuration keys and saved settings are unchanged.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFishSitter",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.7/LazyFishSitter.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.7/LazyFishSitter.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.9/LazyFishSitter-testing.zip",
-        "Tags":  [
-                     "fishing",
-                     "lazy",
-                     "sit",
-                     "emote",
-                     "utility"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "LazyRetainerLive",
-        "Punchline":  "Real-time retainer venture countdowns for your dashboard.",
-        "Description":  "Serves the logged-in character\u0027s live retainer and venture state on loopback HTTP (127.0.0.1:10504) so the ffxiv dashboard relay can show real-time venture countdowns instead of AutoRetainer\u0027s occasionally-stale file cache.",
-        "InternalName":  "LazyRetainerLive",
-        "AssemblyVersion":  "0.1.0.7",
-        "TestingAssemblyVersion":  "0.1.0.8",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.1.0.8 (2026-11-16) [testing]\n- Fixed the local listener spinning a CPU core after the port changed; the port now applies when Enter is pressed.\n\nv0.1.0.7 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- Endpoint and continuity values sit in one aligned column and no longer break letter by letter; requirement rows keep a fixed pitch with the status word on the right in its state colour.\n- Stat cards show larger values at equal heights, with a progress track only on cards that have a real ratio, and collapse to compact cards at narrow widths.\n- The window body is a single scroll area with a soft fade at the bottom and thin scrollbars, and columns end at the same height.\n- The header has a bordered brand chip, a fixed-width neutral status pill and a close button with a small tooltip beneath it; the Stop listener button sizes to its label with a red outline and dims when the listener is already off.\n\nv0.1.0.6 (2026-11-15) [testing]\n- The settings window has a custom close button in the header, next to the state pill, that closes the window directly. The outer window scrollbar is removed; the body and the wide columns keep their own scrolling, so every card and setting stays reachable at narrow sizes while the footer and the Stop listener button remain in view.\n\nv0.1.0.5 (2026-11-15) [testing]\n- The settings window has a new card-based layout: a custom header with a live state pill, summary cards for retainers, active ventures and free inventory slots, and cards for the loopback endpoint, snapshot continuity, requirements and settings. The layout wraps responsively at narrow and wide window sizes, and the body scrolls.\n- The window no longer has a native title bar. A footer pinned to the bottom shows the current listener state and keeps the \"Stop listener\" button reachable at every size.\n- Listener state, retainer details, inventory, venture progress and endpoint information are all taken from the live snapshot and listener status. Saved settings, the listener, automatic port rebinding, commands, Lazy Hub controls and the HTTP response format are unchanged.\n\nv0.1.0.4 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.0.3 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyRetainerLive",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.7/LazyRetainerLive.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.7/LazyRetainerLive.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.8/LazyRetainerLive-testing.zip",
-        "Tags":  [
-                     "retainers",
-                     "ventures",
-                     "dashboard",
-                     "http",
-                     "lazy"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyretainerlive-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "zbee, Liza Carvelli (upstream PR by dajoey)",
-        "Name":  "ARC (PR test 2 - IPC venture work)",
-        "Punchline":  "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface (separate instance)",
-        "Description":  "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter\u0027s ArcDispatch. Installs alongside your normal production ARControl (different InternalName, no config or IPC collision at rest) for in-game verification only. Pre-seeded with a copy of your existing ARControl venture setup so no re-setup is needed. Not maintained; remove after testing is done.",
-        "InternalName":  "ARControlPRTest2",
-        "AssemblyVersion":  "0.0.0.0",
-        "TestingAssemblyVersion":  "8.6.0",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v8.6.0 (2026-09-11)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work). Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work - LazyCrafter\u0027s ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; installed alongside production ARControl to verify the PR in-game before replying to the maintainer.",
-        "RepoUrl":  "https://github.com/dajoey/ARC/tree/ipc-venture-work",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-        "Tags":  [
-                     "arc",
-                     "autoretainer",
-                     "ventures",
-                     "ipc-test",
-                     "temporary"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "LazyCrucible",
-        "Punchline":  "Crucible of the Unbroken familiar picks, filled in for every fight",
-        "Description":  "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight\u0027s mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
-        "InternalName":  "LazyCrucible",
-        "AssemblyVersion":  "0.1.9.24",
-        "TestingAssemblyVersion":  "0.1.9.25",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.1.9.25 (2026-11-16) [testing]\n- The suggestion note now stays on screen at the screen edges.\n\nv0.1.9.24 (2026-11-15) [testing]\n- Time-critical notices (incoming cast, AutoDuty standby, conflict and low HP) stay pinned above the scrolling page in both windows.\n- Both windows can be made small again, with a compact header and footer at short sizes.\n- The Run roster card shows the plain count again, and help text on the Treasure and Display pages is back.\n- The What\u0027s new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.9.23 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders, in both windows.\n- The current battle in the advisor battles list is shown in the accent colour with a \"current\" label instead of a raw marker, and \"Show in the loadout rail\" is a rounded accent-tinted row like the other lists.\n- The close button is a drawn cross in a rounded box with an accent hover state and a \"Close\" tooltip that sits beneath the button.\n- The Idle, Empty and Needs setup pills read clearly on the dark pill, the Home page no longer shows a one-item navigation band, and stat cards without a real ratio no longer draw an empty progress track.\n- Both windows keep a minimum height so the header, body and footer always fit.\n\nv0.1.9.22 (2026-11-15) [testing]\n- LazyCrucible now uses the approved custom shell with pink navigation and track toggles, responsive cards, aligned battle-plan and guide columns, and persistent footer actions.\n- Main and guide windows now open at 1280×840 on first use, without the native title bar and with a drawn close button.\n\nv0.1.9.21 (2026-11-15) [testing]\n- LazyCrucible\u0027s settings and fight guide now use card-based panels, a structured battle plan, and clearer grouped requirements.\n- Main-window guide pages follow the actual focused fight and incoming casts, with persistent footer actions and improved narrow-window wrapping.\n\nv0.1.9.20 (2026-11-15) [testing]\n- LazyCrucible\u0027s settings and fight guide use a searchable, card-based layout with live status, clearer requirements, and grouped controls.\n- Battlehorn picks, fight mechanics, and recent choices are easier to scan at large and small window sizes.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrucible",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.24/LazyCrucible.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.24/LazyCrucible.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.25/LazyCrucible-testing.zip",
-        "Tags":  [
-                     "beastmaster",
-                     "bst",
-                     "crucible",
-                     "unbroken",
-                     "familiar",
-                     "battlehorn",
-                     "automation"
-                 ],
-        "CategoryTags":  [
-                             "jobs",
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    },
-    {
-        "Author":  "dajoey",
-        "Name":  "Lazy Hub",
-        "Punchline":  "One window for every lalalazy plugin.",
-        "Description":  "One in-game window for the whole lalalazy suite. Turn plugins on and off, change their common settings and open their windows from one place, with Gluttony Combo\u0027s Auto-Rotation switch and drag-to-hotbar action buttons up front, plus a server info bar entry. Open it with /lazy.",
-        "InternalName":  "LazyHub",
-        "AssemblyVersion":  "0.1.1.1",
-        "TestingAssemblyVersion":  "0.1.1.12",
-        "TestingDalamudApiLevel":  15,
-        "Changelog":  "v0.1.1.12 (2026-11-28) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state; the hub window builds through the same nodes as before.\n\nv0.1.1.11 (2026-11-24) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization; the hub window builds through the same nodes as before.\n\nv0.1.1.10 (2026-11-23) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework; the hub window\u0027s scroll area builds through the same nodes as before.\n\nv0.1.1.9 (2026-11-22) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework; the hub window\u0027s scroll area follows the toolkit\u0027s reworked layout path.\n\nv0.1.1.8 (2026-11-21) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release; the hub window\u0027s scroll area now recalculates its layout through the toolkit\u0027s new layout path.\n\nv0.1.1.7 (2026-11-16) [testing]\n- The Lazy Hub window now has the same dark, rounded look as the other lalalazy windows, with crisp edges instead of blurry ones.\n- Settings buttons show the full word, and the buttons and switches now match the style of the other plugin windows.\n- The window no longer shows the game\u0027s blue background between panels, has a status bar at the bottom, and rows and sections line up evenly with consistent spacing between the two columns.\n- The What\u0027s new window now uses the same custom window style as the plugin windows.",
-        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyHub",
-        "ApplicableVersion":  "any",
-        "DalamudApiLevel":  15,
-        "IsHide":  false,
-        "IsTestingExclusive":  false,
-        "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
-        "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.12/LazyHub-testing.zip",
-        "Tags":  [
-                     "hub",
-                     "ui",
-                     "suite",
-                     "launcher",
-                     "lazy"
-                 ],
-        "CategoryTags":  [
-                             "utility"
-                         ],
-        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyhub-icon.png",
-        "ImageUrls":  [
-                          ""
-                      ],
-        "DownloadCount":  0,
-        "LastUpdate":  "0"
-    }
+  {
+    "Author": "dajoey",
+    "Name": "PvP Solver",
+    "Punchline": "PvP-only auto-rotation",
+    "Description": "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
+    "InternalName": "PvPSolver",
+    "AssemblyVersion": "0.1.2.18",
+    "TestingAssemblyVersion": "0.1.2.37",
+    "Changelog": "v0.1.2.37 (2026-11-28) [testing]\n- Fixed charge timing: actions with multiple charges no longer look ready the instant the final charge starts recasting, and asking for more charges than an action has now answers no.\n- Action-status checks and ground-targeted placement now use the game's adjusted action id, so PvP-swapped actions validate and place correctly.\n- Donut area targeting now counts enemies whose hitbox reaches into the ring.\n- NoNewHostiles targeting no longer skips striking dummies.\n- Login and logout crash guards: quest-unlock, macro, camera and movement-lock reads no longer dereference a missing game module, and name-filter regexes time out safely.\nv0.1.2.36 (2026-11-25)\n- Basic/Actions/ActionTargetInfo.cs FindTargetAreaFriend: ground-targeted beneficial placement now snaps to the terrain and is kept inside the action's range and the player's line of sight before it is used (upstream RotationSolverReborn 'Fix for ground targeting actions', ported onto the fork's carried ground-target subsystem). Spots the old code took at face value - saved beneficial positions, the tank's position, the point between the player and the attacked party member - can no longer land behind a wall or under the floor.\n- After the server rejects a ground-targeted action, the ground-target finder targets the player's own position for five seconds before trying the placement again. The rejection is read from the existing ActorControl hook (ActionTimeline/ActionTimelineManager.cs, category 0x2BC, second argument 1) and recorded in DataCenter (Basic/DataCenter.cs _actionRejectedTicks), matching upstream's Watcher feed.\n- The tank and saved-spot steps of the ground-target finder were restructured into upstream's helper shape (FindTargetAreaTank with a two-pass stance scan and an effect-range check, FindBeneficialPosition with a flat-distance gate, TryGetGroundPosition with a 0.5-range margin); the boss-position step and the arena-center fallback upstream added are NOT ported - the fork removed them as PvE remnants in v0.1.2.30. The 'Use beneficial ground-targeted actions' setting's description (Basic/Configuration/Configs.cs) now describes the fork's actual fallback order.\n- UI/RotationConfigWindow.cs: the 'Add position' button places the saved spot through the same terrain-snap helper (ObjectHelper.SnapToGround) instead of its own inline raycast, and Basic/Helpers/ObjectHelper.cs extracts that raycast into one shared Raycast helper that also serves line-of-sight checks.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv0.1.2.35 (2026-11-22)\n- Basic/Helpers/StatusHelper.cs LocksActions: action-locking statuses are now detected reliably - Out of the Action (statuses 1113, 1284 and 1462) counts as locking actions even when the game data sheet does not flag it, and a status with no remaining time counts as still active instead of expiring instantly. Rotation updates now pause correctly through those lockout states (read by Updaters/ActionUpdater.cs).\n- Basic/Actions/ActionTargetInfo.cs FindTarget and GetCanTargets, and Basic/Actions/BaseAction.cs and IBaseAction.cs CanUse, accept an optional extra target filter passed by the caller; no built-in PvP action passes one yet, so target selection behaves exactly as before. This keeps the engine aligned with upstream RotationSolverReborn for future fixes.\n- Basic/Rotations/CustomRotation_BasicInfo.cs adds a ShouldDelayCommandAction hook, checked by the commanded-action paths in CustomRotation_Ability.cs and CustomRotation_GCD.cs before firing a commanded action immediately; the default answer is no, so commanded actions fire exactly as before.\n\nv0.1.2.34 (2026-11-21)\n- Basic/Rotations/CustomRotation_GCD.cs GCD: the chooser never called the job rotations' GeneralGCD, so no attack GCD was ever selected - the character could only auto-heal, Guard, Recuperate and drink the elixir, which read as healing instead of attacking in matches. The call was deleted together with the duty-rotation engine in v0.1.2.23 (the same class of loss as the v0.1.2.32 rotation-load fix), so every version from v0.1.2.23 to v0.1.2.33 shipped with attack GCDs as dead code. GeneralGCD is called again inside the NoCasting branch, in upstream's chooser order (heals first, attacks after).\n- Basic/Rotations/CustomRotation_GCD.cs GCD: the DefenseArea and DefenseSingle branches were emptied by the same removal, so the healer PvP rotations' defense GCD overrides were equally unreachable; both calls are restored. No duty-rotation, Provoke or other PvE machinery returns.\n- Commands/RSCommands_Actions.cs DoAction: every executed-action change now leaves one \"ActionTap: <name> (<id>)\" log line (on-change only, so it cannot spam). This makes the live-path release check possible: a real match must show attack actions being chosen before any build is called good.\n- tests/PvPSolver.RotationHarness Cases/SelectionGate.cs: the release harness now fails when the compiled chooser no longer calls GeneralGCD (IL call-site count and position after the heal branch), when the ability chooser loses GeneralAbility, when any shipped PvP rotation loses its attack-bearing GeneralGCD override, or when the ActionTap log line is missing from the built assembly.\n\nv0.1.2.33 (2026-11-21)\n- Commands/RSCommands_Actions.cs UpdateRotationState: \"Turn on when a match starts\" could never engage - it only ran during the match loading screen, when no player object exists and the job role is unknown, so the null-player early return and the job-role check silently dropped it and the rotation loaded but never acted in matches. The auto-on now latches during the load screen (new pure decision core Basic/Decisions/MatchStartAutoOn.cs) and engages the PvP state on the first cycle where the player and job are loaded, logging both steps.\n- RotationSolverPlugin.cs constructor and Commands/RSCommands_BasicInfo.cs RSCommands.Enable: the /pvpsolver, /pvs, \"/pvpsolver Auto\" and \"/pvpsolver Off\" handlers were registered only near the end of a 10-30 second start-up (after nine windows, the icon cache and the status lists), so commands typed while the plugin was still starting read as \"Command not found\". Registration now runs first, right after the configuration loads, and a start-up log line lists every command and its registration result.\n- Commands/RSCommands_StateSpecialCommand.cs UpdateState and DoOneCommandType: rotation state changes and ignored role-less commands are logged, so a state that silently never engages can no longer hide behind a clean log.\n- tests/PvPSolver.RotationHarness Cases/MatchStartAutoOnCases.cs and Cases/CommandGate.cs: the release harness now fails the build when a documented slash command has no registration call site in the built assembly (IL call-site count, not just source text), when the constructor no longer registers before the slow init steps, or when the match-start auto-on decision core cannot engage from the loading-screen conditions the shipped bug produced.\n\nv0.1.2.32 (2026-11-21) [testing]\n- Fixed: rotations never loaded, so the plugin did nothing in PvP matches since v0.1.2.26. The duty-rotation engine removal (v0.1.2.23) had also removed the single call in Updaters/RotationUpdater.cs LoadBuiltInRotations that fills CustomRotations from the assembly scan (LoadCustomRotationGroup); the rotation list stayed empty, the log stopped right after \"MajorUpdater: triggering rotation load...\" and no rotation was ever selected, with no error line anywhere.\n- Restored that call and the \"LoadBuiltInRotations: found N rotation groups\" log line; a scan that finds no rotation groups now logs an error instead of staying silent (Updaters/RotationUpdater.cs, LoadBuiltInRotations).\n- Added a release-harness gate (tests/PvPSolver.RotationHarness, RotationLoaderWiring) that fails when the rotation-load wiring is severed or the shipped assembly contains no loadable rotation - the regression class that passed every existing gate in v0.1.2.26 - v0.1.2.31.\n- No PvE rotation content or behaviour returns; the PvP-only scope is unchanged. Testing channel only; the production channel is unchanged.\n\nv0.1.2.31 (2026-11-20) [testing]\n- Round 6 completion: the post-release marker grep still found four generated StatusID entries whose description text carries a marker word (ThrownForALoop, Soteria, BackFromTheBrink, BannerOfHonedAcuity). All four are unreferenced PvE statuses and are removed from the generated table; no code reads them.\n- No code change and no PvP behaviour change; every remaining marker hit is a cited part of a PvP path (the Sage Kardia and Dancer partner targeting, and the tank lock-on VFX check).\n- Testing channel only; the production channel is unchanged.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "TestingDalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.18/PvPSolver.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.18/PvPSolver.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/PvPSolver-v0.1.2.37/PvPSolver-testing.zip",
+    "Tags": null,
+    "CategoryTags": null,
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "AutoPotion",
+    "Punchline": "Per-job HP, MP, and deep dungeon potion automation.",
+    "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
+    "InternalName": "AutoPotion",
+    "AssemblyVersion": "0.2.5.10",
+    "Changelog": "v0.2.5.10 (2026-11-27) [testing]\n- A summoned chocobo switches to Healer Stance when three or more hostile mobs target the player. Its previous stance is restored only after the attacker count drops below three and the player reaches full HP.\n- Chocobo control is enabled by default and has a dedicated Settings toggle. Existing configurations retain the default unless the feature is explicitly disabled.\n\nv0.2.5.9 (2026-11-16) [testing]\n- `/autopotion debug` now prints a one-line state summary in chat.\n\nv0.2.5.8 (2026-11-15) [testing]\n- The HP, MP and regen threshold sliders accept a typed value again (Ctrl+click).\n- The active job icon is back in the page header, and stat-card notes show at narrow widths.\n- The telemetry switch help text shows the exact command again.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.2.5.7 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- On narrow windows the footer status line reads in full instead of ending in an ellipsis, and the Stop button takes its own full-width row, tinted red.\n- The threshold value sits at the right of the label line above the slider, so the slider thumb never covers it.\n- Stat notes are shorter, and a long note wraps and grows the cards together instead of being cut.\n- With the master switch off, rule titles, values and toggles are muted so the stopped state looks different from running; the header, close button and status pill match the other plugin windows.\n\nv0.2.5.6 (2026-11-15) [testing]\n- The settings window has a custom close button in the header, and the redundant outer scrollbar is gone; the body, rules and rail regions keep their own scrolling. Settings, profiles, potion decisions and automation behaviour are unchanged.\n\nv0.2.5.5 (2026-11-15) [testing]\n- The settings window uses a custom header without the native title bar, pink navigation and toggle controls, responsive rule, requirement and settings cards, live profile counts and a persistent Stop footer. Settings, job profiles, potion decisions and automation behaviour are unchanged, and existing configuration loads as-is.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/AutoPotion",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/AutoPotion-v0.2.5.10/AutoPotion-testing.zip",
+    "Tags": [
+      "auto",
+      "potion",
+      "healing",
+      "deep dungeon"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.2.5.10",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Armoire Auto-Fill",
+    "Punchline": "Per-dungeon view of which armoire-eligible gear pieces you're still missing",
+    "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
+    "InternalName": "ArmoireAutoFill",
+    "AssemblyVersion": "0.5.7.6",
+    "Changelog": "v0.5.7.6 (2026-11-15) [testing]\n- The dungeon checklist columns are resizable again.\n- The shop catalog build-failure reason is shown in the banner again, not only on hover.\n- The expanded pieces panel stays inside the scrolling page and no longer draws over the footer; header counts and the footer detail line stay visible in short windows.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.5.7.5 (2026-11-15) [testing]\n- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window header fits on one row at the default size, with the brand chip, tabs, a state pill and a close button whose tooltip appears below the button.\n- Page titles carry a plain description line, with the owned count and snapshot note aligned to the right.\n- Stat cards without a real ratio no longer draw an empty progress bar, the Stop button is a dark red filled button with a white label, and item tooltips open below their row instead of covering neighbouring entries.\n\nv0.5.7.4 (2026-11-15) [testing]\n- The Collection and Settings windows now have a custom close button in the header, and long content scrolls inside each window's body instead of behind a second outer scrollbar. Collection, shopping, storage automation, import and export, and settings are unchanged.\n\nv0.5.7.3 (2026-11-15) [testing]\n- The Collection, Shopping, Auto-store and Settings windows now use custom headers instead of the native title bar, with responsive card layouts, live collection and shopping counts, and persistent storage controls. Item data, ownership scans, storage automation, import and export, and settings are unchanged.\n\nv0.5.7.2 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.5.7.1 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/ArmoireAutoFill",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.7.6/ArmoireAutoFill-testing.zip",
+    "Tags": [
+      "armoire",
+      "dungeon",
+      "gear",
+      "collection",
+      "scanner"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoireautofill-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.5.7.6",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Gluttony Combo",
+    "Punchline": "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
+    "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
+    "InternalName": "GluttonyCombo",
+    "AssemblyVersion": "1.0.4.340",
+    "Changelog": "v1.0.4.344 (2026-11-27) [testing]\n- **The BossMod compatibility checks now read the interface BossMod publishes for other plugins instead of reaching into its internals** (merged from upstream WrathCombo 1.0.4.28). Every conflict check against the original BossMod - auto-targeting, autorotation, custom queueing, smart targeting and AI targeting - now calls that published interface, so the checks keep working when BossMod reorganizes its internals. The BossMod Reborn checks already worked that way and are unchanged.\n- **The plugin conflict list now also flags the original BossMod's smart targeting.** Only BossMod Reborn's smart targeting was flagged before; the original BossMod's setting is now checked the same way. The checks ask for a BossMod build that provides the new interface (version floor 7.5.7.16, up from 0.3.1.0) and read as no-conflict on builds older than that.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.343 (2026-11-25) [testing]\n- **NIN: Fuma Shuriken is no longer suggested while Ten is not ready.** The mudra helper could offer Fuma Shuriken when the Ten action itself was still on cooldown, spending the mudra window on a suggestion that would not fire; the placement now checks the action is ready first (upstream WrathCombo fix).\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.342 (2026-11-24) [testing]\n- **The Beastmaster Crucible rules now treat the first master board's ice dragon fight as a knockback fight.** The dive's push (about thirty yalms) resolves on a one-second cast with a half-second fallback bar, and both bars are now in the knockback table, so Vileskin is held for the push there instead of being spent on ordinary target picks - the same policy the other sixteen knockback fights already follow, from the same upstream fight-module source. The fight has not been played on this install, so the timing comes from those modules rather than recorded runs.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.341 (2026-11-17) [testing]\n- **The Fight Brain countdown strip no longer keeps past forecasts on screen.** A clock mix-up inside the forecast tick compared the entries' Unix timestamps against the machine's uptime clock, so the rule that drops a forecast three seconds after its moment passed could never fire: old entries piled up, filled the forecast list, and the strip showed a fixed set of entries whose countdowns grew ever more negative for the rest of the session. The tick now prunes on the same clock the entries carry, and the strip itself shows only entries still ahead (with one second of grace), so a fight's leftovers disappear instead of counting up in the negative.\n- **The Fight Brain countdown strip only draws during combat now.** Outside a fight it draws nothing, even while the forecast source is still answering, so the strip no longer sits on the screen between fights.\n- Testing channel only; the production channel is unchanged. Not verified in play yet.\n\nv1.0.4.340 (2026-11-15) [testing]\n- The settings window has been rebuilt in the same custom window style as the other plugins and polished for the real in-game font and scale, with every preset, option and saved setting unchanged.\n- The window uses a two-level layout: Combos, Automation and System tabs, a row of destinations for the open tab, a page header and a status footer that stays in view. Long pages fade out above the footer instead of being cut off.\n- Preset cards have even padding, a larger title and toggles that sit inside the card, and a whole toggle row, label included, can be clicked. Search keeps one width on every page, shows a dimmed hint, has a clear button and reports a result count.\n- The problem report button sits in the footer so it is reachable on every page and window size, and the status pill shows a running rotation in green and a blocked one in amber.\n- This build also picks up the restyled shared What's new window and Report a problem popup.\n\nv1.0.4.339 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.344/GluttonyCombo-testing.zip",
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.340/GluttonyCombo.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/GluttonyCombo-v1.0.4.340/GluttonyCombo.zip",
+    "Tags": [
+      "combo",
+      "gluttony",
+      "wrath",
+      "wrathcombo",
+      "auto",
+      "autorotation",
+      "rotation",
+      "pve",
+      "pvp",
+      "lalalazy"
+    ],
+    "CategoryTags": null,
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "1790560588",
+    "TestingAssemblyVersion": "1.0.4.344",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "daemitus, MidoriKami, dajoey",
+    "Name": "Lazy WT Math",
+    "Punchline": "FFXIV Wondrous Tails probability calculator.",
+    "Description": "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
+    "InternalName": "LazyWTMath",
+    "AssemblyVersion": "3.2.3.8",
+    "Changelog": "v3.2.3.14 (2026-11-28) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.13 (2026-11-24) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization, which regroups the toolkit's types into Core, UI and Services namespaces.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.12 (2026-11-23) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework, which splits node capabilities into dedicated interfaces (attachable, colour, position, rotation, scale, size, visibility, silent set) and adds a window frame node.\n- No setting or window behavior changes; the probability overlay builds through the same nodes as before.\n\nv3.2.3.11 (2026-11-22) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework, which rebuilds the internals of the list, grid and tab layout nodes and adds a shared layout base class (LayoutNodeBase) plus size-change batching on the node base.\n- No setting or window behavior changes; the probability overlay renders through the same text and collision nodes as before.\n\nv3.2.3.10 (2026-11-21) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release, which reorganizes how native game windows and nodes are built.\n- The probability overlay keeps its journal-matched background, text colours, font size and spacing through the toolkit's new node layout.\n\nv3.2.3.9 (2026-11-16) [testing]\n- Fixed a crash risk while logging in or out with the Wondrous Tails journal open.\n- The probability overlay no longer recomputes every frame.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyWTMath",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.8/LazyWTMath.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.8/LazyWTMath.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyWTMath-v3.2.3.14/LazyWTMath-testing.zip",
+    "Tags": [
+      "wondrous tails",
+      "math",
+      "calculator",
+      "probability"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "3.2.3.14",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "Blackcatz1911, dajoey",
+    "Name": "Lazy Currency Spender",
+    "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
+    "Description": "Fork of CurrencySpender by Blackcatz1911. Never wonder 'What should I do with this?' again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
+    "InternalName": "LazyCurrencySpender",
+    "AssemblyVersion": "1.3.1.8",
+    "Changelog": "v1.3.1.8 (2026-11-15) [testing]\n- The windows were polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The main, settings, spending-guide, debug and setup windows share one look: a header bar with brand, status and window buttons, a navigation band, a page title block and a status footer.\n- Currency balances and spending-guide tables use fixed, right-aligned number columns and framed Flag, TP and Spend it buttons; long names are shortened with the full name on hover.\n- In narrow windows the tables keep their sideways scroll and a readable name column, so every button stays reachable.\n- The settings window gains a framed Minimum sales field and a full-width separator list, and the instructions use numbered step cards.\n\nv1.3.1.7 (2026-11-15) [testing]\n- The plugin windows now use responsive card-based layouts with custom close and minimize controls in place of the native title bars, clear currency state indicators, and scrollable settings, wizard and table content. Currency calculations, spending behavior and saved configuration are unchanged.\n- Testing channel only; the production channel is unchanged.\n\nv1.3.1.6 (2026-11-15) [testing]\n- The main and debug windows now register under their own window IDs (Windows/MainTabWindow.cs and Windows/DebugTabWindow.cs constructors): since 1.3.1.5 both were created with a blank internal window ID, so on every launch the second registration threw and the plugin's startup stopped before its interface, task manager and currency list were built - the plugin appeared to do nothing. Both windows now open normally every session.\n- Testing channel only; the production channel is unchanged.\n\nv1.3.1.5 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv1.3.1.4 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv1.3.1.3 (2026-10-17) [testing]\n- The configuration wizard's auto-open step now sets the actual auto-open setting instead of toggling the sellables table.\n- Testing channel only; the production channel is unchanged.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCurrencySpender",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyCurrencySpender-v1.3.1.8/LazyCurrencySpender-testing.zip",
+    "Tags": [
+      "currency",
+      "poetics",
+      "tomestone",
+      "lazy"
+    ],
+    "CategoryTags": null,
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "1.3.1.8",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "croizat, dajoey",
+    "Name": "Lazy Fate Automation",
+    "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
+    "Description": "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
+    "InternalName": "LazyFateAutomation",
+    "AssemblyVersion": "0.0.3.14",
+    "Changelog": "v0.0.3.14 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The header has a bordered brand chip, outlined FATEs and Settings tabs, a Minimise button, a status pill and a drawn Close button, each with a tooltip; the tabs stack in two rows when the window is narrow.\n- Page headers show a larger title with the description and counts, and the footer shows a status dot, a two-line status and a fixed-width Start, Stop or Stopping button.\n- Every FATE sits in a card list with the whole row clickable, and stat cards show a progress bar only where a real ratio exists.\n- The FATE hover card says first whether a FATE will be automated and why it is blocked, followed by every event detail; dropdowns and the zone filter are bordered fields, and the Grind mode and Add sort criterion popups open below their buttons and scroll when room is short.\n\nv0.0.3.13 (2026-11-15) [testing]\n- The FATE window has been redrawn with a responsive card layout, custom close, settings and minimise controls in place of the native title bar, grouped settings, and persistent Start and Stop actions. Automation, saved settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.3.12 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.3.11 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.0.3.10 (2026-10-31) [testing]\n- **The FATE grind no longer starts FATEs above your level.** Level sync only lowers your level to match a FATE, it never raises it, so a FATE above your level could not be contributed to and walking to it only wasted time. FATEs above your level are now skipped; the tracker's unavailable list shows \"FATE level N is above your level M\". FATEs at or below your level run exactly as before.\n- Testing channel only; the production channel is unchanged.\n\nv0.0.3.9 (2026-10-18) [testing]\n- **Display name format and sort order changes are now saved.** Edits in the FATE tracker's \"Sorting & Display\" settings previously lived only in memory and reverted on the next plugin load; every change now persists immediately.\n- **Reset to Default restores the actual default sort order.** The reset button dropped the Time Remaining criterion and put Time Remaining Urgent in ascending order (urgent FATEs last); it now restores the shipped six-entry default, shared with the config's own default so the two cannot drift apart.\n- Testing channel only; the production channel is unchanged.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyFateAutomation-v0.0.3.14/LazyFateAutomation-testing.zip",
+    "Tags": [
+      "fate",
+      "grind",
+      "automation",
+      "relic",
+      "yokai",
+      "vnavmesh"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.0.3.14",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Lazy Skyward Tracker",
+    "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
+    "Description": "Tracks all jobs' Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they'll add, shown as a cyan bar extension on each job's progress bar. Use /lazysky to open.",
+    "InternalName": "LazySkywardTracker",
+    "AssemblyVersion": "0.0.3.7",
+    "Changelog": "v0.0.3.8 (2026-11-16) [testing]\n- The tracker window now says when progress tracking is offline instead of showing empty bars.\n\nv0.0.3.7 (2026-11-15) [testing]\n- The completed-jobs count stays visible in short windows.\n- Progress bars of finished jobs are visibly different from ones still in progress.\n- The inventory projection tooltip is reachable in the narrow layout.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.0.3.6 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- Job rows and the Refresh button keep a clear margin inside their card edges, so the points text no longer sits against the border.\n- Job rows are compact and vertically centred, with the job, achievement, progress bar and points aligned on one line.\n- Stat cards show a larger value at the same height; cards with a real ratio get a green progress bar and the inventory card shows no empty track.\n- The header has a bordered brand chip, a rounded status pill with only the state word and a drawn close button with a Close tooltip; log-in and no-data messages are tinted, rounded notices, and the footer stays visible even at the minimum size.\n\nv0.0.3.5 (2026-11-15) [testing]\n- The tracker window now has a close button in its header, placed beside the status pill, and the redundant outer scrollbar is gone. The job list keeps its own scrolling for narrow windows. Tracking, settings, commands and refresh behaviour are unchanged.\n\nv0.0.3.4 (2026-11-15) [testing]\n- The tracker window shows job progress, inventory projections and completion state in a responsive card-based layout: a custom header without the native title bar, summary and job-progress cards, job rows that adapt to the window width, and a persistent footer with the live state. Tracking, settings, commands and refresh behaviour are unchanged.\n\nv0.0.3.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.7/LazySkywardTracker.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.7/LazySkywardTracker.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazySkywardTracker-v0.0.3.8/LazySkywardTracker-testing.zip",
+    "Tags": [
+      "skybuilders",
+      "restoration",
+      "pteranodon",
+      "achievement",
+      "tracker"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.0.3.8",
+    "TestingDalamudApiLevel": 15
+  },
+  {
+    "Author": "dajoey",
+    "Name": "LazyFoodBuff",
+    "Punchline": "Never forget to eat your food again.",
+    "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
+    "InternalName": "LazyFoodBuff",
+    "AssemblyVersion": "0.1.5.6",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyFoodBuff-v0.1.5.6/LazyFoodBuff-testing.zip",
+    "Tags": [
+      "auto",
+      "food",
+      "buff",
+      "duty",
+      "lazy"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0",
+    "Changelog": "v0.1.5.6 (2026-11-15) [testing]\n- The Refresh threshold and Low-food warning sliders accept a typed value again (Ctrl+click or double-click) and keyboard or gamepad steps.\n- The help text of the Log food decisions switch names the log line prefix again, and the helper line under the master switch is back.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.5.5 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The settings window scrolls as one page with even side margins, so toggles, buttons and values sit well inside their cards.\n- On wide windows the two columns are balanced: Diagnostics sits under Food selection, leaving no large empty card at the end of the page.\n- Job and food pickers are bordered fields with a chevron; the list opens with the search box, then None or Default, then the entries.\n- The title bar has a bordered brand chip, a fixed-width status pill showing only the state word and a drawn close button with a tooltip; the footer Stop button is red-tinted.\n\nv0.1.5.4 (2026-11-15) [testing]\n- The settings window has been redesigned as a responsive card layout: a custom header with a close button instead of the native title bar, no outer scrollbar, switch-style toggles, live requirements and counts, cards that adapt to the window size, and a persistent footer with the live state and a Stop button that only turns the automation off. Food selection, fallback behavior, saved settings and automation are unchanged.\n\nv0.1.5.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.5.2 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.1.5.1 (2026-10-03) [testing]\n- **Quick controls for the Lazy Hub window.** The plugin now offers auto-eating, \"Only in combat duties\", the minutes of food left before eating again and the low-food warning with its count to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.\n- Testing channel only; the production channel is unchanged.\n- Without Lazy Hub installed the plugin behaves exactly as before.",
+    "TestingDalamudApiLevel": 15,
+    "TestingAssemblyVersion": "0.1.5.6"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Lazy Gear Collector",
+    "Punchline": "Track upgradable gear sets and what it costs to finish them",
+    "Description": "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn's Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game's own shop data at runtime, so it stays correct across patches. Also flags Arcanaut's gear you can trade up for free. Use /lazygear to open.",
+    "InternalName": "LazyGearCollector",
+    "AssemblyVersion": "0.0.2.5",
+    "TestingDalamudApiLevel": 15,
+    "TestingAssemblyVersion": "0.0.2.6",
+    "Changelog": "v0.0.2.6 (2026-11-16) [testing]\n- The collector window no longer re-plans every frame.\n\nv0.0.2.5 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window uses a branded top bar with Overview, Roles and Settings, a status pill and a close button, plus a page header and a two-line status footer.\n- Overview shows progress cards, a role progress list and a requirements card beside the settings.\n- Role pages list each piece with its owned state and the materials still needed, with long material names shown in full.\n- Search results open in a floating list under the search box so the page does not shift while typing, and narrow windows collapse the page choices into a dropdown.\n\nv0.0.2.4 (2026-11-15) [testing]\n- The collector window now presents role progress, material requirements, ownership and collection settings in a responsive card-based layout with custom navigation, a close button and search across roles and pages. Collection planning, ownership scanning, shop and trade-up logic, saved settings and hub quick controls are unchanged.\n\nv0.0.2.3 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.0.2.2 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.\n\nv0.0.2.1 (2026-10-03) [testing]\n- **Quick controls for the Lazy Hub window.** The plugin now offers whether the saddlebag and retainers count and the target tier to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.\n- Testing channel only; the production channel is unchanged.\n- Without Lazy Hub installed the plugin behaves exactly as before.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyGearCollector",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.5/LazyGearCollector.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.5/LazyGearCollector.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyGearCollector-v0.0.2.6/LazyGearCollector-testing.zip",
+    "Tags": [
+      "occult",
+      "crescent",
+      "northhorn",
+      "phantomvision",
+      "gear",
+      "collection",
+      "tracker"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazygearcollector-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "LazyCrafter",
+    "Punchline": "What can I make right now, what's it worth, and what would it take to make the rest?",
+    "Description": "Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.",
+    "InternalName": "LazyCrafter",
+    "AssemblyVersion": "0.1.7.13",
+    "TestingAssemblyVersion": "0.1.7.15",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.1.7.15 (2026-11-21) [testing]\n- Crafts that were waiting on a material WahTools handed back no longer run into a wall of failed-craft lines in the same pass. They are pulled out of the wave's craft queue the moment the hand-back happens, their rows on the Run tab show them waiting for the next pass, and the re-plan remakes them on the material's new route.\n- Crafts no longer start while WahTools Hunter is still driving the character after a hunt. The hand-off to Artisan now waits for WahTools to go idle, the same gate the other WahTools hand-offs use, and logs one line when it does.\n- The blocked report now lists the fish and monster-drop materials WahTools was handed, so the Run tab and /lcraft status show what a blocked run is waiting on.\n- WahTools' Hunter is now offered an item's monsters in a smarter order: the highest-level monster the character can already beat first, then monsters with no known level, then monsters above the character's combat level from the lowest up. The level data comes from the installed WahTools itself; when it cannot be read, a warning is logged once per session and the previous order is kept.\n- Testing channel only; the production channel is unchanged.\n\nv0.1.7.14 (2026-11-21) [testing]\n- **Monster-drop materials can be hunted with WahTools.** When WahTools is loaded, a material that a known monster drops is handed to WahTools' Hunter instead of going straight to the market-board list. Hunter counts kills, not drops, so the run hunts in batches, recounts the bags between batches, and stops as soon as enough have landed. It gives up after two batches in a row that drop nothing (or eight in total), and the rest goes back on the market-board or manual list on the next pass. Gil-vendor items, and currency-shop items the character can already pay for, are still bought, never hunted.\n- **Fish materials can be caught with WahTools.** When WahTools is loaded, a fish that no gathering node yields goes to WahTools' Feesh instead of GatherBuddyReborn. A fish WahTools will not take, such as an ocean fish, goes back to GatherBuddyReborn on the next pass. The caught fish stay protected from WahTools' own discard and desynth rules until the run ends, including while a blocked run waits for Resume.\n- Both run after GatherBuddyReborn and before Artisan, and crafts that need them wait for them. Each has its own setting under Dispatch behavior, both on by default; with WahTools absent or both settings off, routing is exactly as before. Stop ends a WahTools fish or hunt in progress.\n- The Integrations list shows whether WahTools is loaded.\n- Testing channel only; the production channel is unchanged.\n\nv0.1.7.13 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The catalog table keeps its sortable, resizable and reorderable columns and its right-click menu for showing and hiding columns; columns that do not fit start hidden.\n- Numeric column headers line up with the figures beneath them in the catalog, cart, ledger and run tables, and no header is cut mid-word at larger UI scales.\n- Recipe details are organised into summary, ingredient and market cards, with source and unit price under each ingredient and the fulfil buttons beside them.\n- The Settings and Run pages no longer repeat the same warning or state word, and short windows get a compact page header that leaves more room for the table.\n\nv0.1.7.12 (2026-11-15) [testing]\n- The plugin window now uses a responsive card-based shell for catalog, cart, run and settings, with integrated area navigation, destination search, live page counts, a close button in the header and persistent dispatch and footer actions. Catalog logic, cart editing, dispatch, integrations and saved configuration are unchanged.\n\nv0.1.7.11 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.7.10 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrafter",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.13/LazyCrafter.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.13/LazyCrafter.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyCrafter-v0.1.7.15/LazyCrafter-testing.zip",
+    "Tags": [
+      "crafting",
+      "recipe",
+      "market",
+      "universalis",
+      "artisan",
+      "gatherbuddy",
+      "lazy"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrafter-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Lazy Market Companion",
+    "Punchline": "Auto-lists your always-sell items and matches market board prices",
+    "Description": "Keep an Auto-Market list of items you always sell. The companion lists them through your retainers in the stack size you choose (keeping a reserve in your bags if you want), prices every listing by matching the lowest board price instead of undercutting, and can do all of it inside AutoRetainer's venture cycle. Also re-prices existing listings (Auto Pinch). Successor to Dagobert Price Matcher; your old settings are imported automatically.",
+    "InternalName": "LazyMarketCompanion",
+    "AssemblyVersion": "0.2.8.26",
+    "TestingAssemblyVersion": "0.2.8.26",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.2.8.26 (2026-11-16) [testing]\n- The buttons drawn on the retainer list and the retainer sale list (Auto Pinch, Auto Market, Sweep to Bags, and Running with Stop while a run goes) no longer cover the window's close button or the venture count beside it (issue #12). They are now laid out from the right and kept clear of the window's close, help and settings buttons and of the game's own text and icons in that corner, so wider buttons extend left over empty header space instead (MarketAutomation.cs, ImGuiSetup and KeepClear; AutoMarket/OverlayPlacement.cs).\n- Untried build: tested offline, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.25 (2026-11-15) [testing]\n- The Auto-Market panel docked beside the inventory window now lists only the marketable bag stacks, each with its existing per-row controls (list switch, Add/Remove, Stack, Keep, Skip category routing), under a title line with a close button. The statistics cards, the placement card, the filter and search card, the bulk buttons, the Auto-Market settings card and the state footer are gone from the panel (Windows/AutoMarketPanelWindow.cs, DrawFrame).\n- The main window's Auto-Market page has a new \"Inventory panel\" card with \"Dock to inventory\", \"Stay open when the inventory closes\", the Status and Category filters that narrow the panel's list, the On list / Not listed / Excluded counts, and the \"Add all marketable stacks in bags\" and \"Remove all\" actions, each still confirming first (Windows/ConfigWindow.cs, DrawInventoryPanelCard). The saved settings keep their names, so existing choices carry over.\n- While a status or category filter is set, the bulk actions read \"Add all shown\" and \"Remove all shown\" and only touch the stacks the panel lists (AutoMarket/AutoMarketPanelModel.cs, PanelRows and PlanSettingsBulk).\n- The panel's search box, its \"Show unmarketable\" switch (unmarketable stacks are no longer listed), its docked or floating status line, its Stop button and its \"Turn Auto-Market on?\" confirmation. Every Auto-Market setting the panel repeated is on the main window's Auto-Market page, whose footer Stop and the /lmc cancel command still stop a running action. \"Enable Auto-Market\" switches on from the main window without a confirmation, as it already did there.\n- Untried build: tested offline, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.24 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The window has a new look with a header showing the plugin name, a status pill and a close button, sub-pages as pill tabs, and a status footer that shows the current state and a Stop button while an action runs.\n- Settings are grouped into cards, and the Auto-Market panel and the entries list show each item as its own card with its full name, switch, stack and keep fields. Long item names are shortened in the middle so the \"(HQ)\" marker always stays visible, and hovering shows the full name.\n- Narrow windows stack the controls and wrap captions and notices instead of cutting them, and long tables keep their column headers visible while scrolling.\n- The shared What's new window and Report a problem popup were restyled and now use the same custom window style as the plugin windows.\n\nv0.2.8.23 (2026-11-15) [testing]\n- The main window, the docked Auto-Market panel, the inventory page, the ownership tooltip, the confirmation prompts and the retainer overlay buttons now use responsive card-based layouts with pink navigation, track-style toggles and rounded controls, and running, idle, empty and ready states are worded the same way everywhere. All settings and behaviour are unchanged.\n- The main window and the Auto-Market panel each have a custom close (X) button, wide tables scroll only inside their own area, and the Auto-Market panel gained a persistent state footer with a Stop button for a running action.\n- The Report a problem button moved from the tab bar to a Support section on the Retainers & Hotkeys page; it writes the same local report as before.\n- Untried build: tested offline against the plugin's offline test suite, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.22 (2026-11-14) [testing]\n- **Mannequin detection no longer skips every real listing on German, French and Japanese clients.** The check compared the context menu against the price window title text (Addon sheet row 930) instead of the menu's own Adjust Price action text (row 959). On English clients the two read the same, but on German, French and Japanese clients they differ, so each real listing looked like a mannequin and was skipped. The check now reads the menu action text (the fix is ported from upstream Dagobert's Auto Pinch).\n- Untried build: tested offline against the plugin's offline test suite, not yet in the game.\n- Testing channel only; the production channel is unchanged.\n\nv0.2.8.21 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyMarketCompanion",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyMarketCompanion-v0.2.8.26/LazyMarketCompanion-testing.zip",
+    "Tags": [
+      "marketboard",
+      "retainer",
+      "sell",
+      "price",
+      "match",
+      "autoretainer"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazymarketcompanion-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Lazy Fish Sitter",
+    "Punchline": "Sits you down while you fish. That's it.",
+    "Description": "Checks every few seconds while you are fishing; if you are not sitting, it runs /sit for you. Leaves you alone once you are seated (ground sit, chair, or pose).",
+    "InternalName": "LazyFishSitter",
+    "AssemblyVersion": "0.1.5.7",
+    "TestingAssemblyVersion": "0.1.5.9",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.1.5.9 (2026-11-16) [testing]\n- A sit command without a leading slash is no longer sent and no longer uses up the trip's sends; this repeats the note that was missing from the previous build.\n\nv0.1.5.8 (2026-11-16) [testing]\n- A sit command without a leading slash is no longer sent and no longer uses up the trip's sends.\n\nv0.1.5.7 (2026-11-15) [testing]\n- The window can be dragged from its stat cards and empty areas again.\n- The first-use window height fits smaller screens.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.5.6 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- The settings window opens larger so the whole page, both cards and the footer fit without being cut off; windows already saved at another size keep it.\n- The Sit sends card shows the plain number of sends this trip with no false cap or bar, and turns amber with \"Retry limit reached\" only when the retry limit is actually hit.\n- The invalid-command hint and the Last check line are visible on first open, and Needs setup reads as neutral instead of amber.\n- The header, close button with an anchored tooltip, neutral status pill and red Stop button match the other plugin windows; the redundant single-tab row and the rule under the page header are gone.\n\nv0.1.5.5 (2026-11-15) [testing]\n- The plugin window now has a drawn close button in the top bar that closes the window, and the outer window no longer shows a redundant scrollbar; the inner body still scrolls when fishing details or a smaller window require it. Fishing policy, commands, configuration keys and saved settings are unchanged.\n\nv0.1.5.4 (2026-11-15) [testing]\n- The plugin window now presents fishing status, trip details and settings in a responsive card-based layout with a persistent Stop/Enable footer. The native title bar is removed in favour of the drawn top bar. Fishing policy, commands, configuration keys and saved settings are unchanged.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFishSitter",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.7/LazyFishSitter.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.7/LazyFishSitter.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyFishSitter-v0.1.5.9/LazyFishSitter-testing.zip",
+    "Tags": [
+      "fishing",
+      "lazy",
+      "sit",
+      "emote",
+      "utility"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "LazyRetainerLive",
+    "Punchline": "Real-time retainer venture countdowns for your dashboard.",
+    "Description": "Serves the logged-in character's live retainer and venture state on loopback HTTP (127.0.0.1:10504) so the ffxiv dashboard relay can show real-time venture countdowns instead of AutoRetainer's occasionally-stale file cache.",
+    "InternalName": "LazyRetainerLive",
+    "AssemblyVersion": "0.1.0.7",
+    "TestingAssemblyVersion": "0.1.0.8",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.1.0.8 (2026-11-16) [testing]\n- Fixed the local listener spinning a CPU core after the port changed; the port now applies when Enter is pressed.\n\nv0.1.0.7 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders.\n- Endpoint and continuity values sit in one aligned column and no longer break letter by letter; requirement rows keep a fixed pitch with the status word on the right in its state colour.\n- Stat cards show larger values at equal heights, with a progress track only on cards that have a real ratio, and collapse to compact cards at narrow widths.\n- The window body is a single scroll area with a soft fade at the bottom and thin scrollbars, and columns end at the same height.\n- The header has a bordered brand chip, a fixed-width neutral status pill and a close button with a small tooltip beneath it; the Stop listener button sizes to its label with a red outline and dims when the listener is already off.\n\nv0.1.0.6 (2026-11-15) [testing]\n- The settings window has a custom close button in the header, next to the state pill, that closes the window directly. The outer window scrollbar is removed; the body and the wide columns keep their own scrolling, so every card and setting stays reachable at narrow sizes while the footer and the Stop listener button remain in view.\n\nv0.1.0.5 (2026-11-15) [testing]\n- The settings window has a new card-based layout: a custom header with a live state pill, summary cards for retainers, active ventures and free inventory slots, and cards for the loopback endpoint, snapshot continuity, requirements and settings. The layout wraps responsively at narrow and wide window sizes, and the body scrolls.\n- The window no longer has a native title bar. A footer pinned to the bottom shows the current listener state and keeps the \"Stop listener\" button reachable at every size.\n- Listener state, retainer details, inventory, venture progress and endpoint information are all taken from the live snapshot and listener status. Saved settings, the listener, automatic port rebinding, commands, Lazy Hub controls and the HTTP response format are unchanged.\n\nv0.1.0.4 (2026-11-14) [testing]\n- The plugin windows have been rebuilt on the shared LalaUiKit: one consistent layout with themed section headers, unified spacing and colour accents. All settings and behaviour are unchanged, and existing configuration loads as-is.\n\nv0.1.0.3 (2026-11-10) [testing]\n- Rebuilt against the Dalamud 15.0.4.0 payload for game patch 7.58. No functional changes.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyRetainerLive",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.7/LazyRetainerLive.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.7/LazyRetainerLive.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyRetainerLive-v0.1.0.8/LazyRetainerLive-testing.zip",
+    "Tags": [
+      "retainers",
+      "ventures",
+      "dashboard",
+      "http",
+      "lazy"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyretainerlive-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "zbee, Liza Carvelli (upstream PR by dajoey)",
+    "Name": "ARC (PR test 2 - IPC venture work)",
+    "Punchline": "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface (separate instance)",
+    "Description": "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter's ArcDispatch. Installs alongside your normal production ARControl (different InternalName, no config or IPC collision at rest) for in-game verification only. Pre-seeded with a copy of your existing ARControl venture setup so no re-setup is needed. Not maintained; remove after testing is done.",
+    "InternalName": "ARControlPRTest2",
+    "AssemblyVersion": "0.0.0.0",
+    "TestingAssemblyVersion": "8.6.0",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v8.6.0 (2026-09-11)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work). Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work - LazyCrafter's ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; installed alongside production ARControl to verify the PR in-game before replying to the maintainer.",
+    "RepoUrl": "https://github.com/dajoey/ARC/tree/ipc-venture-work",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": true,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+    "Tags": [
+      "arc",
+      "autoretainer",
+      "ventures",
+      "ipc-test",
+      "temporary"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "LazyCrucible",
+    "Punchline": "Crucible of the Unbroken familiar picks, filled in for every fight",
+    "Description": "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight's mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
+    "InternalName": "LazyCrucible",
+    "AssemblyVersion": "0.1.9.24",
+    "TestingAssemblyVersion": "0.1.9.25",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.1.9.25 (2026-11-16) [testing]\n- The suggestion note now stays on screen at the screen edges.\n\nv0.1.9.24 (2026-11-15) [testing]\n- Time-critical notices (incoming cast, AutoDuty standby, conflict and low HP) stay pinned above the scrolling page in both windows.\n- Both windows can be made small again, with a compact header and footer at short sizes.\n- The Run roster card shows the plain count again, and help text on the Treasure and Display pages is back.\n- The What's new window and the Report a problem popup now use the same custom window style as the plugin windows.\n\nv0.1.9.23 (2026-11-15) [testing]\n- The window was polished for the real in-game font and scale: text no longer clips or sits against card borders, in both windows.\n- The current battle in the advisor battles list is shown in the accent colour with a \"current\" label instead of a raw marker, and \"Show in the loadout rail\" is a rounded accent-tinted row like the other lists.\n- The close button is a drawn cross in a rounded box with an accent hover state and a \"Close\" tooltip that sits beneath the button.\n- The Idle, Empty and Needs setup pills read clearly on the dark pill, the Home page no longer shows a one-item navigation band, and stat cards without a real ratio no longer draw an empty progress track.\n- Both windows keep a minimum height so the header, body and footer always fit.\n\nv0.1.9.22 (2026-11-15) [testing]\n- LazyCrucible now uses the approved custom shell with pink navigation and track toggles, responsive cards, aligned battle-plan and guide columns, and persistent footer actions.\n- Main and guide windows now open at 1280×840 on first use, without the native title bar and with a drawn close button.\n\nv0.1.9.21 (2026-11-15) [testing]\n- LazyCrucible's settings and fight guide now use card-based panels, a structured battle plan, and clearer grouped requirements.\n- Main-window guide pages follow the actual focused fight and incoming casts, with persistent footer actions and improved narrow-window wrapping.\n\nv0.1.9.20 (2026-11-15) [testing]\n- LazyCrucible's settings and fight guide use a searchable, card-based layout with live status, clearer requirements, and grouped controls.\n- Battlehorn picks, fight mechanics, and recent choices are easier to scan at large and small window sizes.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrucible",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.24/LazyCrucible.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.24/LazyCrucible.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyCrucible-v0.1.9.25/LazyCrucible-testing.zip",
+    "Tags": [
+      "beastmaster",
+      "bst",
+      "crucible",
+      "unbroken",
+      "familiar",
+      "battlehorn",
+      "automation"
+    ],
+    "CategoryTags": [
+      "jobs",
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Lazy Hub",
+    "Punchline": "One window for every lalalazy plugin.",
+    "Description": "One in-game window for the whole lalalazy suite. Turn plugins on and off, change their common settings and open their windows from one place, with Gluttony Combo's Auto-Rotation switch and drag-to-hotbar action buttons up front, plus a server info bar entry. Open it with /lazy.",
+    "InternalName": "LazyHub",
+    "AssemblyVersion": "0.1.1.1",
+    "TestingAssemblyVersion": "0.1.1.12",
+    "TestingDalamudApiLevel": 15,
+    "Changelog": "v0.1.1.12 (2026-11-28) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state; the hub window builds through the same nodes as before.\n\nv0.1.1.11 (2026-11-24) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization; the hub window builds through the same nodes as before.\n\nv0.1.1.10 (2026-11-23) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream interface rework; the hub window's scroll area builds through the same nodes as before.\n\nv0.1.1.9 (2026-11-22) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream layout-engine rework; the hub window's scroll area follows the toolkit's reworked layout path.\n\nv0.1.1.8 (2026-11-21) [testing]\n- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream api16-era release; the hub window's scroll area now recalculates its layout through the toolkit's new layout path.\n\nv0.1.1.7 (2026-11-16) [testing]\n- The Lazy Hub window now has the same dark, rounded look as the other lalalazy windows, with crisp edges instead of blurry ones.\n- Settings buttons show the full word, and the buttons and switches now match the style of the other plugin windows.\n- The window no longer shows the game's blue background between panels, has a status bar at the bottom, and rows and sections line up evenly with consistent spacing between the two columns.\n- The What's new window now uses the same custom window style as the plugin windows.",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyHub",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
+    "DownloadLinkUpdate": "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.1/LazyHub.zip",
+    "DownloadLinkTesting": "https://github.com/dajoey/lalalazy/releases/download/LazyHub-v0.1.1.12/LazyHub-testing.zip",
+    "Tags": [
+      "hub",
+      "ui",
+      "suite",
+      "launcher",
+      "lazy"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyhub-icon.png",
+    "ImageUrls": [
+      ""
+    ],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
+  }
 ]

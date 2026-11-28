@@ -649,6 +649,11 @@ public struct ActionTargetInfo(IBaseAction action)
 					}
 
 					FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera* camera = cameraManager->CurrentCamera;
+					if (camera == null)
+					{
+						return null;
+					}
+
 					FFXIVClientStructs.FFXIV.Common.Math.Vector3 tar = camera->LookAtVector - camera->Object.Position;
 					tar.Y = 0;
 					float length = ((Vector3)tar).Length();
@@ -933,10 +938,9 @@ public struct ActionTargetInfo(IBaseAction action)
 			}
 			else if (castType == CastType.Donut) // omnidirectional ring; exclude enemies inside the hollow centre
 			{
-				// Mirror the GetCanTarget Donut check: distance minus hitbox radius must be >= inner radius
+				// Mirror the GetCanTarget Donut check: a hitbox that pokes into the ring counts as inside it
 				float innerRadius = action.Action.XAxisModifier > 0 ? action.Action.XAxisModifier : 8f;
-				float d = dist - t.HitboxRadius;
-				if (d >= innerRadius)
+				if (dist + t.HitboxRadius >= innerRadius)
 					result.Add(t);
 			}
 		}
@@ -1057,7 +1061,7 @@ public struct ActionTargetInfo(IBaseAction action)
 				continue;
 			}
 
-			if (Service.Config.NoNewHostiles && t.TargetObject == null)
+			if (Service.Config.NoNewHostiles && t.TargetObject == null && !t.IsDummy())
 			{
 				return 0;
 			}
@@ -1117,9 +1121,9 @@ public struct ActionTargetInfo(IBaseAction action)
 
 				case CastType.Donut: // Donut (centered at target)
 					{
-						float d = Vector3.Distance(target.Position, subTarget.Position) - subTarget.HitboxRadius;
+						float centerDist = Vector3.Distance(target.Position, subTarget.Position);
 						float innerRadius = action.Action.XAxisModifier > 0 ? action.Action.XAxisModifier : 8f;
-						return d <= EffectRange && d >= innerRadius;
+						return centerDist - subTarget.HitboxRadius <= EffectRange && centerDist + subTarget.HitboxRadius >= innerRadius;
 					}
 
 				default:
@@ -1188,9 +1192,9 @@ public struct ActionTargetInfo(IBaseAction action)
 
 			case CastType.Donut: // Donut (centered at target)
 				{
-					float dis = Vector3.Distance(target.Position, subTarget.Position) - subTarget.HitboxRadius;
+					float centerDist = Vector3.Distance(target.Position, subTarget.Position);
 					float innerRadius = action.Action.XAxisModifier > 0 ? action.Action.XAxisModifier : 8f;
-					return dis <= EffectRange && dis >= innerRadius;
+					return centerDist - subTarget.HitboxRadius <= EffectRange && centerDist + subTarget.HitboxRadius >= innerRadius;
 				}
 
 			default:
