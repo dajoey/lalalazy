@@ -195,16 +195,56 @@ public sealed unsafe class ActionManagerEx : IDisposable
 	}
 
 	/// <summary>
-	/// Get the remaining cooldown for a specific action
+	/// Get the remaining cooldown for a specific action, accounting for charges and
+	/// additional recast groups (upstream ActionManagerEx rework: the plain remaining
+	/// time overstates the wait on multi-charge actions).
 	/// </summary>
-	private float GetRemainingCooldown(ActionType actionType, uint actionId)
+	private static float GetRemainingCooldown(ActionType actionType, uint actionId)
 	{
 		var actionManager = ActionManager.Instance();
 		if (actionManager == null) return 0;
 
-		var recastTime = actionManager->GetRecastTime(actionType, actionId);
-		var elapsedTime = actionManager->GetRecastTimeElapsed(actionType, actionId);
-		return Math.Max(0, recastTime - elapsedTime);
+		var adjustedId = actionType == ActionType.Action ? actionManager->GetAdjustedActionId(actionId) : actionId;
+		var group = actionManager->GetRecastGroup((int)actionType, actionId);
+		var primaryRemain = 0f;
+		if (group >= 0)
+		{
+			var detail = actionManager->GetRecastGroupDetail(group);
+			if (detail != null && detail->IsActive)
+			{
+				var maxCharges = actionType == ActionType.Action
+					? Math.Max(ActionManager.GetMaxCharges(adjustedId, (uint)DataCenter.PlayerSyncedLevel()), (ushort)1)
+					: (ushort)1;
+
+				if (maxCharges > 1)
+				{
+					if (actionManager->GetCurrentCharges(adjustedId) == 0 && detail->Total > 0f)
+					{
+						var oneCharge = detail->Total / maxCharges;
+						var totalRem = Math.Max(0f, detail->Total - detail->Elapsed);
+						var mod = totalRem % oneCharge;
+						primaryRemain = mod == 0f && totalRem > 0f ? oneCharge : mod;
+					}
+				}
+				else
+				{
+					primaryRemain = Math.Max(0f, detail->Total - detail->Elapsed);
+				}
+			}
+		}
+
+		var additionalGroup = actionManager->GetAdditionalRecastGroup(actionType, actionId);
+		var additionalRemain = 0f;
+		if (additionalGroup >= 0 && additionalGroup != group)
+		{
+			var additionalDetail = actionManager->GetRecastGroupDetail(additionalGroup);
+			if (additionalDetail != null && additionalDetail->IsActive)
+			{
+				additionalRemain = Math.Max(0f, additionalDetail->Total - additionalDetail->Elapsed);
+			}
+		}
+
+		return Math.Max(primaryRemain, additionalRemain);
 	}
 
 	/// <summary>

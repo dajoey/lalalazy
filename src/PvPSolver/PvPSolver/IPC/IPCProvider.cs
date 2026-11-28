@@ -8,14 +8,40 @@ namespace RotationSolver.IPC
 	/// Provides IPC methods for external plugins or tools to interact with RotationSolver.
 	/// All public methods marked with <see cref="EzIPCAttribute"/> are exposed for IPC calls.
 	/// </summary>
-	internal class IPCProvider
+	internal sealed class IPCProvider : IDisposable
 	{
+		private readonly EzIPCDisposalToken[] _disposalTokens;
+		private bool _disposed;
+
 		/// <summary>
 		/// Initializes the IPC provider and registers IPC methods with the specified prefix.
 		/// </summary>
 		internal IPCProvider()
 		{
-			_ = EzIPC.Init(this, prefix: "PvPSolver");
+			_disposalTokens = EzIPC.Init(this, prefix: "PvPSolver");
+		}
+
+		/// <summary>
+		/// Disposes the IPC provider, unregistering every IPC method this instance registered.
+		/// </summary>
+		public void Dispose()
+		{
+			if (_disposed)
+			{
+				return;
+			}
+			_disposed = true;
+			foreach (var token in _disposalTokens)
+			{
+				try
+				{
+					token?.Dispose();
+				}
+				catch (Exception ex)
+				{
+					PluginLog.Error($"Error while unregistering IPC: {ex}");
+				}
+			}
 		}
 
 		/// <summary>
@@ -35,14 +61,20 @@ namespace RotationSolver.IPC
 		[EzIPC]
 		public void AddPriorityNameID(uint nameId)
 		{
-			if (DataCenter.PrioritizedNameIds != null)
+			lock (DataCenter._nameIdLock)
 			{
-				DataCenter.PrioritizedNameIds.Add(nameId);
-				PluginLog.Debug($"IPC AddPriorityNameID was called. NameID:{nameId}");
-			}
-			else
-			{
-				PluginLog.Error("DataCenter.PrioritizedNameIds is null.");
+				if (DataCenter.PrioritizedNameIds != null)
+				{
+					if (!DataCenter.PrioritizedNameIds.Contains(nameId))
+					{
+						DataCenter.PrioritizedNameIds.Add(nameId);
+					}
+					PluginLog.Debug($"IPC AddPriorityNameID was called. NameID:{nameId}");
+				}
+				else
+				{
+					PluginLog.Error("DataCenter.PrioritizedNameIds is null.");
+				}
 			}
 		}
 
@@ -53,21 +85,23 @@ namespace RotationSolver.IPC
 		[EzIPC]
 		public void RemovePriorityNameID(uint nameId)
 		{
-			if (DataCenter.PrioritizedNameIds != null)
+			lock (DataCenter._nameIdLock)
 			{
-				if (DataCenter.PrioritizedNameIds.Contains(nameId))
+				if (DataCenter.PrioritizedNameIds != null)
 				{
-					_ = DataCenter.PrioritizedNameIds.Remove(nameId);
-					PluginLog.Debug($"IPC RemovePriorityNameID was called. NameID:{nameId}");
+					if (DataCenter.PrioritizedNameIds.RemoveAll(id => id == nameId) > 0)
+					{
+						PluginLog.Debug($"IPC RemovePriorityNameID was called. NameID:{nameId}");
+					}
+					else
+					{
+						PluginLog.Warning($"IPC RemovePriorityNameID was called but NameID:{nameId} was not found.");
+					}
 				}
 				else
 				{
-					PluginLog.Warning($"IPC RemovePriorityNameID was called but NameID:{nameId} was not found.");
+					PluginLog.Error("DataCenter.PrioritizedNameIds is null.");
 				}
-			}
-			else
-			{
-				PluginLog.Error("DataCenter.PrioritizedNameIds is null.");
 			}
 		}
 
@@ -78,14 +112,20 @@ namespace RotationSolver.IPC
 		[EzIPC]
 		public void AddBlacklistNameID(uint nameId)
 		{
-			if (DataCenter.BlacklistedNameIds != null)
+			lock (DataCenter._nameIdLock)
 			{
-				DataCenter.BlacklistedNameIds.Add(nameId);
-				PluginLog.Debug($"IPC AddBlacklistNameID was called. NameID:{nameId}");
-			}
-			else
-			{
-				PluginLog.Error("DataCenter.BlacklistedNameIds is null.");
+				if (DataCenter.BlacklistedNameIds != null)
+				{
+					if (!DataCenter.BlacklistedNameIds.Contains(nameId))
+					{
+						DataCenter.BlacklistedNameIds.Add(nameId);
+					}
+					PluginLog.Debug($"IPC AddBlacklistNameID was called. NameID:{nameId}");
+				}
+				else
+				{
+					PluginLog.Error("DataCenter.BlacklistedNameIds is null.");
+				}
 			}
 		}
 
@@ -96,21 +136,23 @@ namespace RotationSolver.IPC
 		[EzIPC]
 		public void RemoveBlacklistNameID(uint nameId)
 		{
-			if (DataCenter.BlacklistedNameIds != null)
+			lock (DataCenter._nameIdLock)
 			{
-				if (DataCenter.BlacklistedNameIds.Contains(nameId))
+				if (DataCenter.BlacklistedNameIds != null)
 				{
-					_ = DataCenter.BlacklistedNameIds.Remove(nameId);
-					PluginLog.Debug($"IPC RemoveBlacklistNameID was called. NameID:{nameId}");
+					if (DataCenter.BlacklistedNameIds.RemoveAll(id => id == nameId) > 0)
+					{
+						PluginLog.Debug($"IPC RemoveBlacklistNameID was called. NameID:{nameId}");
+					}
+					else
+					{
+						PluginLog.Warning($"IPC RemoveBlacklistNameID was called but NameID:{nameId} was not found.");
+					}
 				}
 				else
 				{
-					PluginLog.Warning($"IPC RemoveBlacklistNameID was called but NameID:{nameId} was not found.");
+					PluginLog.Error("DataCenter.BlacklistedNameIds is null.");
 				}
-			}
-			else
-			{
-				PluginLog.Error("DataCenter.BlacklistedNameIds is null.");
 			}
 		}
 

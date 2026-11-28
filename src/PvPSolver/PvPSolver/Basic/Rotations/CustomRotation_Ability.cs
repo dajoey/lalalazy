@@ -197,7 +197,7 @@ public partial class CustomRotation
 			IBaseAction.ShouldEndSpecial = true;
 		}
 		IBaseAction.AllEmpty = true;
-		if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveForward) && Player != null && !StatusHelper.PlayerHasStatus(true, StatusID.Bind))
+		if (DataCenter.MergedStatus.HasFlag(AutoStatus.MoveForward) && Player != null && !StatusHelper.PlayerHasStatus(false, StatusID.Bind))
 		{
 			if (MoveForwardAbility(nextGCD, out act))
 			{

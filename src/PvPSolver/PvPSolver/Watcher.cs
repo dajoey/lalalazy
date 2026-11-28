@@ -74,6 +74,10 @@ public static class Watcher
 						{
 							DataCenter.KnockbackFinished = DateTime.Now + TimeSpan.FromSeconds(knock.Distance / (float)knock.Speed);
 						}
+						else
+						{
+							DataCenter.KnockbackFinished = DataCenter.KnockbackStart;
+						}
 
 						if (set.Action.HasValue && Service.Config.RecordKnockbackies)
 						{
@@ -234,42 +238,45 @@ public static class Watcher
 
 			if (attackedTargetsCount > 0)
 			{
-				foreach (TargetEffect effect in set.TargetEffects)
+				lock (DataCenter._attackedTargetsLock)
 				{
-					if (!effect.GetSpecificTypeEffect(ActionEffectType.Damage, out _))
+					foreach (TargetEffect effect in set.TargetEffects)
 					{
-						continue;
-					}
-
-					// Check if the target is already in the attacked targets list
-					bool targetExists = false;
-					foreach ((ulong id, DateTime time) in attackedTargets)
-					{
-						if (id == effect.TargetID)
+						if (!effect.GetSpecificTypeEffect(ActionEffectType.Damage, out _))
 						{
-							targetExists = true;
-							break;
+							continue;
 						}
-					}
-					if (targetExists)
-					{
-						continue;
-					}
 
-					// Ensure the current target is not dequeued
-					while (attackedTargets.Count >= attackedTargetsCount && attackedTargets.Count > 0)
-					{
-						(ulong id, DateTime time) = attackedTargets.Peek();
-						if (id == effect.TargetID)
+						// Check if the target is already in the attacked targets list
+						bool targetExists = false;
+						foreach ((ulong id, DateTime time) in attackedTargets)
 						{
-							// If the oldest target is the current target, break the loop to avoid dequeuing it
-							break;
+							if (id == effect.TargetID)
+							{
+								targetExists = true;
+								break;
+							}
 						}
-						_ = attackedTargets.Dequeue();
-					}
+						if (targetExists)
+						{
+							continue;
+						}
 
-					// Enqueue the new target
-					attackedTargets.Enqueue((effect.TargetID, DateTime.Now));
+						// Ensure the current target is not dequeued
+						while (attackedTargets.Count >= attackedTargetsCount && attackedTargets.Count > 0)
+						{
+							(ulong id, DateTime time) = attackedTargets.Peek();
+							if (id == effect.TargetID)
+							{
+								// If the oldest target is the current target, break the loop to avoid dequeuing it
+								break;
+							}
+							_ = attackedTargets.Dequeue();
+						}
+
+						// Enqueue the new target
+						attackedTargets.Enqueue((effect.TargetID, DateTime.Now));
+					}
 				}
 			}
 

@@ -157,6 +157,7 @@ public partial class CustomRotation
 
 			if (Buffs.Count == 0) return false;
 
+			var hasBuffEntries = false;
 			bool playerHasBuffs = true;
 			if (Player == null)
 			{
@@ -169,6 +170,7 @@ public partial class CustomRotation
 					var buff = Buffs[i];
 					if (buff.Type != StatusType.Buff) continue;
 
+					hasBuffEntries = true;
 					if (!StatusHelper.PlayerHasStatus(false, buff.Ids) || StatusHelper.PlayerWillStatusEnd(0, false, buff.Ids))
 					{
 						playerHasBuffs = false;
@@ -177,6 +179,7 @@ public partial class CustomRotation
 				}
 			}
 
+			var hasDebuffEntries = false;
 			bool targetHasDebuffs = HostileTarget != null;
 			if (targetHasDebuffs)
 			{
@@ -186,6 +189,7 @@ public partial class CustomRotation
 					var buff = Buffs[i];
 					if (buff.Type != StatusType.Debuff) continue;
 
+					hasDebuffEntries = true;
 					if (!target.HasStatus(false, buff.Ids) || target.WillStatusEnd(0, false, buff.Ids))
 					{
 						targetHasDebuffs = false;
@@ -194,7 +198,7 @@ public partial class CustomRotation
 				}
 			}
 
-			return playerHasBuffs || targetHasDebuffs;
+			return (hasBuffEntries && playerHasBuffs) || (hasDebuffEntries && targetHasDebuffs);
 		}
 	}
 
@@ -431,8 +435,8 @@ public partial class CustomRotation
 		get
 		{
 			if (Player == null) return null;
-			IBattleChara lowest = Player;
-			var lowestHp = Player?.GetHealthRatio();
+			IBattleChara? lowest = Player.IsDead ? null : Player;
+			var lowestHp = Player.IsDead ? float.MaxValue : Player.GetHealthRatio();
 
 			foreach (var member in PartyMembers)
 			{
