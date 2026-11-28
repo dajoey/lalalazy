@@ -64,7 +64,14 @@ internal static class DataCenter
 		return PlayerMaxLevel;
 	}
 
-	public unsafe static int PlayerCurrentLevel => PlayerState.Instance()->CurrentLevel;
+	public unsafe static int PlayerCurrentLevel
+	{
+		get
+		{
+			var playerState = PlayerState.Instance();
+			return playerState == null ? 0 : playerState->CurrentLevel;
+		}
+	}
 
 	public static int PlayerMaxLevel => Player.MaxLevel;
 
@@ -122,6 +129,23 @@ internal static class DataCenter
 
 	internal static List<uint> PrioritizedNameIds { get; set; } = [];
 	internal static List<uint> BlacklistedNameIds { get; set; } = [];
+	internal static readonly Lock _nameIdLock = new();
+
+	internal static void CopyBlacklistedNameIds(HashSet<uint> destination)
+	{
+		lock (_nameIdLock)
+		{
+			if (BlacklistedNameIds == null)
+			{
+				return;
+			}
+
+			for (var i = 0; i < BlacklistedNameIds.Count; i++)
+			{
+				_ = destination.Add(BlacklistedNameIds[i]);
+			}
+		}
+	}
 
 	/// <summary>
 	/// List of hostile NameIds that should be excluded as valid targets when an action opts-in via IsRestrictedDOT.
@@ -171,6 +195,18 @@ internal static class DataCenter
 
 	internal static int AttackedTargetsCount { get; set; } = 48;
 	internal static Queue<(ulong id, DateTime time)> AttackedTargets { get; } = new(AttackedTargetsCount);
+	internal static readonly Lock _attackedTargetsLock = new();
+
+	internal static bool HasAttackedTargets
+	{
+		get
+		{
+			lock (_attackedTargetsLock)
+			{
+				return AttackedTargets.Count > 0;
+			}
+		}
+	}
 
 	internal static Queue<MacroItem> Macros { get; } = new Queue<MacroItem>();
 
@@ -184,51 +220,58 @@ internal static class DataCenter
 	public static AutoStatus CommandStatus { get; set; } = AutoStatus.None;
 
 	private static readonly List<NextAct> NextActs = [];
+	private static readonly Lock _nextActsLock = new();
 
 	public static IAction? CommandNextAction
 	{
 		get
 		{
-			NextAct? next = null;
-			if (NextActs.Count > 0)
+			lock (_nextActsLock)
 			{
-				next = NextActs[0];
-			}
+				NextAct? next = null;
+				if (NextActs.Count > 0)
+				{
+					next = NextActs[0];
+				}
 
-			while (next != null && NextActs.Count > 0 &&
-				   (next.DeadTime < DateTime.Now || IActionHelper.IsLastAction(false, next.Act)))
-			{
-				NextActs.RemoveAt(0);
-				next = NextActs.Count > 0 ? NextActs[0] : null;
-			}
+				while (next != null && NextActs.Count > 0 &&
+					   (next.DeadTime < DateTime.Now || IActionHelper.IsLastAction(false, next.Act)))
+				{
+					NextActs.RemoveAt(0);
+					next = NextActs.Count > 0 ? NextActs[0] : null;
+				}
 
-			return next?.Act;
+				return next?.Act;
+			}
 		}
 	}
 
 	internal static void AddCommandAction(IAction act, double time)
 	{
-		int index = -1;
-		for (int i = 0; i < NextActs.Count; i++)
+		lock (_nextActsLock)
 		{
-			if (NextActs[i].Act.ID == act.ID)
+			int index = -1;
+			for (int i = 0; i < NextActs.Count; i++)
 			{
-				index = i;
-				break;
+				if (NextActs[i].Act.ID == act.ID)
+				{
+					index = i;
+					break;
+				}
 			}
-		}
 
-		NextAct newItem = new(act, DateTime.Now.AddSeconds(time));
-		if (index < 0)
-		{
-			NextActs.Add(newItem);
-		}
-		else
-		{
-			NextActs[index] = newItem;
-		}
+			NextAct newItem = new(act, DateTime.Now.AddSeconds(time));
+			if (index < 0)
+			{
+				NextActs.Add(newItem);
+			}
+			else
+			{
+				NextActs[index] = newItem;
+			}
 
-		NextActs.Sort((a, b) => a.DeadTime.CompareTo(b.DeadTime));
+			NextActs.Sort((a, b) => a.DeadTime.CompareTo(b.DeadTime));
+		}
 	}
 	public static TargetHostileType CurrentTargetToHostileType => Service.Config.HostileType;
 
@@ -252,9 +295,23 @@ internal static class DataCenter
 		}
 	}
 
-	public static unsafe ActionID LastComboAction => (ActionID)ActionManager.Instance()->Combo.Action;
+	public static unsafe ActionID LastComboAction
+	{
+		get
+		{
+			var manager = ActionManager.Instance();
+			return manager == null ? ActionID.None : (ActionID)manager->Combo.Action;
+		}
+	}
 
-	public static unsafe float ComboTime => ActionManager.Instance()->Combo.Timer;
+	public static unsafe float ComboTime
+	{
+		get
+		{
+			var manager = ActionManager.Instance();
+			return manager == null ? 0f : manager->Combo.Timer;
+		}
+	}
 
 	public static bool IsMoving => Player.IsMoving;
 
@@ -400,10 +457,8 @@ internal static class DataCenter
 	/// </summary>
 	public static unsafe bool SylphManagementFinished()
 	{
-		if (UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(66049))
-			return true;
-
-		return false;
+		var uiState = UIState.Instance();
+		return uiState != null && uiState->IsUnlockLinkUnlockedOrQuestCompleted(66049);
 	}
 
 	/// <summary>
@@ -609,7 +664,7 @@ internal static class DataCenter
 		int hpCount = 0;
 		foreach (var member in PartyMembers)
 		{
-			if (member.GameObjectId != 0 && hpCount < _hpBuffer.Length)
+			if (member != null && member.GameObjectId != 0 && hpCount < _hpBuffer.Length)
 			{
 				try
 				{
@@ -730,13 +785,22 @@ internal static class DataCenter
 
 	public static bool HPNotFull => PartyMembersMinHP < 1;
 
-	public static uint CurrentMp => Player.Object != null ? Math.Min(10000, Player.Object.CurrentMp + MPGain) : MPGain;
+	public static uint CurrentMp
+	{
+		get
+		{
+			var mpGain = InEffectTime ? MPGain : 0u;
+			return Player.Object != null ? Math.Min(10000, Player.Object.CurrentMp + mpGain) : mpGain;
+		}
+	}
 	#endregion
 
 	#region Action Record
 	private const int QUEUECAPACITY = 48;
 	private static readonly Queue<ActionRec> _actions = new(QUEUECAPACITY);
 	private static readonly Queue<DamageRec> _damages = new(QUEUECAPACITY);
+	private static readonly Lock _actionsLock = new();
+	private static readonly Lock _damagesLock = new();
 
 	public static float DPSTaken
 	{
@@ -745,11 +809,14 @@ internal static class DataCenter
 			try
 			{
 				List<DamageRec> recs = [];
-				foreach (DamageRec rec in _damages)
+				lock (_damagesLock)
 				{
-					if (DateTime.Now - rec.ReceiveTime < TimeSpan.FromMilliseconds(5))
+					foreach (DamageRec rec in _damages)
 					{
-						recs.Add(rec);
+						if (DateTime.Now - rec.ReceiveTime < TimeSpan.FromMilliseconds(5))
+						{
+							recs.Add(rec);
+						}
 					}
 				}
 
@@ -780,13 +847,16 @@ internal static class DataCenter
 	{
 		get
 		{
-			ActionRec[] arr = new ActionRec[_actions.Count];
-			int i = _actions.Count - 1;
-			foreach (ActionRec rec in _actions)
+			lock (_actionsLock)
 			{
-				arr[i--] = rec;
+				ActionRec[] arr = new ActionRec[_actions.Count];
+				int i = _actions.Count - 1;
+				foreach (ActionRec rec in _actions)
+				{
+					arr[i--] = rec;
+				}
+				return arr;
 			}
-			return arr;
 		}
 	}
 	private static DateTime _timeLastActionUsed = DateTime.Now;
@@ -816,13 +886,16 @@ internal static class DataCenter
 				return;
 		}
 
-		if (_actions.Count >= QUEUECAPACITY)
+		lock (_actionsLock)
 		{
-			_ = _actions.Dequeue();
-		}
+			if (_actions.Count >= QUEUECAPACITY)
+			{
+				_ = _actions.Dequeue();
+			}
 
-		_timeLastActionUsed = DateTime.Now;
-		_actions.Enqueue(new ActionRec(_timeLastActionUsed, act));
+			_timeLastActionUsed = DateTime.Now;
+			_actions.Enqueue(new ActionRec(_timeLastActionUsed, act));
+		}
 	}
 
 
@@ -845,10 +918,28 @@ internal static class DataCenter
 		LastAbility = 0;
 		_avgTTK = 0;
 		_timeLastActionUsed = DateTime.Now;
-		_actions.Clear();
 		_actionRejectedTicks.Clear();
 
-		AttackedTargets.Clear();
+		_lastHp.Clear();
+		HealHP.Clear();
+		ApplyStatus.Clear();
+		MPGain = 0;
+		_effectEndTick = long.MinValue;
+
+		lock (_actionsLock)
+		{
+			_actions.Clear();
+		}
+		lock (_damagesLock)
+		{
+			_damages.Clear();
+		}
+
+		lock (_attackedTargetsLock)
+		{
+			AttackedTargets.Clear();
+		}
+
 		while (VfxDataQueue.TryDequeue(out _)) { }
 		AllHostileTargets.Clear();
 		AllianceMembers.Clear();
@@ -859,12 +950,15 @@ internal static class DataCenter
 
 	internal static void AddDamageRec(float damageRatio)
 	{
-		if (_damages.Count >= QUEUECAPACITY)
+		lock (_damagesLock)
 		{
-			_ = _damages.Dequeue();
-		}
+			if (_damages.Count >= QUEUECAPACITY)
+			{
+				_ = _damages.Dequeue();
+			}
 
-		_damages.Enqueue(new DamageRec(DateTime.Now, damageRatio));
+			_damages.Enqueue(new DamageRec(DateTime.Now, damageRatio));
+		}
 	}
 
 	internal static DateTime KnockbackFinished { get; set; } = DateTime.MinValue;
@@ -1320,7 +1414,7 @@ internal static class DataCenter
 			{
 				if (id == act.RowId) return true;
 			}
-			return h.CastTargetObjectId == h.TargetObjectId;
+			return h.CastTargetObjectId is not 0 and not 0xE0000000 && h.CastTargetObjectId == h.TargetObjectId;
 		});
 	}
 

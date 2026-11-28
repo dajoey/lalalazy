@@ -58,12 +58,13 @@ namespace RotationSolver.Commands
 				}
 				UpdateState(stateType, role);
 
-				if (!DataCenter.AutoFaceTargetOnActionSetting() && DataCenter.MoveModeSetting() == 1)
+				if (DataCenter.State && !DataCenter.AutoFaceTargetOnActionSetting() && DataCenter.MoveModeSetting() == 1)
 				{
 					Svc.GameConfig.UiControl.Set(UiControlOption.AutoFaceTargetOnAction.ToString(), 1);
 				}
 				return stateType;
-			});
+			}
+			, stateType == StateCommandType.Off);
 		}
 
 		private static StateCommandType AdjustStateType(StateCommandType stateType, ref int index)
@@ -139,6 +140,11 @@ namespace RotationSolver.Commands
 		public static void UpdateState(StateCommandType stateType, JobRole role)
 		{
 			PluginLog.Information($"UpdateState: {stateType} (state was {(DataCenter.State ? "on" : "off")})");
+
+			if (stateType != StateCommandType.Off && DataCenter.IsInDutyReplay())
+			{
+				stateType = StateCommandType.Off;
+			}
 
 			if (stateType == StateCommandType.PvP && !DataCenter.IsPvP)
 			{
@@ -216,18 +222,24 @@ namespace RotationSolver.Commands
 				}
 
 				return specialType;
-			});
+			}
+			, specialType == SpecialCommandType.EndSpecial);
 		}
 
-		private static void DoOneCommandType<T>(Func<T, JobRole, string> sayout, Func<JobRole, T> doingSomething)
+		private static void DoOneCommandType<T>(Func<T, JobRole, string> sayout, Func<JobRole, T> doingSomething, bool allowWithoutPlayer = false)
 			where T : struct, Enum
 		{
 			JobRole role = Player.Object?.ClassJob.Value.GetJobRole() ?? JobRole.None;
 
 			if (role == JobRole.None)
 			{
-				PluginLog.Information("DoOneCommandType: no player or job role, command ignored");
-				return;
+				if (!allowWithoutPlayer)
+				{
+					PluginLog.Information("DoOneCommandType: no player or job role, command ignored");
+					return;
+				}
+
+				role = DataCenter.Role;
 			}
 
 			_ = doingSomething(role);

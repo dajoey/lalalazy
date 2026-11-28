@@ -47,6 +47,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	public static DalamudLinkPayload OpenLinkPayload { get; private set; } = null!;
 	public static DalamudLinkPayload? HideWarningLinkPayload { get; private set; }
 	private static readonly Random _random = new();
+	private static volatile bool _disposed;
 
 	internal IPCProvider IPCProvider;
 	private readonly LalaHubProvider? _hub;
@@ -58,6 +59,11 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		PluginLog.Information("PvPSolverPlugin constructor START");
 		_ = Svc.Framework.RunOnTick(() =>
 		{
+			if (_disposed)
+			{
+				return;
+			}
+
 			_ = ThreadLoadImageHandler.TryGetIconTextureWrap(0, true, out _);
 		});
 		IconSet.Init();
@@ -165,6 +171,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		static void ClientState_TerritoryChanged(uint id)
 		{
 			DataCenter.ResetAllRecords();
+			MacroUpdater.Clear();
 
 			if (id == 0)
 			{
@@ -172,7 +179,11 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 				return;
 			}
 
-			TerritoryType territory = Service.GetSheet<TerritoryType>().GetRow((ushort)id);
+			if (!Service.GetSheet<TerritoryType>().TryGetRow(id, out var territory))
+			{
+				PluginLog.Warning($"Unknown territory id: {id}");
+				return;
+			}
 
 			DataCenter.Territory = new TerritoryInfo(territory);
 
@@ -370,6 +381,12 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 
 	public async Task Dispose()
 	{
+		if (_disposed)
+		{
+			return;
+		}
+		_disposed = true;
+
 		_hub?.Dispose();   // first: a provider must never outlive its plugin
 		Service.Config.Save();
 		await OtherConfiguration.Save();
@@ -387,6 +404,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		}
 		_dis.Clear();
 
+		IPCProvider?.Dispose();
 		MajorUpdater.Dispose();
 		MiscUpdater.Dispose();
 		HotbarHighlightManager.Dispose();

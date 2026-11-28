@@ -83,8 +83,14 @@ public partial class CustomRotation
 
 			if (DataCenter.CommandStatus.HasFlag(AutoStatus.HealAreaSpell))
 			{
-				IBaseAction.AutoHealCheck = true;
-				IBaseAction.AutoHealCheck = false;
+				IBaseAction.AllEmpty = true;
+				IBaseAction.ShouldEndSpecial = true;
+				if (HealAreaGCD(out var healAreaAction))
+				{
+					return healAreaAction;
+				}
+				IBaseAction.AllEmpty = false;
+				IBaseAction.ShouldEndSpecial = false;
 			}
 			if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealAreaSpell))
 			{
@@ -94,8 +100,14 @@ public partial class CustomRotation
 
 			if (DataCenter.CommandStatus.HasFlag(AutoStatus.HealSingleSpell))
 			{
-				IBaseAction.AutoHealCheck = true;
-				IBaseAction.AutoHealCheck = false;
+				IBaseAction.AllEmpty = true;
+				IBaseAction.ShouldEndSpecial = true;
+				if (HealSingleGCD(out var healSingleAction))
+				{
+					return healSingleAction;
+				}
+				IBaseAction.AllEmpty = false;
+				IBaseAction.ShouldEndSpecial = false;
 			}
 			if (DataCenter.AutoStatus.HasFlag(AutoStatus.HealSingleSpell))
 			{
@@ -200,6 +212,8 @@ public partial class CustomRotation
 			// Ensure these are reset
 			IBaseAction.ShouldEndSpecial = false;
 			IBaseAction.TargetOverride = null;
+			IBaseAction.AutoHealCheck = false;
+			IBaseAction.AllEmpty = false;
 		}
 
 		return null;

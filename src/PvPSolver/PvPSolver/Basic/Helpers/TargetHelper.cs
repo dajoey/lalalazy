@@ -12,6 +12,7 @@ namespace RotationSolver.Basic.Helpers
 	public static class TargetHelper
 	{
 		private static readonly HashSet<long> s_emptyStopTargets = [];
+		private static readonly HashSet<uint> _blacklistedCache = [];
 
 		/// <summary>
 		/// Retrieves a collection of valid battle characters that can be targeted based on the specified criteria.
@@ -44,7 +45,9 @@ namespace RotationSolver.Basic.Helpers
 					: (DataCenter.AllTargets?.Count ?? 0);
 			List<IBattleChara> targets = capacity > 0 ? new List<IBattleChara>(capacity) : [];
 
-			var blacklisted = new HashSet<uint>(DataCenter.BlacklistedNameIds);
+			_blacklistedCache.Clear();
+		DataCenter.CopyBlacklistedNameIds(_blacklistedCache);
+		var blacklisted = _blacklistedCache;
 			HashSet<long> stopTargets = Service.Config.FilterStopMark
 				? [.. MarkingHelper.GetStopTargets()]
 				: s_emptyStopTargets;

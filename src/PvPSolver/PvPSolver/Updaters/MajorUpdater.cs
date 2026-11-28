@@ -21,6 +21,7 @@ internal static class MajorUpdater
 	private static bool _isValidThisCycle;
 	private static bool _isActivatedThisCycle;
 	private static bool _rotationsLoaded;
+	private static bool _wasActivated;
 
 	// Cached GeneralAction sheet lookup (RowId -> GeneralAction RowId) for teaching mode highlighting
 	private static Dictionary<uint, uint>? _generalActionLookup;
@@ -127,6 +128,15 @@ internal static class MajorUpdater
 
 		if (!_isValidThisCycle)
 		{
+			if (_wasActivated)
+			{
+				_wasActivated = false;
+			}
+
+			// Never leave the player movement-locked when the game goes invalid
+			// (upstream InvalidUpdate's CanMove reset).
+			Service.CanMove = true;
+
 			try
 			{
 				RSCommands.UpdateRotationState();
@@ -160,12 +170,19 @@ internal static class MajorUpdater
 				TargetUpdater.UpdateTargets();
 			}
 			if (!_isActivatedThisCycle)
+			{
+				if (_wasActivated)
+				{
+					_wasActivated = false;
+					ActionUpdater.ClearNextAction();
+					Service.CanMove = true;
+				}
 				return;
+			}
+
+			_wasActivated = true;
 
 			// Target updater always needs to be first to update
-			MacroUpdater.UpdateMacro();
-
-
 			StateUpdater.UpdateState();
 
 			ActionUpdater.UpdateNextAction();
@@ -251,6 +268,10 @@ internal static class MajorUpdater
 
 		try
 		{
+			// Macros run regardless of activation state (upstream moved this out of
+			// the activated path so queued macros are not left unprocessed).
+			MacroUpdater.UpdateMacro();
+
 			// Update various combat tracking parameters,
 			ActionUpdater.UpdateCombatInfo();
 
@@ -485,6 +506,12 @@ internal static class MajorUpdater
 		Svc.Framework.Update -= RSRRotationAndStateUpdate;
 		Svc.Framework.Update -= RSRMiscAndTargetFreelyUpdate;
 		Svc.Framework.Update -= RSRResetUpdate;
+
+		// Upstream dispose hardening: never leave the player movement-locked or a
+		// macro mid-flight when the plugin unloads.
+		Service.CanMove = true;
+		MacroUpdater.Clear();
+		_wasActivated = false;
 
 		MiscUpdater.Dispose();
 		ActionUpdater.ClearNextAction();
