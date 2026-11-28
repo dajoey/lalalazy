@@ -1,3 +1,7 @@
+## v3.2.3.14 (2026-11-28) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state.
+- No setting or window behavior changes; the probability overlay builds through the same nodes as before.
+
 ## v3.2.3.13 (2026-11-24) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization, which regroups the toolkit's types into Core, UI and Services namespaces.
 - No setting or window behavior changes; the probability overlay builds through the same nodes as before.

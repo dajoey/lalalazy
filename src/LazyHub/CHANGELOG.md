@@ -1,4 +1,7 @@
-﻿## v0.1.1.11 (2026-11-24) [testing]
+﻿## v0.1.1.12 (2026-11-28) [testing]
+- Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream fixes for loading ULD window parts, focus handling and collapsing-header state; the hub window builds through the same nodes as before.
+
+## v0.1.1.11 (2026-11-24) [testing]
 - Refreshed the bundled native-window toolkit (KamiToolKit) to the upstream code reorganization; the hub window builds through the same nodes as before.
 
 ## v0.1.1.10 (2026-11-23) [testing]
